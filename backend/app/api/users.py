@@ -86,6 +86,26 @@ async def list_kis_accounts(
     ]
 
 
+class KisAccountUpdate(BaseModel):
+    label: str
+
+
+@router.patch("/kis-accounts/{account_id}")
+async def update_kis_account(
+    account_id: int,
+    body: KisAccountUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Update KIS account label."""
+    acct = await db.get(KisAccount, account_id)
+    if not acct or acct.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found")
+    acct.label = body.label
+    await db.commit()
+    return {"id": acct.id, "label": acct.label, "account_no": acct.account_no, "acnt_prdt_cd": acct.acnt_prdt_cd}
+
+
 @router.delete("/kis-accounts/{account_id}", status_code=204)
 async def delete_kis_account(
     account_id: int,

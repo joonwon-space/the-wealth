@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, Plus, RefreshCw, CheckCircle, Trash2, XCircle } from "lucide-react";
+import { Eye, Pencil, Plus, RefreshCw, CheckCircle, Trash2, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,8 @@ export default function SettingsPage() {
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const [kisAccounts, setKisAccounts] = useState<{ id: number; label: string; account_no: string; acnt_prdt_cd: string }[]>([]);
+  const [editingAcctId, setEditingAcctId] = useState<number | null>(null);
+  const [editLabel, setEditLabel] = useState("");
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAcct, setNewAcct] = useState({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
   const [addingAcct, setAddingAcct] = useState(false);
@@ -135,6 +137,13 @@ export default function SettingsPage() {
     } finally {
       setAddingAcct(false);
     }
+  };
+
+  const handleSaveLabel = async (id: number) => {
+    if (!editLabel.trim()) return;
+    await api.patch(`/users/kis-accounts/${id}`, { label: editLabel });
+    setKisAccounts((prev) => prev.map((a) => a.id === id ? { ...a, label: editLabel } : a));
+    setEditingAcctId(null);
   };
 
   const handleDeleteAccount = async (id: number) => {
@@ -291,10 +300,21 @@ export default function SettingsPage() {
             <div className="space-y-2">
               {kisAccounts.map((a) => (
                 <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-                  <div>
-                    <span className="font-medium">{a.label}</span>
-                    <span className="ml-2 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
-                  </div>
+                  {editingAcctId === a.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-7 w-32" autoFocus />
+                      <Button size="sm" onClick={() => handleSaveLabel(a.id)} className="h-7 px-2 text-xs">저장</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingAcctId(null)} className="h-7 px-2 text-xs">취소</Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">{a.label}</span>
+                      <button onClick={() => { setEditingAcctId(a.id); setEditLabel(a.label); }} className="text-muted-foreground/50 hover:text-muted-foreground">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <span className="ml-1 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
+                    </div>
+                  )}
                   <button onClick={() => handleDeleteAccount(a.id)} className="text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
