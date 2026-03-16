@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Plus } from "lucide-react";
+import { AlertTriangle, BarChart3, Plus, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { AllocationDonut } from "@/components/AllocationDonut";
 import { HoldingsTable } from "@/components/HoldingsTable";
@@ -42,14 +42,17 @@ interface Summary {
 export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchSummary = async () => {
     try {
       const { data } = await api.get<Summary>("/dashboard/summary");
       setSummary(data);
-    } catch {
-      setSummary(null);
+      setError(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "서버에 연결할 수 없습니다";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -65,6 +68,26 @@ export default function DashboardPage() {
     return (
       <div className="flex h-full items-center justify-center">
         <span className="text-muted-foreground text-sm">불러오는 중...</span>
+      </div>
+    );
+  }
+
+  if (error && !summary) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-2xl font-bold">대시보드</h1>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-16 text-center">
+          <AlertTriangle className="mb-3 h-10 w-10 text-destructive/60" />
+          <p className="text-lg font-semibold">데이터를 불러올 수 없습니다</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <button
+            onClick={() => { setLoading(true); setError(null); fetchSummary(); }}
+            className="mt-5 flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <RefreshCw className="h-4 w-4" />
+            다시 시도
+          </button>
+        </div>
       </div>
     );
   }

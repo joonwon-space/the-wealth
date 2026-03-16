@@ -14,7 +14,7 @@
 - [x] ecdsa 0.19.1 — 최신 버전이며 패치 없음, 사용처(python-jose) 확인 완료
 
 ## 버그 & 안정성
-- [ ] KIS API 실패 시 대시보드 에러 표시 — 현재 빈 화면, 에러 메시지/폴백 UI 필요
+- [x] KIS API 실패 시 대시보드 에러 표시 — 에러 메시지 + 다시 시도 버튼 추가
 - [ ] scheduler.py _sync_all_accounts 실제 구현 — DB에서 KIS 자격증명 있는 사용자 조회 후 동기화 실행
 - [ ] ruff 린터 venv에 설치 및 기존 코드 lint 수정
 
