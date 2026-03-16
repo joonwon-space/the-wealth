@@ -1,10 +1,10 @@
 ---
-description: docs/plan/todo.md의 모든 미완료 항목을 순서대로 자동으로 구현하고 커밋한다. 전체 완료 또는 오류 발생 시 중단.
+description: docs/plan/tasks.md의 모든 미완료 항목을 순서대로 자동으로 구현하고 커밋한다. 전체 완료 또는 오류 발생 시 중단.
 ---
 
 # Auto Task
 
-`docs/plan/todo.md`의 미완료 항목을 처음부터 끝까지 자동으로 순서대로 처리한다.
+`docs/plan/tasks.md`의 미완료 항목을 처음부터 끝까지 자동으로 순서대로 처리한다.
 
 ## 실행 루프
 
@@ -12,7 +12,7 @@ description: docs/plan/todo.md의 모든 미완료 항목을 순서대로 자동
 
 ### 매 반복마다:
 
-1. **`docs/plan/todo.md` 읽기**
+1. **`docs/plan/tasks.md` 읽기**
    - 남은 `[ ]` 항목 개수를 센다
    - 없으면 → 루프 종료, 완료 메시지 출력
 
@@ -21,14 +21,14 @@ description: docs/plan/todo.md의 모든 미완료 항목을 순서대로 자동
    - 프로젝트 규칙 준수 (타입, 불변성, 파일 크기 등)
    - 해당 작업 외 다른 항목 건드리지 않음
 
-3. **todo.md 업데이트**
+3. **tasks.md 업데이트**
    - 완료 항목 `[ ]` → `[x]`
 
 4. **관련 문서 업데이트**
    작업 내용에 따라 아래 문서를 확인하고 변경이 필요하면 업데이트한다:
    - `docs/analysis/project-overview.md` — API, DB 모델, 페이지, 서비스, 기술 스택, 디렉토리 구조 변경 시
    - `docs/analysis/project-analysis.md` — 강점/약점, 리스크, 완성도 상태 변경 시
-   - `docs/plan/tasks.md` — 완료한 작업 `[x]` 체크, 새 작업 발견 시 추가
+   - `docs/plan/todo.md` — 구현 중 발견된 미래 작업이 있으면 추가
    - `docs/plan/manual-tasks.md` — 사용자가 직접 수행해야 할 작업 발생 시 추가, 완료된 항목 제거
    - 변경 없으면 건드리지 않는다 (불필요한 diff 방지)
 
@@ -58,7 +58,7 @@ description: docs/plan/todo.md의 모든 미완료 항목을 순서대로 자동
 ## 완료 시 출력 형식
 
 ```
-🎉 모든 작업 완료!
+모든 작업 완료!
 
 완료된 항목: N개
 총 커밋: N개
@@ -67,4 +67,6 @@ description: docs/plan/todo.md의 모든 미완료 항목을 순서대로 자동
 - [x] 항목 1
 - [x] 항목 2
 ...
+
+다음 단계: `/discover-tasks`로 새 작업을 리서치하세요.
 ```
