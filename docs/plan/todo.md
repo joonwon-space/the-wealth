@@ -40,7 +40,14 @@
 
 ---
 
-## Milestone 8: 기능 확장
+## Milestone 8: Python 3.10+ 업그레이드
+- [ ] Python 3.9.6 → 3.10+ 업그레이드 (venv 재생성)
+- [ ] python-multipart 0.0.22 업그레이드 (Python 3.10+ 필요, GHSA-wp53-j4wj-2cfg)
+- [ ] `from __future__ import annotations` 제거하고 네이티브 union 문법(`str | None`) 사용
+
+---
+
+## Milestone 9: 기능 확장
 
 ### 거래 이력
 - [ ] 거래 기록 API (POST/GET /portfolios/{id}/transactions)
@@ -60,7 +67,7 @@
 
 ---
 
-## Milestone 9: 배포 & 운영
+## Milestone 10: 배포 & 운영
 
 ### 배포
 - [ ] GitHub Actions CI/CD 파이프라인 (lint → test → build)

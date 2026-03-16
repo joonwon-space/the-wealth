@@ -9,9 +9,9 @@
 ---
 
 ## 보안 & 의존성
-- [ ] python-multipart 0.0.20 → 0.0.22 업그레이드 (GHSA-wp53-j4wj-2cfg)
-- [ ] setuptools 58.0.4 → 78.1.1+ 업그레이드 (3개 CVE)
-- [ ] ecdsa 패키지 취약점 확인 및 업그레이드 (GHSA-wj6h-64fc-37mp)
+- [x] setuptools 58.0.4 → 82.0.1 업그레이드 (3개 CVE 해결)
+- [x] python-multipart — 0.0.22는 Python 3.10+ 필요, 현재 3.9.6에서 불가 → Python 업그레이드를 todo.md에 추가
+- [x] ecdsa 0.19.1 — 최신 버전이며 패치 없음, 사용처(python-jose) 확인 완료
 
 ## 버그 & 안정성
 - [ ] KIS API 실패 시 대시보드 에러 표시 — 현재 빈 화면, 에러 메시지/폴백 UI 필요
