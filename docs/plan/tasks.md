@@ -17,4 +17,4 @@ Each item should be completable in a single commit.
 
 ## Dashboard Improvement
 - [x] Dashboard summary uses KIS account from kis_accounts table (not user-level credentials)
-- [ ] Portfolio detail page — show current price and P&L per holding (use KIS price API via linked account)
+- [x] Portfolio detail page — show current price and P&L per holding via /holdings/with-prices API

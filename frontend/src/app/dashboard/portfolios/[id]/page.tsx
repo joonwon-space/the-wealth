@@ -25,6 +25,10 @@ interface Holding {
   name: string;
   quantity: string;
   avg_price: string;
+  current_price: string | null;
+  market_value: string | null;
+  pnl_amount: string | null;
+  pnl_rate: string | null;
 }
 
 interface AddForm {
@@ -55,7 +59,7 @@ export default function PortfolioDetailPage() {
 
   const fetchHoldings = async () => {
     try {
-      const { data } = await api.get<Holding[]>(`/portfolios/${portfolioId}/holdings`);
+      const { data } = await api.get<Holding[]>(`/portfolios/${portfolioId}/holdings/with-prices`);
       setHoldings(data);
     } finally {
       setLoading(false);
@@ -158,7 +162,7 @@ export default function PortfolioDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {["종목", "수량", "평균단가", ""].map((h) => (
+                {["종목", "수량", "평균단가", "현재가", "손익", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
@@ -203,6 +207,8 @@ export default function PortfolioDetailPage() {
                       </td>
                       <td className="px-4 py-3 tabular-nums">{formatNumber(h.quantity)}</td>
                       <td className="px-4 py-3 tabular-nums">{formatKRW(h.avg_price)}</td>
+                      <td className="px-4 py-3 tabular-nums">{h.current_price ? formatKRW(h.current_price) : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-4 py-3">{h.pnl_amount != null ? <PnLBadge value={h.pnl_amount} /> : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           <button

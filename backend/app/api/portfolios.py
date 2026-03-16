@@ -7,11 +7,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.holding import Holding
+from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.services.kis_price import fetch_prices_parallel
 from app.schemas.portfolio import (
     HoldingCreate,
     HoldingResponse,
@@ -104,6 +107,57 @@ async def list_holdings(
 
     result = await db.execute(select(Holding).where(Holding.portfolio_id == portfolio_id))
     return list(result.scalars().all())
+
+
+@router.get("/{portfolio_id}/holdings/with-prices")
+async def list_holdings_with_prices(
+    portfolio_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Holdings with current prices and P&L from the linked KIS account."""
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+    _assert_portfolio_owner(portfolio, current_user)
+
+    result = await db.execute(select(Holding).where(Holding.portfolio_id == portfolio_id))
+    holdings = list(result.scalars().all())
+    if not holdings:
+        return []
+
+    # Fetch prices via linked KIS account
+    prices: dict[str, Decimal | None] = {}
+    if portfolio.kis_account_id:
+        acct = await db.get(KisAccount, portfolio.kis_account_id)
+        if acct:
+            try:
+                app_key = decrypt(acct.app_key_enc)
+                app_secret = decrypt(acct.app_secret_enc)
+                tickers = list({h.ticker for h in holdings})
+                prices = await fetch_prices_parallel(tickers, app_key, app_secret)
+            except Exception as e:
+                logger.warning("Failed to fetch prices for portfolio %d: %s", portfolio_id, e)
+
+    items = []
+    for h in holdings:
+        cp = prices.get(h.ticker)
+        invested = h.quantity * h.avg_price
+        mv = h.quantity * cp if cp is not None else None
+        pnl = mv - invested if mv is not None else None
+        pnl_rate = (pnl / invested * 100) if pnl is not None and invested else None
+        items.append({
+            "id": h.id,
+            "ticker": h.ticker,
+            "name": h.name,
+            "quantity": str(h.quantity),
+            "avg_price": str(h.avg_price),
+            "current_price": str(cp) if cp is not None else None,
+            "market_value": str(mv) if mv is not None else None,
+            "pnl_amount": str(pnl) if pnl is not None else None,
+            "pnl_rate": str(pnl_rate) if pnl_rate is not None else None,
+        })
+    return items
 
 
 @router.post("/{portfolio_id}/holdings", response_model=HoldingResponse, status_code=status.HTTP_201_CREATED)
