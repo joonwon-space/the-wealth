@@ -16,7 +16,7 @@
 - [x] 동기화 시 account_no를 DB에 저장된 값 자동 사용 — query param 제거
 
 ## 테스트 커버리지 확장
-- [ ] KIS price 서비스 단위 테스트 — Redis 캐시 폴백 로직 mock 테스트
+- [x] KIS price 서비스 단위 테스트 — 5개 통과 (캐시 저장/조회/폴백)
 - [ ] encryption 서비스 단위 테스트 — encrypt/decrypt 라운드트립
 
 ## UI 폴리시
