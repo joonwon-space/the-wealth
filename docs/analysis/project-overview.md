@@ -137,6 +137,7 @@ the-wealth/
 | `/dashboard` | 메인 대시보드 (총 자산, 도넛 차트, 보유 종목 테이블) |
 | `/dashboard/portfolios` | 포트폴리오 목록/생성/삭제 |
 | `/dashboard/portfolios/[id]` | 포트폴리오 상세 (종목 CRUD) |
+| `/dashboard/analytics` | 분석 (placeholder — 준비 중) |
 | `/dashboard/settings` | KIS 자격증명, 수동 동기화, 동기화 이력 |
 
 ## 핵심 서비스 로직

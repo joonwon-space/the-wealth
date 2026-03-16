@@ -1,8 +1,6 @@
 """대시보드 summary API 테스트."""
 from __future__ import annotations
 
-from decimal import Decimal
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient

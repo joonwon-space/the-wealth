@@ -8,18 +8,17 @@
 
 ---
 
-## 코드 품질
-- [x] Pydantic V2 deprecation 수정 — `class Config` → `model_config = ConfigDict(...)` (5개 파일)
-- [x] /dashboard/analytics placeholder 페이지 생성 — "준비 중" UI
+현재 코드베이스는 안정 상태 (빌드/린트/테스트 all green, 50개 테스트 통과).
+아래 작업은 todo.md Milestone 9에서 승격한 단기 실행 가능 항목.
 
-## 테스트 확장
-- [x] 대시보드 summary API 테스트 — 3개 통과
-- [x] sync API 테스트 — 4개 통과
-- [x] 대시보드 컴포넌트 테스트 (에러 UI, 스켈레톤, 빈 상태) — 3개 통과
-- [x] 포트폴리오 상세 페이지 컴포넌트 테스트 — 2개 통과
+## 실계좌 연동 개선
+- [ ] 설정 페이지에서 "실계좌 조회" 버튼 추가 — KIS 잔고 API 호출 후 결과를 테이블로 표시 (동기화 없이 조회만)
+- [ ] 동기화 시 account_no를 DB에 저장된 값 자동 사용 — 현재 query param으로 수동 입력 필요
 
-## UI 완성도
-- [x] 포트폴리오 상세 페이지 — shadcn/ui Input, Button 교체
-- [x] 설정 페이지 — shadcn/ui Input, Button, Card 교체
-- [x] StockSearchDialog — shadcn/ui Dialog로 교체
-- [x] 포트폴리오 생성 모달 — shadcn/ui Dialog로 교체
+## 테스트 커버리지 확장
+- [ ] KIS price 서비스 단위 테스트 — Redis 캐시 폴백 로직 mock 테스트
+- [ ] encryption 서비스 단위 테스트 — encrypt/decrypt 라운드트립
+
+## UI 폴리시
+- [ ] 포트폴리오 목록 카드에 보유 종목 수, 총 평가금액 미리보기 표시
+- [ ] 대시보드 요약 카드에 "전일 대비" 변동 표시 (이전 캐시 가격 vs 현재)

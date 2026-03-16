@@ -17,7 +17,7 @@
 | DB 스키마 | 완료 | 5개 테이블, 3개 마이그레이션 |
 | 프론트엔드 UI | 완료 (기본) | 모든 페이지 존재, 기본 CRUD 동작 |
 | KIS 연동 | 완료 | 토큰, 현재가, 계좌 잔고, 자동 동기화 |
-| 테스트 | 기본 구축 | Backend 29개 + Frontend 9개 테스트 (pytest + vitest) |
+| 테스트 | 기본 구축 | Backend 36개 + Frontend 14개 = 총 50개 테스트 (pytest + vitest) |
 | 배포 | 미완 | Dockerfile 존재, 실제 배포 미수행 |
 
 ### 강점
@@ -30,13 +30,13 @@
 
 ### 약점
 
-- ~~테스트 부재~~ → **해결**: pytest(29개) + vitest(9개) 테스트 인프라 구축
+- ~~테스트 부재~~ → **해결**: pytest(36개) + vitest(14개) = 총 50개 테스트
 - ~~에러 UX~~ → **해결**: sonner toast + error boundary + 대시보드 에러 UI 추가
 - ~~shadcn/ui 컴포넌트 부족~~ → **해결**: Dialog, Input, Card, Table, Skeleton, Sonner 설치
 - ~~모바일 대응 부재~~ → **해결**: 햄버거 메뉴 + 반응형 사이드바 (md breakpoint)
 - **해외주식 검색 미지원**: 현재가 조회는 가능하나 해외 종목 검색 불가
 - **거래 이력(transactions) 미활용**: 모델만 존재, API/UI 없음
-- **분석 페이지 미구현**: 사이드바에 "분석" 메뉴 있으나 페이지 없음
+- **분석 페이지 미구현**: placeholder 페이지만 있음, 실제 차트/분석 미구현
 - ~~자동 동기화 미완성~~ → **해결**: `_sync_all_accounts()` DB 사용자 조회 + reconciliation 구현
 - ~~Python 의존성 취약점~~ → **일부 해결**: setuptools 업그레이드, python-multipart는 Python 3.10+ 필요 (todo.md에 추가)
 - ~~ruff 미설치~~ → **해결**: ruff 설치 + 4개 lint 에러 수정
