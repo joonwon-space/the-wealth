@@ -51,6 +51,9 @@ export function CandlestickChart({ candles, avgPrice }: Props) {
         borderColor: "rgba(128,128,128,0.2)",
         timeVisible: false,
       },
+      localization: {
+        priceFormatter: (price: number) => price.toLocaleString("ko-KR", { maximumFractionDigits: 0 }),
+      },
     });
     chartRef.current = chart;
 
