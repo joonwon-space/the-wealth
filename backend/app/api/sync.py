@@ -158,11 +158,11 @@ async def get_account_balance(
                 ],
             })
         except Exception as exc:
-            logger.warning("Balance inquiry failed for %s: %s", acct.label, exc)
+            logger.warning("Balance inquiry failed for %s: %s", acct.label, exc, exc_info=True)
             account_results.append({
                 "label": acct.label,
                 "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
-                "error": str(exc),
+                "error": "잔고 조회에 실패했습니다. 잠시 후 다시 시도해주세요.",
                 "deposit": "0",
                 "total_eval": "0",
                 "stock_eval": "0",
@@ -220,8 +220,11 @@ async def sync_portfolio(
         )
         db.add(log)
         await db.commit()
-        logger.error("Sync error for portfolio %d: %s", portfolio_id, exc)
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        logger.error("Sync error for portfolio %d: %s", portfolio_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="동기화에 실패했습니다. 잠시 후 다시 시도해주세요.",
+        ) from exc
 
 
 @router.get("/logs")
