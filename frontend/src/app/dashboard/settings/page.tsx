@@ -1,24 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, Pencil, Plus, CheckCircle, Trash2, XCircle } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-interface SyncLog {
-  id: number;
-  portfolio_id: number;
-  status: string;
-  inserted: number;
-  updated: number;
-  deleted: number;
-  message: string;
-  synced_at: string;
-}
 
 interface BalanceHolding {
   ticker: string;
@@ -52,19 +41,12 @@ export default function SettingsPage() {
   const [newAcct, setNewAcct] = useState({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
   const [addingAcct, setAddingAcct] = useState(false);
 
-  const [logs, setLogs] = useState<SyncLog[]>([]);
-  const [logsLoading, setLogsLoading] = useState(true);
-
   const fetchKisAccounts = () => {
     api.get<typeof kisAccounts>("/users/kis-accounts").then(({ data }) => setKisAccounts(data));
   };
 
   useEffect(() => {
     fetchKisAccounts();
-    api.get<SyncLog[]>("/sync/logs")
-      .then(({ data }) => setLogs(data))
-      .catch(() => {})
-      .finally(() => setLogsLoading(false));
   }, []);
 
   const handleAddAccount = async () => {
@@ -112,9 +94,6 @@ export default function SettingsPage() {
     try {
       const { data } = await api.post<{ accounts: AccountBalance[] }>("/sync/balance");
       setBalanceAccounts(data.accounts);
-      // Refresh sync logs after balance inquiry (which also syncs)
-      const { data: newLogs } = await api.get<SyncLog[]>("/sync/logs");
-      setLogs(newLogs);
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "response" in err
         ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
@@ -281,50 +260,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* 동기화 이력 */}
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">동기화 이력</h2>
-        {logsLoading ? (
-          <p className="text-sm text-muted-foreground">불러오는 중...</p>
-        ) : logs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">동기화 이력이 없습니다.</p>
-        ) : (
-          <div className="rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  {["상태", "추가", "수정", "삭제", "시각"].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id} className="border-t">
-                    <td className="px-4 py-2">
-                      {log.status === "success" ? (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="h-3.5 w-3.5" /> 성공
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-destructive">
-                          <XCircle className="h-3.5 w-3.5" /> 실패
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 tabular-nums">{log.inserted}</td>
-                    <td className="px-4 py-2 tabular-nums">{log.updated}</td>
-                    <td className="px-4 py-2 tabular-nums">{log.deleted}</td>
-                    <td className="px-4 py-2 text-muted-foreground text-xs">
-                      {new Date(log.synced_at).toLocaleString("ko-KR")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
     </div>
   );
 }
