@@ -65,24 +65,58 @@ async def get_daily_chart(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
-                headers=headers,
-                params=params,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        all_items: list[dict] = []
+        current_end = today
+        max_pages = 10  # safety limit
 
-        output2 = data.get("output2", [])
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for _ in range(max_pages):
+                params["FID_INPUT_DATE_2"] = current_end.strftime("%Y%m%d")
+                resp = await client.get(
+                    f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+                    headers=headers,
+                    params=params,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+                items = (
+                    data.get("output")
+                    or data.get("output2")
+                    or data.get("output1")
+                    or []
+                )
+                if not items:
+                    break
+
+                all_items.extend(items)
+
+                # Last item is the oldest date in this batch
+                oldest = items[-1].get("stck_bsop_date", "")
+                if not oldest or oldest <= start_date.strftime("%Y%m%d"):
+                    break
+
+                # Next page: end 1 day before oldest
+                from datetime import datetime as dt_cls
+
+                oldest_date = dt_cls.strptime(oldest, "%Y%m%d").date()
+                current_end = oldest_date - timedelta(days=1)
+                if current_end < start_date:
+                    break
+
+        # Deduplicate by date and sort ascending
+        seen: set[str] = set()
         candles = []
-        for item in reversed(output2):
-            dt = item.get("stck_bsop_date", "")
-            if not dt or len(dt) != 8:
+        for item in reversed(all_items):
+            d = item.get("stck_bsop_date", "")
+            if not d or len(d) != 8 or d in seen:
                 continue
+            if d < start_date.strftime("%Y%m%d"):
+                continue
+            seen.add(d)
             candles.append(
                 {
-                    "time": f"{dt[:4]}-{dt[4:6]}-{dt[6:8]}",
+                    "time": f"{d[:4]}-{d[4:6]}-{d[6:8]}",
                     "open": float(item.get("stck_oprc", 0)),
                     "high": float(item.get("stck_hgpr", 0)),
                     "low": float(item.get("stck_lwpr", 0)),
