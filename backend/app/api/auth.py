@@ -22,7 +22,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> User:
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration failed")
 
     user = User(email=body.email, hashed_password=hash_password(body.password))
     db.add(user)
