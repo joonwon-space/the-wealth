@@ -1,16 +1,16 @@
-"""KRX 상장 종목 로컬 검색.
+"""종목 검색 — KIS MST/COD 마스터 파일 기반 로컬 검색.
 
-KIS OpenAPI에는 종목명 검색 API가 없으므로,
-KRX KIND에서 KOSPI + KOSDAQ 상장 종목 리스트를 받아 Redis에 캐싱 후 로컬 검색.
-ETF는 Naver Finance API에서 가져와 합산 캐싱.
-캐시 TTL: 24시간 (매일 갱신).
+backend/data/mst/ 폴더의 마스터 파일을 파싱하여 Redis에 캐싱 후 검색.
+국내: kospi_code.mst, kosdaq_code.mst (고정폭, EUC-KR)
+해외: NYSMST.COD, NASMST.COD, AMSMST.COD (탭 구분, EUC-KR)
+캐시 TTL: 24시간.
 """
 from __future__ import annotations
 
 import json
 import logging
-import re
-import urllib.request
+import os
+from pathlib import Path
 from typing import TypedDict
 
 import redis.asyncio as aioredis
@@ -19,11 +19,19 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_CACHE_KEY = "krx:stock_list"
+_CACHE_KEY = "mst:stock_list"
 _CACHE_TTL = 86400  # 24h
-_MARKETS = {"stockMkt": "KOSPI", "kosdaqMkt": "KOSDAQ"}
-_KRX_URL = "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&marketType={market}"
-_NAVER_ETF_URL = "https://finance.naver.com/api/sise/etfItemList.nhn"
+_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "mst"
+
+_DOMESTIC_FILES = {
+    "kospi_code.mst": "KOSPI",
+    "kosdaq_code.mst": "KOSDAQ",
+}
+_OVERSEAS_FILES = {
+    "NYSMST.COD": "NYSE",
+    "NASMST.COD": "NASDAQ",
+    "AMSMST.COD": "AMEX",
+}
 
 
 class StockInfo(TypedDict):
@@ -32,87 +40,117 @@ class StockInfo(TypedDict):
     market: str
 
 
-def _fetch_krx(market: str) -> list[StockInfo]:
-    url = _KRX_URL.format(market=market)
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        raw = r.read().decode("euc-kr", errors="ignore")
+def _parse_domestic(filename: str, market: str) -> list[StockInfo]:
+    """KOSPI/KOSDAQ MST 파일 파싱 (고정폭, EUC-KR).
 
-    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", raw, re.DOTALL)
+    필드: 단축코드(9B) + ISIN(12B) + 한글명(40B) + ...
+    """
+    filepath = _DATA_DIR / filename
+    if not filepath.exists():
+        logger.warning("MST file not found: %s", filepath)
+        return []
+
     results: list[StockInfo] = []
-    for row in rows[1:]:
-        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
-        if len(cells) < 2:
-            continue
-        name = re.sub("<[^>]+>", "", cells[0]).strip()
-        ticker = next(
-            (re.sub("<[^>]+>", "", c).strip() for c in cells if re.sub("<[^>]+>", "", c).strip().isdigit() and len(re.sub("<[^>]+>", "", c).strip()) == 6),
-            None,
-        )
-        if name and ticker:
-            results.append({"ticker": ticker, "name": name, "market": _MARKETS[market]})
+    with open(filepath, "rb") as f:
+        for line in f:
+            if len(line) < 61:
+                continue
+            short_code = line[0:9].decode("euc-kr", errors="replace").strip()
+            name = line[21:61].decode("euc-kr", errors="replace").strip()
+            if not short_code or not name:
+                continue
+            # 6자리 숫자 종목코드만 (펀드코드 F로 시작하는 것 제외)
+            if short_code[0].isdigit() and len(short_code) == 6:
+                results.append({"ticker": short_code, "name": name, "market": market})
+            elif len(short_code) > 6 and short_code[-6:].isdigit():
+                # ETF 등 특수코드 (0162Z0 등)
+                results.append({"ticker": short_code, "name": name, "market": market})
+
+    logger.info("Parsed %d stocks from %s", len(results), filename)
     return results
 
 
-def _fetch_naver_etf() -> list[StockInfo]:
-    """Naver Finance API에서 국내 상장 ETF 목록 조회."""
-    params = "etfType=0&targetColumn=market_sum&sortOrder=desc&page=1&pageSize=9999"
-    url = f"{_NAVER_ETF_URL}?{params}"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://finance.naver.com/etf/",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=15) as r:
-        raw = r.read()
+def _parse_overseas(filename: str, market: str) -> list[StockInfo]:
+    """해외주식 COD 파일 파싱 (탭 구분, EUC-KR).
 
-    data = json.loads(raw.decode("euc-kr", errors="ignore"))
-    items = data.get("result", {}).get("etfItemList", [])
-    return [
-        {"ticker": item["itemcode"], "name": item["itemname"], "market": "ETF"}
-        for item in items
-        if item.get("itemcode") and item.get("itemname")
-    ]
+    필드: 국가 | 거래소코드 | 거래소명 | 거래소한글 | 단축코드 | 코드+거래소 | 한글명 | 영문명 | ...
+    """
+    filepath = _DATA_DIR / filename
+    if not filepath.exists():
+        logger.warning("COD file not found: %s", filepath)
+        return []
+
+    results: list[StockInfo] = []
+    with open(filepath, "rb") as f:
+        for line in f:
+            decoded = line.decode("euc-kr", errors="replace").strip()
+            parts = decoded.split("\t")
+            if len(parts) < 8:
+                continue
+            ticker = parts[4].strip()
+            kr_name = parts[6].strip()
+            en_name = parts[7].strip()
+            if not ticker:
+                continue
+            # 한글명이 있으면 한글명, 없으면 영문명
+            name = kr_name if kr_name else en_name
+            results.append({"ticker": ticker, "name": name, "market": market})
+
+    logger.info("Parsed %d stocks from %s", len(results), filename)
+    return results
+
+
+def _load_all_from_files() -> list[StockInfo]:
+    """모든 MST/COD 파일에서 종목 로드."""
+    stocks: list[StockInfo] = []
+
+    for filename, market in _DOMESTIC_FILES.items():
+        try:
+            stocks.extend(_parse_domestic(filename, market))
+        except Exception as e:
+            logger.warning("Failed to parse %s: %s", filename, e)
+
+    for filename, market in _OVERSEAS_FILES.items():
+        try:
+            stocks.extend(_parse_overseas(filename, market))
+        except Exception as e:
+            logger.warning("Failed to parse %s: %s", filename, e)
+
+    return stocks
 
 
 async def _load_stock_list() -> list[StockInfo]:
-    """Redis에서 캐시 로드, 없으면 KRX에서 fetch 후 캐싱."""
-    async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as redis:
-        cached = await redis.get(_CACHE_KEY)
+    """Redis 캐시에서 로드, 없으면 MST 파일에서 파싱 후 캐싱."""
+    async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
+        cached = await r.get(_CACHE_KEY)
         if cached:
             return json.loads(cached)
 
-        logger.info("Fetching KRX stock list + Naver ETF list...")
-        stocks: list[StockInfo] = []
-        for market in _MARKETS:
-            try:
-                stocks.extend(_fetch_krx(market))
-            except Exception as e:
-                logger.warning("Failed to fetch KRX %s: %s", market, e)
-
-        try:
-            etfs = _fetch_naver_etf()
-            stocks.extend(etfs)
-            logger.info("Fetched %d ETFs from Naver Finance", len(etfs))
-        except Exception as e:
-            logger.warning("Failed to fetch Naver ETF list: %s", e)
+        logger.info("Loading stock list from MST/COD files...")
+        stocks = _load_all_from_files()
 
         if stocks:
-            await redis.setex(_CACHE_KEY, _CACHE_TTL, json.dumps(stocks, ensure_ascii=False))
-            logger.info("Cached %d items (stocks + ETFs)", len(stocks))
+            await r.setex(_CACHE_KEY, _CACHE_TTL, json.dumps(stocks, ensure_ascii=False))
+            logger.info("Cached %d stocks from MST/COD files", len(stocks))
         return stocks
 
 
 async def search_stocks(query: str, limit: int = 20) -> list[StockInfo]:
-    """종목명 또는 티커로 로컬 검색 (대소문자 무시)."""
+    """종목명 또는 티커로 로컬 검색 (대소문자 무시, 정확 매치 우선)."""
     if not query:
         return []
     stocks = await _load_stock_list()
     q = query.strip().upper()
-    matched = [
-        s for s in stocks
-        if q in s["name"].upper() or q in s["ticker"]
-    ]
-    return matched[:limit]
+
+    exact: list[StockInfo] = []
+    partial: list[StockInfo] = []
+
+    for s in stocks:
+        ticker_upper = s["ticker"].upper()
+        name_upper = s["name"].upper()
+        if ticker_upper == q or name_upper == q:
+            exact.append(s)
+        elif q in name_upper or q in ticker_upper:
+            partial.append(s)
+
+    return (exact + partial)[:limit]
