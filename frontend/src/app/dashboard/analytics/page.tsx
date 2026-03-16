@@ -219,7 +219,46 @@ export default function AnalyticsPage() {
       {sortedByPnl.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">종목별 성과</h2>
-          <div className="overflow-x-auto rounded-lg border">
+
+          {/* Mobile card view */}
+          <div className="space-y-3 md:hidden">
+            {sortedByPnl.map((h, i) => (
+              <div
+                key={`${h.ticker}-${i}`}
+                className="cursor-pointer rounded-lg border p-3 space-y-2 active:bg-accent/50"
+                onClick={() => handleSelectStock(h.ticker, h.name)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-sm">{h.name}</div>
+                    <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                  </div>
+                  <PnLBadge value={h.pnl_rate ?? 0} suffix="%" />
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">수량</span>
+                    <span className="tabular-nums">{Number(h.quantity).toLocaleString("ko-KR")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">현재가</span>
+                    <span className="tabular-nums">{h.current_price ? formatKRW(h.current_price) : "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">평균단가</span>
+                    <span className="tabular-nums">{formatKRW(h.avg_price)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">수익금</span>
+                    <PnLBadge value={h.pnl_amount ?? 0} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
