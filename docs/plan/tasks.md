@@ -1,24 +1,20 @@
-# THE WEALTH — Tasks (현재 작업)
+# THE WEALTH — Tasks
 
-이 문서는 **지금 바로 실행할 작업** 목록이다.
-`/auto-task`와 `/next-task`가 이 문서에서 작업을 읽는다.
-`/discover-tasks`가 이 문서를 갱신한다.
-
-각 항목은 하나의 커밋 단위로 완료 가능한 크기여야 한다.
+Current work items. Read by `/auto-task` and `/next-task`.
+Each item should be completable in a single commit.
 
 ---
 
-현재 코드베이스는 안정 상태 (빌드/린트/테스트 all green, 50개 테스트 통과).
-아래 작업은 todo.md Milestone 9에서 승격한 단기 실행 가능 항목.
+## Transaction History (from Milestone 9)
+- [ ] Transaction list API — GET /portfolios/{id}/transactions with date filter
+- [ ] Transaction create API — POST /portfolios/{id}/transactions (buy/sell)
+- [ ] Transaction list UI — table with date, type, ticker, quantity, price columns
+- [ ] Transaction create form — modal with buy/sell toggle, stock search, quantity, price
 
-## 실계좌 연동 개선
-- [x] 설정 페이지에서 "실계좌 조회" 버튼 추가 — GET /sync/balance API + 프론트엔드 테이블 표시
-- [x] 동기화 시 account_no를 DB에 저장된 값 자동 사용 — query param 제거
+## Search UX (from Milestone 9)
+- [ ] Save recent search queries to localStorage (last 5) and show as suggestions
+- [ ] Add overseas stock market label (NYSE/NASDAQ/AMEX) to search results display
 
-## 테스트 커버리지 확장
-- [x] KIS price 서비스 단위 테스트 — 5개 통과 (캐시 저장/조회/폴백)
-- [x] encryption 서비스 단위 테스트 — 5개 통과 (라운드트립, nonce 랜덤, 유니코드)
-
-## UI 폴리시
-- [x] 포트폴리오 목록 카드에 보유 종목 수, 총 투자금액 미리보기 표시
-- [x] 대시보드 요약 카드에 마지막 업데이트 시각 표시 (전일 대비는 가격 히스토리 필요 → todo.md에 추가)
+## Dashboard Improvement
+- [ ] Dashboard summary should aggregate across all KIS-linked portfolios (not just user-level credentials)
+- [ ] Portfolio detail page — show current price and P&L per holding (use KIS price API via linked account)
