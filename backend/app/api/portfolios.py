@@ -52,14 +52,16 @@ async def list_portfolios(
     stmt = (
         select(
             Portfolio,
+            KisAccount.label,
             func.count(Holding.id).label("holdings_count"),
             func.coalesce(
                 func.sum(Holding.quantity * Holding.avg_price), Decimal("0")
             ).label("total_invested"),
         )
+        .outerjoin(KisAccount, KisAccount.id == Portfolio.kis_account_id)
         .outerjoin(Holding, Holding.portfolio_id == Portfolio.id)
         .where(Portfolio.user_id == current_user.id)
-        .group_by(Portfolio.id)
+        .group_by(Portfolio.id, KisAccount.label)
     )
     result = await db.execute(stmt)
     rows = result.all()
@@ -68,13 +70,13 @@ async def list_portfolios(
         {
             "id": p.id,
             "user_id": p.user_id,
-            "name": p.name,
+            "name": kis_label if kis_label else p.name,
             "currency": p.currency,
             "created_at": p.created_at,
             "holdings_count": count,
             "total_invested": invested,
         }
-        for p, count, invested in rows
+        for p, kis_label, count, invested in rows
     ]
 
 
@@ -109,6 +111,13 @@ async def update_portfolio(
     portfolio.name = body.name
     if body.currency:
         portfolio.currency = body.currency
+
+    # Sync KIS account label if linked
+    if portfolio.kis_account_id:
+        acct = await db.get(KisAccount, portfolio.kis_account_id)
+        if acct:
+            acct.label = body.name
+
     await db.commit()
     await db.refresh(portfolio)
 
