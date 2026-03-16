@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Trash2, Wallet } from "lucide-react";
 import { api } from "@/lib/api";
+import { formatKRW } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,8 @@ interface Portfolio {
   name: string;
   currency: string;
   created_at: string;
+  holdings_count: number;
+  total_invested: string;
 }
 
 export default function PortfoliosPage() {
@@ -88,6 +91,10 @@ export default function PortfoliosPage() {
                       <p className="font-semibold">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{p.currency}</p>
                     </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{p.holdings_count}개 종목</span>
+                    <span className="tabular-nums">{formatKRW(p.total_invested)}</span>
                   </div>
                 </Link>
                 <button

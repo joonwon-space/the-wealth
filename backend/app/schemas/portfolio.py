@@ -20,6 +20,8 @@ class PortfolioResponse(BaseModel):
     name: str
     currency: str
     created_at: datetime
+    holdings_count: int = 0
+    total_invested: Decimal = Decimal("0")
 
 
 class HoldingCreate(BaseModel):
