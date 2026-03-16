@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
+import { TransactionChart } from "@/components/TransactionChart";
 
 interface TxnRow {
   id: number;
@@ -329,6 +330,7 @@ export default function PortfolioDetailPage() {
 
       {transactions.length > 0 && (
         <>
+          <TransactionChart transactions={transactions} />
           <div className="overflow-x-auto rounded-xl border">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">

@@ -8,4 +8,4 @@ Each item should be completable in a single commit.
 Promoted from Milestone 9. Only 1 remaining auto-implementable item.
 
 ## From Milestone 9
-- [ ] Transaction history chart — bar chart showing buy/sell amounts per month (Recharts, portfolio detail page)
+- [x] Transaction history chart — monthly buy/sell bar chart (Recharts)
