@@ -1,6 +1,7 @@
 """KIS 계좌 자동 동기화 API."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import httpx
@@ -112,53 +113,16 @@ async def get_account_balance(
             detail="No KIS accounts configured",
         )
 
+    # 병렬로 모든 계좌 잔고 조회
+    raw_results = await asyncio.gather(
+        *[_fetch_balance_raw(acct) for acct in accounts],
+        return_exceptions=True,
+    )
+
     account_results = []
-    for acct in accounts:
-        try:
-            summary, kis_holdings = await _fetch_balance_raw(acct)
-
-            # 포트폴리오 자동 생성
-            portfolio = await _ensure_portfolio_for_account(db, current_user.id, acct)
-
-            # holdings 동기화
-            counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
-            if counts["inserted"] or counts["updated"] or counts["deleted"]:
-                log = SyncLog(
-                    user_id=current_user.id,
-                    portfolio_id=portfolio.id,
-                    status="success",
-                    inserted=counts["inserted"],
-                    updated=counts["updated"],
-                    deleted=counts["deleted"],
-                )
-                db.add(log)
-                await db.commit()
-                logger.info(
-                    "Auto-synced %s: +%d ~%d -%d",
-                    acct.label, counts["inserted"], counts["updated"], counts["deleted"],
-                )
-
-            account_results.append({
-                "label": acct.label,
-                "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
-                "portfolio_id": portfolio.id,
-                "deposit": summary.get("dnca_tot_amt", "0"),
-                "total_eval": summary.get("tot_evlu_amt", "0"),
-                "stock_eval": summary.get("scts_evlu_amt", "0"),
-                "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
-                "synced": counts,
-                "holdings": [
-                    {
-                        "ticker": h.ticker,
-                        "name": h.name,
-                        "quantity": str(h.quantity),
-                        "avg_price": str(h.avg_price),
-                    }
-                    for h in kis_holdings
-                ],
-            })
-        except Exception as exc:
-            logger.warning("Balance inquiry failed for %s: %s", acct.label, exc, exc_info=True)
+    for acct, raw in zip(accounts, raw_results):
+        if isinstance(raw, Exception):
+            logger.warning("Balance inquiry failed for %s: %s", acct.label, raw, exc_info=raw)
             account_results.append({
                 "label": acct.label,
                 "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
@@ -169,6 +133,55 @@ async def get_account_balance(
                 "pnl": "0",
                 "holdings": [],
             })
+            continue
+
+        summary, kis_holdings = raw
+
+        # 포트폴리오 자동 생성
+        portfolio = await _ensure_portfolio_for_account(db, current_user.id, acct)
+
+        # holdings 동기화
+        counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
+        has_changes = counts["inserted"] or counts["updated"] or counts["deleted"]
+
+        # SyncLog 항상 기록
+        log = SyncLog(
+            user_id=current_user.id,
+            portfolio_id=portfolio.id,
+            status="success",
+            inserted=counts["inserted"],
+            updated=counts["updated"],
+            deleted=counts["deleted"],
+            message=None if has_changes else "no changes",
+        )
+        db.add(log)
+        await db.commit()
+
+        if has_changes:
+            logger.info(
+                "Auto-synced %s: +%d ~%d -%d",
+                acct.label, counts["inserted"], counts["updated"], counts["deleted"],
+            )
+
+        account_results.append({
+            "label": acct.label,
+            "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
+            "portfolio_id": portfolio.id,
+            "deposit": summary.get("dnca_tot_amt", "0"),
+            "total_eval": summary.get("tot_evlu_amt", "0"),
+            "stock_eval": summary.get("scts_evlu_amt", "0"),
+            "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
+            "synced": counts,
+            "holdings": [
+                {
+                    "ticker": h.ticker,
+                    "name": h.name,
+                    "quantity": str(h.quantity),
+                    "avg_price": str(h.avg_price),
+                }
+                for h in kis_holdings
+            ],
+        })
 
     return {"accounts": account_results}
 

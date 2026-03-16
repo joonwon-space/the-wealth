@@ -55,7 +55,7 @@ async def get_summary(
         )
 
     hold_result = await db.execute(
-        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids)).limit(500)
     )
     holdings = hold_result.scalars().all()
 
