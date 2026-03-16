@@ -12,4 +12,4 @@ Promoted from Milestone 9 (analytics) and Milestone 10 (CI/CD).
 
 ## CI/CD (from Milestone 10)
 - [x] GitHub Actions workflow — backend lint + test on push/PR
-- [ ] GitHub Actions workflow — frontend lint + build + test on push/PR
+- [x] GitHub Actions workflow — frontend lint + type check + test + build on push/PR
