@@ -13,7 +13,7 @@ Each item should be completable in a single commit.
 - [x] Add pagination params to GET /sync/logs endpoint
 
 ## Backend Performance
-- [ ] Fix N+1 query in list_portfolios — replace per-portfolio stats query with single GROUP BY JOIN
+- [x] Fix N+1 query in list_portfolios — single query with LEFT JOIN + GROUP BY
 - [ ] Add DB indexes: holdings(ticker, portfolio_id), transactions(portfolio_id, traded_at), sync_logs(user_id, synced_at)
 
 ## Frontend Error Handling

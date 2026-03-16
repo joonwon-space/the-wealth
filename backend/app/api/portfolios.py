@@ -47,34 +47,36 @@ async def list_portfolios(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    result = await db.execute(
-        select(Portfolio).where(Portfolio.user_id == current_user.id)
-    )
-    portfolios = list(result.scalars().all())
+    # Single query with LEFT JOIN + GROUP BY instead of N+1
+    from sqlalchemy.orm import aliased
 
-    response = []
-    for p in portfolios:
-        stats = await db.execute(
-            select(
-                func.count(Holding.id),
-                func.coalesce(
-                    func.sum(Holding.quantity * Holding.avg_price), Decimal("0")
-                ),
-            ).where(Holding.portfolio_id == p.id)
+    stmt = (
+        select(
+            Portfolio,
+            func.count(Holding.id).label("holdings_count"),
+            func.coalesce(
+                func.sum(Holding.quantity * Holding.avg_price), Decimal("0")
+            ).label("total_invested"),
         )
-        count, invested = stats.one()
-        response.append(
-            {
-                "id": p.id,
-                "user_id": p.user_id,
-                "name": p.name,
-                "currency": p.currency,
-                "created_at": p.created_at,
-                "holdings_count": count,
-                "total_invested": invested,
-            }
-        )
-    return response
+        .outerjoin(Holding, Holding.portfolio_id == Portfolio.id)
+        .where(Portfolio.user_id == current_user.id)
+        .group_by(Portfolio.id)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    return [
+        {
+            "id": p.id,
+            "user_id": p.user_id,
+            "name": p.name,
+            "currency": p.currency,
+            "created_at": p.created_at,
+            "holdings_count": count,
+            "total_invested": invested,
+        }
+        for p, count, invested in rows
+    ]
 
 
 @router.post("", response_model=PortfolioResponse, status_code=status.HTTP_201_CREATED)
