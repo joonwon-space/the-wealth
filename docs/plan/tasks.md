@@ -25,7 +25,7 @@
 - [x] 종목 검색 서비스 단위 테스트 (KRX + ETF 파싱) — 8개 통과
 - [x] reconciliation 서비스 단위 테스트 — 4개 통과
 - [x] vitest + React Testing Library 설정 (frontend)
-- [ ] 인증 플로우 컴포넌트 테스트 (login, register)
+- [x] 인증 플로우 컴포넌트 테스트 (login, register) — 8개 통과
 
 ## UI 개선
 - [ ] shadcn/ui Dialog, Input, Card, Table 설치 및 인라인 HTML 교체
