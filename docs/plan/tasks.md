@@ -5,12 +5,10 @@ Each item should be completable in a single commit.
 
 ---
 
-All lint/test issues resolved. 60 tests passing (46 backend + 14 frontend).
+Codebase stable: lint clean, 69 tests passing, 0 TODO comments.
+No bugs or security issues found. Items below from Milestone 9 backlog.
 
-## Test Coverage
-- [x] Add transaction API tests — 6 passing
-- [x] Add holdings-with-prices API test — 3 passing
-
-## UI Polish
-- [x] Portfolio detail — add delete button for transactions (API + UI)
-- [x] Settings page — KIS account CRUD (list, add, delete) with API + UI
+## Remaining Milestone 9 items
+- [ ] KIS account edit — settings page: allow editing label of existing KIS accounts
+- [ ] Portfolio rename — allow editing portfolio name (currently auto-created from KIS label)
+- [ ] Korean chosung search — support ㅅㅅ → 삼성전자 style search in stock_search.py

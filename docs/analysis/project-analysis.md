@@ -14,7 +14,7 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 | DB Schema | Complete | 6 tables, 5 migrations |
 | Frontend UI | Complete | All pages, CRUD, mobile responsive |
 | KIS Integration | Complete | Multi-account, tokens, prices, balance, auto-sync |
-| Testing | Solid | Backend 46 + Frontend 14 = 60 tests |
+| Testing | Solid | Backend 55 + Frontend 14 = 69 tests |
 | Security | Hardened | jti token revocation, password policy, secret validation, error sanitization |
 | Deployment | Not done | Dockerfiles exist, no actual deploy |
 

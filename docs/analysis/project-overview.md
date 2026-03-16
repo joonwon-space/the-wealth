@@ -43,6 +43,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | DELETE | `/portfolios/holdings/{id}` | Delete holding |
 | GET | `/portfolios/{id}/transactions` | List transactions (desc, limit 200) |
 | POST | `/portfolios/{id}/transactions` | Create transaction (BUY/SELL) |
+| DELETE | `/portfolios/transactions/{id}` | Delete transaction |
 
 ### Dashboard (`/dashboard`)
 | Method | Path | Description |
@@ -57,7 +58,10 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 ### Users (`/users`)
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/users/kis-credentials` | Save KIS credentials (AES encrypted) |
+| POST | `/users/kis-credentials` | Save KIS credentials to user model (legacy) |
+| GET | `/users/kis-accounts` | List registered KIS accounts (no secrets) |
+| POST | `/users/kis-accounts` | Register new KIS account (AES encrypted) |
+| DELETE | `/users/kis-accounts/{id}` | Delete KIS account |
 
 ### Sync (`/sync`)
 | Method | Path | Description |
