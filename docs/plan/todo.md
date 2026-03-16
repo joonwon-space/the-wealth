@@ -78,7 +78,7 @@
 ## Milestone 10: 배포 & 운영
 
 ### 배포
-- [ ] GitHub Actions CI/CD 파이프라인 (lint → test → build)
+- [x] GitHub Actions CI/CD 파이프라인 (lint → test → build) — backend.yml + frontend.yml
 - [ ] Vercel 배포 (프론트엔드)
 - [ ] Railway or Fly.io 배포 (백엔드 + PostgreSQL + Redis)
 - [ ] 프로덕션 환경변수 관리 (dotenv → Vault or SSM)

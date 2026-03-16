@@ -16,6 +16,7 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 | KIS Integration | Complete | Multi-account, tokens, prices, balance, auto-sync |
 | Testing | Solid | Backend 55 + Frontend 14 = 69 tests |
 | Security | Hardened | jti token revocation, password policy, secret validation, error sanitization |
+| CI/CD | Done | GitHub Actions for backend (lint+test) and frontend (lint+typecheck+test+build) |
 | Deployment | Not done | Dockerfiles exist, no actual deploy |
 
 ### Strengths
@@ -29,7 +30,7 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 
 ### Remaining Weaknesses
 
-- **Analytics page**: Only placeholder, no charts/analysis implemented
+- ~~Analytics page~~ → **Done**: summary cards, allocation donut, performance table
 - **Price history**: No daily snapshots for "vs previous day" display
 
 ---

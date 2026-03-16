@@ -93,7 +93,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | `/dashboard` | Summary cards, donut chart, holdings table, skeleton loading, error UI |
 | `/dashboard/portfolios` | Portfolio cards (holdings count, invested), create dialog |
 | `/dashboard/portfolios/[id]` | Holdings CRUD with prices/P&L, transaction history + create form |
-| `/dashboard/analytics` | Placeholder |
+| `/dashboard/analytics` | Summary cards, allocation donut, performance table |
 | `/dashboard/settings` | KIS credentials, manual sync, multi-account balance inquiry |
 
 ## Services

@@ -5,11 +5,12 @@ Each item should be completable in a single commit.
 
 ---
 
-Promoted from Milestone 9 (analytics) and Milestone 10 (CI/CD).
+Codebase stable: lint clean, 69 tests passing, CI/CD configured.
+Analytics page implemented. All promotable Milestone 9/10 items done.
 
-## Analytics Page (from Milestone 9)
-- [x] Analytics page — summary cards, allocation donut, performance table (all in one)
+Remaining todo.md items require either:
+- Python 3.10+ upgrade (manual)
+- External service setup (Vercel, Railway)
+- Large design work (price history, WebSocket)
 
-## CI/CD (from Milestone 10)
-- [x] GitHub Actions workflow — backend lint + test on push/PR
-- [x] GitHub Actions workflow — frontend lint + type check + test + build on push/PR
+No current tasks. Run `/auto-task` to promote, or request a new feature.
