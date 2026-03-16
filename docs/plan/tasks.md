@@ -5,14 +5,9 @@ Each item should be completable in a single commit.
 
 ---
 
-Promoted from Milestone 10 UX/Performance items.
+Codebase stable: lint clean, 88 tests passing, CI green, 0 TODOs.
+All promotable items from Milestones 8-10 done.
 
-## Performance
-- [x] Shorten KIS price cache TTL from 1h to 5min
-- [x] Dashboard force-refresh — clears price cache + refresh button
+Remaining todo.md items require external services (deploy), external data (benchmarks, dividends, sectors), or large architecture (WebSocket, price history DB).
 
-## UX
-- [x] Cmd+K / Ctrl+K keyboard shortcut opens stock search globally
-- [x] Password change API (POST /auth/change-password) + revoke all refresh tokens
-- [x] Portfolio detail — date input on transaction create form
-- [x] HoldingsTable — role="button", tabIndex, onKeyDown, aria-sort on headers
+No current tasks. Run `/auto-task` to promote, or request a new feature.

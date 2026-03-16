@@ -20,6 +20,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | **Scheduler** | APScheduler | 1h interval auto sync |
 | **Rate Limiting** | slowapi | 60 req/min |
 | **Stock Data** | KIS MST/COD master files | 16,322 stocks (4,278 domestic + 12,044 overseas) |
+| **Keyboard** | Cmd+K / Ctrl+K | Global stock search shortcut |
 
 ## API Endpoints
 
@@ -29,6 +30,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | POST | `/auth/register` | Register (8+ char password enforced) |
 | POST | `/auth/login` | Login (access + refresh tokens with jti) |
 | POST | `/auth/refresh` | Token rotation (one-time use, Redis jti) |
+| POST | `/auth/change-password` | Change password + revoke all refresh tokens |
 
 ### Portfolios (`/portfolios`)
 | Method | Path | Description |
