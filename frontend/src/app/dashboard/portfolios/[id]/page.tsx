@@ -10,6 +10,15 @@ import { Button } from "@/components/ui/button";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
 
+interface TxnRow {
+  id: number;
+  ticker: string;
+  type: string;
+  quantity: string;
+  price: string;
+  traded_at: string;
+}
+
 interface Holding {
   id: number;
   ticker: string;
@@ -39,6 +48,7 @@ export default function PortfolioDetailPage() {
   const [editForm, setEditForm] = useState<{ quantity: string; avg_price: string }>({ quantity: "", avg_price: "" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [transactions, setTransactions] = useState<TxnRow[]>([]);
 
   const fetchHoldings = async () => {
     try {
@@ -49,7 +59,14 @@ export default function PortfolioDetailPage() {
     }
   };
 
-  useEffect(() => { fetchHoldings(); }, [portfolioId]);
+  const fetchTransactions = async () => {
+    try {
+      const { data } = await api.get<TxnRow[]>(`/portfolios/${portfolioId}/transactions`);
+      setTransactions(data);
+    } catch { /* ignore */ }
+  };
+
+  useEffect(() => { fetchHoldings(); fetchTransactions(); }, [portfolioId]);
 
   const handleStockSelect = (ticker: string, name: string) => {
     setAddForm({ ticker, name, quantity: "", avg_price: "" });
@@ -236,6 +253,39 @@ export default function PortfolioDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transaction History */}
+      {transactions.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">거래 이력</h2>
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  {["일시", "유형", "종목", "수량", "단가"].map((h) => (
+                    <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((t) => (
+                  <tr key={t.id} className="border-t">
+                    <td className="px-4 py-2 text-xs text-muted-foreground">{new Date(t.traded_at).toLocaleString("ko-KR")}</td>
+                    <td className="px-4 py-2">
+                      <span className={`text-xs font-semibold ${t.type === "BUY" ? "text-[#e31f26]" : "text-[#1a56db]"}`}>
+                        {t.type === "BUY" ? "매수" : "매도"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 font-mono text-xs">{t.ticker}</td>
+                    <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
+                    <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       <StockSearchDialog
