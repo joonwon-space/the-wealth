@@ -9,7 +9,7 @@ All lint/test issues resolved. 60 tests passing (46 backend + 14 frontend).
 
 ## Test Coverage
 - [x] Add transaction API tests — 6 passing
-- [ ] Add holdings-with-prices API test (mock KIS price, verify P&L calc)
+- [x] Add holdings-with-prices API test — 3 passing
 
 ## UI Polish
 - [ ] Portfolio detail — add delete button for transactions
