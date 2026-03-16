@@ -24,4 +24,4 @@ async def search_stocks(
         return {"items": items}
     except Exception as e:
         logger.warning("Stock search failed: %s", e)
-        return {"items": [], "message": str(e)}
+        return {"items": [], "message": "검색을 일시적으로 사용할 수 없습니다."}
