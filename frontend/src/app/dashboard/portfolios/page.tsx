@@ -4,7 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Trash2, Wallet } from "lucide-react";
 import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Portfolio {
   id: number;
@@ -39,13 +48,10 @@ export default function PortfoliosPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">포트폴리오</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <Button onClick={() => setShowModal(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           새 포트폴리오
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -63,54 +69,54 @@ export default function PortfoliosPage() {
           <Wallet className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="font-medium">포트폴리오가 없습니다</p>
           <p className="mt-1 text-sm text-muted-foreground">새 포트폴리오를 만들어 종목을 추가하세요.</p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
+          <Button onClick={() => setShowModal(true)} className="mt-4 gap-2">
             <Plus className="h-4 w-4" />
             새 포트폴리오
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {portfolios.map((p) => (
-            <div key={p.id} className="group relative rounded-xl border bg-card p-5 shadow-sm hover:shadow-md transition-shadow">
-              <Link href={`/dashboard/portfolios/${p.id}`} className="block">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Wallet className="h-5 w-5 text-primary" />
+            <Card key={p.id} className="group relative hover:shadow-md transition-shadow">
+              <CardContent className="p-5">
+                <Link href={`/dashboard/portfolios/${p.id}`} className="block">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <Wallet className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">{p.currency}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.currency}</p>
-                  </div>
-                </div>
-              </Link>
-              <button
-                onClick={() => handleDelete(p.id)}
-                className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
+                </Link>
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
 
-      {showModal && (
-        <CreatePortfolioModal
-          onClose={() => setShowModal(false)}
-          onCreate={(p) => { setPortfolios((prev) => [...prev, p]); setShowModal(false); }}
-        />
-      )}
+      <CreatePortfolioDialog
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onCreate={(p) => { setPortfolios((prev) => [...prev, p]); setShowModal(false); }}
+      />
     </div>
   );
 }
 
-function CreatePortfolioModal({
+function CreatePortfolioDialog({
+  open,
   onClose,
   onCreate,
 }: {
+  open: boolean;
   onClose: () => void;
   onCreate: (p: Portfolio) => void;
 }) {
@@ -126,6 +132,8 @@ function CreatePortfolioModal({
     try {
       const { data } = await api.post<Portfolio>("/portfolios", { name, currency });
       onCreate(data);
+      setName("");
+      setCurrency("KRW");
     } catch {
       setError("생성에 실패했습니다.");
     } finally {
@@ -134,19 +142,20 @@ function CreatePortfolioModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-sm rounded-xl border bg-background p-6 shadow-lg">
-        <h2 className="mb-4 text-lg font-semibold">새 포트폴리오</h2>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>새 포트폴리오</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="space-y-1">
             <label className="text-sm font-medium">이름</label>
-            <input
+            <Input
               autoFocus
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               placeholder="내 포트폴리오"
             />
           </div>
@@ -162,23 +171,15 @@ function CreatePortfolioModal({
             </select>
           </div>
           <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
-            >
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
               취소
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading} className="flex-1">
               {loading ? "생성 중..." : "생성"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
