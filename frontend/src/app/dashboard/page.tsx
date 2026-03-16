@@ -147,8 +147,8 @@ export default function DashboardPage() {
         <>
           {/* 요약 카드 */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <SummaryCard label="총 자산" value={`₩${s.total_asset.toLocaleString("ko-KR")}`} />
-            <SummaryCard label="투자 원금" value={`₩${s.total_invested.toLocaleString("ko-KR")}`} />
+            <SummaryCard label="총 자산" value={`₩${Number(s.total_asset).toLocaleString("ko-KR")}`} />
+            <SummaryCard label="투자 원금" value={`₩${Number(s.total_invested).toLocaleString("ko-KR")}`} />
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">총 손익</p>
@@ -173,7 +173,7 @@ export default function DashboardPage() {
                     <div key={item.ticker} className="flex items-center gap-1.5 text-xs">
                       <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
                       <span>{item.name}</span>
-                      <span className="text-muted-foreground">{item.ratio.toFixed(1)}%</span>
+                      <span className="text-muted-foreground">{Number(item.ratio).toFixed(1)}%</span>
                     </div>
                   ))}
                 </div>
