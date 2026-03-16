@@ -2,15 +2,15 @@
 
 ## Milestone 1: 백엔드 초기화 & DB 스캐폴딩
 
-- [ ] PostgreSQL 연결 설정 (`DATABASE_URL` 환경변수)
-- [ ] SQLAlchemy async engine 및 session 설정 (`app/db/session.py`)
-- [ ] Base 모델 클래스 생성 (`app/db/base.py`)
-- [ ] `users` 테이블 모델 정의 (id, email, hashed_password, kis_app_key_enc, kis_app_secret_enc, created_at)
-- [ ] `portfolios` 테이블 모델 정의 (id, user_id, name, currency, created_at)
-- [ ] `holdings` 테이블 모델 정의 (id, portfolio_id, ticker, name, quantity, avg_price, created_at)
-- [ ] `transactions` 테이블 모델 정의 (id, portfolio_id, ticker, type, quantity, price, traded_at)
-- [ ] Alembic 초기화 및 첫 migration 생성
-- [ ] DB migration 실행 확인
+- [x] PostgreSQL 연결 설정 (`DATABASE_URL` 환경변수)
+- [x] SQLAlchemy async engine 및 session 설정 (`app/db/session.py`)
+- [x] Base 모델 클래스 생성 (`app/db/base.py`)
+- [x] `users` 테이블 모델 정의 (id, email, hashed_password, kis_app_key_enc, kis_app_secret_enc, created_at)
+- [x] `portfolios` 테이블 모델 정의 (id, user_id, name, currency, created_at)
+- [x] `holdings` 테이블 모델 정의 (id, portfolio_id, ticker, name, quantity, avg_price, created_at)
+- [x] `transactions` 테이블 모델 정의 (id, portfolio_id, ticker, type, quantity, price, traded_at)
+- [x] Alembic 초기화 및 첫 migration 생성
+- [x] DB migration 실행 확인 (docs/plan/manual-tasks.md 참고 — DB 연결 후 `alembic upgrade head` 실행 필요)
 
 ## Milestone 2: 인증 인프라
 
