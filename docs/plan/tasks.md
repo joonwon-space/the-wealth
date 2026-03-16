@@ -5,8 +5,14 @@ Each item should be completable in a single commit.
 
 ---
 
-Codebase stable: lint clean, 88 tests passing (63 backend + 25 frontend).
-All 21 discover-tasks items from last round complete.
+Promoted from Milestone 10 UX/Performance items.
 
-No new bugs or security issues found. Remaining todo.md items require external deps or large design.
-Run `/auto-task` to promote from todo.md, or request a new feature.
+## Performance
+- [ ] Shorten KIS price cache TTL from 1h to 5min in kis_price.py
+- [ ] Add force-refresh option to dashboard — skip Redis cache when user clicks refresh
+
+## UX
+- [ ] Add Cmd+K / Ctrl+K keyboard shortcut to open stock search from any dashboard page
+- [ ] Add password change API (POST /auth/change-password) + revoke all refresh tokens
+- [ ] Portfolio detail — add date input to transaction create form (traded_at field)
+- [ ] HoldingsTable — add role="button" and onKeyDown to sortable column headers
