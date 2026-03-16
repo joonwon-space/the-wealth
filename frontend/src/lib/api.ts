@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -43,6 +44,11 @@ api.interceptors.response.use(
       } else {
         window.location.href = "/login";
       }
+    }
+    // Show toast for non-401 errors
+    if (error.response?.status !== 401) {
+      const detail = error.response?.data?.detail ?? error.message ?? "요청에 실패했습니다";
+      toast.error(detail);
     }
     return Promise.reject(error);
   }
