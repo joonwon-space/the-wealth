@@ -29,9 +29,9 @@ Each item should be completable in a single commit.
 - [x] Settings page — KIS account form grid responsive (grid-cols-1 sm:grid-cols-2)
 
 ## Frontend Tests
-- [ ] Add PnLBadge component test (positive=red, negative=blue, zero=default)
-- [ ] Add TransactionChart component test (monthly aggregation logic)
-- [ ] Add StockSearchDialog test (recent search, chosung)
+- [x] Add PnLBadge component test — 5 tests
+- [x] Add TransactionChart aggregation test — 2 tests
+- [x] Add StockSearchDialog test — 4 tests
 
 ## Backend Tests
 - [ ] Add KIS account CRUD API tests (add, list, update label, delete, duplicate check)
