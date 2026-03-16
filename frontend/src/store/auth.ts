@@ -1,5 +1,16 @@
 import { create } from "zustand";
 
+const COOKIE_OPTS = "path=/; SameSite=Lax; max-age=1800"; // 30분 (access token 수명)
+const REFRESH_COOKIE_OPTS = "path=/; SameSite=Lax; max-age=604800"; // 7일
+
+function setCookie(name: string, value: string, opts: string) {
+  document.cookie = `${name}=${value}; ${opts}`;
+}
+
+function deleteCookie(name: string) {
+  document.cookie = `${name}=; path=/; max-age=0`;
+}
+
 interface AuthState {
   isAuthenticated: boolean;
   accessToken: string | null;
@@ -22,6 +33,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (typeof window !== "undefined") {
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("refresh_token", refreshToken);
+      setCookie("access_token", accessToken, COOKIE_OPTS);
+      setCookie("refresh_token", refreshToken, REFRESH_COOKIE_OPTS);
     }
     set({ isAuthenticated: true, accessToken });
   },
@@ -30,6 +43,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (typeof window !== "undefined") {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
+      deleteCookie("access_token");
+      deleteCookie("refresh_token");
     }
     set({ isAuthenticated: false, accessToken: null });
   },
