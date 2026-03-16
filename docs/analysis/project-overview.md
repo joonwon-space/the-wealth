@@ -35,6 +35,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 |--------|------|-------------|
 | GET | `/portfolios` | List portfolios (with holdings_count, total_invested) |
 | POST | `/portfolios` | Create portfolio |
+| PATCH | `/portfolios/{id}` | Rename portfolio |
 | DELETE | `/portfolios/{id}` | Delete portfolio |
 | GET | `/portfolios/{id}/holdings` | List holdings |
 | GET | `/portfolios/{id}/holdings/with-prices` | Holdings with current price & P&L |
@@ -53,7 +54,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 ### Stocks (`/stocks`)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/stocks/search?q=` | Search (KOSPI + KOSDAQ + NYSE + NASDAQ + AMEX, max_length=50) |
+| GET | `/stocks/search?q=` | Search 16K+ stocks (domestic + overseas, chosung support) |
 
 ### Users (`/users`)
 | Method | Path | Description |
@@ -61,6 +62,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | POST | `/users/kis-credentials` | Save KIS credentials to user model (legacy) |
 | GET | `/users/kis-accounts` | List registered KIS accounts (no secrets) |
 | POST | `/users/kis-accounts` | Register new KIS account (AES encrypted) |
+| PATCH | `/users/kis-accounts/{id}` | Update KIS account label |
 | DELETE | `/users/kis-accounts/{id}` | Delete KIS account |
 
 ### Sync (`/sync`)

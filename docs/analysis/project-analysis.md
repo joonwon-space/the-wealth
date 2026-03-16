@@ -30,7 +30,6 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 ### Remaining Weaknesses
 
 - **Analytics page**: Only placeholder, no charts/analysis implemented
-- **Transaction history charts**: API exists but no visualization
 - **Price history**: No daily snapshots for "vs previous day" display
 
 ---
