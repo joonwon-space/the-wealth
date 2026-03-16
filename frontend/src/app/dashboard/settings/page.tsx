@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle, Eye, Loader2, Pencil, Plus, Trash2, Wifi, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
@@ -40,6 +40,27 @@ export default function SettingsPage() {
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAcct, setNewAcct] = useState({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
   const [addingAcct, setAddingAcct] = useState(false);
+  const [testingAcctId, setTestingAcctId] = useState<number | null>(null);
+  const [testResults, setTestResults] = useState<Record<number, boolean | null>>({});
+
+  const handleTestAccount = async (id: number) => {
+    setTestingAcctId(id);
+    setTestResults((prev) => ({ ...prev, [id]: null }));
+    try {
+      const { data } = await api.post<{ success: boolean; message: string }>(`/users/kis-accounts/${id}/test`);
+      setTestResults((prev) => ({ ...prev, [id]: data.success }));
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.error(data.message);
+      }
+    } catch {
+      setTestResults((prev) => ({ ...prev, [id]: false }));
+      toast.error("연결 테스트에 실패했습니다");
+    } finally {
+      setTestingAcctId(null);
+    }
+  };
 
   const fetchKisAccounts = () => {
     api.get<typeof kisAccounts>("/users/kis-accounts").then(({ data }) => setKisAccounts(data));
@@ -170,9 +191,28 @@ export default function SettingsPage() {
                       <span className="ml-1 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
                     </div>
                   )}
-                  <button onClick={() => handleDeleteAccount(a.id)} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleTestAccount(a.id)}
+                      disabled={testingAcctId === a.id}
+                      className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
+                      title="연결 테스트"
+                    >
+                      {testingAcctId === a.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : testResults[a.id] === true ? (
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                      ) : testResults[a.id] === false ? (
+                        <XCircle className="h-3 w-3 text-destructive" />
+                      ) : (
+                        <Wifi className="h-3 w-3" />
+                      )}
+                      테스트
+                    </button>
+                    <button onClick={() => handleDeleteAccount(a.id)} className="text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
