@@ -15,7 +15,7 @@
 
 ## 버그 & 안정성
 - [x] KIS API 실패 시 대시보드 에러 표시 — 에러 메시지 + 다시 시도 버튼 추가
-- [ ] scheduler.py _sync_all_accounts 실제 구현 — DB에서 KIS 자격증명 있는 사용자 조회 후 동기화 실행
+- [x] scheduler.py _sync_all_accounts 실제 구현 — DB에서 KIS 자격증명 있는 사용자 조회 후 동기화 실행
 - [ ] ruff 린터 venv에 설치 및 기존 코드 lint 수정
 
 ## 테스트 인프라
