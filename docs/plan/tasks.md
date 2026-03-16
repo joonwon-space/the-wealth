@@ -8,7 +8,7 @@ Each item should be completable in a single commit.
 All lint/test issues resolved. 60 tests passing (46 backend + 14 frontend).
 
 ## Test Coverage
-- [ ] Add transaction API tests (list + create, BUY/SELL validation, auth check)
+- [x] Add transaction API tests — 6 passing
 - [ ] Add holdings-with-prices API test (mock KIS price, verify P&L calc)
 
 ## UI Polish
