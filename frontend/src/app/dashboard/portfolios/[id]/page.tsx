@@ -73,6 +73,11 @@ export default function PortfolioDetailPage() {
     } catch { /* ignore */ }
   };
 
+  const handleDeleteTxn = async (txnId: number) => {
+    await api.delete(`/portfolios/transactions/${txnId}`);
+    setTransactions((prev) => prev.filter((t) => t.id !== txnId));
+  };
+
   useEffect(() => { fetchHoldings(); fetchTransactions(); }, [portfolioId]);
 
   const handleTxnSubmit = async () => {
@@ -328,7 +333,7 @@ export default function PortfolioDetailPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {["일시", "유형", "종목", "수량", "단가"].map((h) => (
+                  {["일시", "유형", "종목", "수량", "단가", ""].map((h) => (
                     <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
@@ -345,6 +350,14 @@ export default function PortfolioDetailPage() {
                     <td className="px-4 py-2 font-mono text-xs">{t.ticker}</td>
                     <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
                     <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => handleDeleteTxn(t.id)}
+                        className="rounded border px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

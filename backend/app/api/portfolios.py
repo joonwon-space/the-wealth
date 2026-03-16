@@ -277,3 +277,20 @@ async def create_transaction(
     await db.commit()
     await db.refresh(txn)
     return txn
+
+
+@router.delete("/transactions/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_transaction(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    txn = await db.get(Transaction, transaction_id)
+    if not txn:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    portfolio = await db.get(Portfolio, txn.portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+    _assert_portfolio_owner(portfolio, current_user)
+    await db.delete(txn)
+    await db.commit()
