@@ -72,7 +72,7 @@ export function TransactionChart({ transactions }: Props) {
               name === "buy" ? "Buy" : "Sell",
             ]}
           />
-          <Legend formatter={(value) => (value === "buy" ? "Buy" : "Sell")} />
+          <Legend formatter={(value) => (value === "buy" ? "매수" : "매도")} />
           <Bar dataKey="buy" fill="#e31f26" radius={[4, 4, 0, 0]} />
           <Bar dataKey="sell" fill="#1a56db" radius={[4, 4, 0, 0]} />
         </BarChart>

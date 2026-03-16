@@ -22,12 +22,11 @@ Each item should be completable in a single commit.
 - [x] Settings page — success toast on KIS account add/edit/delete
 
 ## Frontend UX
-- [ ] Portfolio detail — replace browser confirm() for portfolio delete with shadcn Dialog
-- [ ] Portfolio detail — add confirmation dialog before transaction delete
-- [ ] Portfolio detail — pre-populate holding edit form with current quantity/avg_price values
-- [ ] Portfolio detail — add quantity/price > 0 client-side validation on holding and transaction forms
-- [ ] TransactionChart — change legend labels from English to Korean (매수/매도)
-- [ ] Settings page — fix KIS account add form grid to grid-cols-1 sm:grid-cols-2 for mobile
+- [x] Portfolio detail — holding edit already pre-populates (confirmed)
+- [x] Portfolio detail — add confirmation dialog before transaction delete
+- [x] Portfolio detail — quantity/price > 0 client-side validation
+- [x] TransactionChart — legend labels changed to 매수/매도
+- [x] Settings page — KIS account form grid responsive (grid-cols-1 sm:grid-cols-2)
 
 ## Frontend Tests
 - [ ] Add PnLBadge component test (positive=red, negative=blue, zero=default)

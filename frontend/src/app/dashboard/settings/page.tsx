@@ -281,7 +281,7 @@ export default function SettingsPage() {
 
           {showAddAccount && (
             <div className="space-y-2 rounded-lg border p-3">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">별칭</label>
                   <Input value={newAcct.label} onChange={(e) => setNewAcct((f) => ({ ...f, label: e.target.value }))} placeholder="연금저축" className="h-8" />

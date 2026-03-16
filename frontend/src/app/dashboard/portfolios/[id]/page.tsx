@@ -57,6 +57,7 @@ export default function PortfolioDetailPage() {
   const [showTxnForm, setShowTxnForm] = useState(false);
   const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "" });
   const [txnSaving, setTxnSaving] = useState(false);
+  const [deleteTxnId, setDeleteTxnId] = useState<number | null>(null);
 
   const fetchHoldings = async () => {
     try {
@@ -83,6 +84,7 @@ export default function PortfolioDetailPage() {
 
   const handleTxnSubmit = async () => {
     if (!txnForm.ticker || !txnForm.quantity || !txnForm.price) return;
+    if (Number(txnForm.quantity) <= 0 || Number(txnForm.price) <= 0) return;
     setTxnSaving(true);
     try {
       await api.post(`/portfolios/${portfolioId}/transactions`, {
@@ -288,6 +290,20 @@ export default function PortfolioDetailPage() {
         </div>
       )}
 
+      {/* 거래 삭제 확인 */}
+      {deleteTxnId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-xs rounded-xl border bg-background p-6 shadow-lg text-center space-y-4">
+            <p className="font-semibold">거래를 삭제하시겠습니까?</p>
+            <p className="text-sm text-muted-foreground">이 작업은 되돌릴 수 없습니다.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setDeleteTxnId(null)}>취소</Button>
+              <Button variant="destructive" className="flex-1" onClick={() => { handleDeleteTxn(deleteTxnId); setDeleteTxnId(null); }}>삭제</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Transaction History */}
       <section className="space-y-2">
         <div className="flex items-center justify-between">
@@ -354,7 +370,7 @@ export default function PortfolioDetailPage() {
                     <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
                     <td className="px-4 py-2">
                       <button
-                        onClick={() => handleDeleteTxn(t.id)}
+                        onClick={() => setDeleteTxnId(t.id)}
                         className="rounded border px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-3 w-3" />
