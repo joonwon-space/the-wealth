@@ -3,10 +3,12 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class HoldingWithPnL(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     ticker: str
     name: str
@@ -16,9 +18,6 @@ class HoldingWithPnL(BaseModel):
     market_value: Optional[Decimal]
     pnl_amount: Optional[Decimal]
     pnl_rate: Optional[Decimal]
-
-    class Config:
-        from_attributes = True
 
 
 class DashboardSummary(BaseModel):

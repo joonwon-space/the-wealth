@@ -1,7 +1,10 @@
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
+
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/the_wealth"
     JWT_SECRET_KEY: str = "change-me"
     JWT_ALGORITHM: str = "HS256"
@@ -14,10 +17,6 @@ class Settings(BaseSettings):
     KIS_BASE_URL: str = "https://openapi.koreainvestment.com:9443"
     KIS_ACCOUNT_NO: str = ""
     KIS_ACNT_PRDT_CD: str = "01"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 settings = Settings()

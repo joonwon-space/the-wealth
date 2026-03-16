@@ -9,7 +9,7 @@
 ---
 
 ## 코드 품질
-- [ ] Pydantic V2 deprecation 수정 — `class Config` → `model_config = ConfigDict(...)` (config.py, auth.py, dashboard.py, portfolio.py)
+- [x] Pydantic V2 deprecation 수정 — `class Config` → `model_config = ConfigDict(...)` (5개 파일)
 - [ ] /dashboard/analytics placeholder 페이지 생성 — 사이드바에 링크 있으나 404
 
 ## 테스트 확장
