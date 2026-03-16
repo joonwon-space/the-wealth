@@ -92,3 +92,12 @@
 - [ ] WebSocket/SSE로 실시간 가격 업데이트 (polling 대체)
 - [ ] 종목 검색 trie 구조 or Redis 인덱싱
 - [ ] KIS 현재가 배치 API 탐색 (종목 수 많을 때 rate limit 대응)
+- [ ] KIS price cache TTL 5-10분으로 단축 (장중 stale data 방지)
+- [ ] 대시보드 refresh 시 Redis 캐시 강제 무효화 옵션
+
+### UX 고도화
+- [ ] Cmd+K / Ctrl+K 키보드 단축키로 종목 검색 열기
+- [ ] 비밀번호 변경 기능 + 기존 refresh token 전체 revoke
+- [ ] KIS 자격증명 등록 시 API 연결 테스트 (저장 전 유효성 검증)
+- [ ] 포트폴리오 상세 — 거래 기록에 날짜 선택 (date picker)
+- [ ] 테이블 접근성 — sortable header에 role="button" + keyboard event

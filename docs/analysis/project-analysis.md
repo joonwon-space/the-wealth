@@ -32,6 +32,11 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 
 - ~~Analytics page~~ → **Done**: summary cards, allocation donut, performance table
 - **Price history**: No daily snapshots for "vs previous day" display
+- **Input validation gaps**: PortfolioCreate allows empty name, HoldingCreate allows zero/negative qty/price, TransactionCreate.type not constrained
+- **No pagination**: Transactions (hardcoded 200), sync logs (50), dashboard holdings (500)
+- **N+1 query**: list_portfolios executes per-portfolio stats query
+- **Missing error handling**: Settings page silent failures on account edit/delete, no toast feedback
+- **Mobile overflow**: Transaction form, holdings table, and analytics table overflow on small screens
 
 ---
 
