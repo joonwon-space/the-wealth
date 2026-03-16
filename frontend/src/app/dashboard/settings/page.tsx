@@ -34,10 +34,12 @@ interface BalanceHolding {
 interface AccountBalance {
   label: string;
   account_no: string;
+  portfolio_id?: number;
   deposit: string;
   total_eval: string;
   stock_eval: string;
   pnl: string;
+  synced?: { inserted: number; updated: number; deleted: number };
   holdings: BalanceHolding[];
   error?: string;
 }
@@ -237,6 +239,11 @@ export default function SettingsPage() {
                 <p className="text-sm text-destructive">{acct.error}</p>
               ) : (
                 <>
+                  {acct.synced && (acct.synced.inserted > 0 || acct.synced.updated > 0 || acct.synced.deleted > 0) && (
+                    <p className="text-xs text-green-600">
+                      동기화: +{acct.synced.inserted} ~{acct.synced.updated} -{acct.synced.deleted}
+                    </p>
+                  )}
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="rounded-lg border p-3">
                       <p className="text-xs text-muted-foreground">예수금</p>

@@ -16,7 +16,7 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
 from app.models.user import User
-from app.services.kis_account import fetch_account_holdings
+from app.services.kis_account import KisHolding, fetch_account_holdings
 from app.services.kis_token import get_kis_access_token
 from app.services.reconciliation import reconcile_holdings
 
@@ -24,8 +24,8 @@ router = APIRouter(prefix="/sync", tags=["sync"])
 logger = logging.getLogger(__name__)
 
 
-async def _fetch_balance_for_account(acct: KisAccount) -> dict:
-    """단일 KIS 계좌의 잔고를 조회."""
+async def _fetch_balance_raw(acct: KisAccount) -> tuple[dict, list[KisHolding]]:
+    """단일 KIS 계좌의 원시 잔고 + holdings 조회."""
     app_key = decrypt(acct.app_key_enc)
     app_secret = decrypt(acct.app_secret_enc)
     token = await get_kis_access_token(app_key, app_secret)
@@ -65,23 +65,34 @@ async def _fetch_balance_for_account(acct: KisAccount) -> dict:
         app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
     )
 
-    return {
-        "label": acct.label,
-        "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
-        "deposit": summary.get("dnca_tot_amt", "0"),
-        "total_eval": summary.get("tot_evlu_amt", "0"),
-        "stock_eval": summary.get("scts_evlu_amt", "0"),
-        "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
-        "holdings": [
-            {
-                "ticker": h.ticker,
-                "name": h.name,
-                "quantity": str(h.quantity),
-                "avg_price": str(h.avg_price),
-            }
-            for h in holdings_list
-        ],
-    }
+    return summary, holdings_list
+
+
+async def _ensure_portfolio_for_account(
+    db: AsyncSession, user_id: int, acct: KisAccount
+) -> Portfolio:
+    """KIS 계좌에 연결된 포트폴리오가 없으면 자동 생성."""
+    result = await db.execute(
+        select(Portfolio).where(Portfolio.kis_account_id == acct.id)
+    )
+    portfolio = result.scalar_one_or_none()
+
+    if portfolio is None:
+        portfolio = Portfolio(
+            user_id=user_id,
+            name=acct.label,
+            currency="KRW",
+            kis_account_id=acct.id,
+        )
+        db.add(portfolio)
+        await db.commit()
+        await db.refresh(portfolio)
+        logger.info(
+            "Auto-created portfolio '%s' for KIS account %s-%s",
+            acct.label, acct.account_no, acct.acnt_prdt_cd,
+        )
+
+    return portfolio
 
 
 @router.get("/balance")
@@ -89,7 +100,7 @@ async def get_account_balance(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """사용자의 모든 KIS 계좌 잔고를 조회 (동기화 없음)."""
+    """모든 KIS 계좌 잔고 조회 + 포트폴리오 자동 생성 + holdings 동기화."""
     result = await db.execute(
         select(KisAccount).where(KisAccount.user_id == current_user.id)
     )
@@ -104,8 +115,48 @@ async def get_account_balance(
     account_results = []
     for acct in accounts:
         try:
-            balance = await _fetch_balance_for_account(acct)
-            account_results.append(balance)
+            summary, kis_holdings = await _fetch_balance_raw(acct)
+
+            # 포트폴리오 자동 생성
+            portfolio = await _ensure_portfolio_for_account(db, current_user.id, acct)
+
+            # holdings 동기화
+            counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
+            if counts["inserted"] or counts["updated"] or counts["deleted"]:
+                log = SyncLog(
+                    user_id=current_user.id,
+                    portfolio_id=portfolio.id,
+                    status="success",
+                    inserted=counts["inserted"],
+                    updated=counts["updated"],
+                    deleted=counts["deleted"],
+                )
+                db.add(log)
+                await db.commit()
+                logger.info(
+                    "Auto-synced %s: +%d ~%d -%d",
+                    acct.label, counts["inserted"], counts["updated"], counts["deleted"],
+                )
+
+            account_results.append({
+                "label": acct.label,
+                "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
+                "portfolio_id": portfolio.id,
+                "deposit": summary.get("dnca_tot_amt", "0"),
+                "total_eval": summary.get("tot_evlu_amt", "0"),
+                "stock_eval": summary.get("scts_evlu_amt", "0"),
+                "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
+                "synced": counts,
+                "holdings": [
+                    {
+                        "ticker": h.ticker,
+                        "name": h.name,
+                        "quantity": str(h.quantity),
+                        "avg_price": str(h.avg_price),
+                    }
+                    for h in kis_holdings
+                ],
+            })
         except Exception as exc:
             logger.warning("Balance inquiry failed for %s: %s", acct.label, exc)
             account_results.append({
@@ -128,22 +179,25 @@ async def sync_portfolio(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """KIS 계좌 잔고를 조회해 DB holdings와 Reconcile. 계좌번호는 DB에서 자동 사용."""
+    """포트폴리오에 연결된 KIS 계좌로 동기화."""
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio or portfolio.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
 
-    if not current_user.kis_app_key_enc or not current_user.kis_app_secret_enc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="KIS credentials not configured")
-    if not current_user.kis_account_no:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account number not configured")
+    if not portfolio.kis_account_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Portfolio not linked to a KIS account")
 
-    app_key = decrypt(current_user.kis_app_key_enc)
-    app_secret = decrypt(current_user.kis_app_secret_enc)
-    acnt_prdt_cd = current_user.kis_acnt_prdt_cd or "01"
+    acct = await db.get(KisAccount, portfolio.kis_account_id)
+    if not acct:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="KIS account not found")
+
+    app_key = decrypt(acct.app_key_enc)
+    app_secret = decrypt(acct.app_secret_enc)
 
     try:
-        kis_holdings = await fetch_account_holdings(app_key, app_secret, current_user.kis_account_no, acnt_prdt_cd)
+        kis_holdings = await fetch_account_holdings(
+            app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
+        )
         counts = await reconcile_holdings(db, portfolio_id, kis_holdings)
 
         log = SyncLog(
