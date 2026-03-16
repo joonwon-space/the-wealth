@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth, portfolios, stocks
+from app.api import auth, dashboard, portfolios, stocks
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(portfolios.router)
 app.include_router(stocks.router)
+app.include_router(dashboard.router)
 
 
 @app.exception_handler(Exception)
