@@ -3,15 +3,22 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setSearchOpen((prev) => !prev);
+      }
+      // Cmd+? (Cmd+Shift+/)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "/") {
+        e.preventDefault();
+        setShortcutsOpen((prev) => !prev);
       }
     };
     document.addEventListener("keydown", handler);
@@ -26,6 +33,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
         onSelect={() => setSearchOpen(false)}
+      />
+      <KeyboardShortcutsDialog
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
     </div>
   );
