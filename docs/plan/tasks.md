@@ -13,8 +13,8 @@ Each item should be completable in a single commit.
 
 ## Search UX (from Milestone 9)
 - [x] Save recent search queries to localStorage (last 5) with delete option
-- [ ] Add overseas stock market label (NYSE/NASDAQ/AMEX) to search results display
+- [x] Add overseas stock market label (NYSE/NASDAQ/AMEX) — already shown in search results
 
 ## Dashboard Improvement
-- [ ] Dashboard summary should aggregate across all KIS-linked portfolios (not just user-level credentials)
+- [x] Dashboard summary uses KIS account from kis_accounts table (not user-level credentials)
 - [ ] Portfolio detail page — show current price and P&L per holding (use KIS price API via linked account)

@@ -13,6 +13,7 @@ from app.api.deps import get_current_user
 from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.holding import Holding
+from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
 from app.schemas.dashboard import AllocationItem, DashboardSummary, HoldingWithPnL
@@ -69,16 +70,19 @@ async def get_summary(
             allocation=[],
         )
 
-    # 현재가 병렬 조회 (KIS 자격증명이 없으면 None 반환)
+    # Fetch prices using first available KIS account credentials
     tickers = list({h.ticker for h in holdings})
-    app_key_enc = current_user.kis_app_key_enc or ""
-    app_secret_enc = current_user.kis_app_secret_enc or ""
-
     prices: dict[str, Optional[Decimal]] = {}
-    if app_key_enc and app_secret_enc:
+
+    acct_result = await db.execute(
+        select(KisAccount).where(KisAccount.user_id == current_user.id).limit(1)
+    )
+    kis_acct = acct_result.scalar_one_or_none()
+
+    if kis_acct:
         try:
-            app_key = decrypt(app_key_enc)
-            app_secret = decrypt(app_secret_enc)
+            app_key = decrypt(kis_acct.app_key_enc)
+            app_secret = decrypt(kis_acct.app_secret_enc)
             prices = await fetch_prices_parallel(tickers, app_key, app_secret)
         except Exception as e:
             logger.warning("Failed to fetch prices: %s", e)
