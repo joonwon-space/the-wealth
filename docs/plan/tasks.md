@@ -8,9 +8,7 @@ Each item should be completable in a single commit.
 Promoted from Milestone 9 (analytics) and Milestone 10 (CI/CD).
 
 ## Analytics Page (from Milestone 9)
-- [ ] Analytics page — portfolio total value summary cards (total across all portfolios)
-- [ ] Analytics page — asset allocation pie chart across all portfolios (Recharts)
-- [ ] Analytics page — holdings performance table with sort (best/worst performers)
+- [x] Analytics page — summary cards, allocation donut, performance table (all in one)
 
 ## CI/CD (from Milestone 10)
 - [ ] GitHub Actions workflow — backend lint + test on push/PR
