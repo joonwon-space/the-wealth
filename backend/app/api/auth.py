@@ -2,15 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
     hash_password,
+    revoke_all_refresh_tokens_for_user,
     store_refresh_jti,
     verify_and_consume_refresh_jti,
     verify_password,
 )
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import (
@@ -95,3 +99,30 @@ async def refresh(
         access_token=create_access_token(user.id),
         refresh_token=new_refresh_token,
     )
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password", status_code=204)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Change password and revoke all existing refresh tokens."""
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    if len(body.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters",
+        )
+    current_user.hashed_password = hash_password(body.new_password)
+    await db.commit()
+    await revoke_all_refresh_tokens_for_user(current_user.id)

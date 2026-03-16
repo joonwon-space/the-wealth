@@ -13,6 +13,6 @@ Promoted from Milestone 10 UX/Performance items.
 
 ## UX
 - [x] Cmd+K / Ctrl+K keyboard shortcut opens stock search globally
-- [ ] Add password change API (POST /auth/change-password) + revoke all refresh tokens
+- [x] Password change API (POST /auth/change-password) + revoke all refresh tokens
 - [ ] Portfolio detail — add date input to transaction create form (traded_at field)
 - [ ] HoldingsTable — add role="button" and onKeyDown to sortable column headers
