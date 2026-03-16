@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Wallet } from "lucide-react";
+import { Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatKRW } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ export default function PortfoliosPage() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
 
   const fetchPortfolios = async () => {
     try {
@@ -40,6 +42,13 @@ export default function PortfoliosPage() {
   };
 
   useEffect(() => { fetchPortfolios(); }, []);
+
+  const handleRename = async (id: number) => {
+    if (!editName.trim()) return;
+    const { data } = await api.patch<Portfolio>(`/portfolios/${id}`, { name: editName });
+    setPortfolios((prev) => prev.map((p) => p.id === id ? { ...p, name: data.name } : p));
+    setEditingId(null);
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm("포트폴리오를 삭제하시겠습니까?")) return;
@@ -88,7 +97,21 @@ export default function PortfoliosPage() {
                       <Wallet className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold">{p.name}</p>
+                      {editingId === p.id ? (
+                        <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-6 w-28 text-sm" autoFocus
+                            onKeyDown={(e) => { if (e.key === "Enter") handleRename(p.id); if (e.key === "Escape") setEditingId(null); }}
+                          />
+                          <Button size="sm" onClick={() => handleRename(p.id)} className="h-6 px-2 text-xs">OK</Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <p className="font-semibold">{p.name}</p>
+                          <button onClick={(e) => { e.preventDefault(); setEditingId(p.id); setEditName(p.name); }} className="text-muted-foreground/40 hover:text-muted-foreground">
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground">{p.currency}</p>
                     </div>
                   </div>

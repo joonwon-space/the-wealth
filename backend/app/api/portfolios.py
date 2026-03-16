@@ -82,6 +82,37 @@ async def create_portfolio(
     return portfolio
 
 
+@router.patch("/{portfolio_id}", response_model=PortfolioResponse)
+async def update_portfolio(
+    portfolio_id: int,
+    body: PortfolioCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+    _assert_portfolio_owner(portfolio, current_user)
+    portfolio.name = body.name
+    if body.currency:
+        portfolio.currency = body.currency
+    await db.commit()
+    await db.refresh(portfolio)
+
+    stats = await db.execute(
+        select(
+            func.count(Holding.id),
+            func.coalesce(func.sum(Holding.quantity * Holding.avg_price), Decimal("0")),
+        ).where(Holding.portfolio_id == portfolio.id)
+    )
+    count, invested = stats.one()
+    return {
+        "id": portfolio.id, "user_id": portfolio.user_id, "name": portfolio.name,
+        "currency": portfolio.currency, "created_at": portfolio.created_at,
+        "holdings_count": count, "total_invested": invested,
+    }
+
+
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_portfolio(
     portfolio_id: int,
