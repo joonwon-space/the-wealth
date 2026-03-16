@@ -15,8 +15,12 @@ from app.core.config import settings
 
 def _get_key() -> bytes:
     key_hex = settings.ENCRYPTION_MASTER_KEY
-    key_bytes = bytes.fromhex(key_hex) if len(key_hex) == 64 else key_hex.encode()[:32].ljust(32, b"\x00")
-    return key_bytes
+    if len(key_hex) != 64:
+        raise ValueError(
+            "ENCRYPTION_MASTER_KEY must be a 64-char hex string (32 bytes). "
+            f"Got {len(key_hex)} chars. Generate with: openssl rand -hex 32"
+        )
+    return bytes.fromhex(key_hex)
 
 
 def encrypt(plaintext: str) -> str:
