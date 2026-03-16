@@ -10,6 +10,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.portfolio import Portfolio
+from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.portfolio import (
     HoldingCreate,
@@ -17,6 +18,8 @@ from app.schemas.portfolio import (
     HoldingUpdate,
     PortfolioCreate,
     PortfolioResponse,
+    TransactionCreate,
+    TransactionResponse,
 )
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
@@ -168,3 +171,53 @@ async def delete_holding(
 
     await db.delete(holding)
     await db.commit()
+
+
+@router.get("/{portfolio_id}/transactions", response_model=list[TransactionResponse])
+async def list_transactions(
+    portfolio_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[Transaction]:
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+    _assert_portfolio_owner(portfolio, current_user)
+
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.portfolio_id == portfolio_id)
+        .order_by(Transaction.traded_at.desc())
+        .limit(200)
+    )
+    return list(result.scalars().all())
+
+
+@router.post("/{portfolio_id}/transactions", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
+async def create_transaction(
+    portfolio_id: int,
+    body: TransactionCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Transaction:
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+    _assert_portfolio_owner(portfolio, current_user)
+
+    if body.type not in ("BUY", "SELL"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="type must be BUY or SELL")
+
+    txn = Transaction(
+        portfolio_id=portfolio_id,
+        ticker=body.ticker,
+        type=body.type,
+        quantity=body.quantity,
+        price=body.price,
+    )
+    if body.traded_at:
+        txn.traded_at = body.traded_at
+    db.add(txn)
+    await db.commit()
+    await db.refresh(txn)
+    return txn

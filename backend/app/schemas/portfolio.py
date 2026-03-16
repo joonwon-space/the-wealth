@@ -46,3 +46,23 @@ class HoldingResponse(BaseModel):
     quantity: Decimal
     avg_price: Decimal
     created_at: datetime
+
+
+class TransactionCreate(BaseModel):
+    ticker: str
+    type: str  # BUY | SELL
+    quantity: Decimal
+    price: Decimal
+    traded_at: Optional[datetime] = None
+
+
+class TransactionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    portfolio_id: int
+    ticker: str
+    type: str
+    quantity: Decimal
+    price: Decimal
+    traded_at: datetime
