@@ -12,9 +12,9 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 |------|--------|-------|
 | Backend API | Complete | Auth, CRUD, sync, search, transactions |
 | DB Schema | Complete | 6 tables, 5 migrations |
-| Frontend UI | Complete | All pages, CRUD, mobile responsive |
+| Frontend UI | Complete | All pages, CRUD, mobile responsive (card views, responsive grid) |
 | KIS Integration | Complete | Multi-account, tokens, prices, balance, auto-sync |
-| Testing | Solid | Backend 63 + Frontend 25 = 88 tests |
+| Testing | Solid | Backend 63 + Frontend 25 = 88 tests, 0 failures |
 | Security | Hardened | jti token revocation, password policy, secret validation, error sanitization |
 | CI/CD | Done | GitHub Actions for backend (lint+test) and frontend (lint+typecheck+test+build) |
 | Deployment | Not done | Dockerfiles exist, no actual deploy |
@@ -36,7 +36,7 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 - ~~No pagination~~ → **Fixed**: transactions + sync logs now paginated
 - ~~N+1 query~~ → **Fixed**: list_portfolios uses LEFT JOIN GROUP BY
 - ~~Missing error handling~~ → **Fixed**: Settings page try-catch + toast on all actions
-- **Mobile overflow**: Transaction form, holdings table, and analytics table overflow on small screens (partially fixed)
+- ~~Mobile overflow~~ → **Fixed**: responsive padding, 2-col grid form, card views for tables on mobile
 
 ---
 
@@ -46,7 +46,8 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 
 | Risk | Description | Mitigation |
 |------|-------------|------------|
-| **Python 3.9 EOL** | No security patches, limits package upgrades | Milestone 8: upgrade to 3.10+ |
+| **passlib crypt deprecation** | `crypt` module removed in Python 3.13, passlib uses it | Migrate to `bcrypt` directly or use passlib fork |
+| **ecdsa vulnerability** | GHSA-wj6h-64fc-37mp via python-jose | Replace python-jose with PyJWT |
 
 ### Medium
 
@@ -58,11 +59,12 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 
 - ~~KRX/Naver scraping~~ → Replaced with KIS MST files (stable)
 - ~~KIS API failure~~ → Redis price cache fallback + error UI
-- ~~No tests~~ → 60 tests (pytest + vitest)
+- ~~No tests~~ → 88 tests (pytest 63 + vitest 25)
 - ~~Token replay~~ → jti + Redis one-time use
 - ~~Weak passwords~~ → 8-char minimum enforced server-side
 - ~~Cache key collision~~ → SHA-256 hash of full app_key
 - ~~Exception detail leak~~ → Generic error messages
+- ~~Python 3.9 EOL~~ → Upgraded to Python 3.12
 
 ---
 
@@ -77,7 +79,7 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 | IDOR prevention | OK |
 | SQL Injection | OK (SQLAlchemy ORM) |
 | Rate limiting | OK (60 req/min) |
-| CORS | OK (localhost:3000 only) |
+| CORS | OK (configurable via CORS_ORIGINS env) |
 | XSS | OK (React escaping) |
 | CSRF | OK (SameSite=Lax) |
 | Startup secret validation | OK (rejects placeholders) |

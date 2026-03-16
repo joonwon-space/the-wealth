@@ -11,7 +11,7 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | **UI** | shadcn/ui (base-nova), TanStack Table v8, Recharts, Sonner | Dialog, Input, Card, Table, Skeleton, Toast |
 | **State** | Zustand | Auth state (localStorage + cookie) |
 | **HTTP** | Axios | JWT auto-refresh interceptor |
-| **Backend** | FastAPI (Python 3.9+), async/await | uvicorn, CORS localhost:3000 |
+| **Backend** | FastAPI (Python 3.12+), async/await | uvicorn, CORS configurable via env |
 | **ORM** | SQLAlchemy 2.0 (async) + Alembic | asyncpg driver |
 | **DB** | PostgreSQL | Homebrew local or Docker |
 | **Cache** | Redis | KIS tokens (24h), stock list (24h), price cache (1h) |
@@ -21,6 +21,8 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | **Rate Limiting** | slowapi | 60 req/min |
 | **Stock Data** | KIS MST/COD master files | 16,322 stocks (4,278 domestic + 12,044 overseas) |
 | **Keyboard** | Cmd+K / Ctrl+K | Global stock search shortcut |
+| **Keyboard** | Cmd+? (Cmd+Shift+/) | Keyboard shortcuts help modal |
+| **Dev Tools** | `scripts/dev-tmux.sh` | tmux session for frontend+backend with mobile IP |
 
 ## API Endpoints
 
@@ -52,6 +54,11 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/dashboard/summary` | Total assets, P&L, allocation (uses kis_accounts) |
+
+### Chart (`/chart`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/chart/daily?ticker=&period=` | Candlestick OHLCV data (1M/3M/6M/1Y/3Y) |
 
 ### Stocks (`/stocks`)
 | Method | Path | Description |
@@ -92,10 +99,10 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | `/` | Landing |
 | `/login` | Login (shadcn/ui Input, Button) |
 | `/register` | Register (8+ char password) |
-| `/dashboard` | Summary cards, donut chart, holdings table, skeleton loading, error UI |
+| `/dashboard` | Summary cards, donut chart, holdings table (mobile card view), refresh indicator, skeleton loading, error UI |
 | `/dashboard/portfolios` | Portfolio cards (holdings count, invested), create dialog |
 | `/dashboard/portfolios/[id]` | Holdings CRUD with prices/P&L, transaction history + create form |
-| `/dashboard/analytics` | Summary cards, allocation donut, performance table |
+| `/dashboard/analytics` | Summary cards, allocation donut, candlestick chart, performance table (mobile card view) |
 | `/dashboard/settings` | KIS credentials, manual sync, multi-account balance inquiry |
 
 ## Services
