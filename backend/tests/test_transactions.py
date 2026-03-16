@@ -47,7 +47,7 @@ class TestTransactionAPI:
             json={"ticker": "005930", "type": "INVALID", "quantity": 1, "price": 100},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     async def test_list_transactions(self, client: AsyncClient) -> None:
         token, pid = await _setup(client, "txn4@test.com")

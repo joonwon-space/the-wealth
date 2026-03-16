@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -48,9 +48,9 @@ class HoldingResponse(BaseModel):
 
 class TransactionCreate(BaseModel):
     ticker: str
-    type: str  # BUY | SELL
-    quantity: Decimal
-    price: Decimal
+    type: Literal["BUY", "SELL"]
+    quantity: Decimal = Field(gt=0)
+    price: Decimal = Field(gt=0)
     traded_at: Optional[datetime] = None
 
 

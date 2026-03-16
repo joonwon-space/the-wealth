@@ -344,11 +344,6 @@ async def create_transaction(
         )
     _assert_portfolio_owner(portfolio, current_user)
 
-    if body.type not in ("BUY", "SELL"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="type must be BUY or SELL"
-        )
-
     txn = Transaction(
         portfolio_id=portfolio_id,
         ticker=body.ticker,
