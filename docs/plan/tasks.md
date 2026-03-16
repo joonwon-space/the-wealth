@@ -9,7 +9,7 @@ Each item should be completable in a single commit.
 - [x] Transaction list API — GET /portfolios/{id}/transactions (desc by date, limit 200)
 - [x] Transaction create API — POST /portfolios/{id}/transactions (BUY/SELL validation)
 - [x] Transaction list UI — table in portfolio detail page
-- [ ] Transaction create form — modal with buy/sell toggle, stock search, quantity, price
+- [x] Transaction create form — inline form with buy/sell, ticker, quantity, price
 
 ## Search UX (from Milestone 9)
 - [ ] Save recent search queries to localStorage (last 5) and show as suggestions

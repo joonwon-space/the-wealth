@@ -49,6 +49,9 @@ export default function PortfolioDetailPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [transactions, setTransactions] = useState<TxnRow[]>([]);
+  const [showTxnForm, setShowTxnForm] = useState(false);
+  const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "" });
+  const [txnSaving, setTxnSaving] = useState(false);
 
   const fetchHoldings = async () => {
     try {
@@ -67,6 +70,24 @@ export default function PortfolioDetailPage() {
   };
 
   useEffect(() => { fetchHoldings(); fetchTransactions(); }, [portfolioId]);
+
+  const handleTxnSubmit = async () => {
+    if (!txnForm.ticker || !txnForm.quantity || !txnForm.price) return;
+    setTxnSaving(true);
+    try {
+      await api.post(`/portfolios/${portfolioId}/transactions`, {
+        ticker: txnForm.ticker,
+        type: txnForm.type,
+        quantity: Number(txnForm.quantity),
+        price: Number(txnForm.price),
+      });
+      setTxnForm({ ticker: "", type: "BUY", quantity: "", price: "" });
+      setShowTxnForm(false);
+      await fetchTransactions();
+    } finally {
+      setTxnSaving(false);
+    }
+  };
 
   const handleStockSelect = (ticker: string, name: string) => {
     setAddForm({ ticker, name, quantity: "", avg_price: "" });
@@ -256,9 +277,47 @@ export default function PortfolioDetailPage() {
       )}
 
       {/* Transaction History */}
-      {transactions.length > 0 && (
-        <section className="space-y-2">
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">거래 이력</h2>
+          <Button size="sm" variant="outline" onClick={() => setShowTxnForm(!showTxnForm)}>
+            {showTxnForm ? "취소" : "거래 추가"}
+          </Button>
+        </div>
+
+        {showTxnForm && (
+          <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">유형</label>
+              <select
+                value={txnForm.type}
+                onChange={(e) => setTxnForm((f) => ({ ...f, type: e.target.value as "BUY" | "SELL" }))}
+                className="h-8 rounded border bg-background px-2 text-sm"
+              >
+                <option value="BUY">매수</option>
+                <option value="SELL">매도</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">종목코드</label>
+              <Input value={txnForm.ticker} onChange={(e) => setTxnForm((f) => ({ ...f, ticker: e.target.value }))} placeholder="005930" className="w-24 h-8" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">수량</label>
+              <Input type="number" value={txnForm.quantity} onChange={(e) => setTxnForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="10" className="w-20 h-8" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">단가</label>
+              <Input type="number" value={txnForm.price} onChange={(e) => setTxnForm((f) => ({ ...f, price: e.target.value }))} placeholder="70000" className="w-28 h-8" />
+            </div>
+            <Button size="sm" onClick={handleTxnSubmit} disabled={txnSaving}>
+              {txnSaving ? "저장 중..." : "저장"}
+            </Button>
+          </div>
+        )}
+
+      {transactions.length > 0 && (
+        <>
           <div className="overflow-x-auto rounded-xl border">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
@@ -285,8 +344,9 @@ export default function PortfolioDetailPage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </>
       )}
+      </section>
 
       <StockSearchDialog
         open={searchOpen}
