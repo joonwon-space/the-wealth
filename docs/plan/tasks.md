@@ -31,7 +31,7 @@
 - [x] shadcn/ui Dialog, Input, Card, Table 설치 및 인라인 HTML 교체
 - [x] 모바일 반응형: 사이드바 → 햄버거 메뉴 (md breakpoint 기준 토글)
 - [x] 프론트엔드 전역 에러 바운더리 + toast 알림 통합 (sonner + error.tsx)
-- [ ] 다크 모드 색상 점검 및 조정
+- [x] 다크 모드 색상 점검 및 조정 — card/popover 밝기 미세 조정
 - [ ] 로딩 스켈레톤 UI (대시보드, 포트폴리오 목록)
 
 ## 현재가 안정성
