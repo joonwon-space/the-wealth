@@ -34,5 +34,5 @@ Each item should be completable in a single commit.
 - [x] Add StockSearchDialog test — 4 tests
 
 ## Backend Tests
-- [ ] Add KIS account CRUD API tests (add, list, update label, delete, duplicate check)
-- [ ] Add portfolio rename API test
+- [x] Add KIS account CRUD API tests — 6 tests
+- [x] Add portfolio rename API test — 2 tests
