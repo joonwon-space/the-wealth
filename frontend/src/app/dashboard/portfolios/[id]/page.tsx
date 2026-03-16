@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Search, Trash2, PackageOpen } from "lucide-react";
 import { api } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
 
@@ -94,13 +96,10 @@ export default function PortfolioDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">보유 종목</h1>
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <Button onClick={() => setSearchOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           종목 추가
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -110,13 +109,10 @@ export default function PortfolioDetailPage() {
           <PackageOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="font-medium">보유 종목이 없습니다</p>
           <p className="mt-1 text-sm text-muted-foreground">종목을 검색해서 추가해보세요.</p>
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
+          <Button onClick={() => setSearchOpen(true)} className="mt-4 gap-2">
             <Search className="h-4 w-4" />
             종목 검색
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border">
@@ -138,36 +134,25 @@ export default function PortfolioDetailPage() {
                         <div className="text-xs text-muted-foreground">{h.ticker}</div>
                       </td>
                       <td className="px-4 py-2">
-                        <input
+                        <Input
                           type="number"
                           value={editForm.quantity}
                           onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
-                          className="w-24 rounded border px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                          className="w-24 h-8"
                         />
                       </td>
                       <td className="px-4 py-2">
-                        <input
+                        <Input
                           type="number"
                           value={editForm.avg_price}
                           onChange={(e) => setEditForm((f) => ({ ...f, avg_price: e.target.value }))}
-                          className="w-28 rounded border px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                          className="w-28 h-8"
                         />
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditSave(h.id)}
-                            disabled={saving}
-                            className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                          >
-                            저장
-                          </button>
-                          <button
-                            onClick={() => setEditId(null)}
-                            className="rounded border px-3 py-1 text-xs hover:bg-muted"
-                          >
-                            취소
-                          </button>
+                          <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={saving}>저장</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditId(null)}>취소</Button>
                         </div>
                       </td>
                     </>
@@ -213,7 +198,7 @@ export default function PortfolioDetailPage() {
                       placeholder="수량"
                       value={addForm.quantity}
                       onChange={(e) => setAddForm((f) => f ? { ...f, quantity: e.target.value } : f)}
-                      className="w-24 rounded border px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      className="w-24 h-8"
                     />
                   </td>
                   <td className="px-4 py-2">
@@ -222,19 +207,13 @@ export default function PortfolioDetailPage() {
                       placeholder="평균단가"
                       value={addForm.avg_price}
                       onChange={(e) => setAddForm((f) => f ? { ...f, avg_price: e.target.value } : f)}
-                      className="w-28 rounded border px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      className="w-28 h-8"
                     />
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex gap-2">
-                      <button
-                        onClick={handleAdd}
-                        disabled={saving || !addForm.quantity || !addForm.avg_price}
-                        className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                      >
-                        추가
-                      </button>
-                      <button onClick={() => setAddForm(null)} className="rounded border px-3 py-1 text-xs hover:bg-muted">취소</button>
+                      <Button size="sm" onClick={handleAdd} disabled={saving || !addForm.quantity || !addForm.avg_price}>추가</Button>
+                      <Button size="sm" variant="outline" onClick={() => setAddForm(null)}>취소</Button>
                     </div>
                   </td>
                 </tr>
@@ -251,8 +230,8 @@ export default function PortfolioDetailPage() {
             <p className="font-semibold">종목을 삭제하시겠습니까?</p>
             <p className="text-sm text-muted-foreground">이 작업은 되돌릴 수 없습니다.</p>
             <div className="flex gap-2">
-              <button onClick={() => setDeleteConfirmId(null)} className="flex-1 rounded-lg border px-4 py-2 text-sm hover:bg-muted">취소</button>
-              <button onClick={() => handleDelete(deleteConfirmId)} className="flex-1 rounded-lg bg-destructive px-4 py-2 text-sm text-white hover:opacity-90">삭제</button>
+              <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirmId(null)}>취소</Button>
+              <Button variant="destructive" className="flex-1" onClick={() => handleDelete(deleteConfirmId)}>삭제</Button>
             </div>
           </div>
         </div>

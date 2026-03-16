@@ -19,7 +19,7 @@
 - [x] 포트폴리오 상세 페이지 컴포넌트 테스트 — 2개 통과
 
 ## UI 완성도
-- [ ] 포트폴리오 상세 페이지 — shadcn/ui Input, Button 교체 (종목 추가/수정 폼)
+- [x] 포트폴리오 상세 페이지 — shadcn/ui Input, Button 교체
 - [ ] 설정 페이지 — shadcn/ui Input, Button 교체 (KIS 자격증명 폼)
 - [ ] StockSearchDialog — shadcn/ui Dialog로 교체
 - [ ] 포트폴리오 생성 모달 — shadcn/ui Dialog로 교체
