@@ -67,31 +67,16 @@
 
 ## 3. 개선 기회 (우선순위순)
 
-### P0 — 즉시 필요
+### P0 — ~~즉시 필요~~ 해결됨
 
-1. **테스트 인프라 구축**
-   - Backend: pytest + pytest-asyncio, 핵심 서비스/API 단위 테스트
-   - Frontend: vitest + React Testing Library, 컴포넌트/훅 테스트
-   - 목표: 핵심 경로(인증, CRUD, 동기화) 80%+ 커버리지
+1. ~~테스트 인프라 구축~~ → **완료**: pytest 29개 + vitest 9개
+2. ~~에러 핸들링 강화~~ → **완료**: sonner toast + error boundary + 대시보드 에러 UI
 
-2. **에러 핸들링 강화**
-   - 프론트엔드 전역 에러 바운더리
-   - API 에러 시 사용자 친화적 toast 알림 통합
-   - 네트워크 오류 시 재시도/오프라인 표시
+### P1 — ~~단기 개선~~ 해결됨
 
-### P1 — 단기 개선
-
-3. **shadcn/ui 컴포넌트 정리**
-   - Dialog, Input, Card, Table 등 설치하여 인라인 HTML 교체
-   - 일관된 디자인 시스템 확보
-
-4. **모바일 반응형**
-   - 사이드바 → 바텀 네비게이션 또는 햄버거 메뉴
-   - 대시보드 카드 스택 레이아웃
-
-5. **현재가 캐싱 폴백**
-   - Redis에 마지막 조회 가격 저장 (TTL 1h)
-   - KIS API 실패 시 캐시 가격 + "마지막 업데이트: N분 전" 표시
+3. ~~shadcn/ui 컴포넌트 정리~~ → **완료**: Dialog, Input, Card, Table, Skeleton, Sonner 설치
+4. ~~모바일 반응형~~ → **완료**: 햄버거 메뉴 + 반응형 사이드바
+5. ~~현재가 캐싱 폴백~~ → **완료**: Redis 가격 캐시(TTL 1h) + 서버 시작 시 프리로딩
 
 ### P2 — 중기 기능
 
@@ -127,7 +112,7 @@
 | **종목 검색** | 3,695개 리스트 전체 순회 (`O(n)`) | 초성 검색, trie 구조, 또는 Redis SCAN |
 | **현재가 조회** | `asyncio.gather`로 종목별 KIS API 호출 | 종목 수 많으면 rate limit 위험 — 배치 API 탐색 |
 | **대시보드 로딩** | 30초 interval polling | WebSocket 또는 SSE로 push 방식 전환 |
-| **첫 검색 지연** | KRX + Naver fetch에 10-15초 | 서버 시작 시 백그라운드 프리로딩 |
+| ~~첫 검색 지연~~ | **해결**: 서버 startup lifespan에서 프리로딩 | — |
 
 ---
 

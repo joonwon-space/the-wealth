@@ -10,7 +10,7 @@ KIS(한국투자증권) OpenAPI 기반 개인 자산관리 대시보드.
 | 레이어 | 기술 | 비고 |
 |--------|------|------|
 | **프론트엔드** | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4 | SSR + CSR 혼합 |
-| **UI 라이브러리** | shadcn/ui (base-nova), TanStack Table v8, Recharts | 도넛 차트, 데이터 테이블 |
+| **UI 라이브러리** | shadcn/ui (base-nova), TanStack Table v8, Recharts, Sonner | Dialog, Input, Card, Table, Skeleton, Toast |
 | **상태관리** | Zustand | 인증 상태 (localStorage + cookie 이중 저장) |
 | **HTTP** | Axios | JWT 자동 갱신 인터셉터 |
 | **백엔드** | FastAPI (Python 3.9+), async/await | uvicorn, CORS localhost:3000 |
@@ -144,7 +144,7 @@ the-wealth/
 | 서비스 | 역할 |
 |--------|------|
 | **kis_token.py** | KIS OAuth 토큰 발급/캐싱 (Redis 24h TTL) |
-| **kis_price.py** | 국내/해외 현재가 조회 (`asyncio.gather` 병렬) |
+| **kis_price.py** | 국내/해외 현재가 조회 (`asyncio.gather` 병렬, Redis 캐시 폴백) |
 | **kis_account.py** | KIS 계좌 잔고 조회 (TTTC8434R) |
 | **reconciliation.py** | DB vs KIS 보유종목 비교 → INSERT/UPDATE/DELETE |
 | **stock_search.py** | KRX KIND + Naver Finance ETF → Redis 캐싱 → 로컬 검색 |

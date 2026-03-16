@@ -4,8 +4,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.db.base import Base
