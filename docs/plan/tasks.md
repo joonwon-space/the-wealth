@@ -24,7 +24,7 @@
 - [x] 포트폴리오 CRUD API 통합 테스트 — 9개 통과
 - [x] 종목 검색 서비스 단위 테스트 (KRX + ETF 파싱) — 8개 통과
 - [x] reconciliation 서비스 단위 테스트 — 4개 통과
-- [ ] vitest + React Testing Library 설정 (frontend)
+- [x] vitest + React Testing Library 설정 (frontend)
 - [ ] 인증 플로우 컴포넌트 테스트 (login, register)
 
 ## UI 개선
