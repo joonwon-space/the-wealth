@@ -3,23 +3,21 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 import redis.asyncio as aioredis
+import bcrypt
 import jwt
 from jwt.exceptions import InvalidTokenError
-from passlib.context import CryptContext
 
 from app.core.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 _REFRESH_TOKEN_PREFIX = "refresh_jti:"
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 def _create_token(data: dict[str, Any], expires_delta: timedelta) -> str:
