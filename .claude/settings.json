@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-bash-git-push-reminder.sh"
+          }
+        ],
+        "description": "Remind to review before git push"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit-ts-check.sh",
+            "async": true,
+            "timeout": 30
+          }
+        ],
+        "description": "TypeScript check after editing .ts/.tsx files"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit-py-format.sh",
+            "async": true,
+            "timeout": 15
+          }
+        ],
+        "description": "ruff lint + print() warning after editing .py files"
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit-console-warn.sh"
+          }
+        ],
+        "description": "Warn about console.log in edited JS/TS files"
+      }
+    ]
+  }
+}
