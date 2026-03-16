@@ -12,11 +12,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ENCRYPTION_MASTER_KEY: str = "change-me-32-bytes-placeholder00"
     REDIS_URL: str = "redis://localhost:6379"
-    KIS_APP_KEY: str = ""
-    KIS_APP_SECRET: str = ""
     KIS_BASE_URL: str = "https://openapi.koreainvestment.com:9443"
-    KIS_ACCOUNT_NO: str = ""
-    KIS_ACNT_PRDT_CD: str = "01"
 
 
 settings = Settings()
