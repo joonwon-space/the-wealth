@@ -46,6 +46,7 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchSummary = async () => {
@@ -53,6 +54,7 @@ export default function DashboardPage() {
       const { data } = await api.get<Summary>("/dashboard/summary");
       setSummary(data);
       setError(null);
+      setLastUpdated(new Date());
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "서버에 연결할 수 없습니다";
       setError(message);
@@ -128,7 +130,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">대시보드</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">대시보드</h1>
+        {lastUpdated && (
+          <span className="text-xs text-muted-foreground">
+            마지막 업데이트: {lastUpdated.toLocaleTimeString("ko-KR")}
+          </span>
+        )}
+      </div>
 
       {/* 포트폴리오/종목이 없을 때 빈 상태 */}
       {hasNoPortfolio ? (
