@@ -14,14 +14,14 @@
 
 ## Milestone 2: 인증 인프라
 
-- [ ] JWT 액세스 토큰 발급 로직 구현 (`app/core/security.py`)
-- [ ] Refresh 토큰 rotation 로직 구현
-- [ ] passlib(bcrypt)으로 비밀번호 해싱 유틸 구현
-- [ ] 회원가입 API 엔드포인트 (`POST /auth/register`)
-- [ ] 로그인 API 엔드포인트 (`POST /auth/login`) → access + refresh 토큰 반환
-- [ ] 토큰 갱신 엔드포인트 (`POST /auth/refresh`)
-- [ ] JWT 검증 의존성(dependency) 구현 (`get_current_user`)
-- [ ] IDOR 방지: 모든 보호 엔드포인트에서 user ownership 검증
+- [x] JWT 액세스 토큰 발급 로직 구현 (`app/core/security.py`)
+- [x] Refresh 토큰 rotation 로직 구현
+- [x] passlib(bcrypt)으로 비밀번호 해싱 유틸 구현
+- [x] 회원가입 API 엔드포인트 (`POST /auth/register`)
+- [x] 로그인 API 엔드포인트 (`POST /auth/login`) → access + refresh 토큰 반환
+- [x] 토큰 갱신 엔드포인트 (`POST /auth/refresh`)
+- [x] JWT 검증 의존성(dependency) 구현 (`get_current_user`)
+- [x] IDOR 방지: 모든 보호 엔드포인트에서 user ownership 검증
 
 ## Milestone 3: Next.js 앱 라우터 레이아웃
 
