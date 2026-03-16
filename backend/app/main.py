@@ -9,7 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from app.api import auth, dashboard, portfolios, stocks, sync, users
+from app.api import auth, chart, dashboard, portfolios, stocks, sync, users
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.services.stock_search import _load_stock_list
 
@@ -50,6 +50,7 @@ app.include_router(stocks.router)
 app.include_router(dashboard.router)
 app.include_router(users.router)
 app.include_router(sync.router)
+app.include_router(chart.router)
 
 
 @app.exception_handler(HTTPException)
