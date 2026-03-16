@@ -1,95 +1,93 @@
 ---
-description: docs/plan/tasks.md의 모든 미완료 항목을 순서대로 자동으로 구현하고 커밋한다. tasks.md가 비어있으면 todo.md에서 다음 마일스톤을 승격한다.
+description: Implement all incomplete items in docs/plan/tasks.md sequentially. If tasks.md is empty, promote next milestone from todo.md.
 ---
 
 # Auto Task
 
-`docs/plan/tasks.md`의 미완료 항목을 처음부터 끝까지 자동으로 순서대로 처리한다.
+Process all incomplete items in `docs/plan/tasks.md` from top to bottom.
 
-## 사전 단계: tasks.md가 비어있는 경우
+## Pre-step: When tasks.md is empty
 
-1. `docs/plan/tasks.md`를 읽는다
-2. 미완료 항목(`[ ]`)이 **0개**이면:
-   - `docs/plan/todo.md`를 읽는다
-   - 첫 번째 미완료 마일스톤에서 실행 가능한 항목을 선별한다
-   - 각 항목을 하나의 커밋 단위로 분해하여 `tasks.md`에 작성한다
-   - 완료된 항목(`[x]`)이 10개 이상이면 정리한다 (제거)
-   - 커밋: `docs: promote tasks from todo.md milestone N`
-3. 미완료 항목이 있으면 → 바로 실행 루프 진입
+1. Read `docs/plan/tasks.md`
+2. If **zero** incomplete items (`[ ]`):
+   - Read `docs/plan/todo.md`
+   - Select actionable items from the first incomplete milestone
+   - Break each into single-commit-sized tasks and write to `tasks.md`
+   - Clean up completed items (`[x]`) if 10+ have accumulated
+   - Commit: `docs: promote tasks from todo.md milestone N`
+3. If incomplete items exist → enter execution loop directly
 
-### tasks.md 승격 규칙
+### Promotion rules
 
-**todo.md에서 tasks.md로 가져오는 기준:**
-- 현재 코드베이스에서 바로 구현 가능한 항목
-- 외부 의존성(API 키, 서비스 가입 등)이 필요 없는 항목
-- 하나의 커밋으로 완료 가능한 크기로 분해
+**Promote to tasks.md:**
+- Items implementable with current codebase (no external deps)
+- Items not requiring API keys, service signups, or manual steps
+- Decomposed to single-commit size
 
-**가져오지 않는 항목:**
-- 대규모 아키텍처 변경이 필요한 항목
-- 사용자가 직접 처리해야 하는 항목 → `manual-tasks.md`에 추가
-- 선행 작업이 완료되지 않은 항목
+**Do NOT promote:**
+- Large architecture changes
+- Items requiring user action → add to `manual-tasks.md`
+- Items with unmet prerequisites
 
-## 실행 루프
+## Execution loop
 
-아래를 미완료 항목(`[ ]`)이 없을 때까지 반복한다:
+Repeat until no `[ ]` items remain:
 
-### 매 반복마다:
+### Each iteration:
 
-1. **`docs/plan/tasks.md` 읽기**
-   - 남은 `[ ]` 항목 개수를 센다
-   - 없으면 → 루프 종료, 완료 메시지 출력
+1. **Read `docs/plan/tasks.md`**
+   - Count remaining `[ ]` items
+   - If none → exit loop, print completion message
 
-2. **다음 항목 구현** (`/next-task`와 동일한 방식)
-   - 첫 번째 `[ ]` 항목 하나만 구현
-   - 프로젝트 규칙 준수 (타입, 불변성, 파일 크기 등)
-   - 해당 작업 외 다른 항목 건드리지 않음
+2. **Implement next item** (same as `/next-task`)
+   - Implement only the first `[ ]` item
+   - Follow project rules (types, immutability, file size limits)
+   - Do not touch other items
 
-3. **tasks.md 업데이트**
-   - 완료 항목 `[ ]` → `[x]`
+3. **Update tasks.md**
+   - Mark completed: `[ ]` → `[x]`
 
-4. **관련 문서 업데이트**
-   작업 내용에 따라 아래 문서를 확인하고 변경이 필요하면 업데이트한다:
-   - `docs/analysis/project-overview.md` — API, DB 모델, 페이지, 서비스, 기술 스택, 디렉토리 구조 변경 시
-   - `docs/analysis/project-analysis.md` — 강점/약점, 리스크, 완성도 상태 변경 시
-   - `docs/plan/todo.md` — 승격한 항목 `[x]` 체크, 구현 중 발견된 미래 작업 추가
-   - `docs/plan/manual-tasks.md` — 사용자가 직접 수행해야 할 작업 발생 시 추가, 완료된 항목 제거
-   - 변경 없으면 건드리지 않는다 (불필요한 diff 방지)
+4. **Update related docs** (only if changed, skip if no diff needed):
+   - `docs/analysis/project-overview.md` — API, DB models, pages, services, tech stack changes
+   - `docs/analysis/project-analysis.md` — strengths/weaknesses, risks, completeness changes
+   - `docs/plan/todo.md` — check off promoted items, add newly discovered future work
+   - `docs/plan/manual-tasks.md` — add user-action items, remove completed ones
 
-5. **커밋**
+5. **Commit**
    ```
    git add -A
-   git commit -m "<type>: <작업 요약 (70자 이하)>"
+   git commit -m "<type>: <summary under 70 chars>"
    ```
 
-6. **진행 상황 출력**
+6. **Print progress**
    ```
-   [✓] 완료: <항목명>
-   [→] 다음: <다음 항목명>
-   [남은 항목: N개]
+   [done] Completed: <item>
+   [next] Next: <next item>
+   [remaining: N]
    ```
 
-7. 다음 반복으로 진행
+7. Continue to next iteration
 
-## 중단 조건
+## Stop conditions
 
-아래 상황이면 즉시 멈추고 사용자에게 알린다:
+Stop immediately and notify user if:
 
-- `[ ]` 항목이 더 이상 없음 → 정상 종료
-- 구현 중 오류 발생 (빌드 실패, 타입 에러, 의존성 누락 등) → 오류 내용과 현재까지 완료된 항목 목록 출력 후 대기
-- 동일 항목에서 2회 이상 실패 → 해당 항목 스킵 여부를 묻지 말고 중단 후 보고
+- No `[ ]` items remain → normal completion
+- Implementation error (build fail, type error, missing dep) → print error + completed items so far
+- Same item fails 2+ times → stop and report (do not ask to skip)
 
-## 완료 시 출력 형식
+## Completion output
 
 ```
-모든 작업 완료!
+All tasks complete!
 
-완료된 항목: N개
-총 커밋: N개
+Completed: N items
+Commits: N
 
-완료 목록:
-- [x] 항목 1
-- [x] 항목 2
+Done:
+- [x] item 1
+- [x] item 2
 ...
 
-다음 단계: `/discover-tasks`로 새 작업을 리서치하세요.
+Next: run `/discover-tasks` to find new work.
 ```

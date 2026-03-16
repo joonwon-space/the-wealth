@@ -1,57 +1,49 @@
 ---
-description: docs/plan/tasks.md에서 다음 미완료 작업을 하나 찾아 구현하고, 완료 처리 후 커밋한다.
+description: Find next incomplete task in docs/plan/tasks.md, implement it, update docs, and commit.
 ---
 
 # Next Task
 
-`docs/plan/tasks.md`의 첫 번째 미완료 항목(`[ ]`)을 하나 골라 구현하고, 완료 처리 후 커밋한다.
+Pick the first incomplete item (`[ ]`) from `docs/plan/tasks.md`, implement it, mark done, and commit.
 
-## 실행 순서
+## Steps
 
-### 1. 다음 작업 파악
-- `docs/plan/tasks.md`를 읽는다
-- 첫 번째 `[ ]` 항목을 찾는다
-- 없으면 → 사용자에게 `/discover-tasks`로 작업을 추가하라고 안내
-- 어떤 파일을 생성·수정해야 하는지 파악한다
+### 1. Identify next task
+- Read `docs/plan/tasks.md`
+- Find first `[ ]` item
+- If none → tell user to run `/discover-tasks`
+- Determine which files to create/modify
 
-### 2. 구현
-- `/plan` 없이 바로 구현한다 (이미 tasks가 계획 문서임)
-- 해당 작업 하나에만 집중한다 — 다른 항목은 건드리지 않는다
-- 프로젝트 규칙을 따른다:
-  - TypeScript: 명시적 타입, `any` 금지, immutable 패턴
-  - Python: type annotation, PEP 8, `print()` 대신 `logging`
-  - 함수 50줄 이하, 파일 800줄 이하
+### 2. Implement
+- Implement directly (tasks.md IS the plan)
+- Focus on this one task only — don't touch others
+- Follow project rules:
+  - TypeScript: explicit types, no `any`, immutable patterns
+  - Python: type annotations, PEP 8, `logging` not `print()`
+  - Functions < 50 lines, files < 800 lines
 
-### 3. tasks.md 업데이트
-- 완료한 항목의 `[ ]`를 `[x]`로 변경한다
-- 다른 항목은 수정하지 않는다
+### 3. Update tasks.md
+- Change completed item: `[ ]` → `[x]`
+- Don't modify other items
 
-### 4. 관련 문서 업데이트
-작업 내용에 따라 아래 문서들을 확인하고, 변경이 필요하면 업데이트한다:
+### 4. Update related docs (only if relevant changes occurred):
 
-| 문서 | 업데이트 기준 |
-|------|--------------|
-| `docs/analysis/project-overview.md` | API 엔드포인트, DB 모델, 페이지, 서비스, 기술 스택, 디렉토리 구조가 변경된 경우 |
-| `docs/analysis/project-analysis.md` | 강점/약점, 리스크, 완성도 상태가 변경된 경우 |
-| `docs/plan/todo.md` | 구현 중 발견된 미래 작업이 있으면 추가 |
-| `docs/plan/manual-tasks.md` | 사용자가 직접 수행해야 할 작업 발생 시 추가, 완료된 항목 제거 |
+| Doc | When to update |
+|-----|----------------|
+| `docs/analysis/project-overview.md` | API endpoints, DB models, pages, services, tech stack, directory structure changed |
+| `docs/analysis/project-analysis.md` | Strengths/weaknesses, risks, completeness changed |
+| `docs/plan/todo.md` | Future work discovered during implementation |
+| `docs/plan/manual-tasks.md` | User-action items found; completed items removed |
 
-- 변경 없으면 건드리지 않는다 (불필요한 diff 방지)
-- 문서 업데이트도 같은 커밋에 포함한다
+- Skip if no changes needed (avoid unnecessary diffs)
+- Include doc updates in the same commit
 
-### 5. 커밋
-아래 형식으로 커밋한다:
-
+### 5. Commit
 ```
 git add -A
-git commit -m "<type>: <작업 내용 요약 (70자 이하)>"
+git commit -m "<type>: <summary under 70 chars>"
 ```
 
-커밋 타입:
-- `feat`: 새 기능 (모델, API 엔드포인트, 컴포넌트 등)
-- `fix`: 버그 수정
-- `chore`: 설정, 초기화, 인프라
-- `refactor`: 코드 구조 개선
-- `test`: 테스트 추가/수정
+Commit types: `feat`, `fix`, `chore`, `refactor`, `test`
 
-커밋 후 완료된 항목과 생성/수정된 파일 목록을 출력한다.
+Print completed item and list of created/modified files.
