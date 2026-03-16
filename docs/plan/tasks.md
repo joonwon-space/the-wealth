@@ -5,7 +5,13 @@ Each item should be completable in a single commit.
 
 ---
 
-Codebase stable: lint clean, 69 tests passing, 0 TODO comments.
-All Milestone 9 actionable items complete. Remaining items need design decisions or external deps.
+Promoted from Milestone 9 (analytics) and Milestone 10 (CI/CD).
 
-No current tasks. Run `/auto-task` to promote from todo.md.
+## Analytics Page (from Milestone 9)
+- [ ] Analytics page — portfolio total value summary cards (total across all portfolios)
+- [ ] Analytics page — asset allocation pie chart across all portfolios (Recharts)
+- [ ] Analytics page — holdings performance table with sort (best/worst performers)
+
+## CI/CD (from Milestone 10)
+- [ ] GitHub Actions workflow — backend lint + test on push/PR
+- [ ] GitHub Actions workflow — frontend lint + build + test on push/PR
