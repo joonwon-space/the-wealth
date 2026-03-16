@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Search, Trash2, PackageOpen } from "lucide-react";
 import { api } from "@/lib/api";
+import { formatKRW, formatNumber } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
@@ -162,8 +163,8 @@ export default function PortfolioDetailPage() {
                         <div className="font-medium">{h.name}</div>
                         <div className="text-xs text-muted-foreground">{h.ticker}</div>
                       </td>
-                      <td className="px-4 py-3 tabular-nums">{Number(h.quantity).toLocaleString("ko-KR")}</td>
-                      <td className="px-4 py-3 tabular-nums">₩{Number(h.avg_price).toLocaleString("ko-KR")}</td>
+                      <td className="px-4 py-3 tabular-nums">{formatNumber(h.quantity)}</td>
+                      <td className="px-4 py-3 tabular-nums">{formatKRW(h.avg_price)}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           <button

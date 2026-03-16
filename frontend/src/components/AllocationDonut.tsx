@@ -1,6 +1,7 @@
 "use client";
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { formatKRW } from "@/lib/format";
 
 interface AllocationItem {
   ticker: string;
@@ -35,10 +36,7 @@ export function AllocationDonut({ data, totalAsset }: Props) {
             ))}
           </Pie>
           <Tooltip
-            formatter={(value) => [
-              `₩${Number(value).toLocaleString("ko-KR")}`,
-              "평가금액",
-            ]}
+            formatter={(value) => [formatKRW(value as number), "평가금액"]}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -47,7 +45,7 @@ export function AllocationDonut({ data, totalAsset }: Props) {
       <div className="pointer-events-none absolute flex flex-col items-center justify-center">
         <span className="text-xs text-muted-foreground">총 자산</span>
         <span className="text-lg font-bold tabular-nums">
-          ₩{totalAsset.toLocaleString("ko-KR")}
+          {formatKRW(totalAsset)}
         </span>
       </div>
     </div>

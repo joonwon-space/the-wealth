@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AllocationDonut } from "@/components/AllocationDonut";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
+import { formatKRW, formatRate } from "@/lib/format";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
@@ -147,8 +148,8 @@ export default function DashboardPage() {
         <>
           {/* 요약 카드 */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <SummaryCard label="총 자산" value={`₩${Number(s.total_asset).toLocaleString("ko-KR")}`} />
-            <SummaryCard label="투자 원금" value={`₩${Number(s.total_invested).toLocaleString("ko-KR")}`} />
+            <SummaryCard label="총 자산" value={formatKRW(s.total_asset)} />
+            <SummaryCard label="투자 원금" value={formatKRW(s.total_invested)} />
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">총 손익</p>
@@ -173,7 +174,7 @@ export default function DashboardPage() {
                     <div key={item.ticker} className="flex items-center gap-1.5 text-xs">
                       <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
                       <span>{item.name}</span>
-                      <span className="text-muted-foreground">{Number(item.ratio).toFixed(1)}%</span>
+                      <span className="text-muted-foreground">{formatRate(item.ratio)}%</span>
                     </div>
                   ))}
                 </div>

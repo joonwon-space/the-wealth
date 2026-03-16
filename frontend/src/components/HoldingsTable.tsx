@@ -11,17 +11,18 @@ import {
 import { useState } from "react";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { PnLBadge } from "@/components/PnLBadge";
+import { formatKRW, formatNumber } from "@/lib/format";
 
 interface HoldingRow {
   id: number;
   ticker: string;
   name: string;
-  quantity: number;
-  avg_price: number;
-  current_price: number | null;
-  market_value: number | null;
-  pnl_amount: number | null;
-  pnl_rate: number | null;
+  quantity: number | string;
+  avg_price: number | string;
+  current_price: number | string | null;
+  market_value: number | string | null;
+  pnl_amount: number | string | null;
+  pnl_rate: number | string | null;
 }
 
 interface Props {
@@ -42,21 +43,19 @@ const columns: ColumnDef<HoldingRow>[] = [
   {
     accessorKey: "quantity",
     header: "수량",
-    cell: ({ getValue }) => <span className="tabular-nums">{(getValue() as number).toLocaleString("ko-KR")}</span>,
+    cell: ({ getValue }) => <span className="tabular-nums">{formatNumber(getValue() as number)}</span>,
   },
   {
     accessorKey: "avg_price",
     header: "평균단가",
-    cell: ({ getValue }) => (
-      <span className="tabular-nums">₩{(getValue() as number).toLocaleString("ko-KR")}</span>
-    ),
+    cell: ({ getValue }) => <span className="tabular-nums">{formatKRW(getValue() as number)}</span>,
   },
   {
     accessorKey: "current_price",
     header: "현재가",
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
-      return v !== null ? <span className="tabular-nums">₩{v.toLocaleString("ko-KR")}</span> : <span className="text-muted-foreground">—</span>;
+      return <span className="tabular-nums">{formatKRW(v)}</span>;
     },
   },
   {
@@ -64,7 +63,7 @@ const columns: ColumnDef<HoldingRow>[] = [
     header: "평가금액",
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
-      return v !== null ? <span className="tabular-nums">₩{v.toLocaleString("ko-KR")}</span> : <span className="text-muted-foreground">—</span>;
+      return <span className="tabular-nums">{formatKRW(v)}</span>;
     },
   },
   {
@@ -72,7 +71,7 @@ const columns: ColumnDef<HoldingRow>[] = [
     header: "수익금",
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
-      return v !== null ? <PnLBadge value={v} /> : <span className="text-muted-foreground">—</span>;
+      return v != null ? <PnLBadge value={v} /> : <span className="text-muted-foreground">—</span>;
     },
   },
   {
@@ -80,7 +79,7 @@ const columns: ColumnDef<HoldingRow>[] = [
     header: "수익률",
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
-      return v !== null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>;
+      return v != null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>;
     },
   },
 ];
