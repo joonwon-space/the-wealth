@@ -1,8 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { api } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StockItem {
   ticker: string;
@@ -53,23 +60,22 @@ export function StockSearchDialog({ open, onClose, onSelect }: Props) {
     }
   }, [open]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-xl border bg-background shadow-lg">
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <DialogContent className="max-w-md p-0 gap-0">
+        <DialogHeader className="px-4 pt-4 pb-0">
+          <DialogTitle className="sr-only">종목 검색</DialogTitle>
+        </DialogHeader>
+
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <input
+          <Input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="종목명 또는 티커 검색... (예: 삼성, 005930)"
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            className="border-0 shadow-none focus-visible:ring-0 px-0"
           />
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         <div className="max-h-72 overflow-y-auto">
@@ -99,7 +105,7 @@ export function StockSearchDialog({ open, onClose, onSelect }: Props) {
             </button>
           ))}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
