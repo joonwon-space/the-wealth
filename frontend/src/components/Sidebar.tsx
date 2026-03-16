@@ -27,7 +27,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-60 flex-col border-r bg-sidebar px-3 py-4">
       <div className="mb-6 px-2">
-        <span className="text-xl font-bold tracking-tight">더리치</span>
+        <span className="text-xl font-bold tracking-tight">THE WEALTH</span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">

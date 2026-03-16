@@ -34,7 +34,7 @@ export default function RegisterPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">더리치</h1>
+          <h1 className="text-2xl font-bold">THE WEALTH</h1>
           <p className="mt-1 text-sm text-muted-foreground">새 계정을 만드세요</p>
         </div>
 

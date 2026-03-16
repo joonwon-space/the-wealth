@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "더리치 — 개인 자산관리",
+  title: "THE WEALTH — 개인 자산관리",
   description: "KIS API 기반 개인 자산관리 대시보드",
 };
 
