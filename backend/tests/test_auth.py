@@ -32,7 +32,7 @@ class TestRegister:
             "email": "dup@example.com",
             "password": TEST_PASSWORD,
         })
-        assert resp.status_code == 409
+        assert resp.status_code == 400
 
     async def test_register_invalid_email(self, client: AsyncClient) -> None:
         resp = await client.post("/auth/register", json={

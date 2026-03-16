@@ -5,16 +5,14 @@ Each item should be completable in a single commit.
 
 ---
 
-## Transaction History (from Milestone 9)
-- [x] Transaction list API — GET /portfolios/{id}/transactions (desc by date, limit 200)
-- [x] Transaction create API — POST /portfolios/{id}/transactions (BUY/SELL validation)
-- [x] Transaction list UI — table in portfolio detail page
-- [x] Transaction create form — inline form with buy/sell, ticker, quantity, price
+## Lint & Test Fixes
+- [ ] Fix 3 ruff lint errors (logger undefined, unused imports) — already fixed, needs commit
+- [ ] Fix test_auth duplicate email test (409→400) and test_sync KIS account check — already fixed, needs commit
 
-## Search UX (from Milestone 9)
-- [x] Save recent search queries to localStorage (last 5) with delete option
-- [x] Add overseas stock market label (NYSE/NASDAQ/AMEX) — already shown in search results
+## Test Coverage
+- [ ] Add transaction API tests (list + create)
+- [ ] Add holdings-with-prices API test
 
-## Dashboard Improvement
-- [x] Dashboard summary uses KIS account from kis_accounts table (not user-level credentials)
-- [x] Portfolio detail page — show current price and P&L per holding via /holdings/with-prices API
+## UI Polish
+- [ ] Portfolio detail — add delete button for transactions
+- [ ] Settings page — add form to register new KIS account (currently seeded via script)

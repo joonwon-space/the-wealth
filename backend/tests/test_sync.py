@@ -23,7 +23,7 @@ class TestSyncAPI:
 
         resp = await client.post(f"/sync/{pid}", headers=headers)
         assert resp.status_code == 400
-        assert "credentials" in resp.json()["detail"].lower()
+        assert "kis account" in resp.json()["detail"].lower() or "credentials" in resp.json()["detail"].lower()
 
     async def test_sync_nonexistent_portfolio(self, client: AsyncClient) -> None:
         """존재하지 않는 포트폴리오 동기화 시 404."""

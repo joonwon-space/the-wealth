@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -26,6 +27,7 @@ from app.schemas.portfolio import (
 )
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
+logger = logging.getLogger(__name__)
 
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:
