@@ -9,6 +9,7 @@ from app.api.deps import get_current_user
 from app.core.encryption import encrypt
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
+from app.models.portfolio import Portfolio
 from app.models.user import User
 from app.schemas.user import KisCredentialsRequest
 
@@ -115,6 +116,15 @@ async def update_kis_account(
             status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found"
         )
     acct.label = body.label
+
+    # Also update linked portfolio name
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.kis_account_id == acct.id)
+    )
+    portfolio = port_result.scalar_one_or_none()
+    if portfolio:
+        portfolio.name = body.label
+
     await db.commit()
     return {
         "id": acct.id,
