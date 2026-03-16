@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { Eye, Plus, RefreshCw, CheckCircle, Trash2, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -60,10 +60,20 @@ export default function SettingsPage() {
   const [balanceAccounts, setBalanceAccounts] = useState<AccountBalance[] | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
+  const [kisAccounts, setKisAccounts] = useState<{ id: number; label: string; account_no: string; acnt_prdt_cd: string }[]>([]);
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [newAcct, setNewAcct] = useState({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
+  const [addingAcct, setAddingAcct] = useState(false);
+
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
 
+  const fetchKisAccounts = () => {
+    api.get<typeof kisAccounts>("/users/kis-accounts").then(({ data }) => setKisAccounts(data));
+  };
+
   useEffect(() => {
+    fetchKisAccounts();
     api.get<Portfolio[]>("/portfolios").then(({ data }) => {
       setPortfolios(data);
       if (data.length > 0) setSelectedPortfolio(String(data[0].id));
@@ -112,6 +122,24 @@ export default function SettingsPage() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleAddAccount = async () => {
+    if (!newAcct.label || !newAcct.account_no || !newAcct.app_key || !newAcct.app_secret) return;
+    setAddingAcct(true);
+    try {
+      await api.post("/users/kis-accounts", newAcct);
+      setNewAcct({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
+      setShowAddAccount(false);
+      fetchKisAccounts();
+    } finally {
+      setAddingAcct(false);
+    }
+  };
+
+  const handleDeleteAccount = async (id: number) => {
+    await api.delete(`/users/kis-accounts/${id}`);
+    setKisAccounts((prev) => prev.filter((a) => a.id !== id));
   };
 
   const handleBalanceInquiry = async () => {
@@ -212,6 +240,67 @@ export default function SettingsPage() {
             <p className={`text-sm ${syncResult.startsWith("오류") ? "text-destructive" : "text-green-600"}`}>
               {syncResult}
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* KIS 계좌 관리 */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">KIS 계좌 목록</h2>
+            <Button size="sm" variant="outline" onClick={() => setShowAddAccount(!showAddAccount)} className="gap-1">
+              <Plus className="h-3.5 w-3.5" />
+              {showAddAccount ? "취소" : "계좌 추가"}
+            </Button>
+          </div>
+
+          {showAddAccount && (
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">별칭</label>
+                  <Input value={newAcct.label} onChange={(e) => setNewAcct((f) => ({ ...f, label: e.target.value }))} placeholder="연금저축" className="h-8" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">계좌번호</label>
+                  <Input value={newAcct.account_no} onChange={(e) => setNewAcct((f) => ({ ...f, account_no: e.target.value }))} placeholder="63853538" className="h-8 font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">상품코드</label>
+                  <Input value={newAcct.acnt_prdt_cd} onChange={(e) => setNewAcct((f) => ({ ...f, acnt_prdt_cd: e.target.value }))} placeholder="01" className="h-8 font-mono w-16" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">App Key</label>
+                <Input value={newAcct.app_key} onChange={(e) => setNewAcct((f) => ({ ...f, app_key: e.target.value }))} placeholder="PS7yzJ..." className="h-8 font-mono" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">App Secret</label>
+                <Input type="password" value={newAcct.app_secret} onChange={(e) => setNewAcct((f) => ({ ...f, app_secret: e.target.value }))} placeholder="••••••••" className="h-8" />
+              </div>
+              <Button size="sm" onClick={handleAddAccount} disabled={addingAcct}>
+                {addingAcct ? "등록 중..." : "등록"}
+              </Button>
+            </div>
+          )}
+
+          {kisAccounts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">등록된 KIS 계좌가 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {kisAccounts.map((a) => (
+                <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                  <div>
+                    <span className="font-medium">{a.label}</span>
+                    <span className="ml-2 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
+                  </div>
+                  <button onClick={() => handleDeleteAccount(a.id)} className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

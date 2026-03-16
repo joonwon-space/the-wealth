@@ -13,4 +13,4 @@ All lint/test issues resolved. 60 tests passing (46 backend + 14 frontend).
 
 ## UI Polish
 - [x] Portfolio detail — add delete button for transactions (API + UI)
-- [ ] Settings page — add form to register new KIS account (label, account_no, acnt_prdt_cd, app_key, app_secret)
+- [x] Settings page — KIS account CRUD (list, add, delete) with API + UI
