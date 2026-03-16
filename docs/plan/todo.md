@@ -36,14 +36,14 @@
 
 ## Milestone 4: KIS API 연동 & 종목 검색
 
-- [ ] Redis 기반 KIS 액세스 토큰 캐싱 (`app/services/kis_token.py`)
-- [ ] KIS 토큰 24시간 생명주기 관리 + 만료 전 proactive rotation
-- [ ] KIS 종목 검색 프록시 엔드포인트 (`GET /stocks/search?q=`)
-- [ ] 프론트엔드 종목 검색 다이얼로그 컴포넌트 (300ms debounce)
-- [ ] 수동 보유 종목 추가 API (`POST /portfolios/{id}/holdings`)
-- [ ] 보유 종목 수정/삭제 API (`PATCH`, `DELETE /holdings/{id}`)
-- [ ] 국내주식 현재가 조회 (`asyncio.gather` 병렬 처리)
-- [ ] 해외주식 현재가 조회
+- [x] Redis 기반 KIS 액세스 토큰 캐싱 (`app/services/kis_token.py`)
+- [x] KIS 토큰 24시간 생명주기 관리 + 만료 전 proactive rotation
+- [x] KIS 종목 검색 프록시 엔드포인트 (`GET /stocks/search?q=`)
+- [x] 프론트엔드 종목 검색 다이얼로그 컴포넌트 (300ms debounce)
+- [x] 수동 보유 종목 추가 API (`POST /portfolios/{id}/holdings`)
+- [x] 보유 종목 수정/삭제 API (`PATCH`, `DELETE /holdings/{id}`)
+- [x] 국내주식 현재가 조회 (`asyncio.gather` 병렬 처리)
+- [x] 해외주식 현재가 조회
 
 ## Milestone 5: 대시보드 시각화 & 실시간 수익 계산
 
