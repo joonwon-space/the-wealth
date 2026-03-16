@@ -5,12 +5,7 @@ Each item should be completable in a single commit.
 
 ---
 
-Codebase stable: lint clean, 69 tests passing, CI/CD configured.
-Analytics page implemented. All promotable Milestone 9/10 items done.
+Promoted from Milestone 9. Only 1 remaining auto-implementable item.
 
-Remaining todo.md items require either:
-- Python 3.10+ upgrade (manual)
-- External service setup (Vercel, Railway)
-- Large design work (price history, WebSocket)
-
-No current tasks. Run `/auto-task` to promote, or request a new feature.
+## From Milestone 9
+- [ ] Transaction history chart — bar chart showing buy/sell amounts per month (Recharts, portfolio detail page)
