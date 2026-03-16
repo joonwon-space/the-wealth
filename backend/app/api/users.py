@@ -6,12 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.core.encryption import encrypt
+from app.core.encryption import decrypt, encrypt
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
 from app.schemas.user import KisCredentialsRequest
+from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -148,3 +149,24 @@ async def delete_kis_account(
         )
     await db.delete(acct)
     await db.commit()
+
+
+@router.post("/kis-accounts/{account_id}/test")
+async def test_kis_account(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Test KIS account connectivity by attempting token issuance."""
+    acct = await db.get(KisAccount, account_id)
+    if not acct or acct.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found"
+        )
+    try:
+        app_key = decrypt(acct.app_key_enc)
+        app_secret = decrypt(acct.app_secret_enc)
+        await get_kis_access_token(app_key, app_secret)
+        return {"success": True, "message": "KIS API 연결 성공"}
+    except Exception:
+        return {"success": False, "message": "KIS API 연결 실패 — 자격증명을 확인해주세요"}
