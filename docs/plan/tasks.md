@@ -10,7 +10,7 @@
 
 ## 코드 품질
 - [x] Pydantic V2 deprecation 수정 — `class Config` → `model_config = ConfigDict(...)` (5개 파일)
-- [ ] /dashboard/analytics placeholder 페이지 생성 — 사이드바에 링크 있으나 404
+- [x] /dashboard/analytics placeholder 페이지 생성 — "준비 중" UI
 
 ## 테스트 확장
 - [ ] 대시보드 summary API 테스트 (KIS 가격 mock)
