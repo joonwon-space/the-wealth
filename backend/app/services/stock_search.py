@@ -2,6 +2,7 @@
 
 KIS OpenAPI에는 종목명 검색 API가 없으므로,
 KRX KIND에서 KOSPI + KOSDAQ 상장 종목 리스트를 받아 Redis에 캐싱 후 로컬 검색.
+ETF는 Naver Finance API에서 가져와 합산 캐싱.
 캐시 TTL: 24시간 (매일 갱신).
 """
 from __future__ import annotations
@@ -22,6 +23,7 @@ _CACHE_KEY = "krx:stock_list"
 _CACHE_TTL = 86400  # 24h
 _MARKETS = {"stockMkt": "KOSPI", "kosdaqMkt": "KOSDAQ"}
 _KRX_URL = "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&marketType={market}"
+_NAVER_ETF_URL = "https://finance.naver.com/api/sise/etfItemList.nhn"
 
 
 class StockInfo(TypedDict):
@@ -52,6 +54,29 @@ def _fetch_krx(market: str) -> list[StockInfo]:
     return results
 
 
+def _fetch_naver_etf() -> list[StockInfo]:
+    """Naver Finance API에서 국내 상장 ETF 목록 조회."""
+    params = "etfType=0&targetColumn=market_sum&sortOrder=desc&page=1&pageSize=9999"
+    url = f"{_NAVER_ETF_URL}?{params}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://finance.naver.com/etf/",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:
+        raw = r.read()
+
+    data = json.loads(raw.decode("euc-kr", errors="ignore"))
+    items = data.get("result", {}).get("etfItemList", [])
+    return [
+        {"ticker": item["itemcode"], "name": item["itemname"], "market": "ETF"}
+        for item in items
+        if item.get("itemcode") and item.get("itemname")
+    ]
+
+
 async def _load_stock_list() -> list[StockInfo]:
     """Redis에서 캐시 로드, 없으면 KRX에서 fetch 후 캐싱."""
     async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as redis:
@@ -59,7 +84,7 @@ async def _load_stock_list() -> list[StockInfo]:
         if cached:
             return json.loads(cached)
 
-        logger.info("Fetching KRX stock list...")
+        logger.info("Fetching KRX stock list + Naver ETF list...")
         stocks: list[StockInfo] = []
         for market in _MARKETS:
             try:
@@ -67,9 +92,16 @@ async def _load_stock_list() -> list[StockInfo]:
             except Exception as e:
                 logger.warning("Failed to fetch KRX %s: %s", market, e)
 
+        try:
+            etfs = _fetch_naver_etf()
+            stocks.extend(etfs)
+            logger.info("Fetched %d ETFs from Naver Finance", len(etfs))
+        except Exception as e:
+            logger.warning("Failed to fetch Naver ETF list: %s", e)
+
         if stocks:
             await redis.setex(_CACHE_KEY, _CACHE_TTL, json.dumps(stocks, ensure_ascii=False))
-            logger.info("Cached %d stocks from KRX", len(stocks))
+            logger.info("Cached %d items (stocks + ETFs)", len(stocks))
         return stocks
 
 
