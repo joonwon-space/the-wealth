@@ -96,7 +96,7 @@ async def _ensure_portfolio_for_account(
     return portfolio
 
 
-@router.get("/balance")
+@router.post("/balance")
 async def get_account_balance(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

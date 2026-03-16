@@ -119,7 +119,7 @@ export default function SettingsPage() {
     setBalanceError(null);
     setBalanceAccounts(null);
     try {
-      const { data } = await api.get<{ accounts: AccountBalance[] }>("/sync/balance");
+      const { data } = await api.post<{ accounts: AccountBalance[] }>("/sync/balance");
       setBalanceAccounts(data.accounts);
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "response" in err
