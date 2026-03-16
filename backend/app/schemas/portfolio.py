@@ -25,8 +25,8 @@ class PortfolioResponse(BaseModel):
 class HoldingCreate(BaseModel):
     ticker: str
     name: str
-    quantity: Decimal
-    avg_price: Decimal
+    quantity: Decimal = Field(gt=0)
+    avg_price: Decimal = Field(gt=0)
 
 
 class HoldingUpdate(BaseModel):

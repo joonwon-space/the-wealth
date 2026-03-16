@@ -7,7 +7,7 @@ Each item should be completable in a single commit.
 
 ## Backend Validation
 - [x] Add PortfolioCreate.name min_length=1, max_length=100 validation
-- [ ] Add HoldingCreate quantity/avg_price gt=0 validation
+- [x] Add HoldingCreate quantity/avg_price gt=0 validation
 - [ ] Change TransactionCreate.type from str to Literal["BUY", "SELL"] + quantity/price gt=0
 - [ ] Add pagination params (offset/limit) to GET transactions endpoint (currently hardcoded 200)
 - [ ] Add pagination params to GET /sync/logs endpoint (currently hardcoded 50)
