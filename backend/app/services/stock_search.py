@@ -7,6 +7,7 @@ backend/data/mst/ 폴더의 마스터 파일을 파싱하여 Redis에 캐싱 후
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -127,7 +128,8 @@ async def _load_stock_list() -> list[StockInfo]:
             return json.loads(cached)
 
         logger.info("Loading stock list from MST/COD files...")
-        stocks = _load_all_from_files()
+        loop = asyncio.get_event_loop()
+        stocks = await loop.run_in_executor(None, _load_all_from_files)
 
         if stocks:
             await r.setex(_CACHE_KEY, _CACHE_TTL, json.dumps(stocks, ensure_ascii=False))

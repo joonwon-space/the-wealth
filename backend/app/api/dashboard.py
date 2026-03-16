@@ -30,7 +30,7 @@ def _calc_pnl(quantity: Decimal, avg_price: Decimal, current_price: Optional[Dec
     invested = quantity * avg_price
     market_value = quantity * current_price
     pnl_amount = market_value - invested
-    pnl_rate = (pnl_amount / invested * 100) if invested else _ZERO
+    pnl_rate = (pnl_amount / invested * 100) if invested else None
     return pnl_amount, pnl_rate
 
 

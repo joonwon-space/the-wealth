@@ -1,4 +1,4 @@
-"""종목 검색 엔드포인트 — KRX 상장 종목 로컬 검색."""
+"""종목 검색 엔드포인트 — KIS 마스터 파일 기반 로컬 검색."""
 from __future__ import annotations
 
 import logging
@@ -15,13 +15,10 @@ logger = logging.getLogger(__name__)
 
 @router.get("/search")
 async def search_stocks(
-    q: str = Query(..., min_length=1, description="종목명 또는 티커"),
+    q: str = Query(..., min_length=1, max_length=50, description="종목명 또는 티커"),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """KRX 상장 종목 로컬 검색 (KOSPI + KOSDAQ).
-
-    첫 요청 시 KRX에서 전체 종목 리스트를 받아 Redis에 24시간 캐싱.
-    """
+    """KIS 마스터 파일 기반 종목 검색 (국내 + 해외)."""
     try:
         items = await _search(q)
         return {"items": items}
