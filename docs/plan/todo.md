@@ -25,14 +25,14 @@
 
 ## Milestone 3: Next.js 앱 라우터 레이아웃
 
-- [ ] 반응형 사이드바 네비게이션 컴포넌트 구현 (shadcn/ui 기반)
-- [ ] 다크/라이트 테마 스위칭 설정 (Tailwind CSS)
-- [ ] 로그인 / 회원가입 페이지 (`/login`, `/register`)
-- [ ] 대시보드 메인 레이아웃 (`/dashboard`)
-- [ ] 포트폴리오 목록 페이지 (`/dashboard/portfolios`)
-- [ ] Axios 인스턴스 설정 + 응답 인터셉터(JWT 만료 처리, 자동 토큰 갱신)
-- [ ] 인증 상태 전역 관리 (Zustand or Context API)
-- [ ] 보호 라우트 미들웨어 구현
+- [x] 반응형 사이드바 네비게이션 컴포넌트 구현 (shadcn/ui 기반)
+- [x] 다크/라이트 테마 스위칭 설정 (Tailwind CSS)
+- [x] 로그인 / 회원가입 페이지 (`/login`, `/register`)
+- [x] 대시보드 메인 레이아웃 (`/dashboard`)
+- [x] 포트폴리오 목록 페이지 (`/dashboard/portfolios`)
+- [x] Axios 인스턴스 설정 + 응답 인터셉터(JWT 만료 처리, 자동 토큰 갱신)
+- [x] 인증 상태 전역 관리 (Zustand or Context API)
+- [x] 보호 라우트 미들웨어 구현
 
 ## Milestone 4: KIS API 연동 & 종목 검색
 
