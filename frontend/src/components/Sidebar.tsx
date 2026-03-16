@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Home, LogOut, Moon, Sun, Wallet } from "lucide-react";
+import { BarChart3, Home, LogOut, Moon, Settings, Sun, Wallet } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "대시보드", icon: Home },
   { href: "/dashboard/portfolios", label: "포트폴리오", icon: Wallet },
   { href: "/dashboard/analytics", label: "분석", icon: BarChart3 },
+  { href: "/dashboard/settings", label: "설정", icon: Settings },
 ];
 
 export function Sidebar() {
