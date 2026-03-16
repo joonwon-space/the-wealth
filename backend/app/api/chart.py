@@ -43,10 +43,18 @@ async def get_daily_chart(
     app_secret = decrypt(acct.app_secret_enc)
     token = await get_kis_access_token(app_key, app_secret)
 
-    # Calculate date range
+    # Calculate date range + KIS period code
+    # KIS returns max 100 items per call, so use weekly/monthly for longer periods
     today = date.today()
-    period_map = {"1M": 30, "3M": 90, "6M": 180, "1Y": 365, "3Y": 1095}
-    start_date = today - timedelta(days=period_map[period])
+    period_config = {
+        "1M": (30, "D"),
+        "3M": (90, "D"),
+        "6M": (180, "W"),
+        "1Y": (365, "W"),
+        "3Y": (1095, "M"),
+    }
+    days_back, kis_period = period_config[period]
+    start_date = today - timedelta(days=days_back)
 
     headers = {
         "authorization": f"Bearer {token}",
@@ -60,7 +68,7 @@ async def get_daily_chart(
         "FID_INPUT_ISCD": ticker,
         "FID_INPUT_DATE_1": start_date.strftime("%Y%m%d"),
         "FID_INPUT_DATE_2": today.strftime("%Y%m%d"),
-        "FID_PERIOD_DIV_CODE": "D",
+        "FID_PERIOD_DIV_CODE": kis_period,
         "FID_ORG_ADJ_PRC": "0",
     }
 
@@ -90,6 +98,10 @@ async def get_daily_chart(
                     break
 
                 all_items.extend(items)
+
+                # KIS returns max 100 items; fewer means no more data
+                if len(items) < 100:
+                    break
 
                 # Last item is the oldest date in this batch
                 oldest = items[-1].get("stck_bsop_date", "")
