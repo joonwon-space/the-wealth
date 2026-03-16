@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, BarChart3, Plus, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
+import { Card, CardContent } from "@/components/ui/card";
 import { AllocationDonut } from "@/components/AllocationDonut";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
@@ -127,15 +128,17 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <SummaryCard label="총 자산" value={`₩${s.total_asset.toLocaleString("ko-KR")}`} />
             <SummaryCard label="투자 원금" value={`₩${s.total_invested.toLocaleString("ko-KR")}`} />
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-              <p className="text-xs text-muted-foreground">총 손익</p>
-              <p className="mt-1 text-xl font-bold">
-                <PnLBadge value={s.total_pnl_amount} />
-              </p>
-              <p className="text-xs">
-                <PnLBadge value={s.total_pnl_rate} suffix="%" />
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">총 손익</p>
+                <p className="mt-1 text-xl font-bold">
+                  <PnLBadge value={s.total_pnl_amount} />
+                </p>
+                <p className="text-xs">
+                  <PnLBadge value={s.total_pnl_rate} suffix="%" />
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* 자산 배분 도넛 차트 */}
@@ -181,9 +184,11 @@ export default function DashboardPage() {
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
-    </div>
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
+      </CardContent>
+    </Card>
   );
 }

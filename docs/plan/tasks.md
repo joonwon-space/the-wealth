@@ -28,7 +28,7 @@
 - [x] 인증 플로우 컴포넌트 테스트 (login, register) — 8개 통과
 
 ## UI 개선
-- [ ] shadcn/ui Dialog, Input, Card, Table 설치 및 인라인 HTML 교체
+- [x] shadcn/ui Dialog, Input, Card, Table 설치 및 인라인 HTML 교체
 - [ ] 모바일 반응형: 사이드바 → 햄버거 메뉴 or 바텀 내비게이션
 - [ ] 프론트엔드 전역 에러 바운더리 + toast 알림 통합
 - [ ] 다크 모드 색상 점검 및 조정
