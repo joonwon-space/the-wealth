@@ -11,5 +11,5 @@ Promoted from Milestone 9 (analytics) and Milestone 10 (CI/CD).
 - [x] Analytics page — summary cards, allocation donut, performance table (all in one)
 
 ## CI/CD (from Milestone 10)
-- [ ] GitHub Actions workflow — backend lint + test on push/PR
+- [x] GitHub Actions workflow — backend lint + test on push/PR
 - [ ] GitHub Actions workflow — frontend lint + build + test on push/PR
