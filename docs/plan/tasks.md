@@ -19,7 +19,7 @@
 - [x] ruff 린터 venv에 설치 및 기존 코드 lint 수정 (4개 unused import 제거)
 
 ## 테스트 인프라
-- [ ] pytest + pytest-asyncio 설정 및 conftest 작성
+- [x] pytest + pytest-asyncio 설정 및 conftest 작성
 - [ ] 인증 API 단위 테스트 (register, login, refresh)
 - [ ] 포트폴리오 CRUD API 통합 테스트
 - [ ] 종목 검색 서비스 단위 테스트 (KRX + ETF 파싱)
