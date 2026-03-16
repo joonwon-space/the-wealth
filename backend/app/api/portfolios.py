@@ -1,7 +1,7 @@
 import logging
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -307,6 +307,8 @@ async def delete_holding(
 @router.get("/{portfolio_id}/transactions", response_model=list[TransactionResponse])
 async def list_transactions(
     portfolio_id: int,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Transaction]:
@@ -321,7 +323,8 @@ async def list_transactions(
         select(Transaction)
         .where(Transaction.portfolio_id == portfolio_id)
         .order_by(Transaction.traded_at.desc())
-        .limit(200)
+        .offset(offset)
+        .limit(limit)
     )
     return list(result.scalars().all())
 
