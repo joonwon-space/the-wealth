@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Eye, Pencil, Plus, RefreshCw, CheckCircle, Trash2, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -79,9 +80,10 @@ export default function SettingsPage() {
     api.get<Portfolio[]>("/portfolios").then(({ data }) => {
       setPortfolios(data);
       if (data.length > 0) setSelectedPortfolio(String(data[0].id));
-    });
+    }).catch(() => toast.error("포트폴리오 목록을 불러올 수 없습니다"));
     api.get<SyncLog[]>("/sync/logs")
       .then(({ data }) => setLogs(data))
+      .catch(() => {})
       .finally(() => setLogsLoading(false));
   }, []);
 
@@ -134,6 +136,9 @@ export default function SettingsPage() {
       setNewAcct({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
       setShowAddAccount(false);
       fetchKisAccounts();
+      toast.success("KIS 계좌가 등록되었습니다");
+    } catch {
+      toast.error("계좌 등록에 실패했습니다");
     } finally {
       setAddingAcct(false);
     }
@@ -141,14 +146,24 @@ export default function SettingsPage() {
 
   const handleSaveLabel = async (id: number) => {
     if (!editLabel.trim()) return;
-    await api.patch(`/users/kis-accounts/${id}`, { label: editLabel });
-    setKisAccounts((prev) => prev.map((a) => a.id === id ? { ...a, label: editLabel } : a));
-    setEditingAcctId(null);
+    try {
+      await api.patch(`/users/kis-accounts/${id}`, { label: editLabel });
+      setKisAccounts((prev) => prev.map((a) => a.id === id ? { ...a, label: editLabel } : a));
+      setEditingAcctId(null);
+      toast.success("계좌 별칭이 변경되었습니다");
+    } catch {
+      toast.error("별칭 변경에 실패했습니다");
+    }
   };
 
   const handleDeleteAccount = async (id: number) => {
-    await api.delete(`/users/kis-accounts/${id}`);
-    setKisAccounts((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await api.delete(`/users/kis-accounts/${id}`);
+      setKisAccounts((prev) => prev.filter((a) => a.id !== id));
+      toast.success("계좌가 삭제되었습니다");
+    } catch {
+      toast.error("계좌 삭제에 실패했습니다");
+    }
   };
 
   const handleBalanceInquiry = async () => {

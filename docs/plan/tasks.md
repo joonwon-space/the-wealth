@@ -17,9 +17,9 @@ Each item should be completable in a single commit.
 - [x] Add DB indexes: holdings, transactions, sync_logs
 
 ## Frontend Error Handling
-- [ ] Settings page — add try-catch to handleSaveLabel and handleDeleteAccount with toast feedback
-- [ ] Settings page — add .catch() to initial portfolio/sync-log fetch with error state
-- [ ] Settings page — show success toast after KIS account add/edit/delete
+- [x] Settings page — try-catch + toast on handleSaveLabel, handleDeleteAccount
+- [x] Settings page — .catch() on initial portfolio/sync-log fetch
+- [x] Settings page — success toast on KIS account add/edit/delete
 
 ## Frontend UX
 - [ ] Portfolio detail — replace browser confirm() for portfolio delete with shadcn Dialog
