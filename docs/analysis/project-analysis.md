@@ -37,6 +37,9 @@
 - **해외주식 검색 미지원**: 현재가 조회는 가능하나 해외 종목 검색 불가
 - **거래 이력(transactions) 미활용**: 모델만 존재, API/UI 없음
 - **분석 페이지 미구현**: 사이드바에 "분석" 메뉴 있으나 페이지 없음
+- **자동 동기화 미완성**: APScheduler 인프라만 있고 `_sync_all_accounts()` 실제 로직 미구현 (TODO 주석)
+- **Python 의존성 취약점**: python-multipart, setuptools, ecdsa에 알려진 CVE 존재 (pip-audit 결과 10개)
+- **ruff 미설치**: venv에 린터 미설치, Python 코드 lint 미실행 상태
 
 ---
 
@@ -56,8 +59,9 @@
 | 리스크 | 설명 | 완화 방안 |
 |--------|------|-----------|
 | **Redis 단일 장애점** | Redis 다운 시 토큰/검색 불가 | Redis 없을 때 in-memory 폴백 |
-| **bcrypt 버전 호환** | bcrypt 5.x ↔ passlib 호환 이슈 발생 이력 | bcrypt==4.0.1 고정 (현재 5.0.0 — 재확인 필요) |
+| **bcrypt 버전 호환** | ~~bcrypt 5.x ↔ passlib 호환 이슈~~ | **해결됨** — bcrypt 5.0.0 + passlib 정상 동작 확인 (2026-03-16) |
 | **Python 3.9 호환** | `str | None` 대신 `Optional[str]` 사용 필요 | `from __future__ import annotations` 적용 완료 |
+| **Python 의존성 CVE** | python-multipart, setuptools, ecdsa 취약점 | pip-audit 결과 10개 — 업그레이드 필요 |
 
 ---
 
@@ -138,6 +142,6 @@
 | SQL Injection | OK | SQLAlchemy ORM 사용 |
 | Rate Limiting | OK | slowapi 60 req/min |
 | CORS | OK | localhost:3000만 허용 |
-| XSS | 주의 | React 기본 이스케이핑에 의존, dangerouslySetInnerHTML 미사용 확인 필요 |
-| CSRF | 미흡 | JWT Bearer 방식이라 CSRF 토큰 불필요하나, cookie 기반이면 SameSite 확인 필요 |
+| XSS | OK | React 기본 이스케이핑, dangerouslySetInnerHTML 미사용 확인 완료 |
+| CSRF | OK | cookie에 `SameSite=Lax` 설정 확인 완료 (2026-03-16) |
 | Secret rotation | 미흡 | 키 rotation 메커니즘 없음 |

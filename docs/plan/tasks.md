@@ -8,16 +8,21 @@
 
 ---
 
+## 보안 & 의존성
+- [ ] python-multipart 0.0.20 → 0.0.22 업그레이드 (GHSA-wp53-j4wj-2cfg)
+- [ ] setuptools 58.0.4 → 78.1.1+ 업그레이드 (3개 CVE)
+- [ ] ecdsa 패키지 취약점 확인 및 업그레이드 (GHSA-wj6h-64fc-37mp)
+
 ## 버그 & 안정성
-- [ ] bcrypt 버전 확인 — 현재 5.0.0, passlib 호환 이슈 재확인
-- [ ] CSRF: cookie 기반 JWT 사용 시 SameSite 속성 확인
-- [ ] KIS API 실패 시 대시보드 에러 표시 (현재 빈 화면 가능)
+- [ ] KIS API 실패 시 대시보드 에러 표시 — 현재 빈 화면, 에러 메시지/폴백 UI 필요
+- [ ] scheduler.py _sync_all_accounts 실제 구현 — DB에서 KIS 자격증명 있는 사용자 조회 후 동기화 실행
+- [ ] ruff 린터 venv에 설치 및 기존 코드 lint 수정
 
 ## 테스트 인프라
 - [ ] pytest + pytest-asyncio 설정 및 conftest 작성
 - [ ] 인증 API 단위 테스트 (register, login, refresh)
 - [ ] 포트폴리오 CRUD API 통합 테스트
-- [ ] 종목 검색 서비스 단위 테스트
+- [ ] 종목 검색 서비스 단위 테스트 (KRX + ETF 파싱)
 - [ ] reconciliation 서비스 단위 테스트
 - [ ] vitest + React Testing Library 설정 (frontend)
 - [ ] 인증 플로우 컴포넌트 테스트 (login, register)
