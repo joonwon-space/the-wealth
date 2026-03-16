@@ -49,9 +49,11 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchSummary = async () => {
+  const fetchSummary = async (refresh = false) => {
     try {
-      const { data } = await api.get<Summary>("/dashboard/summary");
+      const { data } = await api.get<Summary>("/dashboard/summary", {
+        params: refresh ? { refresh: true } : undefined,
+      });
       setSummary(data);
       setError(null);
       setLastUpdated(new Date());
@@ -132,11 +134,20 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">대시보드</h1>
-        {lastUpdated && (
-          <span className="text-xs text-muted-foreground">
-            마지막 업데이트: {lastUpdated.toLocaleTimeString("ko-KR")}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground">
+              {lastUpdated.toLocaleTimeString("ko-KR")}
+            </span>
+          )}
+          <button
+            onClick={() => fetchSummary(true)}
+            className="rounded p-1 text-muted-foreground hover:bg-muted"
+            title="새로고침"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* 포트폴리오/종목이 없을 때 빈 상태 */}

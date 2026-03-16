@@ -9,7 +9,7 @@ Promoted from Milestone 10 UX/Performance items.
 
 ## Performance
 - [x] Shorten KIS price cache TTL from 1h to 5min
-- [ ] Add force-refresh option to dashboard — skip Redis cache when user clicks refresh
+- [x] Dashboard force-refresh — clears price cache + refresh button
 
 ## UX
 - [ ] Add Cmd+K / Ctrl+K keyboard shortcut to open stock search from any dashboard page

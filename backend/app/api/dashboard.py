@@ -8,7 +8,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import redis.asyncio as aioredis
+
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.holding import Holding
@@ -38,6 +41,7 @@ def _calc_pnl(
 
 @router.get("/summary", response_model=DashboardSummary)
 async def get_summary(
+    refresh: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DashboardSummary:
@@ -76,6 +80,15 @@ async def get_summary(
     # Fetch prices using first available KIS account credentials
     tickers = list({h.ticker for h in holdings})
     prices: dict[str, Optional[Decimal]] = {}
+
+    # Force-refresh: clear price cache for these tickers
+    if refresh and tickers:
+        try:
+            async with aioredis.from_url(settings.REDIS_URL) as r:
+                keys = [f"price:{t}" for t in tickers]
+                await r.delete(*keys)
+        except Exception:
+            pass
 
     acct_result = await db.execute(
         select(KisAccount).where(KisAccount.user_id == current_user.id).limit(1)
