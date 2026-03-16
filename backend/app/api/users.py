@@ -22,4 +22,7 @@ async def save_kis_credentials(
     """KIS API 자격증명을 AES-256-GCM으로 암호화하여 저장."""
     current_user.kis_app_key_enc = encrypt(body.app_key)
     current_user.kis_app_secret_enc = encrypt(body.app_secret)
+    if body.account_no:
+        current_user.kis_account_no = body.account_no
+        current_user.kis_acnt_prdt_cd = body.acnt_prdt_cd
     await db.commit()

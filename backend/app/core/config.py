@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     KIS_APP_KEY: str = ""
     KIS_APP_SECRET: str = ""
     KIS_BASE_URL: str = "https://openapi.koreainvestment.com:9443"
+    KIS_ACCOUNT_NO: str = ""
+    KIS_ACNT_PRDT_CD: str = "01"
 
     class Config:
         env_file = ".env"

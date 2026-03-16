@@ -5,9 +5,9 @@ import { Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface StockItem {
-  prdt_name: string;
-  shtn_pdno: string;
-  pdno: string;
+  ticker: string;
+  name: string;
+  market: string;
 }
 
 interface Props {
@@ -64,7 +64,7 @@ export function StockSearchDialog({ open, onClose, onSelect }: Props) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="종목명 또는 티커 검색..."
+            placeholder="종목명 또는 티커 검색... (예: 삼성, 005930)"
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -79,17 +79,23 @@ export function StockSearchDialog({ open, onClose, onSelect }: Props) {
           {!loading && results.length === 0 && query && (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">검색 결과 없음</div>
           )}
+          {!loading && results.length === 0 && !query && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">종목명 또는 티커를 입력하세요</div>
+          )}
           {results.map((item) => (
             <button
-              key={item.pdno}
+              key={item.ticker}
               onClick={() => {
-                onSelect(item.shtn_pdno ?? item.pdno, item.prdt_name);
+                onSelect(item.ticker, item.name);
                 onClose();
               }}
               className="flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-accent"
             >
-              <span className="font-medium">{item.prdt_name}</span>
-              <span className="text-muted-foreground">{item.shtn_pdno ?? item.pdno}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{item.name}</span>
+                <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{item.market}</span>
+              </div>
+              <span className="font-mono text-muted-foreground">{item.ticker}</span>
             </button>
           ))}
         </div>
