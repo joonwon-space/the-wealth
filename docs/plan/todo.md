@@ -58,16 +58,16 @@
 
 ## Milestone 6: 자동 계좌 연동 (Phase 2)
 
-- [ ] AES-256 기반 KIS 인증정보 암호화/복호화 유틸 (`app/core/encryption.py`)
-- [ ] 사용자 KIS 키 저장 API (`POST /users/kis-credentials`)
-- [ ] KIS OpenAPI 계좌 잔고 조회 연동
-- [ ] Reconciliation 알고리즘 구현:
-  - [ ] KIS 계좌 보유 종목 vs DB holdings 비교
-  - [ ] 신규 종목 INSERT
-  - [ ] 청산된 종목 DELETE
-  - [ ] 수량/평균단가 변경 시 UPDATE
-- [ ] 자동 동기화 스케줄러 (APScheduler or Celery)
-- [ ] 동기화 이력 로그 테이블 및 API
+- [x] AES-256 기반 KIS 인증정보 암호화/복호화 유틸 (`app/core/encryption.py`)
+- [x] 사용자 KIS 키 저장 API (`POST /users/kis-credentials`)
+- [x] KIS OpenAPI 계좌 잔고 조회 연동
+- [x] Reconciliation 알고리즘 구현:
+  - [x] KIS 계좌 보유 종목 vs DB holdings 비교
+  - [x] 신규 종목 INSERT
+  - [x] 청산된 종목 DELETE
+  - [x] 수량/평균단가 변경 시 UPDATE
+- [x] 자동 동기화 스케줄러 (APScheduler or Celery)
+- [x] 동기화 이력 로그 테이블 및 API
 
 ## 공통 / 인프라
 
