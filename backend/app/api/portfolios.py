@@ -48,7 +48,6 @@ async def list_portfolios(
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
     # Single query with LEFT JOIN + GROUP BY instead of N+1
-    from sqlalchemy.orm import aliased
 
     stmt = (
         select(

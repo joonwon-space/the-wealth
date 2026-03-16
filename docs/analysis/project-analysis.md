@@ -14,7 +14,7 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 | DB Schema | Complete | 6 tables, 5 migrations |
 | Frontend UI | Complete | All pages, CRUD, mobile responsive |
 | KIS Integration | Complete | Multi-account, tokens, prices, balance, auto-sync |
-| Testing | Solid | Backend 55 + Frontend 14 = 69 tests |
+| Testing | Solid | Backend 63 + Frontend 25 = 88 tests |
 | Security | Hardened | jti token revocation, password policy, secret validation, error sanitization |
 | CI/CD | Done | GitHub Actions for backend (lint+test) and frontend (lint+typecheck+test+build) |
 | Deployment | Not done | Dockerfiles exist, no actual deploy |
@@ -32,11 +32,11 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 
 - ~~Analytics page~~ → **Done**: summary cards, allocation donut, performance table
 - **Price history**: No daily snapshots for "vs previous day" display
-- **Input validation gaps**: PortfolioCreate allows empty name, HoldingCreate allows zero/negative qty/price, TransactionCreate.type not constrained
-- **No pagination**: Transactions (hardcoded 200), sync logs (50), dashboard holdings (500)
-- **N+1 query**: list_portfolios executes per-portfolio stats query
-- **Missing error handling**: Settings page silent failures on account edit/delete, no toast feedback
-- **Mobile overflow**: Transaction form, holdings table, and analytics table overflow on small screens
+- ~~Input validation gaps~~ → **Fixed**: name min/max, qty/price gt=0, Literal type
+- ~~No pagination~~ → **Fixed**: transactions + sync logs now paginated
+- ~~N+1 query~~ → **Fixed**: list_portfolios uses LEFT JOIN GROUP BY
+- ~~Missing error handling~~ → **Fixed**: Settings page try-catch + toast on all actions
+- **Mobile overflow**: Transaction form, holdings table, and analytics table overflow on small screens (partially fixed)
 
 ---
 
