@@ -29,6 +29,7 @@ description: docs/plan/todo.md의 모든 미완료 항목을 순서대로 자동
    - `docs/analysis/project-overview.md` — API, DB 모델, 페이지, 서비스, 기술 스택, 디렉토리 구조 변경 시
    - `docs/analysis/project-analysis.md` — 강점/약점, 리스크, 완성도 상태 변경 시
    - `docs/plan/tasks.md` — 완료한 작업 `[x]` 체크, 새 작업 발견 시 추가
+   - `docs/plan/manual-tasks.md` — 사용자가 직접 수행해야 할 작업 발생 시 추가, 완료된 항목 제거
    - 변경 없으면 건드리지 않는다 (불필요한 diff 방지)
 
 5. **커밋**
