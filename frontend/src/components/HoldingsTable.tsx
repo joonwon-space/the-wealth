@@ -97,63 +97,113 @@ export function HoldingsTable({ holdings }: Props) {
   });
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={header.column.getToggleSortingHandler()}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      header.column.getToggleSortingHandler()?.(e);
+    <>
+      {/* Mobile card view */}
+      <div className="space-y-3 md:hidden">
+        {table.getRowModel().rows.map((row) => {
+          const h = row.original;
+          return (
+            <div key={row.id} className="rounded-lg border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-sm">{h.name}</div>
+                  <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                </div>
+                <div className="text-right">
+                  {h.pnl_rate != null ? <PnLBadge value={h.pnl_rate} suffix="%" /> : <span className="text-xs text-muted-foreground">—</span>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">수량</span>
+                  <span className="tabular-nums">{formatNumber(h.quantity)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">현재가</span>
+                  <span className="tabular-nums">{formatKRW(h.current_price)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">평균단가</span>
+                  <span className="tabular-nums">{formatKRW(h.avg_price)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">평가금액</span>
+                  <span className="tabular-nums">{formatKRW(h.market_value)}</span>
+                </div>
+              </div>
+              {h.pnl_amount != null && (
+                <div className="flex justify-between text-xs border-t pt-2">
+                  <span className="text-muted-foreground">수익금</span>
+                  <PnLBadge value={h.pnl_amount} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {holdings.length === 0 && (
+          <div className="py-8 text-center text-sm text-muted-foreground">보유 종목이 없습니다.</div>
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={header.column.getToggleSortingHandler()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        header.column.getToggleSortingHandler()?.(e);
+                      }
+                    }}
+                    aria-sort={
+                      header.column.getIsSorted() === "asc" ? "ascending" :
+                      header.column.getIsSorted() === "desc" ? "descending" : "none"
                     }
-                  }}
-                  aria-sort={
-                    header.column.getIsSorted() === "asc" ? "ascending" :
-                    header.column.getIsSorted() === "desc" ? "descending" : "none"
-                  }
-                  className="cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground"
-                >
-                  <div className="flex items-center gap-1">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {header.column.getCanSort() && (
-                      <span className="text-muted-foreground/50">
-                        {header.column.getIsSorted() === "asc" ? (
-                          <ChevronUp className="h-3 w-3" />
-                        ) : header.column.getIsSorted() === "desc" ? (
-                          <ChevronDown className="h-3 w-3" />
-                        ) : (
-                          <ChevronsUpDown className="h-3 w-3" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="border-t hover:bg-muted/30 transition-colors">
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-4 py-3">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {holdings.length === 0 && (
-        <div className="px-4 py-8 text-center text-sm text-muted-foreground">보유 종목이 없습니다.</div>
-      )}
-    </div>
+                    className="cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground"
+                  >
+                    <div className="flex items-center gap-1">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.column.getCanSort() && (
+                        <span className="text-muted-foreground/50">
+                          {header.column.getIsSorted() === "asc" ? (
+                            <ChevronUp className="h-3 w-3" />
+                          ) : header.column.getIsSorted() === "desc" ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronsUpDown className="h-3 w-3" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id} className="border-t hover:bg-muted/30 transition-colors">
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-4 py-3">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {holdings.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">보유 종목이 없습니다.</div>
+        )}
+      </div>
+    </>
   );
 }
