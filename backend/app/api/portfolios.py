@@ -52,6 +52,20 @@ async def create_portfolio(
     return portfolio
 
 
+@router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_portfolio(
+    portfolio_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+    _assert_portfolio_owner(portfolio, current_user)
+    await db.delete(portfolio)
+    await db.commit()
+
+
 @router.get("/{portfolio_id}/holdings", response_model=list[HoldingResponse])
 async def list_holdings(
     portfolio_id: int,
