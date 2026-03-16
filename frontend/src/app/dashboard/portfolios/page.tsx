@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Trash2, Wallet } from "lucide-react";
 import { api } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Portfolio {
   id: number;
@@ -48,7 +49,15 @@ export default function PortfoliosPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">불러오는 중...</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-xl border p-5 space-y-3">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          ))}
+        </div>
       ) : portfolios.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <Wallet className="mb-3 h-10 w-10 text-muted-foreground/40" />

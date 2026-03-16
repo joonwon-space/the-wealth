@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, BarChart3, Plus, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AllocationDonut } from "@/components/AllocationDonut";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
@@ -67,8 +68,28 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <span className="text-muted-foreground text-sm">불러오는 중...</span>
+      <div className="space-y-8">
+        <Skeleton className="h-8 w-32" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4 space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-6 w-28" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-48 w-48 rounded-full mx-auto" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-20" />
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
