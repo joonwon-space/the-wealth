@@ -71,10 +71,10 @@
 
 ## 공통 / 인프라
 
-- [ ] `docker-compose.yml` 작성 (PostgreSQL + Redis)
-- [ ] 백엔드 `Dockerfile` 작성
-- [ ] 프론트엔드 `Dockerfile` 작성
-- [ ] 환경변수 문서화 (`.env.example` 업데이트)
-- [ ] API 에러 핸들링 표준화 (HTTPException 글로벌 핸들러)
-- [ ] Rate limiting 미들웨어 설정
-- [ ] 프론트엔드 500ms debounce 적용 (API 요청 최적화)
+- [x] `docker-compose.yml` 작성 (PostgreSQL + Redis)
+- [x] 백엔드 `Dockerfile` 작성
+- [x] 프론트엔드 `Dockerfile` 작성
+- [x] 환경변수 문서화 (`.env.example` 업데이트)
+- [x] API 에러 핸들링 표준화 (HTTPException 글로벌 핸들러)
+- [x] Rate limiting 미들웨어 설정
+- [x] 프론트엔드 500ms debounce 적용 (API 요청 최적화)
