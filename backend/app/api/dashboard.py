@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.portfolio import Portfolio
@@ -70,12 +71,17 @@ async def get_summary(
 
     # 현재가 병렬 조회 (KIS 자격증명이 없으면 None 반환)
     tickers = list({h.ticker for h in holdings})
-    app_key = current_user.kis_app_key_enc or ""
-    app_secret = current_user.kis_app_secret_enc or ""
+    app_key_enc = current_user.kis_app_key_enc or ""
+    app_secret_enc = current_user.kis_app_secret_enc or ""
 
     prices: dict[str, Optional[Decimal]] = {}
-    if app_key and app_secret:
-        prices = await fetch_prices_parallel(tickers, app_key, app_secret)
+    if app_key_enc and app_secret_enc:
+        try:
+            app_key = decrypt(app_key_enc)
+            app_secret = decrypt(app_secret_enc)
+            prices = await fetch_prices_parallel(tickers, app_key, app_secret)
+        except Exception as e:
+            logger.warning("Failed to fetch prices: %s", e)
 
     # 수익 계산
     holding_items: list[HoldingWithPnL] = []
