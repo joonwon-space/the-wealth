@@ -21,7 +21,7 @@
 ## 테스트 인프라
 - [x] pytest + pytest-asyncio 설정 및 conftest 작성
 - [x] 인증 API 단위 테스트 (register, login, refresh) — 8개 통과
-- [ ] 포트폴리오 CRUD API 통합 테스트
+- [x] 포트폴리오 CRUD API 통합 테스트 — 9개 통과
 - [ ] 종목 검색 서비스 단위 테스트 (KRX + ETF 파싱)
 - [ ] reconciliation 서비스 단위 테스트
 - [ ] vitest + React Testing Library 설정 (frontend)
