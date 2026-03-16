@@ -1,0 +1,80 @@
+# The Wealth - TODO
+
+## Milestone 1: 백엔드 초기화 & DB 스캐폴딩
+
+- [ ] PostgreSQL 연결 설정 (`DATABASE_URL` 환경변수)
+- [ ] SQLAlchemy async engine 및 session 설정 (`app/db/session.py`)
+- [ ] Base 모델 클래스 생성 (`app/db/base.py`)
+- [ ] `users` 테이블 모델 정의 (id, email, hashed_password, kis_app_key_enc, kis_app_secret_enc, created_at)
+- [ ] `portfolios` 테이블 모델 정의 (id, user_id, name, currency, created_at)
+- [ ] `holdings` 테이블 모델 정의 (id, portfolio_id, ticker, name, quantity, avg_price, created_at)
+- [ ] `transactions` 테이블 모델 정의 (id, portfolio_id, ticker, type, quantity, price, traded_at)
+- [ ] Alembic 초기화 및 첫 migration 생성
+- [ ] DB migration 실행 확인
+
+## Milestone 2: 인증 인프라
+
+- [ ] JWT 액세스 토큰 발급 로직 구현 (`app/core/security.py`)
+- [ ] Refresh 토큰 rotation 로직 구현
+- [ ] passlib(bcrypt)으로 비밀번호 해싱 유틸 구현
+- [ ] 회원가입 API 엔드포인트 (`POST /auth/register`)
+- [ ] 로그인 API 엔드포인트 (`POST /auth/login`) → access + refresh 토큰 반환
+- [ ] 토큰 갱신 엔드포인트 (`POST /auth/refresh`)
+- [ ] JWT 검증 의존성(dependency) 구현 (`get_current_user`)
+- [ ] IDOR 방지: 모든 보호 엔드포인트에서 user ownership 검증
+
+## Milestone 3: Next.js 앱 라우터 레이아웃
+
+- [ ] 반응형 사이드바 네비게이션 컴포넌트 구현 (shadcn/ui 기반)
+- [ ] 다크/라이트 테마 스위칭 설정 (Tailwind CSS)
+- [ ] 로그인 / 회원가입 페이지 (`/login`, `/register`)
+- [ ] 대시보드 메인 레이아웃 (`/dashboard`)
+- [ ] 포트폴리오 목록 페이지 (`/dashboard/portfolios`)
+- [ ] Axios 인스턴스 설정 + 응답 인터셉터(JWT 만료 처리, 자동 토큰 갱신)
+- [ ] 인증 상태 전역 관리 (Zustand or Context API)
+- [ ] 보호 라우트 미들웨어 구현
+
+## Milestone 4: KIS API 연동 & 종목 검색
+
+- [ ] Redis 기반 KIS 액세스 토큰 캐싱 (`app/services/kis_token.py`)
+- [ ] KIS 토큰 24시간 생명주기 관리 + 만료 전 proactive rotation
+- [ ] KIS 종목 검색 프록시 엔드포인트 (`GET /stocks/search?q=`)
+- [ ] 프론트엔드 종목 검색 다이얼로그 컴포넌트 (300ms debounce)
+- [ ] 수동 보유 종목 추가 API (`POST /portfolios/{id}/holdings`)
+- [ ] 보유 종목 수정/삭제 API (`PATCH`, `DELETE /holdings/{id}`)
+- [ ] 국내주식 현재가 조회 (`asyncio.gather` 병렬 처리)
+- [ ] 해외주식 현재가 조회
+
+## Milestone 5: 대시보드 시각화 & 실시간 수익 계산
+
+- [ ] 총 자산 / 투자원금 / 수익률 집계 API (`GET /dashboard/summary`)
+- [ ] 현재가 기반 동적 손익 계산 (DB에 저장하지 않고 API 호출로 계산)
+- [ ] 자산 배분 도넛 차트 컴포넌트 (Recharts, 중앙 텍스트 오버레이)
+- [ ] 보유 종목 테이블 컴포넌트 (TanStack Table, 다중 컬럼 정렬)
+- [ ] 한국 증시 컬러 적용: 상승 빨간색, 하락 파란색
+- [ ] 수익률/수익금 강조 표시 컴포넌트
+- [ ] 서버 사이드 렌더링으로 초기 대시보드 로드 최적화
+- [ ] 클라이언트 사이드 optimistic update 구현
+
+## Milestone 6: 자동 계좌 연동 (Phase 2)
+
+- [ ] AES-256 기반 KIS 인증정보 암호화/복호화 유틸 (`app/core/encryption.py`)
+- [ ] 사용자 KIS 키 저장 API (`POST /users/kis-credentials`)
+- [ ] KIS OpenAPI 계좌 잔고 조회 연동
+- [ ] Reconciliation 알고리즘 구현:
+  - [ ] KIS 계좌 보유 종목 vs DB holdings 비교
+  - [ ] 신규 종목 INSERT
+  - [ ] 청산된 종목 DELETE
+  - [ ] 수량/평균단가 변경 시 UPDATE
+- [ ] 자동 동기화 스케줄러 (APScheduler or Celery)
+- [ ] 동기화 이력 로그 테이블 및 API
+
+## 공통 / 인프라
+
+- [ ] `docker-compose.yml` 작성 (PostgreSQL + Redis)
+- [ ] 백엔드 `Dockerfile` 작성
+- [ ] 프론트엔드 `Dockerfile` 작성
+- [ ] 환경변수 문서화 (`.env.example` 업데이트)
+- [ ] API 에러 핸들링 표준화 (HTTPException 글로벌 핸들러)
+- [ ] Rate limiting 미들웨어 설정
+- [ ] 프론트엔드 500ms debounce 적용 (API 요청 최적화)
