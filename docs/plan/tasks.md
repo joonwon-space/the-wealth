@@ -20,6 +20,6 @@
 
 ## UI 완성도
 - [x] 포트폴리오 상세 페이지 — shadcn/ui Input, Button 교체
-- [ ] 설정 페이지 — shadcn/ui Input, Button 교체 (KIS 자격증명 폼)
+- [x] 설정 페이지 — shadcn/ui Input, Button, Card 교체
 - [ ] StockSearchDialog — shadcn/ui Dialog로 교체
 - [ ] 포트폴리오 생성 모달 — shadcn/ui Dialog로 교체

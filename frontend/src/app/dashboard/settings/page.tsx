@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface SyncLog {
   id: number;
@@ -93,90 +96,85 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold">설정</h1>
 
       {/* KIS 자격증명 */}
-      <section className="space-y-4 rounded-xl border bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">KIS OpenAPI 자격증명</h2>
-        <p className="text-sm text-muted-foreground">
-          한국투자증권 OpenAPI 앱키와 시크릿을 입력하세요. AES-256으로 암호화하여 저장됩니다.
-        </p>
-        <form onSubmit={handleCredSave} className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-sm font-medium">앱키 (App Key)</label>
-            <input
-              type="text"
-              value={appKey}
-              onChange={(e) => setAppKey(e.target.value)}
-              placeholder="PS7yzJ..."
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring font-mono"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">앱시크릿 (App Secret)</label>
-            <input
-              type="password"
-              value={appSecret}
-              onChange={(e) => setAppSecret(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">계좌번호 (선택)</label>
-            <input
-              type="text"
-              value={accountNo}
-              onChange={(e) => setAccountNo(e.target.value)}
-              placeholder="63853538"
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring font-mono"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={credSaving || !appKey || !appSecret}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {credSaving ? "저장 중..." : "저장"}
-            </button>
-            {credSuccess && (
-              <span className="flex items-center gap-1 text-sm text-green-600">
-                <CheckCircle className="h-4 w-4" /> 저장되었습니다
-              </span>
-            )}
-          </div>
-        </form>
-      </section>
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-base font-semibold">KIS OpenAPI 자격증명</h2>
+          <p className="text-sm text-muted-foreground">
+            한국투자증권 OpenAPI 앱키와 시크릿을 입력하세요. AES-256으로 암호화하여 저장됩니다.
+          </p>
+          <form onSubmit={handleCredSave} className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">앱키 (App Key)</label>
+              <Input
+                type="text"
+                value={appKey}
+                onChange={(e) => setAppKey(e.target.value)}
+                placeholder="PS7yzJ..."
+                className="font-mono"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">앱시크릿 (App Secret)</label>
+              <Input
+                type="password"
+                value={appSecret}
+                onChange={(e) => setAppSecret(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">계좌번호 (선택)</label>
+              <Input
+                type="text"
+                value={accountNo}
+                onChange={(e) => setAccountNo(e.target.value)}
+                placeholder="63853538"
+                className="font-mono"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={credSaving || !appKey || !appSecret}>
+                {credSaving ? "저장 중..." : "저장"}
+              </Button>
+              {credSuccess && (
+                <span className="flex items-center gap-1 text-sm text-green-600">
+                  <CheckCircle className="h-4 w-4" /> 저장되었습니다
+                </span>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* 계좌 동기화 */}
-      <section className="space-y-4 rounded-xl border bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">계좌 수동 동기화</h2>
-        <p className="text-sm text-muted-foreground">
-          KIS 실계좌 잔고를 조회해서 DB holdings와 동기화합니다.
-        </p>
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedPortfolio}
-            onChange={(e) => setSelectedPortfolio(e.target.value)}
-            className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          >
-            {portfolios.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleSync}
-            disabled={syncing || !selectedPortfolio}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "동기화 중..." : "지금 동기화"}
-          </button>
-        </div>
-        {syncResult && (
-          <p className={`text-sm ${syncResult.startsWith("오류") ? "text-destructive" : "text-green-600"}`}>
-            {syncResult}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-base font-semibold">계좌 수동 동기화</h2>
+          <p className="text-sm text-muted-foreground">
+            KIS 실계좌 잔고를 조회해서 DB holdings와 동기화합니다.
           </p>
-        )}
-      </section>
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedPortfolio}
+              onChange={(e) => setSelectedPortfolio(e.target.value)}
+              className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              {portfolios.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <Button onClick={handleSync} disabled={syncing || !selectedPortfolio} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "동기화 중..." : "지금 동기화"}
+            </Button>
+          </div>
+          {syncResult && (
+            <p className={`text-sm ${syncResult.startsWith("오류") ? "text-destructive" : "text-green-600"}`}>
+              {syncResult}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 동기화 이력 */}
       <section className="space-y-3">
