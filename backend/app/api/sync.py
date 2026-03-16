@@ -20,6 +20,39 @@ router = APIRouter(prefix="/sync", tags=["sync"])
 logger = logging.getLogger(__name__)
 
 
+@router.get("/balance")
+async def get_account_balance(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """KIS 실계좌 잔고를 조회만 한다 (동기화 없음)."""
+    if not current_user.kis_app_key_enc or not current_user.kis_app_secret_enc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="KIS credentials not configured")
+    if not current_user.kis_account_no:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account number not configured")
+
+    app_key = decrypt(current_user.kis_app_key_enc)
+    app_secret = decrypt(current_user.kis_app_secret_enc)
+    acnt_prdt_cd = current_user.kis_acnt_prdt_cd or "01"
+
+    try:
+        holdings = await fetch_account_holdings(app_key, app_secret, current_user.kis_account_no, acnt_prdt_cd)
+        return {
+            "account_no": current_user.kis_account_no,
+            "holdings": [
+                {
+                    "ticker": h.ticker,
+                    "name": h.name,
+                    "quantity": str(h.quantity),
+                    "avg_price": str(h.avg_price),
+                }
+                for h in holdings
+            ],
+        }
+    except Exception as exc:
+        logger.error("Balance inquiry failed: %s", exc)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+
 @router.post("/{portfolio_id}")
 async def sync_portfolio(
     portfolio_id: int,

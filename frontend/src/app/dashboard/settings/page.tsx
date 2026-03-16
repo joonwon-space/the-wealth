@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { Eye, RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
+import { formatKRW, formatNumber } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,13 @@ interface Portfolio {
   name: string;
 }
 
+interface BalanceHolding {
+  ticker: string;
+  name: string;
+  quantity: string;
+  avg_price: string;
+}
+
 export default function SettingsPage() {
   const [appKey, setAppKey] = useState("");
   const [appSecret, setAppSecret] = useState("");
@@ -34,6 +42,10 @@ export default function SettingsPage() {
   const [selectedPortfolio, setSelectedPortfolio] = useState<string>("");
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
+
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceHoldings, setBalanceHoldings] = useState<BalanceHolding[] | null>(null);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
@@ -88,6 +100,23 @@ export default function SettingsPage() {
       setSyncResult(`오류: ${msg ?? "동기화 실패"}`);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleBalanceInquiry = async () => {
+    setBalanceLoading(true);
+    setBalanceError(null);
+    setBalanceHoldings(null);
+    try {
+      const { data } = await api.get<{ account_no: string; holdings: BalanceHolding[] }>("/sync/balance");
+      setBalanceHoldings(data.holdings);
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : null;
+      setBalanceError(msg ?? "조회에 실패했습니다");
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -172,6 +201,52 @@ export default function SettingsPage() {
             <p className={`text-sm ${syncResult.startsWith("오류") ? "text-destructive" : "text-green-600"}`}>
               {syncResult}
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 실계좌 조회 */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-base font-semibold">실계좌 보유 종목 조회</h2>
+          <p className="text-sm text-muted-foreground">
+            KIS 실계좌의 현재 보유 종목을 조회합니다 (동기화 없이 조회만).
+          </p>
+          <Button onClick={handleBalanceInquiry} disabled={balanceLoading} className="gap-2">
+            <Eye className="h-4 w-4" />
+            {balanceLoading ? "조회 중..." : "실계좌 조회"}
+          </Button>
+          {balanceError && (
+            <p className="text-sm text-destructive">{balanceError}</p>
+          )}
+          {balanceHoldings !== null && (
+            balanceHoldings.length === 0 ? (
+              <p className="text-sm text-muted-foreground">보유 종목이 없습니다.</p>
+            ) : (
+              <div className="rounded-lg border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {["종목", "수량", "평균단가"].map((h) => (
+                        <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {balanceHoldings.map((h) => (
+                      <tr key={h.ticker} className="border-t">
+                        <td className="px-4 py-2">
+                          <div className="font-medium">{h.name}</div>
+                          <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                        </td>
+                        <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
+                        <td className="px-4 py-2 tabular-nums">{formatKRW(h.avg_price)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </CardContent>
       </Card>
