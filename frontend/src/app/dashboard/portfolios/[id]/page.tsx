@@ -55,7 +55,7 @@ export default function PortfolioDetailPage() {
   const [saving, setSaving] = useState(false);
   const [transactions, setTransactions] = useState<TxnRow[]>([]);
   const [showTxnForm, setShowTxnForm] = useState(false);
-  const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "" });
+  const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "", traded_at: "" });
   const [txnSaving, setTxnSaving] = useState(false);
   const [deleteTxnId, setDeleteTxnId] = useState<number | null>(null);
 
@@ -92,8 +92,9 @@ export default function PortfolioDetailPage() {
         type: txnForm.type,
         quantity: Number(txnForm.quantity),
         price: Number(txnForm.price),
+        ...(txnForm.traded_at ? { traded_at: new Date(txnForm.traded_at).toISOString() } : {}),
       });
-      setTxnForm({ ticker: "", type: "BUY", quantity: "", price: "" });
+      setTxnForm({ ticker: "", type: "BUY", quantity: "", price: "", traded_at: "" });
       setShowTxnForm(false);
       await fetchTransactions();
     } finally {
@@ -337,6 +338,10 @@ export default function PortfolioDetailPage() {
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">단가</label>
               <Input type="number" value={txnForm.price} onChange={(e) => setTxnForm((f) => ({ ...f, price: e.target.value }))} placeholder="70000" className="w-28 h-8" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">날짜</label>
+              <Input type="date" value={txnForm.traded_at} onChange={(e) => setTxnForm((f) => ({ ...f, traded_at: e.target.value }))} className="w-36 h-8" />
             </div>
             <Button size="sm" onClick={handleTxnSubmit} disabled={txnSaving}>
               {txnSaving ? "저장 중..." : "저장"}
