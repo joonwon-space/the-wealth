@@ -13,7 +13,7 @@
 
 ## 실계좌 연동 개선
 - [x] 설정 페이지에서 "실계좌 조회" 버튼 추가 — GET /sync/balance API + 프론트엔드 테이블 표시
-- [ ] 동기화 시 account_no를 DB에 저장된 값 자동 사용 — 현재 query param으로 수동 입력 필요
+- [x] 동기화 시 account_no를 DB에 저장된 값 자동 사용 — query param 제거
 
 ## 테스트 커버리지 확장
 - [ ] KIS price 서비스 단위 테스트 — Redis 캐시 폴백 로직 mock 테스트

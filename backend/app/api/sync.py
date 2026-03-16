@@ -56,23 +56,25 @@ async def get_account_balance(
 @router.post("/{portfolio_id}")
 async def sync_portfolio(
     portfolio_id: int,
-    account_no: str = Query(..., description="KIS 계좌번호 (CANO)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """KIS 계좌 잔고를 조회해 DB holdings와 Reconcile."""
+    """KIS 계좌 잔고를 조회해 DB holdings와 Reconcile. 계좌번호는 DB에서 자동 사용."""
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio or portfolio.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
 
     if not current_user.kis_app_key_enc or not current_user.kis_app_secret_enc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="KIS credentials not configured")
+    if not current_user.kis_account_no:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account number not configured")
 
     app_key = decrypt(current_user.kis_app_key_enc)
     app_secret = decrypt(current_user.kis_app_secret_enc)
+    acnt_prdt_cd = current_user.kis_acnt_prdt_cd or "01"
 
     try:
-        kis_holdings = await fetch_account_holdings(app_key, app_secret, account_no)
+        kis_holdings = await fetch_account_holdings(app_key, app_secret, current_user.kis_account_no, acnt_prdt_cd)
         counts = await reconcile_holdings(db, portfolio_id, kis_holdings)
 
         log = SyncLog(

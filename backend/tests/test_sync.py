@@ -21,11 +21,7 @@ class TestSyncAPI:
         port = await client.post("/portfolios", json={"name": "sync test"}, headers=headers)
         pid = port.json()["id"]
 
-        resp = await client.post(
-            f"/sync/{pid}",
-            params={"account_no": "12345678"},
-            headers=headers,
-        )
+        resp = await client.post(f"/sync/{pid}", headers=headers)
         assert resp.status_code == 400
         assert "credentials" in resp.json()["detail"].lower()
 
@@ -34,14 +30,13 @@ class TestSyncAPI:
         token = await _register_login(client, "sync2@example.com")
         resp = await client.post(
             "/sync/99999",
-            params={"account_no": "12345678"},
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 404
 
     async def test_sync_unauthenticated(self, client: AsyncClient) -> None:
         """인증 없이 접근 불가."""
-        resp = await client.post("/sync/1", params={"account_no": "12345678"})
+        resp = await client.post("/sync/1")
         assert resp.status_code in (401, 403)
 
     async def test_get_sync_logs_empty(self, client: AsyncClient) -> None:

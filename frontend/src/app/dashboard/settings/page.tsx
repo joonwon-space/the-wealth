@@ -85,9 +85,7 @@ export default function SettingsPage() {
     setSyncResult(null);
     try {
       const { data } = await api.post<{ status: string; inserted: number; updated: number; deleted: number }>(
-        `/sync/${selectedPortfolio}`,
-        null,
-        { params: { account_no: accountNo || undefined } }
+        `/sync/${selectedPortfolio}`
       );
       setSyncResult(`동기화 완료 — 추가 ${data.inserted}건 / 수정 ${data.updated}건 / 삭제 ${data.deleted}건`);
       // 로그 새로고침
