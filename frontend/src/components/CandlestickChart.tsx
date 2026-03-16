@@ -62,6 +62,7 @@ export function CandlestickChart({ candles, avgPrice }: Props) {
       borderDownColor: "#1a56db",
       wickUpColor: "#e31f26",
       wickDownColor: "#1a56db",
+      priceFormat: { type: "price", precision: 0, minMove: 1 },
     });
     candleSeries.setData(candles);
 
