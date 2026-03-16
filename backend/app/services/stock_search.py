@@ -136,12 +136,38 @@ async def _load_stock_list() -> list[StockInfo]:
         return stocks
 
 
+_CHOSUNG = [
+    "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ",
+    "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ",
+]
+_CHOSUNG_SET = set(_CHOSUNG)
+
+
+def _extract_chosung(text: str) -> str:
+    """Extract leading consonant (chosung) from each Korean syllable."""
+    result = []
+    for ch in text:
+        code = ord(ch) - 0xAC00
+        if 0 <= code < 11172:
+            result.append(_CHOSUNG[code // 588])
+        else:
+            result.append(ch)
+    return "".join(result)
+
+
+def _is_chosung_query(q: str) -> bool:
+    """Check if query consists entirely of Korean chosung characters."""
+    return all(c in _CHOSUNG_SET for c in q)
+
+
 async def search_stocks(query: str, limit: int = 20) -> list[StockInfo]:
-    """종목명 또는 티커로 로컬 검색 (대소문자 무시, 정확 매치 우선)."""
+    """Search by name, ticker, or Korean chosung (exact match first)."""
     if not query:
         return []
     stocks = await _load_stock_list()
-    q = query.strip().upper()
+    q = query.strip()
+    q_upper = q.upper()
+    is_chosung = _is_chosung_query(q)
 
     exact: list[StockInfo] = []
     partial: list[StockInfo] = []
@@ -149,9 +175,12 @@ async def search_stocks(query: str, limit: int = 20) -> list[StockInfo]:
     for s in stocks:
         ticker_upper = s["ticker"].upper()
         name_upper = s["name"].upper()
-        if ticker_upper == q or name_upper == q:
+
+        if ticker_upper == q_upper or name_upper == q_upper:
             exact.append(s)
-        elif q in name_upper or q in ticker_upper:
+        elif q_upper in name_upper or q_upper in ticker_upper:
+            partial.append(s)
+        elif is_chosung and q in _extract_chosung(s["name"]):
             partial.append(s)
 
     return (exact + partial)[:limit]

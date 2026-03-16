@@ -11,4 +11,4 @@ No bugs or security issues found. Items below from Milestone 9 backlog.
 ## Remaining Milestone 9 items
 - [x] KIS account edit — PATCH API + inline label edit in settings
 - [x] Portfolio rename — PATCH API + inline name edit on portfolio cards
-- [ ] Korean chosung search — support ㅅㅅ → 삼성전자 style search in stock_search.py
+- [x] Korean chosung search — ㅅㅅㅈㅈ → 삼성전자, ㅋㅋ → 카카오
