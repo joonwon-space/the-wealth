@@ -12,7 +12,7 @@ Each item should be completable in a single commit.
 - [x] Transaction create form — inline form with buy/sell, ticker, quantity, price
 
 ## Search UX (from Milestone 9)
-- [ ] Save recent search queries to localStorage (last 5) and show as suggestions
+- [x] Save recent search queries to localStorage (last 5) with delete option
 - [ ] Add overseas stock market label (NYSE/NASDAQ/AMEX) to search results display
 
 ## Dashboard Improvement

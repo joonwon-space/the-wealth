@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { Clock, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,10 +23,34 @@ interface Props {
   onSelect: (ticker: string, name: string) => void;
 }
 
+const RECENT_KEY = "stock_search_recent";
+const MAX_RECENT = 5;
+
+function getRecent(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function addRecent(query: string): void {
+  const list = getRecent().filter((q) => q !== query);
+  list.unshift(query);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
+}
+
+function removeRecent(query: string): void {
+  const list = getRecent().filter((q) => q !== query);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+}
+
 export function StockSearchDialog({ open, onClose, onSelect }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [recent, setRecent] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback(async (q: string) => {
@@ -54,17 +78,25 @@ export function StockSearchDialog({ open, onClose, onSelect }: Props) {
   }, [query, search]);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setRecent(getRecent());
+    } else {
       setQuery("");
       setResults([]);
     }
   }, [open]);
 
+  const handleSelect = (item: StockItem) => {
+    addRecent(item.name);
+    onSelect(item.ticker, item.name);
+    onClose();
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent className="max-w-md p-0 gap-0">
         <DialogHeader className="px-4 pt-4 pb-0">
-          <DialogTitle className="sr-only">종목 검색</DialogTitle>
+          <DialogTitle className="sr-only">Stock Search</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center gap-2 border-b px-4 py-3">
@@ -73,28 +105,49 @@ export function StockSearchDialog({ open, onClose, onSelect }: Props) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="종목명 또는 티커 검색... (예: 삼성, 005930)"
+            placeholder="Search by name or ticker (e.g. Samsung, AAPL)"
             className="border-0 shadow-none focus-visible:ring-0 px-0"
           />
         </div>
 
         <div className="max-h-72 overflow-y-auto">
+          {/* Recent searches (shown when no query) */}
+          {!query && recent.length > 0 && (
+            <div className="px-4 py-2">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Recent</p>
+              {recent.map((r) => (
+                <div key={r} className="flex items-center justify-between">
+                  <button
+                    onClick={() => setQuery(r)}
+                    className="flex items-center gap-2 py-1.5 text-sm hover:text-foreground text-muted-foreground"
+                  >
+                    <Clock className="h-3 w-3" />
+                    {r}
+                  </button>
+                  <button
+                    onClick={() => { removeRecent(r); setRecent(getRecent()); }}
+                    className="p-1 text-muted-foreground/50 hover:text-muted-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {loading && (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">검색 중...</div>
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">Searching...</div>
           )}
           {!loading && results.length === 0 && query && (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">검색 결과 없음</div>
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">No results</div>
           )}
-          {!loading && results.length === 0 && !query && (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">종목명 또는 티커를 입력하세요</div>
+          {!loading && results.length === 0 && !query && recent.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">Enter a stock name or ticker</div>
           )}
           {results.map((item) => (
             <button
               key={item.ticker}
-              onClick={() => {
-                onSelect(item.ticker, item.name);
-                onClose();
-              }}
+              onClick={() => handleSelect(item)}
               className="flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-accent"
             >
               <div className="flex items-center gap-2">
