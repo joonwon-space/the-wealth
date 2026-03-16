@@ -10,7 +10,7 @@ Each item should be completable in a single commit.
 - [x] Add HoldingCreate quantity/avg_price gt=0 validation
 - [x] Change TransactionCreate.type to Literal["BUY", "SELL"] + quantity/price gt=0
 - [x] Add pagination params (offset/limit) to GET transactions endpoint
-- [ ] Add pagination params to GET /sync/logs endpoint (currently hardcoded 50)
+- [x] Add pagination params to GET /sync/logs endpoint
 
 ## Backend Performance
 - [ ] Fix N+1 query in list_portfolios — replace per-portfolio stats query with single GROUP BY JOIN

@@ -261,6 +261,8 @@ async def sync_portfolio(
 
 @router.get("/logs")
 async def get_sync_logs(
+    offset: int = 0,
+    limit: int = 50,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
@@ -268,7 +270,8 @@ async def get_sync_logs(
         select(SyncLog)
         .where(SyncLog.user_id == current_user.id)
         .order_by(SyncLog.synced_at.desc())
-        .limit(50)
+        .offset(offset)
+        .limit(min(limit, 100))
     )
     logs = result.scalars().all()
     return [
