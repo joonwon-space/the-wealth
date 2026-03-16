@@ -7,7 +7,6 @@ KIS tokens are valid for 24 hours.
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import Optional
 
 import httpx

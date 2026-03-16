@@ -1,7 +1,6 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 from __future__ import annotations
 
-import asyncio
 import logging
 from decimal import Decimal
 from typing import Optional
