@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Home, LogOut, Moon, Settings, Sun, Wallet } from "lucide-react";
+import { BarChart3, Home, LogOut, Menu, Moon, Settings, Sun, Wallet, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ const navItems = [
   { href: "/dashboard/settings", label: "설정", icon: Settings },
 ];
 
-export function Sidebar() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -26,7 +27,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex h-screen w-60 flex-col border-r bg-sidebar px-3 py-4">
+    <>
       <div className="mb-6 px-2">
         <span className="text-xl font-bold tracking-tight">THE WEALTH</span>
       </div>
@@ -36,6 +37,7 @@ export function Sidebar() {
           <Link
             key={href}
             href={href}
+            onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               pathname === href
@@ -65,6 +67,53 @@ export function Sidebar() {
           로그아웃
         </button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-4 top-4 z-50 rounded-lg border bg-background p-2 shadow-sm md:hidden"
+        aria-label="메뉴 열기"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r bg-sidebar px-3 py-4 transition-transform duration-200 md:hidden",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="absolute right-3 top-4 rounded-lg p-1 text-sidebar-foreground hover:bg-sidebar-accent/60"
+          aria-label="메뉴 닫기"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <SidebarContent onNavigate={() => setMobileOpen(false)} />
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden h-screen w-60 flex-col border-r bg-sidebar px-3 py-4 md:flex">
+        <SidebarContent />
+      </aside>
+    </>
   );
 }
