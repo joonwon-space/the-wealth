@@ -315,13 +315,13 @@ export default function PortfolioDetailPage() {
         </div>
 
         {showTxnForm && (
-          <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+          <div className="grid grid-cols-2 gap-2 rounded-lg border p-3 sm:flex sm:flex-wrap sm:items-end">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">유형</label>
               <select
                 value={txnForm.type}
                 onChange={(e) => setTxnForm((f) => ({ ...f, type: e.target.value as "BUY" | "SELL" }))}
-                className="h-8 rounded border bg-background px-2 text-sm"
+                className="h-8 w-full rounded border bg-background px-2 text-sm sm:w-auto"
               >
                 <option value="BUY">매수</option>
                 <option value="SELL">매도</option>
@@ -329,21 +329,21 @@ export default function PortfolioDetailPage() {
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">종목코드</label>
-              <Input value={txnForm.ticker} onChange={(e) => setTxnForm((f) => ({ ...f, ticker: e.target.value }))} placeholder="005930" className="w-24 h-8" />
+              <Input value={txnForm.ticker} onChange={(e) => setTxnForm((f) => ({ ...f, ticker: e.target.value }))} placeholder="005930" className="h-8 w-full sm:w-24" />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">수량</label>
-              <Input type="number" value={txnForm.quantity} onChange={(e) => setTxnForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="10" className="w-20 h-8" />
+              <Input type="number" value={txnForm.quantity} onChange={(e) => setTxnForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="10" className="h-8 w-full sm:w-20" />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">단가</label>
-              <Input type="number" value={txnForm.price} onChange={(e) => setTxnForm((f) => ({ ...f, price: e.target.value }))} placeholder="70000" className="w-28 h-8" />
+              <Input type="number" value={txnForm.price} onChange={(e) => setTxnForm((f) => ({ ...f, price: e.target.value }))} placeholder="70000" className="h-8 w-full sm:w-28" />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">날짜</label>
-              <Input type="date" value={txnForm.traded_at} onChange={(e) => setTxnForm((f) => ({ ...f, traded_at: e.target.value }))} className="w-36 h-8" />
+              <Input type="date" value={txnForm.traded_at} onChange={(e) => setTxnForm((f) => ({ ...f, traded_at: e.target.value }))} className="h-8 w-full sm:w-36" />
             </div>
-            <Button size="sm" onClick={handleTxnSubmit} disabled={txnSaving}>
+            <Button size="sm" className="col-span-2 sm:col-span-1" onClick={handleTxnSubmit} disabled={txnSaving}>
               {txnSaving ? "저장 중..." : "저장"}
             </Button>
           </div>
