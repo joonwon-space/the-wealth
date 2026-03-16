@@ -3,7 +3,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 import redis.asyncio as aioredis
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -88,7 +89,7 @@ def decode_access_token(token: str) -> Optional[int]:
             return None
         sub = payload.get("sub")
         return int(sub) if sub else None
-    except (JWTError, ValueError):
+    except (InvalidTokenError, ValueError):
         return None
 
 
@@ -105,5 +106,5 @@ def decode_refresh_token(token: str) -> Optional[dict]:
         if not sub or not jti:
             return None
         return {"user_id": int(sub), "jti": jti}
-    except (JWTError, ValueError):
+    except (InvalidTokenError, ValueError):
         return None
