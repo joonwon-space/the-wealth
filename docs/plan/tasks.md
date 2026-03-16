@@ -13,7 +13,7 @@
 - [x] /dashboard/analytics placeholder 페이지 생성 — "준비 중" UI
 
 ## 테스트 확장
-- [ ] 대시보드 summary API 테스트 (KIS 가격 mock)
+- [x] 대시보드 summary API 테스트 — 3개 통과
 - [ ] sync API 테스트 (KIS 계좌 mock)
 - [ ] 대시보드 컴포넌트 테스트 (에러 UI, 스켈레톤 렌더링)
 - [ ] 포트폴리오 상세 페이지 컴포넌트 테스트
