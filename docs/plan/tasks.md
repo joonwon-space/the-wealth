@@ -14,7 +14,7 @@ Each item should be completable in a single commit.
 
 ## Backend Performance
 - [x] Fix N+1 query in list_portfolios — single query with LEFT JOIN + GROUP BY
-- [ ] Add DB indexes: holdings(ticker, portfolio_id), transactions(portfolio_id, traded_at), sync_logs(user_id, synced_at)
+- [x] Add DB indexes: holdings, transactions, sync_logs
 
 ## Frontend Error Handling
 - [ ] Settings page — add try-catch to handleSaveLabel and handleDeleteAccount with toast feedback
