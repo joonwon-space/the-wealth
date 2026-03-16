@@ -17,7 +17,7 @@ from app.services.kis_token import get_kis_access_token
 logger = logging.getLogger(__name__)
 
 _PRICE_CACHE_PREFIX = "price:"
-_PRICE_CACHE_TTL = 3600  # 1h
+_PRICE_CACHE_TTL = 300  # 5min
 
 
 async def _get_headers(app_key: str, app_secret: str) -> dict[str, str]:

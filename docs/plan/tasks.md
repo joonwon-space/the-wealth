@@ -8,7 +8,7 @@ Each item should be completable in a single commit.
 Promoted from Milestone 10 UX/Performance items.
 
 ## Performance
-- [ ] Shorten KIS price cache TTL from 1h to 5min in kis_price.py
+- [x] Shorten KIS price cache TTL from 1h to 5min
 - [ ] Add force-refresh option to dashboard — skip Redis cache when user clicks refresh
 
 ## UX
