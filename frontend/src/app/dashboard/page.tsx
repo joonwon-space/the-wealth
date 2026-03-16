@@ -47,9 +47,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchSummary = async (refresh = false) => {
+    if (refresh) setRefreshing(true);
     try {
       const { data } = await api.get<Summary>("/dashboard/summary", {
         params: refresh ? { refresh: true } : undefined,
@@ -62,6 +64,7 @@ export default function DashboardPage() {
       setError(message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -137,15 +140,16 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           {lastUpdated && (
             <span className="text-xs text-muted-foreground">
-              {lastUpdated.toLocaleTimeString("ko-KR")}
+              {refreshing ? "업데이트 중..." : lastUpdated.toLocaleTimeString("ko-KR")}
             </span>
           )}
           <button
             onClick={() => fetchSummary(true)}
-            className="rounded p-1 text-muted-foreground hover:bg-muted"
+            disabled={refreshing}
+            className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
             title="새로고침"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
