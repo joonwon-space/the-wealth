@@ -17,7 +17,7 @@
 | DB 스키마 | 완료 | 5개 테이블, 3개 마이그레이션 |
 | 프론트엔드 UI | 완료 (기본) | 모든 페이지 존재, 기본 CRUD 동작 |
 | KIS 연동 | 완료 | 토큰, 현재가, 계좌 잔고, 자동 동기화 |
-| 테스트 | 미흡 | 테스트 코드 부재 — TDD 규칙 대비 미충족 |
+| 테스트 | 기본 구축 | Backend 29개 + Frontend 9개 테스트 (pytest + vitest) |
 | 배포 | 미완 | Dockerfile 존재, 실제 배포 미수행 |
 
 ### 강점
@@ -30,16 +30,16 @@
 
 ### 약점
 
-- **테스트 부재**: 단위/통합/E2E 테스트 없음 — CLAUDE.md의 "80%+ 커버리지" 규칙 미충족
-- **에러 UX**: API 에러 시 프론트엔드 사용자 피드백 부족 (toast/snackbar 미구현 영역 있음)
-- **shadcn/ui 컴포넌트 부족**: button만 설치, dialog/input/card 등 미설치 (인라인 HTML로 대체)
-- **모바일 대응 부재**: 사이드바 고정 60px, 모바일 반응형 미구현
+- ~~테스트 부재~~ → **해결**: pytest(29개) + vitest(9개) 테스트 인프라 구축
+- ~~에러 UX~~ → **해결**: sonner toast + error boundary + 대시보드 에러 UI 추가
+- ~~shadcn/ui 컴포넌트 부족~~ → **해결**: Dialog, Input, Card, Table, Skeleton, Sonner 설치
+- ~~모바일 대응 부재~~ → **해결**: 햄버거 메뉴 + 반응형 사이드바 (md breakpoint)
 - **해외주식 검색 미지원**: 현재가 조회는 가능하나 해외 종목 검색 불가
 - **거래 이력(transactions) 미활용**: 모델만 존재, API/UI 없음
 - **분석 페이지 미구현**: 사이드바에 "분석" 메뉴 있으나 페이지 없음
-- **자동 동기화 미완성**: APScheduler 인프라만 있고 `_sync_all_accounts()` 실제 로직 미구현 (TODO 주석)
-- **Python 의존성 취약점**: python-multipart, setuptools, ecdsa에 알려진 CVE 존재 (pip-audit 결과 10개)
-- **ruff 미설치**: venv에 린터 미설치, Python 코드 lint 미실행 상태
+- ~~자동 동기화 미완성~~ → **해결**: `_sync_all_accounts()` DB 사용자 조회 + reconciliation 구현
+- ~~Python 의존성 취약점~~ → **일부 해결**: setuptools 업그레이드, python-multipart는 Python 3.10+ 필요 (todo.md에 추가)
+- ~~ruff 미설치~~ → **해결**: ruff 설치 + 4개 lint 에러 수정
 
 ---
 
@@ -51,8 +51,8 @@
 |--------|------|-----------|
 | **KRX KIND 스크래핑 불안정** | HTML 구조 변경 시 파싱 실패 | KRX 공식 API 전환 또는 폴백 로직 추가 |
 | **Naver Finance API 비공식** | 공식 API 아님, 차단/변경 가능 | KRX 데이터 포털 또는 자체 ETF DB 구축 |
-| **KIS API 장애 시 대시보드 먹통** | 현재가를 100% KIS에 의존 | 마지막 조회 가격 캐싱, 가격 조회 실패 시 캐시 폴백 |
-| **테스트 없음** | 리팩토링/기능 추가 시 회귀 버그 위험 | pytest + vitest 도입 우선순위 높음 |
+| ~~KIS API 장애 시 대시보드 먹통~~ | **해결**: Redis 가격 캐시 폴백(TTL 1h) + 에러 UI 추가 | — |
+| ~~테스트 없음~~ | **해결**: pytest 29개 + vitest 9개 테스트 구축 | — |
 
 ### 중간
 
