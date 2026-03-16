@@ -3,17 +3,20 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
 from app.models.user import User
 from app.services.kis_account import fetch_account_holdings
+from app.services.kis_token import get_kis_access_token
 from app.services.reconciliation import reconcile_holdings
 
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -35,9 +38,46 @@ async def get_account_balance(
     acnt_prdt_cd = current_user.kis_acnt_prdt_cd or "01"
 
     try:
-        holdings = await fetch_account_holdings(app_key, app_secret, current_user.kis_account_no, acnt_prdt_cd)
+        token = await get_kis_access_token(app_key, app_secret)
+        headers = {
+            "authorization": f"Bearer {token}",
+            "appkey": app_key,
+            "appsecret": app_secret,
+            "tr_id": "TTTC8434R",
+            "Content-Type": "application/json; charset=utf-8",
+        }
+        params = {
+            "CANO": current_user.kis_account_no,
+            "ACNT_PRDT_CD": acnt_prdt_cd,
+            "AFHR_FLPR_YN": "N",
+            "OFL_YN": "",
+            "INQR_DVSN": "02",
+            "UNPR_DVSN": "01",
+            "FUND_STTL_ICLD_YN": "N",
+            "FNCG_AMT_AUTO_RDPT_YN": "N",
+            "PRCS_DVSN": "01",
+            "CTX_AREA_FK100": "",
+            "CTX_AREA_NK100": "",
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-balance",
+                headers=headers,
+                params=params,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        output2 = data.get("output2", [{}])
+        summary = output2[0] if output2 else {}
+
+        holdings_list = await fetch_account_holdings(app_key, app_secret, current_user.kis_account_no, acnt_prdt_cd)
         return {
             "account_no": current_user.kis_account_no,
+            "deposit": summary.get("dnca_tot_amt", "0"),
+            "total_eval": summary.get("tot_evlu_amt", "0"),
+            "stock_eval": summary.get("scts_evlu_amt", "0"),
+            "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
             "holdings": [
                 {
                     "ticker": h.ticker,
@@ -45,7 +85,7 @@ async def get_account_balance(
                     "quantity": str(h.quantity),
                     "avg_price": str(h.avg_price),
                 }
-                for h in holdings
+                for h in holdings_list
             ],
         }
     except Exception as exc:

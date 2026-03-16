@@ -44,7 +44,13 @@ export default function SettingsPage() {
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [balanceHoldings, setBalanceHoldings] = useState<BalanceHolding[] | null>(null);
+  const [balanceData, setBalanceData] = useState<{
+    deposit: string;
+    total_eval: string;
+    stock_eval: string;
+    pnl: string;
+    holdings: BalanceHolding[];
+  } | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const [logs, setLogs] = useState<SyncLog[]>([]);
@@ -104,10 +110,17 @@ export default function SettingsPage() {
   const handleBalanceInquiry = async () => {
     setBalanceLoading(true);
     setBalanceError(null);
-    setBalanceHoldings(null);
+    setBalanceData(null);
     try {
-      const { data } = await api.get<{ account_no: string; holdings: BalanceHolding[] }>("/sync/balance");
-      setBalanceHoldings(data.holdings);
+      const { data } = await api.get<{
+        account_no: string;
+        deposit: string;
+        total_eval: string;
+        stock_eval: string;
+        pnl: string;
+        holdings: BalanceHolding[];
+      }>("/sync/balance");
+      setBalanceData(data);
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "response" in err
         ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
@@ -217,34 +230,54 @@ export default function SettingsPage() {
           {balanceError && (
             <p className="text-sm text-destructive">{balanceError}</p>
           )}
-          {balanceHoldings !== null && (
-            balanceHoldings.length === 0 ? (
-              <p className="text-sm text-muted-foreground">보유 종목이 없습니다.</p>
-            ) : (
-              <div className="rounded-lg border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      {["종목", "수량", "평균단가"].map((h) => (
-                        <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {balanceHoldings.map((h) => (
-                      <tr key={h.ticker} className="border-t">
-                        <td className="px-4 py-2">
-                          <div className="font-medium">{h.name}</div>
-                          <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                        </td>
-                        <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
-                        <td className="px-4 py-2 tabular-nums">{formatKRW(h.avg_price)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {balanceData !== null && (
+            <>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">예수금</p>
+                  <p className="font-semibold tabular-nums">{formatKRW(balanceData.deposit)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">총 평가</p>
+                  <p className="font-semibold tabular-nums">{formatKRW(balanceData.total_eval)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">주식 평가</p>
+                  <p className="font-semibold tabular-nums">{formatKRW(balanceData.stock_eval)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">평가 손익</p>
+                  <p className="font-semibold tabular-nums">{formatKRW(balanceData.pnl)}</p>
+                </div>
               </div>
-            )
+              {balanceData.holdings.length === 0 ? (
+                <p className="text-sm text-muted-foreground">보유 종목이 없습니다.</p>
+              ) : (
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        {["종목", "수량", "평균단가"].map((h) => (
+                          <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {balanceData.holdings.map((h) => (
+                        <tr key={h.ticker} className="border-t">
+                          <td className="px-4 py-2">
+                            <div className="font-medium">{h.name}</div>
+                            <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                          </td>
+                          <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
+                          <td className="px-4 py-2 tabular-nums">{formatKRW(h.avg_price)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
