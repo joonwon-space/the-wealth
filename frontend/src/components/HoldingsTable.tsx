@@ -105,7 +105,19 @@ export function HoldingsTable({ holdings }: Props) {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={header.column.getToggleSortingHandler()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      header.column.getToggleSortingHandler()?.(e);
+                    }
+                  }}
+                  aria-sort={
+                    header.column.getIsSorted() === "asc" ? "ascending" :
+                    header.column.getIsSorted() === "desc" ? "descending" : "none"
+                  }
                   className="cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground"
                 >
                   <div className="flex items-center gap-1">
