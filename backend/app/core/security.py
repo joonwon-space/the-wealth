@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 import redis.asyncio as aioredis
@@ -24,7 +24,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def _create_token(data: dict[str, Any], expires_delta: timedelta) -> str:
-    payload = {**data, "exp": datetime.utcnow() + expires_delta}
+    payload = {**data, "exp": datetime.now(UTC) + expires_delta}
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
