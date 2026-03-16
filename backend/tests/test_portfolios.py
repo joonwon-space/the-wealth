@@ -1,14 +1,17 @@
 """포트폴리오 CRUD API 통합 테스트."""
-from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
 
 
-async def _register_and_get_token(client: AsyncClient, email: str = "port@example.com") -> str:
+async def _register_and_get_token(
+    client: AsyncClient, email: str = "port@example.com"
+) -> str:
     """Helper: register user and return access token."""
     await client.post("/auth/register", json={"email": email, "password": "Test1234!"})
-    resp = await client.post("/auth/login", json={"email": email, "password": "Test1234!"})
+    resp = await client.post(
+        "/auth/login", json={"email": email, "password": "Test1234!"}
+    )
     return resp.json()["access_token"]
 
 
@@ -77,7 +80,12 @@ class TestHoldings:
 
         resp = await client.post(
             f"/portfolios/{pid}/holdings",
-            json={"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000},
+            json={
+                "ticker": "005930",
+                "name": "삼성전자",
+                "quantity": 10,
+                "avg_price": 70000,
+            },
             headers=_auth_headers(token),
         )
         assert resp.status_code == 201
@@ -96,10 +104,17 @@ class TestHoldings:
 
         await client.post(
             f"/portfolios/{pid}/holdings",
-            json={"ticker": "005930", "name": "삼성전자", "quantity": 5, "avg_price": 65000},
+            json={
+                "ticker": "005930",
+                "name": "삼성전자",
+                "quantity": 5,
+                "avg_price": 65000,
+            },
             headers=_auth_headers(token),
         )
-        resp = await client.get(f"/portfolios/{pid}/holdings", headers=_auth_headers(token))
+        resp = await client.get(
+            f"/portfolios/{pid}/holdings", headers=_auth_headers(token)
+        )
         assert resp.status_code == 200
         assert len(resp.json()) >= 1
 
@@ -114,7 +129,12 @@ class TestHoldings:
 
         hold = await client.post(
             f"/portfolios/{pid}/holdings",
-            json={"ticker": "035720", "name": "카카오", "quantity": 20, "avg_price": 50000},
+            json={
+                "ticker": "035720",
+                "name": "카카오",
+                "quantity": 20,
+                "avg_price": 50000,
+            },
             headers=_auth_headers(token),
         )
         hid = hold.json()["id"]
@@ -138,10 +158,17 @@ class TestHoldings:
 
         hold = await client.post(
             f"/portfolios/{pid}/holdings",
-            json={"ticker": "000660", "name": "SK하이닉스", "quantity": 15, "avg_price": 120000},
+            json={
+                "ticker": "000660",
+                "name": "SK하이닉스",
+                "quantity": 15,
+                "avg_price": 120000,
+            },
             headers=_auth_headers(token),
         )
         hid = hold.json()["id"]
 
-        resp = await client.delete(f"/portfolios/holdings/{hid}", headers=_auth_headers(token))
+        resp = await client.delete(
+            f"/portfolios/holdings/{hid}", headers=_auth_headers(token)
+        )
         assert resp.status_code == 204

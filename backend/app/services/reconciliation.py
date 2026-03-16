@@ -5,7 +5,6 @@
 - 청산된 종목 → DELETE
 - 수량/평균단가 변경 → UPDATE
 """
-from __future__ import annotations
 
 import logging
 
@@ -28,7 +27,9 @@ async def reconcile_holdings(
     Returns:
         {"inserted": N, "updated": N, "deleted": N}
     """
-    result = await db.execute(select(Holding).where(Holding.portfolio_id == portfolio_id))
+    result = await db.execute(
+        select(Holding).where(Holding.portfolio_id == portfolio_id)
+    )
     db_holdings: list[Holding] = list(result.scalars().all())
 
     db_map = {h.ticker: h for h in db_holdings}

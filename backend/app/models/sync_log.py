@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
@@ -12,8 +10,12 @@ class SyncLog(Base):
     __tablename__ = "sync_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    portfolio_id: Mapped[int] = mapped_column(
+        ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False)  # success | error
     inserted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     updated: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

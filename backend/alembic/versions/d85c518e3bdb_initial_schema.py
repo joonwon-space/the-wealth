@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-03-16 09:55:59.542020
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -25,7 +26,12 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(255), nullable=False),
         sa.Column("kis_app_key_enc", sa.String(512), nullable=True),
         sa.Column("kis_app_secret_enc", sa.String(512), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_users_id", "users", ["id"])
@@ -37,7 +43,12 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column("currency", sa.String(3), nullable=False, server_default="KRW"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -52,8 +63,15 @@ def upgrade() -> None:
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column("quantity", sa.Numeric(18, 6), nullable=False),
         sa.Column("avg_price", sa.Numeric(18, 4), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.ForeignKeyConstraint(["portfolio_id"], ["portfolios.id"], ondelete="CASCADE"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["portfolio_id"], ["portfolios.id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_holdings_id", "holdings", ["id"])
@@ -67,8 +85,15 @@ def upgrade() -> None:
         sa.Column("type", sa.String(10), nullable=False),
         sa.Column("quantity", sa.Numeric(18, 6), nullable=False),
         sa.Column("price", sa.Numeric(18, 4), nullable=False),
-        sa.Column("traded_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.ForeignKeyConstraint(["portfolio_id"], ["portfolios.id"], ondelete="CASCADE"),
+        sa.Column(
+            "traded_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["portfolio_id"], ["portfolios.id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_transactions_id", "transactions", ["id"])

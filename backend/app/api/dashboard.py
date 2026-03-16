@@ -1,5 +1,4 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
-from __future__ import annotations
 
 import logging
 from decimal import Decimal
@@ -25,7 +24,9 @@ logger = logging.getLogger(__name__)
 _ZERO = Decimal("0")
 
 
-def _calc_pnl(quantity: Decimal, avg_price: Decimal, current_price: Optional[Decimal]) -> tuple[Optional[Decimal], Optional[Decimal]]:
+def _calc_pnl(
+    quantity: Decimal, avg_price: Decimal, current_price: Optional[Decimal]
+) -> tuple[Optional[Decimal], Optional[Decimal]]:
     if current_price is None:
         return None, None
     invested = quantity * avg_price
@@ -41,7 +42,9 @@ async def get_summary(
     db: AsyncSession = Depends(get_db),
 ) -> DashboardSummary:
     # 사용자 포트폴리오 및 홀딩 조회
-    port_result = await db.execute(select(Portfolio).where(Portfolio.user_id == current_user.id))
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
     portfolios = port_result.scalars().all()
 
     portfolio_ids = [p.id for p in portfolios]
@@ -98,7 +101,9 @@ async def get_summary(
         market_value = h.quantity * current_price if current_price is not None else None
 
         total_invested += h.quantity * h.avg_price
-        total_asset += market_value if market_value is not None else h.quantity * h.avg_price
+        total_asset += (
+            market_value if market_value is not None else h.quantity * h.avg_price
+        )
 
         holding_items.append(
             HoldingWithPnL(
@@ -115,15 +120,25 @@ async def get_summary(
         )
 
     total_pnl_amount = total_asset - total_invested
-    total_pnl_rate = (total_pnl_amount / total_invested * 100) if total_invested else _ZERO
+    total_pnl_rate = (
+        (total_pnl_amount / total_invested * 100) if total_invested else _ZERO
+    )
 
     # 자산 배분 계산
     allocation: list[AllocationItem] = []
     if total_asset > _ZERO:
         for item in holding_items:
-            value = item.market_value if item.market_value is not None else item.quantity * item.avg_price
+            value = (
+                item.market_value
+                if item.market_value is not None
+                else item.quantity * item.avg_price
+            )
             ratio = value / total_asset * 100
-            allocation.append(AllocationItem(ticker=item.ticker, name=item.name, value=value, ratio=ratio))
+            allocation.append(
+                AllocationItem(
+                    ticker=item.ticker, name=item.name, value=value, ratio=ratio
+                )
+            )
 
     return DashboardSummary(
         total_asset=total_asset,

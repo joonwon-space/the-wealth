@@ -1,12 +1,10 @@
 """종목 검색 서비스 단위 테스트."""
-from __future__ import annotations
 
 from unittest.mock import patch
 
 import pytest
 
 from app.services.stock_search import StockInfo, search_stocks
-
 
 MOCK_STOCKS: list[StockInfo] = [
     {"ticker": "005930", "name": "삼성전자", "market": "KOSPI"},

@@ -4,7 +4,6 @@ KIS tokens are valid for 24 hours.
 - Cached in Redis under key `kis:token:{app_key_hash}`
 - Proactively rotated 10 minutes before expiry
 """
-from __future__ import annotations
 
 import hashlib
 import logging

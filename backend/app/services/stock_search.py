@@ -5,7 +5,6 @@ backend/data/mst/ 폴더의 마스터 파일을 파싱하여 Redis에 캐싱 후
 해외: NYSMST.COD, NASMST.COD, AMSMST.COD (탭 구분, EUC-KR)
 캐시 TTL: 24시간.
 """
-from __future__ import annotations
 
 import asyncio
 import json
@@ -131,14 +130,33 @@ async def _load_stock_list() -> list[StockInfo]:
         stocks = await loop.run_in_executor(None, _load_all_from_files)
 
         if stocks:
-            await r.setex(_CACHE_KEY, _CACHE_TTL, json.dumps(stocks, ensure_ascii=False))
+            await r.setex(
+                _CACHE_KEY, _CACHE_TTL, json.dumps(stocks, ensure_ascii=False)
+            )
             logger.info("Cached %d stocks from MST/COD files", len(stocks))
         return stocks
 
 
 _CHOSUNG = [
-    "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ",
-    "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ",
+    "ㄱ",
+    "ㄲ",
+    "ㄴ",
+    "ㄷ",
+    "ㄸ",
+    "ㄹ",
+    "ㅁ",
+    "ㅂ",
+    "ㅃ",
+    "ㅅ",
+    "ㅆ",
+    "ㅇ",
+    "ㅈ",
+    "ㅉ",
+    "ㅊ",
+    "ㅋ",
+    "ㅌ",
+    "ㅍ",
+    "ㅎ",
 ]
 _CHOSUNG_SET = set(_CHOSUNG)
 

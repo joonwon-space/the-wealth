@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -17,11 +15,15 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False, index=True)
+    portfolio_id: Mapped[int] = mapped_column(
+        ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     ticker: Mapped[str] = mapped_column(String(20), nullable=False)
     type: Mapped[str] = mapped_column(String(10), nullable=False)  # BUY | SELL
     quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     price: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
-    traded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    traded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
-    portfolio: Mapped[Portfolio] = relationship(back_populates="transactions")
+    portfolio: Mapped["Portfolio"] = relationship(back_populates="transactions")

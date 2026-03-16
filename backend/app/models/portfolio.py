@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
@@ -18,7 +16,9 @@ class Portfolio(Base):
     __tablename__ = "portfolios"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="KRW", nullable=False)
     kis_account_id: Mapped[Optional[int]] = mapped_column(
@@ -28,6 +28,10 @@ class Portfolio(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    user: Mapped[User] = relationship(back_populates="portfolios")
-    holdings: Mapped[List[Holding]] = relationship(back_populates="portfolio", cascade="all, delete-orphan")
-    transactions: Mapped[List[Transaction]] = relationship(back_populates="portfolio", cascade="all, delete-orphan")
+    user: Mapped["User"] = relationship(back_populates="portfolios")
+    holdings: Mapped[List["Holding"]] = relationship(
+        back_populates="portfolio", cascade="all, delete-orphan"
+    )
+    transactions: Mapped[List["Transaction"]] = relationship(
+        back_populates="portfolio", cascade="all, delete-orphan"
+    )

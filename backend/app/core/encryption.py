@@ -3,7 +3,6 @@
 마스터 키: `ENCRYPTION_MASTER_KEY` 환경변수 (32바이트 hex 문자열).
 암호문 포맷: base64(nonce[12] + ciphertext + tag[16])
 """
-from __future__ import annotations
 
 import base64
 import os

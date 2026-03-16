@@ -1,5 +1,4 @@
 """KIS 계좌 자동 동기화 API."""
-from __future__ import annotations
 
 import asyncio
 import logging
@@ -90,7 +89,9 @@ async def _ensure_portfolio_for_account(
         await db.refresh(portfolio)
         logger.info(
             "Auto-created portfolio '%s' for KIS account %s-%s",
-            acct.label, acct.account_no, acct.acnt_prdt_cd,
+            acct.label,
+            acct.account_no,
+            acct.acnt_prdt_cd,
         )
 
     return portfolio
@@ -122,17 +123,21 @@ async def get_account_balance(
     account_results = []
     for acct, raw in zip(accounts, raw_results):
         if isinstance(raw, Exception):
-            logger.warning("Balance inquiry failed for %s: %s", acct.label, raw, exc_info=raw)
-            account_results.append({
-                "label": acct.label,
-                "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
-                "error": "잔고 조회에 실패했습니다. 잠시 후 다시 시도해주세요.",
-                "deposit": "0",
-                "total_eval": "0",
-                "stock_eval": "0",
-                "pnl": "0",
-                "holdings": [],
-            })
+            logger.warning(
+                "Balance inquiry failed for %s: %s", acct.label, raw, exc_info=raw
+            )
+            account_results.append(
+                {
+                    "label": acct.label,
+                    "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
+                    "error": "잔고 조회에 실패했습니다. 잠시 후 다시 시도해주세요.",
+                    "deposit": "0",
+                    "total_eval": "0",
+                    "stock_eval": "0",
+                    "pnl": "0",
+                    "holdings": [],
+                }
+            )
             continue
 
         summary, kis_holdings = raw
@@ -160,28 +165,33 @@ async def get_account_balance(
         if has_changes:
             logger.info(
                 "Auto-synced %s: +%d ~%d -%d",
-                acct.label, counts["inserted"], counts["updated"], counts["deleted"],
+                acct.label,
+                counts["inserted"],
+                counts["updated"],
+                counts["deleted"],
             )
 
-        account_results.append({
-            "label": acct.label,
-            "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
-            "portfolio_id": portfolio.id,
-            "deposit": summary.get("dnca_tot_amt", "0"),
-            "total_eval": summary.get("tot_evlu_amt", "0"),
-            "stock_eval": summary.get("scts_evlu_amt", "0"),
-            "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
-            "synced": counts,
-            "holdings": [
-                {
-                    "ticker": h.ticker,
-                    "name": h.name,
-                    "quantity": str(h.quantity),
-                    "avg_price": str(h.avg_price),
-                }
-                for h in kis_holdings
-            ],
-        })
+        account_results.append(
+            {
+                "label": acct.label,
+                "account_no": f"{acct.account_no}-{acct.acnt_prdt_cd}",
+                "portfolio_id": portfolio.id,
+                "deposit": summary.get("dnca_tot_amt", "0"),
+                "total_eval": summary.get("tot_evlu_amt", "0"),
+                "stock_eval": summary.get("scts_evlu_amt", "0"),
+                "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
+                "synced": counts,
+                "holdings": [
+                    {
+                        "ticker": h.ticker,
+                        "name": h.name,
+                        "quantity": str(h.quantity),
+                        "avg_price": str(h.avg_price),
+                    }
+                    for h in kis_holdings
+                ],
+            }
+        )
 
     return {"accounts": account_results}
 
@@ -195,14 +205,21 @@ async def sync_portfolio(
     """포트폴리오에 연결된 KIS 계좌로 동기화."""
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio or portfolio.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
 
     if not portfolio.kis_account_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Portfolio not linked to a KIS account")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Portfolio not linked to a KIS account",
+        )
 
     acct = await db.get(KisAccount, portfolio.kis_account_id)
     if not acct:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="KIS account not found")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="KIS account not found"
+        )
 
     app_key = decrypt(acct.app_key_enc)
     app_secret = decrypt(acct.app_secret_enc)
@@ -233,7 +250,9 @@ async def sync_portfolio(
         )
         db.add(log)
         await db.commit()
-        logger.error("Sync error for portfolio %d: %s", portfolio_id, exc, exc_info=True)
+        logger.error(
+            "Sync error for portfolio %d: %s", portfolio_id, exc, exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="동기화에 실패했습니다. 잠시 후 다시 시도해주세요.",

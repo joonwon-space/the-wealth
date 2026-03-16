@@ -1,5 +1,4 @@
 """Reconciliation 서비스 단위 테스트."""
-from __future__ import annotations
 
 from decimal import Decimal
 
@@ -21,7 +20,9 @@ class TestReconciliation:
     async def test_insert_new_holdings(self) -> None:
         """KIS에 있지만 DB에 없는 종목은 INSERT."""
         engine = create_async_engine(TEST_DB_URL, echo=False)
-        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        factory = async_sessionmaker(
+            engine, class_=AsyncSession, expire_on_commit=False
+        )
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -39,7 +40,12 @@ class TestReconciliation:
             await db.refresh(portfolio)
 
             kis_holdings = [
-                KisHolding(ticker="005930", name="삼성전자", quantity=Decimal("10"), avg_price=Decimal("70000")),
+                KisHolding(
+                    ticker="005930",
+                    name="삼성전자",
+                    quantity=Decimal("10"),
+                    avg_price=Decimal("70000"),
+                ),
             ]
             counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
             assert counts["inserted"] == 1
@@ -51,7 +57,9 @@ class TestReconciliation:
     async def test_update_changed_holdings(self) -> None:
         """수량/단가가 다르면 UPDATE."""
         engine = create_async_engine(TEST_DB_URL, echo=False)
-        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        factory = async_sessionmaker(
+            engine, class_=AsyncSession, expire_on_commit=False
+        )
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -70,14 +78,21 @@ class TestReconciliation:
 
             holding = Holding(
                 portfolio_id=portfolio.id,
-                ticker="005930", name="삼성전자",
-                quantity=Decimal("10"), avg_price=Decimal("70000"),
+                ticker="005930",
+                name="삼성전자",
+                quantity=Decimal("10"),
+                avg_price=Decimal("70000"),
             )
             db.add(holding)
             await db.commit()
 
             kis_holdings = [
-                KisHolding(ticker="005930", name="삼성전자", quantity=Decimal("20"), avg_price=Decimal("72000")),
+                KisHolding(
+                    ticker="005930",
+                    name="삼성전자",
+                    quantity=Decimal("20"),
+                    avg_price=Decimal("72000"),
+                ),
             ]
             counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
             assert counts["updated"] == 1
@@ -89,7 +104,9 @@ class TestReconciliation:
     async def test_delete_missing_holdings(self) -> None:
         """DB에 있지만 KIS에 없는 종목은 DELETE."""
         engine = create_async_engine(TEST_DB_URL, echo=False)
-        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        factory = async_sessionmaker(
+            engine, class_=AsyncSession, expire_on_commit=False
+        )
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -108,8 +125,10 @@ class TestReconciliation:
 
             holding = Holding(
                 portfolio_id=portfolio.id,
-                ticker="005930", name="삼성전자",
-                quantity=Decimal("10"), avg_price=Decimal("70000"),
+                ticker="005930",
+                name="삼성전자",
+                quantity=Decimal("10"),
+                avg_price=Decimal("70000"),
             )
             db.add(holding)
             await db.commit()
@@ -124,7 +143,9 @@ class TestReconciliation:
     async def test_mixed_operations(self) -> None:
         """INSERT + UPDATE + DELETE 동시 발생."""
         engine = create_async_engine(TEST_DB_URL, echo=False)
-        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        factory = async_sessionmaker(
+            engine, class_=AsyncSession, expire_on_commit=False
+        )
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -142,20 +163,44 @@ class TestReconciliation:
             await db.refresh(portfolio)
 
             # DB에 삼성전자, SK하이닉스 보유
-            db.add(Holding(portfolio_id=portfolio.id, ticker="005930", name="삼성전자",
-                           quantity=Decimal("10"), avg_price=Decimal("70000")))
-            db.add(Holding(portfolio_id=portfolio.id, ticker="000660", name="SK하이닉스",
-                           quantity=Decimal("5"), avg_price=Decimal("120000")))
+            db.add(
+                Holding(
+                    portfolio_id=portfolio.id,
+                    ticker="005930",
+                    name="삼성전자",
+                    quantity=Decimal("10"),
+                    avg_price=Decimal("70000"),
+                )
+            )
+            db.add(
+                Holding(
+                    portfolio_id=portfolio.id,
+                    ticker="000660",
+                    name="SK하이닉스",
+                    quantity=Decimal("5"),
+                    avg_price=Decimal("120000"),
+                )
+            )
             await db.commit()
 
             # KIS: 삼성전자(수량 변경) + 카카오(신규) — SK하이닉스 없음(청산)
             kis_holdings = [
-                KisHolding(ticker="005930", name="삼성전자", quantity=Decimal("20"), avg_price=Decimal("72000")),
-                KisHolding(ticker="035720", name="카카오", quantity=Decimal("30"), avg_price=Decimal("50000")),
+                KisHolding(
+                    ticker="005930",
+                    name="삼성전자",
+                    quantity=Decimal("20"),
+                    avg_price=Decimal("72000"),
+                ),
+                KisHolding(
+                    ticker="035720",
+                    name="카카오",
+                    quantity=Decimal("30"),
+                    avg_price=Decimal("50000"),
+                ),
             ]
             counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
             assert counts["inserted"] == 1  # 카카오
-            assert counts["updated"] == 1   # 삼성전자
-            assert counts["deleted"] == 1   # SK하이닉스
+            assert counts["updated"] == 1  # 삼성전자
+            assert counts["deleted"] == 1  # SK하이닉스
 
         await engine.dispose()

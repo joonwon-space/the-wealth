@@ -1,5 +1,4 @@
 """Transaction API tests (list + create, BUY/SELL validation, auth)."""
-from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
@@ -8,7 +7,9 @@ from httpx import AsyncClient
 async def _setup(client: AsyncClient, email: str) -> tuple[str, int]:
     """Register, login, create portfolio. Return (token, portfolio_id)."""
     await client.post("/auth/register", json={"email": email, "password": "Test1234!"})
-    resp = await client.post("/auth/login", json={"email": email, "password": "Test1234!"})
+    resp = await client.post(
+        "/auth/login", json={"email": email, "password": "Test1234!"}
+    )
     token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     port = await client.post("/portfolios", json={"name": "txn test"}, headers=headers)

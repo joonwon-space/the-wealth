@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from decimal import Decimal
 from typing import Optional
 
@@ -20,6 +18,13 @@ class HoldingWithPnL(BaseModel):
     pnl_rate: Optional[Decimal]
 
 
+class AllocationItem(BaseModel):
+    ticker: str
+    name: str
+    value: Decimal
+    ratio: Decimal
+
+
 class DashboardSummary(BaseModel):
     total_asset: Decimal
     total_invested: Decimal
@@ -27,10 +32,3 @@ class DashboardSummary(BaseModel):
     total_pnl_rate: Decimal
     holdings: list[HoldingWithPnL]
     allocation: list[AllocationItem]
-
-
-class AllocationItem(BaseModel):
-    ticker: str
-    name: str
-    value: Decimal
-    ratio: Decimal

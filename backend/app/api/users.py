@@ -1,5 +1,4 @@
 """User API — KIS credentials and account management."""
-from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -55,7 +54,9 @@ async def add_kis_account(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Account already registered")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Account already registered"
+        )
 
     acct = KisAccount(
         user_id=current_user.id,
@@ -68,7 +69,12 @@ async def add_kis_account(
     db.add(acct)
     await db.commit()
     await db.refresh(acct)
-    return {"id": acct.id, "label": acct.label, "account_no": acct.account_no, "acnt_prdt_cd": acct.acnt_prdt_cd}
+    return {
+        "id": acct.id,
+        "label": acct.label,
+        "account_no": acct.account_no,
+        "acnt_prdt_cd": acct.acnt_prdt_cd,
+    }
 
 
 @router.get("/kis-accounts")
@@ -81,7 +87,12 @@ async def list_kis_accounts(
         select(KisAccount).where(KisAccount.user_id == current_user.id)
     )
     return [
-        {"id": a.id, "label": a.label, "account_no": a.account_no, "acnt_prdt_cd": a.acnt_prdt_cd}
+        {
+            "id": a.id,
+            "label": a.label,
+            "account_no": a.account_no,
+            "acnt_prdt_cd": a.acnt_prdt_cd,
+        }
         for a in result.scalars().all()
     ]
 
@@ -100,10 +111,17 @@ async def update_kis_account(
     """Update KIS account label."""
     acct = await db.get(KisAccount, account_id)
     if not acct or acct.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found"
+        )
     acct.label = body.label
     await db.commit()
-    return {"id": acct.id, "label": acct.label, "account_no": acct.account_no, "acnt_prdt_cd": acct.acnt_prdt_cd}
+    return {
+        "id": acct.id,
+        "label": acct.label,
+        "account_no": acct.account_no,
+        "acnt_prdt_cd": acct.acnt_prdt_cd,
+    }
 
 
 @router.delete("/kis-accounts/{account_id}", status_code=204)
@@ -115,6 +133,8 @@ async def delete_kis_account(
     """Delete a KIS account."""
     acct = await db.get(KisAccount, account_id)
     if not acct or acct.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found"
+        )
     await db.delete(acct)
     await db.commit()

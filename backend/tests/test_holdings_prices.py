@@ -1,5 +1,4 @@
 """Holdings-with-prices API test."""
-from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
@@ -8,16 +7,25 @@ from httpx import AsyncClient
 async def _setup_with_holding(client: AsyncClient, email: str) -> tuple[str, int]:
     """Register, login, create portfolio + holding. Return (token, portfolio_id)."""
     await client.post("/auth/register", json={"email": email, "password": "Test1234!"})
-    resp = await client.post("/auth/login", json={"email": email, "password": "Test1234!"})
+    resp = await client.post(
+        "/auth/login", json={"email": email, "password": "Test1234!"}
+    )
     token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    port = await client.post("/portfolios", json={"name": "price test"}, headers=headers)
+    port = await client.post(
+        "/portfolios", json={"name": "price test"}, headers=headers
+    )
     pid = port.json()["id"]
 
     await client.post(
         f"/portfolios/{pid}/holdings",
-        json={"ticker": "005930", "name": "Samsung", "quantity": 10, "avg_price": 70000},
+        json={
+            "ticker": "005930",
+            "name": "Samsung",
+            "quantity": 10,
+            "avg_price": 70000,
+        },
         headers=headers,
     )
     return token, pid
@@ -25,7 +33,9 @@ async def _setup_with_holding(client: AsyncClient, email: str) -> tuple[str, int
 
 @pytest.mark.integration
 class TestHoldingsWithPrices:
-    async def test_returns_holdings_without_kis_account(self, client: AsyncClient) -> None:
+    async def test_returns_holdings_without_kis_account(
+        self, client: AsyncClient
+    ) -> None:
         """No KIS account linked → holdings returned with null prices."""
         token, pid = await _setup_with_holding(client, "hp1@test.com")
         resp = await client.get(
@@ -41,15 +51,21 @@ class TestHoldingsWithPrices:
 
     async def test_empty_portfolio(self, client: AsyncClient) -> None:
         """Empty portfolio → empty list."""
-        await client.post("/auth/register", json={"email": "hp2@test.com", "password": "Test1234!"})
-        resp = await client.post("/auth/login", json={"email": "hp2@test.com", "password": "Test1234!"})
+        await client.post(
+            "/auth/register", json={"email": "hp2@test.com", "password": "Test1234!"}
+        )
+        resp = await client.post(
+            "/auth/login", json={"email": "hp2@test.com", "password": "Test1234!"}
+        )
         token = resp.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
         port = await client.post("/portfolios", json={"name": "empty"}, headers=headers)
         pid = port.json()["id"]
 
-        resp = await client.get(f"/portfolios/{pid}/holdings/with-prices", headers=headers)
+        resp = await client.get(
+            f"/portfolios/{pid}/holdings/with-prices", headers=headers
+        )
         assert resp.status_code == 200
         assert resp.json() == []
 

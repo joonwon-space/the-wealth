@@ -2,7 +2,6 @@
 
 Redis에 마지막 조회 가격을 캐싱(TTL 1h)하여 KIS API 장애 시 폴백.
 """
-from __future__ import annotations
 
 import asyncio
 import logging
@@ -78,7 +77,9 @@ async def fetch_overseas_price(
         price_str: str = data.get("output", {}).get("last", "0")
         return Decimal(price_str) if price_str else None
     except Exception as e:
-        logger.warning("Failed to fetch overseas price for %s/%s: %s", ticker, market, e)
+        logger.warning(
+            "Failed to fetch overseas price for %s/%s: %s", ticker, market, e
+        )
         return None
 
 
@@ -86,7 +87,9 @@ async def _cache_price(ticker: str, price: Decimal) -> None:
     """Redis에 가격을 캐싱."""
     try:
         async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
-            await r.setex(f"{_PRICE_CACHE_PREFIX}{ticker}", _PRICE_CACHE_TTL, str(price))
+            await r.setex(
+                f"{_PRICE_CACHE_PREFIX}{ticker}", _PRICE_CACHE_TTL, str(price)
+            )
     except Exception as e:
         logger.debug("Failed to cache price for %s: %s", ticker, e)
 
@@ -109,9 +112,14 @@ async def fetch_prices_parallel(
     """여러 종목 현재가를 asyncio.gather로 병렬 조회. 실패 시 Redis 캐시 폴백."""
     async with httpx.AsyncClient(timeout=10.0) as client:
         if market == "domestic":
-            tasks = [fetch_domestic_price(t, app_key, app_secret, client) for t in tickers]
+            tasks = [
+                fetch_domestic_price(t, app_key, app_secret, client) for t in tickers
+            ]
         else:
-            tasks = [fetch_overseas_price(t, market, app_key, app_secret, client) for t in tickers]
+            tasks = [
+                fetch_overseas_price(t, market, app_key, app_secret, client)
+                for t in tickers
+            ]
         results = await asyncio.gather(*tasks)
 
     price_map: dict[str, Optional[Decimal]] = {}

@@ -1,5 +1,4 @@
 """encryption 서비스 단위 테스트 — encrypt/decrypt 라운드트립."""
-from __future__ import annotations
 
 import pytest
 

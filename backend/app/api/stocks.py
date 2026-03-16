@@ -1,5 +1,4 @@
 """종목 검색 엔드포인트 — KIS 마스터 파일 기반 로컬 검색."""
-from __future__ import annotations
 
 import logging
 

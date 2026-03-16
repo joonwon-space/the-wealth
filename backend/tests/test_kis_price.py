@@ -1,5 +1,4 @@
 """KIS price 서비스 단위 테스트 — Redis 캐시 폴백 로직."""
-from __future__ import annotations
 
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch

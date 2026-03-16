@@ -1,5 +1,4 @@
 """KIS OpenAPI 계좌 잔고 조회 및 Reconciliation."""
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

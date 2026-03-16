@@ -41,9 +41,9 @@
 ---
 
 ## Milestone 8: Python 3.10+ 업그레이드
-- [ ] Python 3.9.6 → 3.10+ 업그레이드 (venv 재생성)
-- [ ] python-multipart 0.0.22 업그레이드 (Python 3.10+ 필요, GHSA-wp53-j4wj-2cfg)
-- [ ] `from __future__ import annotations` 제거하고 네이티브 union 문법(`str | None`) 사용
+- [x] Python 3.9.6 → 3.12.13 업그레이드 (venv 재생성)
+- [x] python-multipart 0.0.22 업그레이드 (CVE 해결)
+- [x] `from __future__ import annotations` 제거, 네이티브 문법 사용, forward refs → string annotations
 
 ---
 

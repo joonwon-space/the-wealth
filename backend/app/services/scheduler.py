@@ -3,7 +3,6 @@
 FastAPI 앱 startup/shutdown 이벤트에 연결하여 사용합니다.
 KIS 자격증명이 등록된 사용자의 첫 번째 포트폴리오를 1시간 간격으로 동기화.
 """
-from __future__ import annotations
 
 import logging
 
@@ -90,9 +89,7 @@ async def _sync_all_accounts() -> None:
                 )
                 db.add(log_entry)
                 await db.commit()
-                logger.warning(
-                    "[Scheduler] Sync failed user=%d: %s", user.id, exc
-                )
+                logger.warning("[Scheduler] Sync failed user=%d: %s", user.id, exc)
 
 
 def start_scheduler() -> None:

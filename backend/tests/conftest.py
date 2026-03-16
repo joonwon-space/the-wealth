@@ -2,7 +2,6 @@
 
 Each test gets a fresh DB setup to avoid event loop issues on Python 3.9.
 """
-from __future__ import annotations
 
 import os
 from typing import AsyncGenerator

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from decimal import Decimal
 
@@ -32,12 +30,16 @@ logger = logging.getLogger(__name__)
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:
     if portfolio.user_id != user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized"
+        )
 
 
 def _assert_holding_owner(holding: Holding, portfolio: Portfolio, user: User) -> None:
     if portfolio.user_id != user.id or holding.portfolio_id != portfolio.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized"
+        )
 
 
 @router.get("", response_model=list[PortfolioResponse])
@@ -45,7 +47,9 @@ async def list_portfolios(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    result = await db.execute(select(Portfolio).where(Portfolio.user_id == current_user.id))
+    result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
     portfolios = list(result.scalars().all())
 
     response = []
@@ -53,19 +57,23 @@ async def list_portfolios(
         stats = await db.execute(
             select(
                 func.count(Holding.id),
-                func.coalesce(func.sum(Holding.quantity * Holding.avg_price), Decimal("0")),
+                func.coalesce(
+                    func.sum(Holding.quantity * Holding.avg_price), Decimal("0")
+                ),
             ).where(Holding.portfolio_id == p.id)
         )
         count, invested = stats.one()
-        response.append({
-            "id": p.id,
-            "user_id": p.user_id,
-            "name": p.name,
-            "currency": p.currency,
-            "created_at": p.created_at,
-            "holdings_count": count,
-            "total_invested": invested,
-        })
+        response.append(
+            {
+                "id": p.id,
+                "user_id": p.user_id,
+                "name": p.name,
+                "currency": p.currency,
+                "created_at": p.created_at,
+                "holdings_count": count,
+                "total_invested": invested,
+            }
+        )
     return response
 
 
@@ -75,7 +83,9 @@ async def create_portfolio(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Portfolio:
-    portfolio = Portfolio(user_id=current_user.id, name=body.name, currency=body.currency)
+    portfolio = Portfolio(
+        user_id=current_user.id, name=body.name, currency=body.currency
+    )
     db.add(portfolio)
     await db.commit()
     await db.refresh(portfolio)
@@ -91,7 +101,9 @@ async def update_portfolio(
 ) -> dict:
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
     portfolio.name = body.name
     if body.currency:
@@ -107,9 +119,13 @@ async def update_portfolio(
     )
     count, invested = stats.one()
     return {
-        "id": portfolio.id, "user_id": portfolio.user_id, "name": portfolio.name,
-        "currency": portfolio.currency, "created_at": portfolio.created_at,
-        "holdings_count": count, "total_invested": invested,
+        "id": portfolio.id,
+        "user_id": portfolio.user_id,
+        "name": portfolio.name,
+        "currency": portfolio.currency,
+        "created_at": portfolio.created_at,
+        "holdings_count": count,
+        "total_invested": invested,
     }
 
 
@@ -121,7 +137,9 @@ async def delete_portfolio(
 ) -> None:
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
     await db.delete(portfolio)
     await db.commit()
@@ -135,10 +153,14 @@ async def list_holdings(
 ) -> list[Holding]:
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
 
-    result = await db.execute(select(Holding).where(Holding.portfolio_id == portfolio_id))
+    result = await db.execute(
+        select(Holding).where(Holding.portfolio_id == portfolio_id)
+    )
     return list(result.scalars().all())
 
 
@@ -151,10 +173,14 @@ async def list_holdings_with_prices(
     """Holdings with current prices and P&L from the linked KIS account."""
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
 
-    result = await db.execute(select(Holding).where(Holding.portfolio_id == portfolio_id))
+    result = await db.execute(
+        select(Holding).where(Holding.portfolio_id == portfolio_id)
+    )
     holdings = list(result.scalars().all())
     if not holdings:
         return []
@@ -170,7 +196,9 @@ async def list_holdings_with_prices(
                 tickers = list({h.ticker for h in holdings})
                 prices = await fetch_prices_parallel(tickers, app_key, app_secret)
             except Exception as e:
-                logger.warning("Failed to fetch prices for portfolio %d: %s", portfolio_id, e)
+                logger.warning(
+                    "Failed to fetch prices for portfolio %d: %s", portfolio_id, e
+                )
 
     items = []
     for h in holdings:
@@ -179,21 +207,27 @@ async def list_holdings_with_prices(
         mv = h.quantity * cp if cp is not None else None
         pnl = mv - invested if mv is not None else None
         pnl_rate = (pnl / invested * 100) if pnl is not None and invested else None
-        items.append({
-            "id": h.id,
-            "ticker": h.ticker,
-            "name": h.name,
-            "quantity": str(h.quantity),
-            "avg_price": str(h.avg_price),
-            "current_price": str(cp) if cp is not None else None,
-            "market_value": str(mv) if mv is not None else None,
-            "pnl_amount": str(pnl) if pnl is not None else None,
-            "pnl_rate": str(pnl_rate) if pnl_rate is not None else None,
-        })
+        items.append(
+            {
+                "id": h.id,
+                "ticker": h.ticker,
+                "name": h.name,
+                "quantity": str(h.quantity),
+                "avg_price": str(h.avg_price),
+                "current_price": str(cp) if cp is not None else None,
+                "market_value": str(mv) if mv is not None else None,
+                "pnl_amount": str(pnl) if pnl is not None else None,
+                "pnl_rate": str(pnl_rate) if pnl_rate is not None else None,
+            }
+        )
     return items
 
 
-@router.post("/{portfolio_id}/holdings", response_model=HoldingResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{portfolio_id}/holdings",
+    response_model=HoldingResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def add_holding(
     portfolio_id: int,
     body: HoldingCreate,
@@ -202,7 +236,9 @@ async def add_holding(
 ) -> Holding:
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
 
     holding = Holding(
@@ -227,10 +263,14 @@ async def update_holding(
 ) -> Holding:
     holding = await db.get(Holding, holding_id)
     if not holding:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Holding not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Holding not found"
+        )
     portfolio = await db.get(Portfolio, holding.portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_holding_owner(holding, portfolio, current_user)
 
     if body.quantity is not None:
@@ -250,10 +290,14 @@ async def delete_holding(
 ) -> None:
     holding = await db.get(Holding, holding_id)
     if not holding:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Holding not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Holding not found"
+        )
     portfolio = await db.get(Portfolio, holding.portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_holding_owner(holding, portfolio, current_user)
 
     await db.delete(holding)
@@ -268,7 +312,9 @@ async def list_transactions(
 ) -> list[Transaction]:
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
 
     result = await db.execute(
@@ -280,7 +326,11 @@ async def list_transactions(
     return list(result.scalars().all())
 
 
-@router.post("/{portfolio_id}/transactions", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{portfolio_id}/transactions",
+    response_model=TransactionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_transaction(
     portfolio_id: int,
     body: TransactionCreate,
@@ -289,11 +339,15 @@ async def create_transaction(
 ) -> Transaction:
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
 
     if body.type not in ("BUY", "SELL"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="type must be BUY or SELL")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="type must be BUY or SELL"
+        )
 
     txn = Transaction(
         portfolio_id=portfolio_id,
@@ -318,10 +372,14 @@ async def delete_transaction(
 ) -> None:
     txn = await db.get(Transaction, transaction_id)
     if not txn:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+        )
     portfolio = await db.get(Portfolio, txn.portfolio_id)
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
     _assert_portfolio_owner(portfolio, current_user)
     await db.delete(txn)
     await db.commit()
