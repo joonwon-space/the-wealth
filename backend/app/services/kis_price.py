@@ -1,17 +1,25 @@
-"""KIS 현재가 조회 서비스 (국내 + 해외주식, asyncio.gather 병렬 처리)."""
+"""KIS 현재가 조회 서비스 (국내 + 해외주식, asyncio.gather 병렬 처리).
+
+Redis에 마지막 조회 가격을 캐싱(TTL 1h)하여 KIS API 장애 시 폴백.
+"""
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from decimal import Decimal
 from typing import Optional
 
 import httpx
+import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.services.kis_token import get_kis_access_token
 
 logger = logging.getLogger(__name__)
+
+_PRICE_CACHE_PREFIX = "price:"
+_PRICE_CACHE_TTL = 3600  # 1h
 
 
 async def _get_headers(app_key: str, app_secret: str) -> dict[str, str]:
@@ -75,14 +83,48 @@ async def fetch_overseas_price(
         return None
 
 
+async def _cache_price(ticker: str, price: Decimal) -> None:
+    """Redis에 가격을 캐싱."""
+    try:
+        async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
+            await r.setex(f"{_PRICE_CACHE_PREFIX}{ticker}", _PRICE_CACHE_TTL, str(price))
+    except Exception as e:
+        logger.debug("Failed to cache price for %s: %s", ticker, e)
+
+
+async def _get_cached_price(ticker: str) -> Optional[Decimal]:
+    """Redis에서 캐시된 가격 조회."""
+    try:
+        async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
+            cached = await r.get(f"{_PRICE_CACHE_PREFIX}{ticker}")
+            if cached:
+                return Decimal(cached)
+    except Exception as e:
+        logger.debug("Failed to get cached price for %s: %s", ticker, e)
+    return None
+
+
 async def fetch_prices_parallel(
     tickers: list[str], app_key: str, app_secret: str, market: str = "domestic"
 ) -> dict[str, Optional[Decimal]]:
-    """여러 종목 현재가를 asyncio.gather로 병렬 조회."""
+    """여러 종목 현재가를 asyncio.gather로 병렬 조회. 실패 시 Redis 캐시 폴백."""
     async with httpx.AsyncClient(timeout=10.0) as client:
         if market == "domestic":
             tasks = [fetch_domestic_price(t, app_key, app_secret, client) for t in tickers]
         else:
             tasks = [fetch_overseas_price(t, market, app_key, app_secret, client) for t in tickers]
         results = await asyncio.gather(*tasks)
-    return dict(zip(tickers, results))
+
+    price_map: dict[str, Optional[Decimal]] = {}
+    for ticker, price in zip(tickers, results):
+        if price is not None:
+            price_map[ticker] = price
+            await _cache_price(ticker, price)
+        else:
+            # KIS API 실패 시 캐시에서 폴백
+            cached = await _get_cached_price(ticker)
+            if cached is not None:
+                logger.info("Using cached price for %s: %s", ticker, cached)
+            price_map[ticker] = cached
+
+    return price_map

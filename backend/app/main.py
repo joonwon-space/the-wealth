@@ -11,6 +11,7 @@ from slowapi.util import get_remote_address
 
 from app.api import auth, dashboard, portfolios, stocks, sync, users
 from app.services.scheduler import start_scheduler, stop_scheduler
+from app.services.stock_search import _load_stock_list
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,6 +22,12 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     start_scheduler()
+    # Preload KRX + ETF stock list into Redis cache at startup
+    try:
+        stocks = await _load_stock_list()
+        logger.info("Preloaded %d stocks into cache at startup", len(stocks))
+    except Exception as e:
+        logger.warning("Failed to preload stock list: %s", e)
     yield
     stop_scheduler()
 
