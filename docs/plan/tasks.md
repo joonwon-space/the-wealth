@@ -103,4 +103,4 @@ Each item should be completable in a single commit.
 
 - [ ] `app/api/auth.py` 통합 테스트 강화 — refresh token rotation, 잘못된 비밀번호, 이미 등록된 이메일
 - [ ] `app/services/kis_price.py` 유닛 테스트 — cache hit, cache miss, fetch_prices_parallel 폴백 로직
-- [ ] `app/api/analytics.py` 통합 테스트 — get_metrics 빈 데이터, get_portfolio_history, get_monthly_returns
+- [x] `app/api/analytics.py` 통합 테스트 — get_metrics 빈 데이터, get_portfolio_history, get_monthly_returns
