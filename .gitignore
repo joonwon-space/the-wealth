@@ -20,3 +20,10 @@ backend/data/mst/*.zip
 # Docker
 backend/.env
 frontend/.env.local
+
+# Playwright MCP
+.playwright-mcp/
+
+# Visual QA / E2E screenshots
+vqa-*.png
+e2e-*.png

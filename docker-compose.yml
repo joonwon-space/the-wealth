@@ -54,8 +54,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.joonwon.dev
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: https://api.joonwon.dev
     ports:
       - "3000:3000"
     depends_on:
