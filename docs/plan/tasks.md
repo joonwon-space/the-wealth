@@ -111,4 +111,4 @@ Each item should be completable in a single commit.
 - [x] GitHub Actions CodeQL 워크플로우 추가 — Python/JS 정적 보안 분석
 - [x] 백엔드 CI에 커버리지 리포트 추가 — `--cov-report=xml` + Codecov 업로드
 - [x] Husky + lint-staged 설정 — pre-commit에 ESLint 자동 실행
-- [ ] Commitlint 설정 — conventional commit 형식 강제 (`.commitlintrc.json`)
+- [x] Commitlint 설정 — conventional commit 형식 강제 (`.commitlintrc.json`)
