@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_user_sse
 from app.core.encryption import decrypt
 from app.db.session import AsyncSessionLocal, get_db
 from app.models.holding import Holding
@@ -81,7 +81,7 @@ async def get_price_history(
 
 @router.get("/stream")
 async def stream_prices(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_sse),
 ) -> StreamingResponse:
     """보유 종목 현재가 SSE 스트림.
 

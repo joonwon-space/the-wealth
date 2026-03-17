@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, BarChart3, Plus, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
+import { usePriceStream } from "@/hooks/usePriceStream";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AllocationDonut } from "@/components/AllocationDonut";
@@ -53,6 +54,30 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // SSE 실시간 가격 업데이트
+  const handleStreamPrices = useCallback((prices: Record<string, string>) => {
+    setSummary((prev) => {
+      if (!prev) return prev;
+      const updatedHoldings = prev.holdings.map((h) => {
+        const newPrice = prices[h.ticker];
+        if (!newPrice) return h;
+        const current_price = Number(newPrice);
+        const market_value = h.quantity * current_price;
+        const invested = h.quantity * h.avg_price;
+        const pnl_amount = market_value - invested;
+        const pnl_rate = invested ? (pnl_amount / invested) * 100 : null;
+        return { ...h, current_price, market_value, pnl_amount, pnl_rate };
+      });
+      const total_asset = updatedHoldings.reduce((sum, h) => sum + (h.market_value ?? h.quantity * h.avg_price), 0);
+      const total_pnl_amount = total_asset - prev.total_invested;
+      const total_pnl_rate = prev.total_invested ? (total_pnl_amount / prev.total_invested) * 100 : 0;
+      return { ...prev, holdings: updatedHoldings, total_asset, total_pnl_amount, total_pnl_rate };
+    });
+    setLastUpdated(new Date());
+  }, []);
+
+  usePriceStream({ onPrices: handleStreamPrices, enabled: !loading });
 
   const fetchSummary = async (refresh = false) => {
     if (refresh) setRefreshing(true);

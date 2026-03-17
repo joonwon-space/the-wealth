@@ -35,5 +35,5 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-2: SSE 실시간 가격
 
-- [ ] `GET /prices/stream` SSE 엔드포인트 — 보유 종목 가격 30초 간격 push
-- [ ] 프론트엔드 SSE 클라이언트 — 대시보드 가격 실시간 업데이트 (시장 개장 시간 한정)
+- [x] `GET /prices/stream` SSE 엔드포인트 — 보유 종목 가격 30초 간격 push
+- [x] 프론트엔드 SSE 클라이언트 — 대시보드 가격 실시간 업데이트 (시장 개장 시간 한정)
