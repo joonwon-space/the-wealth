@@ -141,3 +141,52 @@ class TestRefresh:
             },
         )
         assert resp.status_code == 401
+
+    async def test_refresh_token_rotation(self, client: AsyncClient) -> None:
+        """After refresh, the old refresh token must be rejected (one-time use)."""
+        await client.post(
+            "/auth/register",
+            json={"email": "rotation@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "rotation@example.com", "password": TEST_PASSWORD},
+        )
+        original_refresh_token = login_resp.json()["refresh_token"]
+
+        # First use — should succeed and return new tokens
+        first_resp = await client.post(
+            "/auth/refresh", json={"refresh_token": original_refresh_token}
+        )
+        assert first_resp.status_code == 200
+        new_tokens = first_resp.json()
+        assert new_tokens["refresh_token"] != original_refresh_token
+
+        # Second use of the original token — must be rejected
+        reuse_resp = await client.post(
+            "/auth/refresh", json={"refresh_token": original_refresh_token}
+        )
+        assert reuse_resp.status_code == 401
+
+    async def test_rotated_token_is_usable(self, client: AsyncClient) -> None:
+        """The new refresh token obtained from rotation can itself be used once."""
+        await client.post(
+            "/auth/register",
+            json={"email": "rotate2@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "rotate2@example.com", "password": TEST_PASSWORD},
+        )
+        first_token = login_resp.json()["refresh_token"]
+
+        second_resp = await client.post(
+            "/auth/refresh", json={"refresh_token": first_token}
+        )
+        second_token = second_resp.json()["refresh_token"]
+
+        third_resp = await client.post(
+            "/auth/refresh", json={"refresh_token": second_token}
+        )
+        assert third_resp.status_code == 200
+        assert "access_token" in third_resp.json()

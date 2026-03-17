@@ -101,6 +101,6 @@ Each item should be completable in a single commit.
 
 ## Milestone 16-2b: 테스트 커버리지 확대
 
-- [ ] `app/api/auth.py` 통합 테스트 강화 — refresh token rotation, 잘못된 비밀번호, 이미 등록된 이메일
-- [ ] `app/services/kis_price.py` 유닛 테스트 — cache hit, cache miss, fetch_prices_parallel 폴백 로직
+- [x] `app/api/auth.py` 통합 테스트 강화 — refresh token rotation, 잘못된 비밀번호, 이미 등록된 이메일
+- [x] `app/services/kis_price.py` 유닛 테스트 — cache hit, cache miss, fetch_prices_parallel 폴백 로직
 - [x] `app/api/analytics.py` 통합 테스트 — get_metrics 빈 데이터, get_portfolio_history, get_monthly_returns
