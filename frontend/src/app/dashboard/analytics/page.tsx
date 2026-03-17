@@ -52,9 +52,17 @@ interface Candle {
   volume: number;
 }
 
+interface Metrics {
+  total_return_rate: number | null;
+  cagr: number | null;
+  mdd: number | null;
+  sharpe_ratio: number | null;
+}
+
 export default function AnalyticsPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   // Chart state
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -66,9 +74,13 @@ export default function AnalyticsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
-    api.get<Summary>("/dashboard/summary")
-      .then(({ data }) => setSummary(data))
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get<Summary>("/dashboard/summary"),
+      api.get<Metrics>("/analytics/metrics"),
+    ]).then(([summaryRes, metricsRes]) => {
+      setSummary(summaryRes.data);
+      setMetrics(metricsRes.data);
+    }).finally(() => setLoading(false));
   }, []);
 
   const fetchChart = async (ticker: string, p: string) => {
@@ -141,6 +153,19 @@ export default function AnalyticsPage() {
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">총 손익</p><p className="mt-1 text-lg font-bold"><PnLBadge value={s.total_pnl_amount} /></p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">수익률</p><p className="mt-1 text-lg font-bold"><PnLBadge value={s.total_pnl_rate} suffix="%" /></p></CardContent></Card>
       </div>
+
+      {/* 성과 지표 */}
+      {metrics && (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">성과 지표</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <MetricCard label="총 수익률" value={metrics.total_return_rate} suffix="%" />
+            <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률" />
+            <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭" />
+            <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="위험 대비 수익률 (>1 양호)" />
+          </div>
+        </section>
+      )}
 
       {/* Stock Chart */}
       <section className="space-y-3">
@@ -303,5 +328,25 @@ export default function AnalyticsPage() {
         onSelect={(ticker, name) => { handleSelectStock(ticker, name); setSearchOpen(false); }}
       />
     </div>
+  );
+}
+
+interface MetricCardProps {
+  label: string;
+  value: number | null;
+  suffix?: string;
+  tooltip?: string;
+}
+
+function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
+  const display = value != null ? `${value > 0 && suffix === "%" ? "+" : ""}${value.toFixed(suffix === "%" ? 2 : 3)}${suffix}` : "—";
+  const color = value == null ? "" : value > 0 ? "text-[#e31f26]" : value < 0 ? "text-[#1a56db]" : "";
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground" title={tooltip}>{label}{tooltip ? " ℹ" : ""}</p>
+        <p className={`mt-1 text-lg font-bold tabular-nums ${color}`}>{display}</p>
+      </CardContent>
+    </Card>
   );
 }

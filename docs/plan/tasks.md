@@ -40,5 +40,5 @@ Each item should be completable in a single commit.
 
 ## Milestone 11-2: 분석 페이지 강화
 
-- [ ] 투자 성과 지표 계산 API (`GET /analytics/metrics`) — 샤프 비율, MDD, CAGR, 총 수익률
-- [ ] 분석 페이지에 성과 지표 카드 표시
+- [x] 투자 성과 지표 계산 API (`GET /analytics/metrics`) — 샤프 비율, MDD, CAGR, 총 수익률
+- [x] 분석 페이지에 성과 지표 카드 표시
