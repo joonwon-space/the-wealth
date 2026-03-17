@@ -92,3 +92,9 @@ Each item should be completable in a single commit.
 
 - [x] 다크모드 토글을 설정 페이지에도 노출 (현재 사이드바만)
 - [x] 분석 페이지 로딩 스켈레톤 개선 — MetricCard, heatmap, history chart 각각 개별 스켈레톤
+
+## Milestone 12-5: API 품질 개선
+
+- [ ] `GET /portfolios/{id}/holdings` 응답에 현재가 포함 — portfolio holdings 페이지에서 별도 대시보드 조회 없이 P&L 표시 가능
+- [ ] `PATCH /portfolios/holdings/{id}` 부분 업데이트 지원 — 수량만 or 평균단가만 수정 가능
+- [ ] 백엔드 전체 테스트 재실행 후 커버리지 리포트 갱신
