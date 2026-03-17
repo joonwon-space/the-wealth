@@ -12,6 +12,7 @@ import { AllocationDonut } from "@/components/AllocationDonut";
 import { CandlestickChart } from "@/components/CandlestickChart";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { MonthlyHeatmap } from "@/components/MonthlyHeatmap";
+import { PortfolioHistoryChart } from "@/components/PortfolioHistoryChart";
 
 const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
@@ -66,11 +67,18 @@ interface MonthlyReturnItem {
   return_rate: number;
 }
 
+interface HistoryPoint {
+  date: string;
+  value: number;
+}
+
 export default function AnalyticsPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [monthlyReturns, setMonthlyReturns] = useState<MonthlyReturnItem[]>([]);
+  const [portfolioHistory, setPortfolioHistory] = useState<HistoryPoint[]>([]);
+  const [historyPeriod, setHistoryPeriod] = useState<"1M" | "3M" | "6M" | "1Y" | "ALL">("3M");
 
   // Chart state
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -86,10 +94,12 @@ export default function AnalyticsPage() {
       api.get<Summary>("/dashboard/summary"),
       api.get<Metrics>("/analytics/metrics"),
       api.get<MonthlyReturnItem[]>("/analytics/monthly-returns"),
-    ]).then(([summaryRes, metricsRes, monthlyRes]) => {
+      api.get<HistoryPoint[]>("/analytics/portfolio-history"),
+    ]).then(([summaryRes, metricsRes, monthlyRes, historyRes]) => {
       setSummary(summaryRes.data);
       setMetrics(metricsRes.data);
       setMonthlyReturns(monthlyRes.data);
+      setPortfolioHistory(historyRes.data);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -176,6 +186,16 @@ export default function AnalyticsPage() {
           </div>
         </section>
       )}
+
+      {/* 포트폴리오 가치 추이 */}
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">포트폴리오 가치 추이</h2>
+        <PortfolioHistoryChart
+          data={portfolioHistory}
+          period={historyPeriod}
+          onPeriodChange={setHistoryPeriod}
+        />
+      </section>
 
       {/* 월별 수익률 히트맵 */}
       <section className="space-y-2">

@@ -78,6 +78,6 @@ Each item should be completable in a single commit.
 
 ## Milestone 13-1: 외부 데이터 & 분석 확장
 
-- [ ] `GET /analytics/portfolio-history` — price_snapshots 기반 일별 포트폴리오 총 가치 시계열 API
-- [ ] 분석 페이지 포트폴리오 가치 추이 선 차트 (Recharts LineChart, 기간 선택)
+- [x] `GET /analytics/portfolio-history` — price_snapshots 기반 일별 포트폴리오 총 가치 시계열 API
+- [x] 분석 페이지 포트폴리오 가치 추이 선 차트 (Recharts LineChart, 기간 선택)
 - [ ] 백엔드 유닛 테스트 추가 — alerts API (create, list, delete, check_triggered_alerts)

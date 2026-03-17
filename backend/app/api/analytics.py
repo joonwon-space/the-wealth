@@ -21,7 +21,7 @@ from app.models.user import User
 from app.core.encryption import decrypt
 from app.services.kis_price import _cache_price, _get_cached_price
 from app.services.price_snapshot import fetch_domestic_price_detail
-from app.schemas.analytics import MonthlyReturn
+from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = logging.getLogger(__name__)
@@ -259,3 +259,61 @@ async def get_monthly_returns(
             )
 
     return monthly_returns
+
+
+@router.get("/portfolio-history", response_model=list[PortfolioHistoryPoint])
+async def get_portfolio_history(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[PortfolioHistoryPoint]:
+    """일별 포트폴리오 총 평가금액 시계열 반환.
+
+    price_snapshots에서 보유 종목의 날짜별 종가를 집계하여
+    일별 포트폴리오 가치를 계산한다.
+    """
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
+    portfolio_ids = [p.id for p in port_result.scalars().all()]
+    if not portfolio_ids:
+        return []
+
+    hold_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    )
+    holdings = hold_result.scalars().all()
+    if not holdings:
+        return []
+
+    tickers = list({h.ticker for h in holdings})
+    holding_map = {h.ticker: h for h in holdings}
+
+    snap_result = await db.execute(
+        select(PriceSnapshot)
+        .where(PriceSnapshot.ticker.in_(tickers))
+        .order_by(PriceSnapshot.snapshot_date)
+    )
+    snapshots = snap_result.scalars().all()
+    if not snapshots:
+        return []
+
+    # 날짜별 {ticker: close}
+    date_ticker_map: dict[str, dict[str, float]] = {}
+    for snap in snapshots:
+        d = snap.snapshot_date.isoformat()
+        if d not in date_ticker_map:
+            date_ticker_map[d] = {}
+        date_ticker_map[d][snap.ticker] = float(snap.close)
+
+    history: list[PortfolioHistoryPoint] = []
+    for date_str in sorted(date_ticker_map.keys()):
+        prices_on_date = date_ticker_map[date_str]
+        value = sum(
+            float(holding_map[t].quantity) * prices_on_date[t]
+            for t in tickers
+            if t in prices_on_date and t in holding_map
+        )
+        if value > 0:
+            history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
+
+    return history
