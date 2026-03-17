@@ -59,3 +59,12 @@ Each item should be completable in a single commit.
 
 - [x] `GET /dashboard/summary` holdings 조회에 selectinload 제거 — N+1 없음 확인 + 느린 쿼리 로깅 추가
 - [x] `analytics.py` `get_metrics`에서 `fetch_prices_parallel` → `fetch_domestic_price_detail` 단일 호출로 교체 (dashboard와 동일하게)
+
+## Milestone 11-4: 종목 상세 페이지
+
+- [ ] `GET /stocks/{ticker}/detail` B/E — KIS 종목 기본 정보 (시가총액, PER, PBR, 배당수익률) `FHKST01010100` output 활용
+- [ ] `/dashboard/stocks/[ticker]` 프론트엔드 라우트 — 캔들스틱 차트 + 기본 정보 카드 + 내 보유 현황 오버레이
+
+## Milestone 14: 인프라
+
+- [ ] Dockerfile 멀티스테이지 빌드 최적화 (backend) — builder + runtime 단계 분리, 이미지 슬림화
