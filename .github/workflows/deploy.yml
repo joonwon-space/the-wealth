@@ -8,6 +8,8 @@ jobs:
   deploy:
     runs-on: [self-hosted, deploy]
     timeout-minutes: 20
+    env:
+      DOCKER_CONFIG: /tmp/docker-config
 
     steps:
       - uses: actions/checkout@v4
@@ -15,16 +17,22 @@ jobs:
       - name: Write backend .env
         run: echo "${{ secrets.BACKEND_ENV_FILE }}" > backend/.env
 
-      - name: Disable Docker credential store for non-interactive session
+      - name: Prepare Docker config (bypass Keychain credential store)
         run: |
           mkdir -p /tmp/docker-config
-          cat > /tmp/docker-config/config.json << 'DCEOF'
-          {"auths":{},"currentContext":"desktop-linux","cliPluginsExtraDirs":["/opt/homebrew/lib/docker/cli-plugins","/Users/joonwon/.docker/cli-plugins"]}
-          DCEOF
+          # Copy real config but remove credsStore that requires Keychain
+          python3 -c "
+          import json, shutil, os
+          cfg = json.load(open(os.path.expanduser('~/.docker/config.json')))
+          cfg.pop('credsStore', None)
+          json.dump(cfg, open('/tmp/docker-config/config.json', 'w'))
+          # Copy contexts directory if it exists
+          ctx_src = os.path.expanduser('~/.docker/contexts')
+          if os.path.isdir(ctx_src):
+              shutil.copytree(ctx_src, '/tmp/docker-config/contexts', dirs_exist_ok=True)
+          "
 
       - name: Build and restart services
-        env:
-          DOCKER_CONFIG: /tmp/docker-config
         run: |
           cd ${{ github.workspace }}
           docker compose build --parallel
