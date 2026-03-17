@@ -16,6 +16,7 @@ class HoldingWithPnL(BaseModel):
     market_value: Optional[Decimal]
     pnl_amount: Optional[Decimal]
     pnl_rate: Optional[Decimal]
+    day_change_rate: Optional[Decimal]  # 전일 대비율 (%, e.g. 1.25 means +1.25%)
 
 
 class AllocationItem(BaseModel):

@@ -1,9 +1,11 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 
+import asyncio
 import logging
 from decimal import Decimal
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +22,7 @@ from app.models.portfolio import Portfolio
 from app.models.user import User
 from app.schemas.dashboard import AllocationItem, DashboardSummary, HoldingWithPnL
 from app.services.kis_price import fetch_prices_parallel
+from app.services.price_snapshot import fetch_domestic_price_detail
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = logging.getLogger(__name__)
@@ -95,11 +98,23 @@ async def get_summary(
     )
     kis_acct = acct_result.scalar_one_or_none()
 
+    day_change_rates: dict[str, Optional[Decimal]] = {}
+
     if kis_acct:
         try:
             app_key = decrypt(kis_acct.app_key_enc)
             app_secret = decrypt(kis_acct.app_secret_enc)
             prices = await fetch_prices_parallel(tickers, app_key, app_secret)
+
+            # 전일 대비율 병렬 조회
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                details = await asyncio.gather(
+                    *[fetch_domestic_price_detail(t, app_key, app_secret, client) for t in tickers],
+                    return_exceptions=True,
+                )
+            for ticker, detail in zip(tickers, details):
+                if detail and not isinstance(detail, Exception):
+                    day_change_rates[ticker] = detail.day_change_rate
         except Exception as e:
             logger.warning("Failed to fetch prices: %s", e)
 
@@ -129,6 +144,7 @@ async def get_summary(
                 market_value=market_value,
                 pnl_amount=pnl_amount,
                 pnl_rate=pnl_rate,
+                day_change_rate=day_change_rates.get(h.ticker),
             )
         )
 
