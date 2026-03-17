@@ -18,6 +18,7 @@ from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
 from app.core.encryption import decrypt
 from app.services.kis_price import fetch_prices_parallel
+from app.schemas.analytics import MonthlyReturn
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = logging.getLogger(__name__)
@@ -165,3 +166,81 @@ async def get_metrics(
         "mdd": round(mdd, 2),
         "sharpe_ratio": round(sharpe, 3) if sharpe is not None else None,
     }
+
+
+@router.get("/monthly-returns", response_model=list[MonthlyReturn])
+async def get_monthly_returns(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[MonthlyReturn]:
+    """월별 포트폴리오 수익률 계산.
+
+    price_snapshots에서 각 월의 마지막 거래일 종가를 취합하여
+    전월 대비 수익률을 반환한다.
+    """
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
+    portfolio_ids = [p.id for p in port_result.scalars().all()]
+    if not portfolio_ids:
+        return []
+
+    hold_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    )
+    holdings = hold_result.scalars().all()
+    if not holdings:
+        return []
+
+    tickers = list({h.ticker for h in holdings})
+    holding_map = {h.ticker: h for h in holdings}
+
+    snap_result = await db.execute(
+        select(PriceSnapshot)
+        .where(PriceSnapshot.ticker.in_(tickers))
+        .order_by(PriceSnapshot.snapshot_date)
+    )
+    snapshots = snap_result.scalars().all()
+    if not snapshots:
+        return []
+
+    # 날짜별 {ticker: close} 맵 구축
+    date_ticker_map: dict[str, dict[str, float]] = {}
+    for snap in snapshots:
+        d = snap.snapshot_date.isoformat()
+        if d not in date_ticker_map:
+            date_ticker_map[d] = {}
+        date_ticker_map[d][snap.ticker] = float(snap.close)
+
+    # 월별 마지막 날짜의 포트폴리오 가치 계산
+    month_end_values: dict[str, float] = {}  # key: "YYYY-MM"
+    for date_str in sorted(date_ticker_map.keys()):
+        prices_on_date = date_ticker_map[date_str]
+        value = sum(
+            float(holding_map[t].quantity) * prices_on_date[t]
+            for t in tickers
+            if t in prices_on_date and t in holding_map
+        )
+        if value > 0:
+            month_key = date_str[:7]  # "YYYY-MM"
+            month_end_values[month_key] = value  # 월 내 마지막 날로 덮어쓰기
+
+    if len(month_end_values) < 2:
+        return []
+
+    # 월별 수익률 계산
+    sorted_months = sorted(month_end_values.keys())
+    monthly_returns: list[MonthlyReturn] = []
+    for i in range(1, len(sorted_months)):
+        prev_key = sorted_months[i - 1]
+        curr_key = sorted_months[i]
+        prev_value = month_end_values[prev_key]
+        curr_value = month_end_values[curr_key]
+        if prev_value > 0:
+            return_rate = (curr_value - prev_value) / prev_value * 100
+            year, month = int(curr_key[:4]), int(curr_key[5:7])
+            monthly_returns.append(
+                MonthlyReturn(year=year, month=month, return_rate=round(return_rate, 2))
+            )
+
+    return monthly_returns

@@ -11,6 +11,7 @@ import { PnLBadge } from "@/components/PnLBadge";
 import { AllocationDonut } from "@/components/AllocationDonut";
 import { CandlestickChart } from "@/components/CandlestickChart";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
+import { MonthlyHeatmap } from "@/components/MonthlyHeatmap";
 
 const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
@@ -59,10 +60,17 @@ interface Metrics {
   sharpe_ratio: number | null;
 }
 
+interface MonthlyReturnItem {
+  year: number;
+  month: number;
+  return_rate: number;
+}
+
 export default function AnalyticsPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [monthlyReturns, setMonthlyReturns] = useState<MonthlyReturnItem[]>([]);
 
   // Chart state
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -77,9 +85,11 @@ export default function AnalyticsPage() {
     Promise.all([
       api.get<Summary>("/dashboard/summary"),
       api.get<Metrics>("/analytics/metrics"),
-    ]).then(([summaryRes, metricsRes]) => {
+      api.get<MonthlyReturnItem[]>("/analytics/monthly-returns"),
+    ]).then(([summaryRes, metricsRes, monthlyRes]) => {
       setSummary(summaryRes.data);
       setMetrics(metricsRes.data);
+      setMonthlyReturns(monthlyRes.data);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -166,6 +176,12 @@ export default function AnalyticsPage() {
           </div>
         </section>
       )}
+
+      {/* 월별 수익률 히트맵 */}
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">월별 수익률</h2>
+        <MonthlyHeatmap data={monthlyReturns} />
+      </section>
 
       {/* Stock Chart */}
       <section className="space-y-3">
