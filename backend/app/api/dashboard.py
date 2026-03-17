@@ -56,16 +56,19 @@ async def get_summary(
     )
     portfolios = port_result.scalars().all()
 
+    _empty = DashboardSummary(
+        total_asset=_ZERO,
+        total_invested=_ZERO,
+        total_pnl_amount=_ZERO,
+        total_pnl_rate=_ZERO,
+        total_day_change_rate=None,
+        holdings=[],
+        allocation=[],
+    )
+
     portfolio_ids = [p.id for p in portfolios]
     if not portfolio_ids:
-        return DashboardSummary(
-            total_asset=_ZERO,
-            total_invested=_ZERO,
-            total_pnl_amount=_ZERO,
-            total_pnl_rate=_ZERO,
-            holdings=[],
-            allocation=[],
-        )
+        return _empty
 
     hold_result = await db.execute(
         select(Holding).where(Holding.portfolio_id.in_(portfolio_ids)).limit(500)
@@ -73,14 +76,7 @@ async def get_summary(
     holdings = hold_result.scalars().all()
 
     if not holdings:
-        return DashboardSummary(
-            total_asset=_ZERO,
-            total_invested=_ZERO,
-            total_pnl_amount=_ZERO,
-            total_pnl_rate=_ZERO,
-            holdings=[],
-            allocation=[],
-        )
+        return _empty
 
     # Fetch prices using first available KIS account credentials
     tickers = list({h.ticker for h in holdings})

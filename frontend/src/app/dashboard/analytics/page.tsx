@@ -135,10 +135,30 @@ export default function AnalyticsPage() {
     return (
       <div className="space-y-8">
         <Skeleton className="h-8 w-24" />
+        {/* Summary cards */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-24" /></CardContent></Card>
           ))}
+        </div>
+        {/* Metrics cards */}
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-20" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-20" /></CardContent></Card>
+            ))}
+          </div>
+        </div>
+        {/* History chart */}
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-[280px] w-full rounded-lg" />
+        </div>
+        {/* Heatmap */}
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-24 w-full rounded-lg" />
         </div>
       </div>
     );

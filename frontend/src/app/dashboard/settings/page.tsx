@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, CheckCircle, Eye, Loader2, Pencil, Plus, Trash2, Wifi, XCircle } from "lucide-react";
+import { Bell, CheckCircle, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2, Wifi, XCircle } from "lucide-react";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
@@ -70,6 +71,8 @@ export default function SettingsPage() {
       setTestingAcctId(null);
     }
   };
+
+  const { theme, setTheme } = useTheme();
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [newAlert, setNewAlert] = useState({ ticker: "", name: "", condition: "above" as "above" | "below", threshold: "" });
@@ -176,6 +179,23 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-xl">
       <h1 className="text-2xl font-bold">설정</h1>
+
+      {/* 테마 */}
+      <Card>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold">테마</p>
+            <p className="text-xs text-muted-foreground">라이트 / 다크 모드 전환</p>
+          </div>
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? "라이트 모드" : "다크 모드"}
+          </button>
+        </CardContent>
+      </Card>
 
       {/* KIS 계좌 관리 */}
       <Card>
