@@ -19,6 +19,7 @@ jobs:
 
       - name: Prepare Docker config (bypass Keychain credential store)
         run: |
+          rm -rf /tmp/docker-config
           mkdir -p /tmp/docker-config
           # Copy real config but remove credsStore that requires Keychain
           python3 -c "
@@ -31,6 +32,8 @@ jobs:
           if os.path.isdir(ctx_src):
               shutil.copytree(ctx_src, '/tmp/docker-config/contexts', dirs_exist_ok=True)
           "
+          # Symlink CLI plugins so docker compose is found
+          ln -sf ~/.docker/cli-plugins /tmp/docker-config/cli-plugins
 
       - name: Build and restart services
         run: |
