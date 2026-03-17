@@ -2,19 +2,25 @@
 
 FastAPI 앱 startup/shutdown 이벤트에 연결하여 사용합니다.
 KIS 자격증명이 등록된 사용자의 첫 번째 포트폴리오를 1시간 간격으로 동기화.
+장 마감(KST 16:05) 후 보유 종목 종가를 price_snapshots에 저장.
 """
 
 import logging
 
+import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 
 from app.core.encryption import decrypt
 from app.db.session import AsyncSessionLocal
+from app.models.holding import Holding
+from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
 from app.models.user import User
 from app.services.kis_account import fetch_account_holdings
+from app.services.kis_price import fetch_domestic_price
+from app.services.price_snapshot import save_snapshots
 from app.services.reconciliation import reconcile_holdings
 
 logger = logging.getLogger(__name__)
@@ -92,6 +98,49 @@ async def _sync_all_accounts() -> None:
                 logger.warning("[Scheduler] Sync failed user=%d: %s", user.id, exc)
 
 
+async def _snapshot_daily_close() -> None:
+    """장 마감 후 보유 종목 종가를 price_snapshots에 저장.
+
+    KST 16:05 (UTC 07:05) 평일 실행.
+    """
+    logger.info("[Scheduler] Starting daily close snapshot")
+
+    async with AsyncSessionLocal() as db:
+        # 모든 KIS 계좌 중 첫 번째 계정 크리덴셜 사용
+        acct_result = await db.execute(select(KisAccount).limit(1))
+        acct = acct_result.scalar_one_or_none()
+        if not acct:
+            logger.info("[Scheduler] No KIS accounts found, skipping snapshot")
+            return
+
+        app_key = decrypt(acct.app_key_enc)
+        app_secret = decrypt(acct.app_secret_enc)
+
+        # 전체 보유 종목 ticker 수집
+        hold_result = await db.execute(select(Holding.ticker).distinct())
+        tickers = [row[0] for row in hold_result.all()]
+        if not tickers:
+            logger.info("[Scheduler] No holdings found, skipping snapshot")
+            return
+
+        # 현재가 병렬 조회
+        from decimal import Decimal
+
+        prices: dict[str, Decimal] = {}
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            import asyncio
+            results = await asyncio.gather(
+                *[fetch_domestic_price(t, app_key, app_secret, client) for t in tickers],
+                return_exceptions=True,
+            )
+        for ticker, price in zip(tickers, results):
+            if isinstance(price, Decimal) and price > 0:
+                prices[ticker] = price
+
+        count = await save_snapshots(db, prices)
+        logger.info("[Scheduler] Saved %d price snapshots", count)
+
+
 def start_scheduler() -> None:
     scheduler.add_job(
         _sync_all_accounts,
@@ -100,8 +149,18 @@ def start_scheduler() -> None:
         id="kis_sync",
         replace_existing=True,
     )
+    scheduler.add_job(
+        _snapshot_daily_close,
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour=7,
+        minute=5,
+        timezone="UTC",
+        id="daily_close_snapshot",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("[Scheduler] APScheduler started — KIS sync every 1 hour")
+    logger.info("[Scheduler] APScheduler started — KIS sync every 1 hour, daily close snapshot at KST 16:05")
 
 
 def stop_scheduler() -> None:
