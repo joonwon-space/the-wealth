@@ -108,7 +108,7 @@ Each item should be completable in a single commit.
 ## Milestone 14-3 / 16-3: CI/CD & 코드 품질
 
 - [x] `.github/dependabot.yml` 추가 — pip & npm 의존성 자동 보안 업데이트
-- [ ] GitHub Actions CodeQL 워크플로우 추가 — Python/JS 정적 보안 분석
+- [x] GitHub Actions CodeQL 워크플로우 추가 — Python/JS 정적 보안 분석
 - [ ] 백엔드 CI에 커버리지 리포트 추가 — `--cov-report=xml` + Codecov 업로드
 - [ ] Husky + lint-staged 설정 — pre-commit에 ESLint/Prettier 자동 실행
 - [ ] Commitlint 설정 — conventional commit 형식 강제 (`.commitlintrc.json`)
