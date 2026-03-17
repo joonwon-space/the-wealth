@@ -70,6 +70,7 @@ export default function StockDetailPage() {
 
   useEffect(() => {
     if (!ticker) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setChartLoading(true);
     api
       .get<{ candles: Candle[] }>("/chart/daily", { params: { ticker, period } })

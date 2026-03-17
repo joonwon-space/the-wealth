@@ -4,7 +4,6 @@ Tests cover _calc_mdd, _calc_cagr, _calc_sharpe from app.api.analytics.
 """
 
 import math
-import pytest
 
 from app.api.analytics import _calc_cagr, _calc_mdd, _calc_sharpe
 
