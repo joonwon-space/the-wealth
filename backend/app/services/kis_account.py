@@ -61,21 +61,39 @@ async def fetch_account_holdings(
             )
             resp.raise_for_status()
             data = resp.json()
-            output1: list = data.get("output1", [])
-            result = []
-            for item in output1:
-                qty = Decimal(str(item.get("hldg_qty", "0")))
-                if qty <= 0:
-                    continue
-                result.append(
-                    KisHolding(
-                        ticker=item.get("pdno", ""),
-                        name=item.get("prdt_name", ""),
-                        quantity=qty,
-                        avg_price=Decimal(str(item.get("pchs_avg_pric", "0"))),
-                    )
+
+        rt_cd = data.get("rt_cd")
+        if rt_cd != "0":
+            msg = data.get("msg1", "Unknown KIS API error")
+            logger.warning(
+                "KIS API error for %s-%s: rt_cd=%s msg=%s",
+                account_no,
+                account_product_code,
+                rt_cd,
+                msg,
+            )
+            return []
+
+        output1: list = data.get("output1", [])
+        result = []
+        for item in output1:
+            qty = Decimal(str(item.get("hldg_qty", "0")))
+            if qty <= 0:
+                continue
+            result.append(
+                KisHolding(
+                    ticker=item.get("pdno", ""),
+                    name=item.get("prdt_name", ""),
+                    quantity=qty,
+                    avg_price=Decimal(str(item.get("pchs_avg_pric", "0"))),
                 )
-            return result
+            )
+        return result
     except Exception as e:
-        logger.warning("Failed to fetch KIS account holdings: %s", e)
+        logger.warning(
+            "Failed to fetch KIS account holdings for %s-%s: %s",
+            account_no,
+            account_product_code,
+            e,
+        )
         return []

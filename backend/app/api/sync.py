@@ -17,15 +17,20 @@ from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
 from app.models.user import User
 from app.services.kis_account import KisHolding, fetch_account_holdings
-from app.services.kis_token import get_kis_access_token
+from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 from app.services.reconciliation import reconcile_holdings
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 logger = logging.getLogger(__name__)
 
 
-async def _fetch_balance_raw(acct: KisAccount) -> tuple[dict, list[KisHolding]]:
-    """단일 KIS 계좌의 원시 잔고 + holdings 조회."""
+async def _fetch_balance_raw(
+    acct: KisAccount, *, _retried: bool = False
+) -> tuple[dict, list[KisHolding]]:
+    """단일 KIS 계좌의 원시 잔고 + holdings 조회.
+
+    500/401 응답 시 토큰을 무효화하고 최초 1회 재시도한다.
+    """
     app_key = decrypt(acct.app_key_enc)
     app_secret = decrypt(acct.app_secret_enc)
     token = await get_kis_access_token(app_key, app_secret)
@@ -57,8 +62,31 @@ async def _fetch_balance_raw(acct: KisAccount) -> tuple[dict, list[KisHolding]]:
             headers=headers,
             params=params,
         )
-        resp.raise_for_status()
-        data = resp.json()
+
+    if resp.status_code in (401, 500) and not _retried:
+        logger.warning(
+            "KIS balance API returned %d for %s-%s — invalidating token and retrying",
+            resp.status_code,
+            acct.account_no,
+            acct.acnt_prdt_cd,
+        )
+        await invalidate_kis_token(app_key)
+        return await _fetch_balance_raw(acct, _retried=True)
+
+    resp.raise_for_status()
+    data = resp.json()
+
+    rt_cd = data.get("rt_cd")
+    if rt_cd != "0":
+        msg = data.get("msg1", "Unknown KIS API error")
+        logger.error(
+            "KIS API error for account %s-%s: rt_cd=%s msg=%s",
+            acct.account_no,
+            acct.acnt_prdt_cd,
+            rt_cd,
+            msg,
+        )
+        raise RuntimeError(f"KIS API 오류 (rt_cd={rt_cd}): {msg}")
 
     summary = (data.get("output2") or [{}])[0]
     holdings_list = await fetch_account_holdings(

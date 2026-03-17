@@ -2,11 +2,13 @@
 
 KIS tokens are valid for 24 hours.
 - Cached in Redis under key `kis:token:{app_key_hash}`
+- TTL derived from `access_token_token_expired` in the issuance response
 - Proactively rotated 10 minutes before expiry
 """
 
 import hashlib
 import logging
+from datetime import datetime
 from typing import Optional
 
 import httpx
@@ -17,7 +19,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 _ROTATION_BUFFER_SECONDS = 600  # rotate 10 min before expiry
-_TOKEN_TTL_SECONDS = 86400  # 24 h (KIS spec)
+_TOKEN_TTL_SECONDS = 86400  # 24 h fallback (KIS spec)
 
 
 def _get_redis() -> aioredis.Redis:
@@ -38,17 +40,13 @@ async def get_kis_access_token(app_key: str, app_secret: str) -> str:
         if cached:
             return cached
 
-        token = await _issue_token(app_key, app_secret)
-        await redis.setex(
-            cache_key,
-            _TOKEN_TTL_SECONDS - _ROTATION_BUFFER_SECONDS,
-            token,
-        )
+        token, ttl = await _issue_token(app_key, app_secret)
+        await redis.setex(cache_key, max(ttl - _ROTATION_BUFFER_SECONDS, 60), token)
         return token
 
 
-async def _issue_token(app_key: str, app_secret: str) -> str:
-    """Call KIS token issuance endpoint and return the access token string."""
+async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
+    """Call KIS token issuance endpoint and return (access_token, ttl_seconds)."""
     url = f"{settings.KIS_BASE_URL}/oauth2/tokenP"
     payload = {
         "grant_type": "client_credentials",
@@ -59,10 +57,22 @@ async def _issue_token(app_key: str, app_secret: str) -> str:
         resp = await client.post(url, json=payload)
         resp.raise_for_status()
         data = resp.json()
-        token: Optional[str] = data.get("access_token")
-        if not token:
-            raise ValueError("KIS token endpoint returned unexpected response format")
-        return token
+
+    token: Optional[str] = data.get("access_token")
+    if not token:
+        raise ValueError("KIS token endpoint returned unexpected response format")
+
+    ttl = _TOKEN_TTL_SECONDS
+    expires_str: Optional[str] = data.get("access_token_token_expired")
+    if expires_str:
+        try:
+            expires_at = datetime.strptime(expires_str, "%Y-%m-%d %H:%M:%S")
+            ttl = max(int((expires_at - datetime.now()).total_seconds()), 60)
+        except (ValueError, OverflowError):
+            logger.warning("Could not parse KIS token expiry '%s', using default TTL", expires_str)
+
+    logger.info("KIS token issued, TTL=%ds (expires=%s)", ttl, expires_str)
+    return token, ttl
 
 
 async def invalidate_kis_token(app_key: str) -> None:
