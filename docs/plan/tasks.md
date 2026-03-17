@@ -95,6 +95,6 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-5: API 품질 개선
 
-- [ ] `GET /portfolios/{id}/holdings` 응답에 현재가 포함 — portfolio holdings 페이지에서 별도 대시보드 조회 없이 P&L 표시 가능
-- [ ] `PATCH /portfolios/holdings/{id}` 부분 업데이트 지원 — 수량만 or 평균단가만 수정 가능
-- [ ] 백엔드 전체 테스트 재실행 후 커버리지 리포트 갱신
+- [x] `GET /portfolios/{id}/holdings` 응답에 현재가 포함 — `/with-prices` 엔드포인트 이미 존재
+- [x] `PATCH /portfolios/holdings/{id}` 부분 업데이트 지원 — 이미 구현됨 (quantity/avg_price 독립적 수정)
+- [x] 백엔드 전체 테스트 재실행 후 커버리지 리포트 갱신
