@@ -172,3 +172,80 @@ class TestHoldings:
             f"/portfolios/holdings/{hid}", headers=_auth_headers(token)
         )
         assert resp.status_code == 204
+
+
+@pytest.mark.integration
+class TestMultiplePortfoliosHoldings:
+    """Verify holdings are correctly scoped to their portfolio and user."""
+
+    async def test_holdings_isolated_between_portfolios(self, client: AsyncClient) -> None:
+        """Holdings in portfolio A are not visible in portfolio B."""
+        token = await _register_and_get_token(client, "multi1@example.com")
+        port_a = (await client.post("/portfolios", json={"name": "A"}, headers=_auth_headers(token))).json()
+        port_b = (await client.post("/portfolios", json={"name": "B"}, headers=_auth_headers(token))).json()
+
+        await client.post(
+            f"/portfolios/{port_a['id']}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000},
+            headers=_auth_headers(token),
+        )
+        await client.post(
+            f"/portfolios/{port_b['id']}/holdings",
+            json={"ticker": "000660", "name": "SK하이닉스", "quantity": 5, "avg_price": 120000},
+            headers=_auth_headers(token),
+        )
+
+        resp_a = await client.get(f"/portfolios/{port_a['id']}/holdings", headers=_auth_headers(token))
+        resp_b = await client.get(f"/portfolios/{port_b['id']}/holdings", headers=_auth_headers(token))
+
+        tickers_a = {h["ticker"] for h in resp_a.json()}
+        tickers_b = {h["ticker"] for h in resp_b.json()}
+
+        assert tickers_a == {"005930"}
+        assert tickers_b == {"000660"}
+
+    async def test_holdings_isolated_between_users(self, client: AsyncClient) -> None:
+        """User A cannot see User B's holdings."""
+        token_a = await _register_and_get_token(client, "multi2a@example.com")
+        token_b = await _register_and_get_token(client, "multi2b@example.com")
+
+        port_a = (await client.post("/portfolios", json={"name": "A"}, headers=_auth_headers(token_a))).json()
+        await client.post(
+            f"/portfolios/{port_a['id']}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000},
+            headers=_auth_headers(token_a),
+        )
+
+        # User B attempts to access User A's portfolio — server returns 403 or 404
+        resp = await client.get(f"/portfolios/{port_a['id']}/holdings", headers=_auth_headers(token_b))
+        assert resp.status_code in (403, 404)
+
+    async def test_multiple_portfolios_all_visible(self, client: AsyncClient) -> None:
+        """All portfolios for a user are returned in GET /portfolios."""
+        token = await _register_and_get_token(client, "multi3@example.com")
+        for name in ["Alpha", "Beta", "Gamma"]:
+            await client.post("/portfolios", json={"name": name}, headers=_auth_headers(token))
+
+        resp = await client.get("/portfolios", headers=_auth_headers(token))
+        names = {p["name"] for p in resp.json()}
+        assert {"Alpha", "Beta", "Gamma"} <= names
+
+    async def test_holding_count_correct_across_portfolios(self, client: AsyncClient) -> None:
+        """Total holding count across two portfolios is accurate."""
+        token = await _register_and_get_token(client, "multi4@example.com")
+        for name in ["P1", "P2"]:
+            port = (await client.post("/portfolios", json={"name": name}, headers=_auth_headers(token))).json()
+            for i in range(2):
+                await client.post(
+                    f"/portfolios/{port['id']}/holdings",
+                    json={"ticker": f"00593{i}", "name": f"종목{i}", "quantity": 1, "avg_price": 10000},
+                    headers=_auth_headers(token),
+                )
+
+        # Fetch both portfolios and count total holdings
+        portfolios = (await client.get("/portfolios", headers=_auth_headers(token))).json()
+        total = 0
+        for p in portfolios:
+            h = await client.get(f"/portfolios/{p['id']}/holdings", headers=_auth_headers(token))
+            total += len(h.json())
+        assert total == 4

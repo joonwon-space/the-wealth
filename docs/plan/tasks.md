@@ -86,7 +86,7 @@ Each item should be completable in a single commit.
 
 - [x] 백엔드 전체 테스트 커버리지 측정 + 80% 미달 모듈 목록 파악
 - [x] `app/services/kis_token.py` 유닛 테스트 — TTL 파싱, 토큰 캐시 히트/미스
-- [ ] `app/api/portfolios.py` 통합 테스트 강화 — 다중 포트폴리오 holdings 쿼리 검증
+- [x] `app/api/portfolios.py` 통합 테스트 강화 — 다중 포트폴리오 holdings 쿼리 검증
 
 ## Milestone 11-5: UX 편의 기능
 
