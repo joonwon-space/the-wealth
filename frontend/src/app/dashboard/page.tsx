@@ -11,6 +11,7 @@ import { AllocationDonut } from "@/components/AllocationDonut";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatRate } from "@/lib/format";
+import { toast } from "sonner";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
@@ -37,6 +38,15 @@ interface AllocationItem {
   ratio: number;
 }
 
+interface TriggeredAlert {
+  id: number;
+  ticker: string;
+  name: string;
+  condition: "above" | "below";
+  threshold: number;
+  current_price: number;
+}
+
 interface Summary {
   total_asset: number;
   total_invested: number;
@@ -45,6 +55,7 @@ interface Summary {
   total_day_change_rate: number | null;
   holdings: HoldingRow[];
   allocation: AllocationItem[];
+  triggered_alerts: TriggeredAlert[];
 }
 
 export default function DashboardPage() {
@@ -88,6 +99,15 @@ export default function DashboardPage() {
       setSummary(data);
       setError(null);
       setLastUpdated(new Date());
+      // 목표가 알림 토스트
+      for (const alert of data.triggered_alerts ?? []) {
+        const label = alert.name || alert.ticker;
+        const dir = alert.condition === "above" ? "이상" : "이하";
+        toast.warning(`📊 ${label} 목표가 도달`, {
+          description: `현재 ${formatKRW(alert.current_price)} — 목표 ${dir} ${formatKRW(alert.threshold)}`,
+          duration: 8000,
+        });
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "서버에 연결할 수 없습니다";
       setError(message);
@@ -159,6 +179,7 @@ export default function DashboardPage() {
     total_day_change_rate: null,
     holdings: [],
     allocation: [],
+    triggered_alerts: [],
   };
 
   const hasNoPortfolio = !loading && s.holdings.length === 0 && s.total_invested === 0;
