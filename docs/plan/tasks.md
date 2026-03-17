@@ -53,7 +53,7 @@ Each item should be completable in a single commit.
 ## Milestone 11-1: PWA & 모바일 네비게이션
 
 - [x] PWA 지원 — `manifest.json` + `<link rel="manifest">` + 앱 아이콘 (192/512px)
-- [ ] 모바일 하단 네비게이션 바 — 대시보드·분석·포트폴리오·설정 탭 (md:hidden)
+- [x] 모바일 하단 네비게이션 바 — 대시보드·분석·포트폴리오·설정 탭 (md:hidden)
 
 ## Milestone 12-3b: 쿼리 최적화
 
