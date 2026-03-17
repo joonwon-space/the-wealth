@@ -23,6 +23,8 @@ class PriceDetail:
     current: Decimal
     prev_close: Decimal
     day_change_rate: Decimal  # % (e.g. 1.25 means +1.25%)
+    w52_high: Optional[Decimal]
+    w52_low: Optional[Decimal]
 
 
 async def fetch_domestic_price_detail(
@@ -58,12 +60,16 @@ async def fetch_domestic_price_detail(
         current_str = output.get("stck_prpr", "0")
         prev_close_str = output.get("stck_sdpr", "0")
         change_rate_str = output.get("prdy_ctrt", "0")
+        w52_high_str = output.get("w52_hgpr", "")
+        w52_low_str = output.get("w52_lwpr", "")
         if not current_str or current_str == "0":
             return None
         return PriceDetail(
             current=Decimal(current_str),
             prev_close=Decimal(prev_close_str),
             day_change_rate=Decimal(change_rate_str),
+            w52_high=Decimal(w52_high_str) if w52_high_str else None,
+            w52_low=Decimal(w52_low_str) if w52_low_str else None,
         )
     except Exception as e:
         logger.warning("Failed to fetch price detail for %s: %s", ticker, e)

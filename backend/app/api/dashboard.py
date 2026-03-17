@@ -99,6 +99,8 @@ async def get_summary(
     kis_acct = acct_result.scalar_one_or_none()
 
     day_change_rates: dict[str, Optional[Decimal]] = {}
+    w52_highs: dict[str, Optional[Decimal]] = {}
+    w52_lows: dict[str, Optional[Decimal]] = {}
 
     if kis_acct:
         try:
@@ -106,7 +108,7 @@ async def get_summary(
             app_secret = decrypt(kis_acct.app_secret_enc)
             prices = await fetch_prices_parallel(tickers, app_key, app_secret)
 
-            # 전일 대비율 병렬 조회
+            # 전일 대비율 + 52주 고/저 병렬 조회
             async with httpx.AsyncClient(timeout=10.0) as client:
                 details = await asyncio.gather(
                     *[fetch_domestic_price_detail(t, app_key, app_secret, client) for t in tickers],
@@ -115,6 +117,8 @@ async def get_summary(
             for ticker, detail in zip(tickers, details):
                 if detail and not isinstance(detail, Exception):
                     day_change_rates[ticker] = detail.day_change_rate
+                    w52_highs[ticker] = detail.w52_high
+                    w52_lows[ticker] = detail.w52_low
         except Exception as e:
             logger.warning("Failed to fetch prices: %s", e)
 
@@ -145,6 +149,8 @@ async def get_summary(
                 pnl_amount=pnl_amount,
                 pnl_rate=pnl_rate,
                 day_change_rate=day_change_rates.get(h.ticker),
+                w52_high=w52_highs.get(h.ticker),
+                w52_low=w52_lows.get(h.ticker),
             )
         )
 

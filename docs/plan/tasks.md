@@ -26,3 +26,14 @@ Each item should be completable in a single commit.
 - [x] 가격 히스토리 API `GET /prices/{ticker}/history`
 - [x] analytics 페이지 `day_change_rate` 컬럼 반영
 - [x] 대시보드 요약 카드에 포트폴리오 전일 대비 변동률 배지 (`total_day_change_rate`)
+
+## Milestone 11-3: 보유 종목 테이블 52주 고/저
+
+- [ ] `PriceDetail`에 `w52_high` / `w52_low` 추가 (FHKST01010100 응답 활용)
+- [ ] dashboard API 응답 `HoldingWithPnL`에 `w52_high` / `w52_low` 추가
+- [ ] 보유 종목 테이블에 52주 범위 프로그레스 바 컬럼 추가
+
+## Milestone 12-2: SSE 실시간 가격
+
+- [ ] `GET /prices/stream` SSE 엔드포인트 — 보유 종목 가격 30초 간격 push
+- [ ] 프론트엔드 SSE 클라이언트 — 대시보드 가격 실시간 업데이트 (시장 개장 시간 한정)
