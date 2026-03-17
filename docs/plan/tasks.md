@@ -22,5 +22,5 @@ Each item should be completable in a single commit.
 
 ## Milestone 11-1: 모바일 UX
 
-- [ ] 사이드바 드로어 스와이프로 닫기 제스처 (swipe left to close)
-- [ ] 가격 히스토리 API `GET /prices/{ticker}/history`
+- [x] 사이드바 드로어 스와이프로 닫기 제스처 (swipe left to close)
+- [x] 가격 히스토리 API `GET /prices/{ticker}/history`
