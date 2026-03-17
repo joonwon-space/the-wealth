@@ -18,7 +18,9 @@ jobs:
       - name: Disable Docker credential store for non-interactive session
         run: |
           mkdir -p /tmp/docker-config
-          echo '{"auths":{}}' > /tmp/docker-config/config.json
+          cat > /tmp/docker-config/config.json << 'DCEOF'
+          {"auths":{},"currentContext":"desktop-linux","cliPluginsExtraDirs":["/opt/homebrew/lib/docker/cli-plugins","/Users/joonwon/.docker/cli-plugins"]}
+          DCEOF
 
       - name: Build and restart services
         env:
