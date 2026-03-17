@@ -14,18 +14,13 @@ jobs:
       - name: Write backend .env
         run: echo "${{ secrets.BACKEND_ENV_FILE }}" > backend/.env
 
-      - name: Patch Docker config (bypass Keychain)
-        run: |
-          cp ~/.docker/config.json ~/.docker/config.json.bak
-          python3 -c "
-          import json
-          cfg = json.load(open('$HOME/.docker/config.json'))
-          cfg.pop('credsStore', None)
-          json.dump(cfg, open('$HOME/.docker/config.json', 'w'), indent=2)
-          "
-
       - name: Build and restart services
         run: |
+          # Replace credential helper with no-op to bypass Keychain in non-interactive session
+          sudo mv /usr/local/bin/docker-credential-desktop /usr/local/bin/docker-credential-desktop.bak
+          printf '#!/bin/sh\necho "{}"' | sudo tee /usr/local/bin/docker-credential-desktop > /dev/null
+          sudo chmod +x /usr/local/bin/docker-credential-desktop
+
           cd ${{ github.workspace }}
           docker compose build --parallel
           docker compose up -d --remove-orphans
@@ -53,10 +48,10 @@ jobs:
           done
           curl -s -o /dev/null -w "Frontend: HTTP %{http_code}\n" http://localhost:3000
 
-      - name: Restore Docker config
+      - name: Restore credential helper
         if: always()
         run: |
-          [ -f ~/.docker/config.json.bak ] && mv ~/.docker/config.json.bak ~/.docker/config.json || true
+          [ -f /usr/local/bin/docker-credential-desktop.bak ] && sudo mv /usr/local/bin/docker-credential-desktop.bak /usr/local/bin/docker-credential-desktop || true
 
       - name: Clean up old images
         run: docker image prune -f
