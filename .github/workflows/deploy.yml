@@ -16,10 +16,11 @@ jobs:
 
       - name: Build and restart services
         run: |
-          # Replace credential helper with no-op to bypass Keychain in non-interactive session
-          sudo mv /usr/local/bin/docker-credential-desktop /usr/local/bin/docker-credential-desktop.bak
-          printf '#!/bin/sh\necho "{}"' | sudo tee /usr/local/bin/docker-credential-desktop > /dev/null
-          sudo chmod +x /usr/local/bin/docker-credential-desktop
+          # Create no-op credential helper and prepend to PATH
+          mkdir -p /tmp/docker-cred-noop
+          printf '#!/bin/sh\necho "{}"' > /tmp/docker-cred-noop/docker-credential-desktop
+          chmod +x /tmp/docker-cred-noop/docker-credential-desktop
+          export PATH="/tmp/docker-cred-noop:$PATH"
 
           cd ${{ github.workspace }}
           docker compose build --parallel
@@ -48,10 +49,9 @@ jobs:
           done
           curl -s -o /dev/null -w "Frontend: HTTP %{http_code}\n" http://localhost:3000
 
-      - name: Restore credential helper
+      - name: Clean up temp credential helper
         if: always()
-        run: |
-          [ -f /usr/local/bin/docker-credential-desktop.bak ] && sudo mv /usr/local/bin/docker-credential-desktop.bak /usr/local/bin/docker-credential-desktop || true
+        run: rm -rf /tmp/docker-cred-noop
 
       - name: Clean up old images
         run: docker image prune -f
