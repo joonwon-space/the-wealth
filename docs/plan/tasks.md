@@ -71,7 +71,7 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-4: 알림 시스템 (기초)
 
-- [ ] `alerts` 테이블 + SQLAlchemy 모델 + Alembic 마이그레이션 (user_id, ticker, condition, threshold, is_active)
-- [ ] `POST /alerts` + `GET /alerts` + `DELETE /alerts/{id}` API
-- [ ] 대시보드 summary 응답 후 alert 조건 확인 로직 — 가격 도달 시 알림 생성 (`triggered_alerts` 응답 필드)
-- [ ] 프론트엔드: 설정 페이지에 목표가 알림 등록 UI + 알림 배지
+- [x] `alerts` 테이블 + SQLAlchemy 모델 + Alembic 마이그레이션 (user_id, ticker, condition, threshold, is_active)
+- [x] `POST /alerts` + `GET /alerts` + `DELETE /alerts/{id}` API
+- [x] 대시보드 summary 응답 후 alert 조건 확인 로직 — 가격 도달 시 알림 생성 (`triggered_alerts` 응답 필드)
+- [x] 프론트엔드: 설정 페이지에 목표가 알림 등록 UI + 알림 배지

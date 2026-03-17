@@ -20,9 +20,11 @@ from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
-from app.schemas.dashboard import AllocationItem, DashboardSummary, HoldingWithPnL
+from app.schemas.dashboard import AllocationItem, DashboardSummary, HoldingWithPnL, TriggeredAlert
 from app.services.kis_price import _cache_price, _get_cached_price
 from app.services.price_snapshot import fetch_domestic_price_detail
+from app.models.alert import Alert
+from app.api.alerts import check_triggered_alerts
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = logging.getLogger(__name__)
@@ -193,6 +195,14 @@ async def get_summary(
     if weight_total > _ZERO:
         total_day_change_rate = weighted_sum / weight_total
 
+    # 목표가 알림 확인
+    alert_result = await db.execute(
+        select(Alert).where(Alert.user_id == current_user.id, Alert.is_active.is_(True))
+    )
+    active_alerts = list(alert_result.scalars().all())
+    triggered_raw = check_triggered_alerts(active_alerts, prices)
+    triggered_alerts = [TriggeredAlert(**a) for a in triggered_raw]
+
     return DashboardSummary(
         total_asset=total_asset,
         total_invested=total_invested,
@@ -201,4 +211,5 @@ async def get_summary(
         total_day_change_rate=total_day_change_rate,
         holdings=holding_items,
         allocation=allocation,
+        triggered_alerts=triggered_alerts,
     )

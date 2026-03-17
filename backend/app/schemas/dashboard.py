@@ -28,6 +28,15 @@ class AllocationItem(BaseModel):
     ratio: Decimal
 
 
+class TriggeredAlert(BaseModel):
+    id: int
+    ticker: str
+    name: str
+    condition: str
+    threshold: float
+    current_price: float
+
+
 class DashboardSummary(BaseModel):
     total_asset: Decimal
     total_invested: Decimal
@@ -36,3 +45,4 @@ class DashboardSummary(BaseModel):
     total_day_change_rate: Optional[Decimal]  # 포트폴리오 전일 대비 가중 평균 변동률
     holdings: list[HoldingWithPnL]
     allocation: list[AllocationItem]
+    triggered_alerts: list[TriggeredAlert] = []

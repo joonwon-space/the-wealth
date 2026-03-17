@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle, Eye, Loader2, Pencil, Plus, Trash2, Wifi, XCircle } from "lucide-react";
+import { Bell, CheckCircle, Eye, Loader2, Pencil, Plus, Trash2, Wifi, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
@@ -27,6 +27,15 @@ interface AccountBalance {
   synced?: { inserted: number; updated: number; deleted: number };
   holdings: BalanceHolding[];
   error?: string;
+}
+
+interface AlertItem {
+  id: number;
+  ticker: string;
+  name: string;
+  condition: "above" | "below";
+  threshold: number;
+  is_active: boolean;
 }
 
 export default function SettingsPage() {
@@ -62,13 +71,52 @@ export default function SettingsPage() {
     }
   };
 
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [newAlert, setNewAlert] = useState({ ticker: "", name: "", condition: "above" as "above" | "below", threshold: "" });
+  const [addingAlert, setAddingAlert] = useState(false);
+
   const fetchKisAccounts = () => {
     api.get<typeof kisAccounts>("/users/kis-accounts").then(({ data }) => setKisAccounts(data));
   };
 
+  const fetchAlerts = () => {
+    api.get<AlertItem[]>("/alerts").then(({ data }) => setAlerts(data));
+  };
+
   useEffect(() => {
     fetchKisAccounts();
+    fetchAlerts();
   }, []);
+
+  const handleAddAlert = async () => {
+    if (!newAlert.ticker || !newAlert.threshold) return;
+    setAddingAlert(true);
+    try {
+      await api.post("/alerts", {
+        ticker: newAlert.ticker.toUpperCase(),
+        name: newAlert.name,
+        condition: newAlert.condition,
+        threshold: Number(newAlert.threshold),
+      });
+      setNewAlert({ ticker: "", name: "", condition: "above", threshold: "" });
+      fetchAlerts();
+      toast.success("알림이 등록되었습니다");
+    } catch {
+      toast.error("알림 등록에 실패했습니다");
+    } finally {
+      setAddingAlert(false);
+    }
+  };
+
+  const handleDeleteAlert = async (id: number) => {
+    try {
+      await api.delete(`/alerts/${id}`);
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+      toast.success("알림이 삭제되었습니다");
+    } catch {
+      toast.error("삭제에 실패했습니다");
+    }
+  };
 
   const handleAddAccount = async () => {
     if (!newAcct.label || !newAcct.account_no || !newAcct.app_key || !newAcct.app_secret) return;
@@ -297,6 +345,74 @@ export default function SettingsPage() {
               )}
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* 목표가 알림 */}
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            <h2 className="text-base font-semibold">목표가 알림</h2>
+          </div>
+
+          {/* 등록 폼 */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <Input
+              placeholder="티커 (예: 005930)"
+              value={newAlert.ticker}
+              onChange={(e) => setNewAlert((p) => ({ ...p, ticker: e.target.value }))}
+              className="uppercase"
+            />
+            <Input
+              placeholder="종목명 (선택)"
+              value={newAlert.name}
+              onChange={(e) => setNewAlert((p) => ({ ...p, name: e.target.value }))}
+            />
+            <select
+              value={newAlert.condition}
+              onChange={(e) => setNewAlert((p) => ({ ...p, condition: e.target.value as "above" | "below" }))}
+              className="rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <option value="above">이상 (≥)</option>
+              <option value="below">이하 (≤)</option>
+            </select>
+            <Input
+              type="number"
+              placeholder="목표가"
+              value={newAlert.threshold}
+              onChange={(e) => setNewAlert((p) => ({ ...p, threshold: e.target.value }))}
+            />
+            <Button onClick={handleAddAlert} disabled={addingAlert || !newAlert.ticker || !newAlert.threshold} size="sm">
+              {addingAlert ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              추가
+            </Button>
+          </div>
+
+          {/* 알림 목록 */}
+          {alerts.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">등록된 알림이 없습니다.</p>
+          ) : (
+            <div className="divide-y rounded-lg border">
+              {alerts.map((a) => (
+                <div key={a.id} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="text-sm">
+                    <span className="font-medium">{a.name || a.ticker}</span>
+                    {a.name && <span className="ml-1 text-xs text-muted-foreground">({a.ticker})</span>}
+                    <span className="ml-2 text-muted-foreground">
+                      {a.condition === "above" ? "≥" : "≤"} {formatKRW(a.threshold)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteAlert(a.id)}
+                    className="rounded p-1 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
