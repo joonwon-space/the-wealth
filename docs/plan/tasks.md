@@ -81,3 +81,14 @@ Each item should be completable in a single commit.
 - [x] `GET /analytics/portfolio-history` — price_snapshots 기반 일별 포트폴리오 총 가치 시계열 API
 - [x] 분석 페이지 포트폴리오 가치 추이 선 차트 (Recharts LineChart, 기간 선택)
 - [x] 백엔드 유닛 테스트 추가 — alerts API (create, list, delete, check_triggered_alerts)
+
+## Milestone 16-2: 테스트 커버리지 강화
+
+- [ ] 백엔드 전체 테스트 커버리지 측정 + 80% 미달 모듈 목록 파악
+- [ ] `app/services/kis_token.py` 유닛 테스트 — TTL 파싱, 토큰 캐시 히트/미스
+- [ ] `app/api/portfolios.py` 통합 테스트 강화 — 다중 포트폴리오 holdings 쿼리 검증
+
+## Milestone 11-5: UX 편의 기능
+
+- [ ] 다크모드 토글을 설정 페이지에도 노출 (현재 사이드바만)
+- [ ] 분석 페이지 로딩 스켈레톤 개선 — MetricCard, heatmap, history chart 각각 개별 스켈레톤
