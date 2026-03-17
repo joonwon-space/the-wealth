@@ -14,3 +14,7 @@ frontend/.env.local
 .DS_Store
 .next/
 backend/data/mst/*.zip
+
+# Docker
+backend/.env
+frontend/.env.local
