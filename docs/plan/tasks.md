@@ -57,5 +57,5 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-3b: 쿼리 최적화
 
-- [ ] `GET /dashboard/summary` holdings 조회에 selectinload 제거 — N+1 없음 확인 + 느린 쿼리 로깅 추가
-- [ ] `analytics.py` `get_metrics`에서 `fetch_prices_parallel` → `fetch_domestic_price_detail` 단일 호출로 교체 (dashboard와 동일하게)
+- [x] `GET /dashboard/summary` holdings 조회에 selectinload 제거 — N+1 없음 확인 + 느린 쿼리 로깅 추가
+- [x] `analytics.py` `get_metrics`에서 `fetch_prices_parallel` → `fetch_domestic_price_detail` 단일 호출로 교체 (dashboard와 동일하게)

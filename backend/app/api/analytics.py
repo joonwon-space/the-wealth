@@ -1,10 +1,12 @@
 """투자 성과 지표 API."""
 
+import asyncio
 import logging
 import math
 from decimal import Decimal
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +19,8 @@ from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
 from app.core.encryption import decrypt
-from app.services.kis_price import fetch_prices_parallel
+from app.services.kis_price import _cache_price, _get_cached_price
+from app.services.price_snapshot import fetch_domestic_price_detail
 from app.schemas.analytics import MonthlyReturn
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -99,7 +102,19 @@ async def get_metrics(
         try:
             app_key = decrypt(acct.app_key_enc)
             app_secret = decrypt(acct.app_secret_enc)
-            current_prices = await fetch_prices_parallel(tickers, app_key, app_secret)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                details = await asyncio.gather(
+                    *[fetch_domestic_price_detail(t, app_key, app_secret, client) for t in tickers],
+                    return_exceptions=True,
+                )
+            for ticker, detail in zip(tickers, details):
+                if detail and not isinstance(detail, Exception):
+                    current_prices[ticker] = detail.current
+                    await _cache_price(ticker, detail.current)
+                else:
+                    cached = await _get_cached_price(ticker)
+                    if cached is not None:
+                        current_prices[ticker] = cached
         except Exception as e:
             logger.warning("Failed to fetch prices for metrics: %s", e)
 
