@@ -24,6 +24,7 @@ interface HoldingRow {
   market_value: number | null;
   pnl_amount: number | null;
   pnl_rate: number | null;
+  day_change_rate: number | null;
 }
 
 interface AllocationItem {

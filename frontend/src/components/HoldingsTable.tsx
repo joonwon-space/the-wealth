@@ -23,6 +23,7 @@ interface HoldingRow {
   market_value: number | string | null;
   pnl_amount: number | string | null;
   pnl_rate: number | string | null;
+  day_change_rate: number | string | null;
 }
 
 interface Props {
@@ -82,6 +83,14 @@ const columns: ColumnDef<HoldingRow>[] = [
       return v != null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>;
     },
   },
+  {
+    accessorKey: "day_change_rate",
+    header: "전일 대비",
+    cell: ({ getValue }) => {
+      const v = getValue() as number | null;
+      return v != null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>;
+    },
+  },
 ];
 
 export function HoldingsTable({ holdings }: Props) {
@@ -109,8 +118,13 @@ export function HoldingsTable({ holdings }: Props) {
                   <div className="font-medium text-sm">{h.name}</div>
                   <div className="text-xs text-muted-foreground">{h.ticker}</div>
                 </div>
-                <div className="text-right">
+                <div className="text-right space-y-0.5">
                   {h.pnl_rate != null ? <PnLBadge value={h.pnl_rate} suffix="%" /> : <span className="text-xs text-muted-foreground">—</span>}
+                  {h.day_change_rate != null && (
+                    <div className="text-xs text-muted-foreground">
+                      전일 <PnLBadge value={Number(h.day_change_rate)} suffix="%" />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">

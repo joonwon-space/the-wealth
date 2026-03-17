@@ -14,8 +14,8 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-1: 가격 히스토리 & 전일 대비
 
-- [ ] `price_snapshots` SQLAlchemy 모델 생성 + Alembic 마이그레이션
-- [ ] KIS 전일 종가 조회 서비스 함수 (`FHKST01010100`)
-- [ ] APScheduler 장 마감 스냅샷 job 추가 (KST 16:05, 보유 종목 대상)
-- [ ] `GET /dashboard/summary` 응답에 종목별 `prev_close` / `day_change_rate` 추가
-- [ ] 대시보드 프론트엔드에 전일 대비 배지 표시 (▲ +1.2% / ▼ -0.8%)
+- [x] `price_snapshots` SQLAlchemy 모델 생성 + Alembic 마이그레이션
+- [x] KIS 전일 종가 조회 서비스 함수 (`FHKST01010100`)
+- [x] APScheduler 장 마감 스냅샷 job 추가 (KST 16:05, 보유 종목 대상)
+- [x] `GET /dashboard/summary` 응답에 종목별 `day_change_rate` 추가
+- [x] 대시보드 프론트엔드에 전일 대비 배지 표시 (▲ +1.2% / ▼ -0.8%)
