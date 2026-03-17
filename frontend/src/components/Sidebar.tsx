@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, Home, LogOut, Menu, Moon, Settings, Sun, Wallet, X } from "lucide-react";
@@ -20,6 +20,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const logout = useAuthStore((s) => s.logout);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const handleLogout = () => {
     logout();
@@ -56,8 +59,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
         >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {theme === "dark" ? "라이트 모드" : "다크 모드"}
+          {mounted && (theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />)}
+          {mounted ? (theme === "dark" ? "라이트 모드" : "다크 모드") : "테마"}
         </button>
         <button
           onClick={handleLogout}
