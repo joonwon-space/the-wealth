@@ -4,6 +4,8 @@ backend/__pycache__/
 backend/**/__pycache__/
 backend/**/*.pyc
 backend/.env
+backend/.coverage
+backend/coverage.xml
 
 # Node
 frontend/node_modules/
