@@ -19,3 +19,8 @@ Each item should be completable in a single commit.
 - [x] APScheduler 장 마감 스냅샷 job 추가 (KST 16:05, 보유 종목 대상)
 - [x] `GET /dashboard/summary` 응답에 종목별 `day_change_rate` 추가
 - [x] 대시보드 프론트엔드에 전일 대비 배지 표시 (▲ +1.2% / ▼ -0.8%)
+
+## Milestone 11-1: 모바일 UX
+
+- [ ] 사이드바 드로어 스와이프로 닫기 제스처 (swipe left to close)
+- [ ] 가격 히스토리 API `GET /prices/{ticker}/history`

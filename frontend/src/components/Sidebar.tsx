@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, Home, LogOut, Menu, Moon, Settings, Sun, Wallet, X } from "lucide-react";
@@ -71,8 +71,22 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+const SWIPE_CLOSE_THRESHOLD = 60; // px
+
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (delta > SWIPE_CLOSE_THRESHOLD) setMobileOpen(false);
+    touchStartX.current = null;
+  };
 
   return (
     <>
@@ -99,6 +113,8 @@ export function Sidebar() {
           "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r bg-sidebar px-3 py-4 transition-transform duration-200 md:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         <button
           onClick={() => setMobileOpen(false)}
