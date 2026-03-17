@@ -17,10 +17,12 @@ jobs:
 
       - name: Disable Docker credential store for non-interactive session
         run: |
-          mkdir -p ~/.docker
-          echo '{"auths":{},"currentContext":"desktop-linux"}' > ~/.docker/config.json
+          mkdir -p /tmp/docker-config
+          echo '{"auths":{}}' > /tmp/docker-config/config.json
 
       - name: Build and restart services
+        env:
+          DOCKER_CONFIG: /tmp/docker-config
         run: |
           cd ${{ github.workspace }}
           docker compose build --parallel
