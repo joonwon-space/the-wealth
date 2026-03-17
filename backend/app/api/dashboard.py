@@ -169,11 +169,23 @@ async def get_summary(
                 )
             )
 
+    # 포트폴리오 전일 대비: 시가총액 가중 평균
+    total_day_change_rate: Optional[Decimal] = None
+    weighted_sum = _ZERO
+    weight_total = _ZERO
+    for item in holding_items:
+        if item.day_change_rate is not None and item.market_value is not None:
+            weighted_sum += item.day_change_rate * item.market_value
+            weight_total += item.market_value
+    if weight_total > _ZERO:
+        total_day_change_rate = weighted_sum / weight_total
+
     return DashboardSummary(
         total_asset=total_asset,
         total_invested=total_invested,
         total_pnl_amount=total_pnl_amount,
         total_pnl_rate=total_pnl_rate,
+        total_day_change_rate=total_day_change_rate,
         holdings=holding_items,
         allocation=allocation,
     )

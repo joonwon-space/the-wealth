@@ -24,6 +24,7 @@ interface HoldingRow {
   market_value: number | null;
   pnl_amount: number | null;
   pnl_rate: number | null;
+  day_change_rate: number | null;
 }
 
 interface AllocationItem {
@@ -262,7 +263,7 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {["종목", "수량", "평균단가", "현재가", "손익", "수익률"].map((h) => (
+                  {["종목", "수량", "평균단가", "현재가", "손익", "수익률", "전일 대비"].map((h) => (
                     <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
@@ -283,6 +284,11 @@ export default function AnalyticsPage() {
                     <td className="px-4 py-2 tabular-nums">{h.current_price ? formatKRW(h.current_price) : "—"}</td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_amount ?? 0} /></td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_rate ?? 0} suffix="%" /></td>
+                    <td className="px-4 py-2">
+                      {h.day_change_rate != null
+                        ? <PnLBadge value={h.day_change_rate} suffix="%" />
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

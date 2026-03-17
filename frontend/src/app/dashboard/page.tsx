@@ -39,6 +39,7 @@ interface Summary {
   total_invested: number;
   total_pnl_amount: number;
   total_pnl_rate: number;
+  total_day_change_rate: number | null;
   holdings: HoldingRow[];
   allocation: AllocationItem[];
 }
@@ -128,6 +129,7 @@ export default function DashboardPage() {
     total_invested: 0,
     total_pnl_amount: 0,
     total_pnl_rate: 0,
+    total_day_change_rate: null,
     holdings: [],
     allocation: [],
   };
@@ -173,7 +175,17 @@ export default function DashboardPage() {
         <>
           {/* 요약 카드 */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <SummaryCard label="총 자산" value={formatKRW(s.total_asset)} />
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">총 자산</p>
+                <p className="mt-1 text-xl font-bold tabular-nums">{formatKRW(s.total_asset)}</p>
+                {s.total_day_change_rate != null && (
+                  <p className="mt-0.5 text-xs">
+                    전일 대비 <PnLBadge value={s.total_day_change_rate} suffix="%" />
+                  </p>
+                )}
+              </CardContent>
+            </Card>
             <SummaryCard label="투자 원금" value={formatKRW(s.total_invested)} />
             <Card>
               <CardContent className="p-4">

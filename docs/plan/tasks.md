@@ -24,3 +24,5 @@ Each item should be completable in a single commit.
 
 - [x] 사이드바 드로어 스와이프로 닫기 제스처 (swipe left to close)
 - [x] 가격 히스토리 API `GET /prices/{ticker}/history`
+- [x] analytics 페이지 `day_change_rate` 컬럼 반영
+- [x] 대시보드 요약 카드에 포트폴리오 전일 대비 변동률 배지 (`total_day_change_rate`)
