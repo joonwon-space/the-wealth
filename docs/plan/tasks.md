@@ -75,3 +75,9 @@ Each item should be completable in a single commit.
 - [x] `POST /alerts` + `GET /alerts` + `DELETE /alerts/{id}` API
 - [x] 대시보드 summary 응답 후 alert 조건 확인 로직 — 가격 도달 시 알림 생성 (`triggered_alerts` 응답 필드)
 - [x] 프론트엔드: 설정 페이지에 목표가 알림 등록 UI + 알림 배지
+
+## Milestone 13-1: 외부 데이터 & 분석 확장
+
+- [ ] `GET /analytics/portfolio-history` — price_snapshots 기반 일별 포트폴리오 총 가치 시계열 API
+- [ ] 분석 페이지 포트폴리오 가치 추이 선 차트 (Recharts LineChart, 기간 선택)
+- [ ] 백엔드 유닛 테스트 추가 — alerts API (create, list, delete, check_triggered_alerts)
