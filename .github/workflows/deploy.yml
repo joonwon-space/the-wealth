@@ -8,32 +8,21 @@ jobs:
   deploy:
     runs-on: [self-hosted, deploy]
     timeout-minutes: 20
-    env:
-      DOCKER_CONFIG: /tmp/docker-config
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Write backend .env
         run: echo "${{ secrets.BACKEND_ENV_FILE }}" > backend/.env
 
-      - name: Prepare Docker config (bypass Keychain credential store)
+      - name: Patch Docker config (bypass Keychain)
         run: |
-          rm -rf /tmp/docker-config
-          mkdir -p /tmp/docker-config
-          # Copy real config but remove credsStore that requires Keychain
+          cp ~/.docker/config.json ~/.docker/config.json.bak
           python3 -c "
-          import json, shutil, os
-          cfg = json.load(open(os.path.expanduser('~/.docker/config.json')))
+          import json
+          cfg = json.load(open('$HOME/.docker/config.json'))
           cfg.pop('credsStore', None)
-          json.dump(cfg, open('/tmp/docker-config/config.json', 'w'))
-          # Copy contexts directory if it exists
-          ctx_src = os.path.expanduser('~/.docker/contexts')
-          if os.path.isdir(ctx_src):
-              shutil.copytree(ctx_src, '/tmp/docker-config/contexts', dirs_exist_ok=True)
+          json.dump(cfg, open('$HOME/.docker/config.json', 'w'), indent=2)
           "
-          # Symlink CLI plugins so docker compose is found
-          ln -sf ~/.docker/cli-plugins /tmp/docker-config/cli-plugins
 
       - name: Build and restart services
         run: |
@@ -63,6 +52,11 @@ jobs:
             sleep 2
           done
           curl -s -o /dev/null -w "Frontend: HTTP %{http_code}\n" http://localhost:3000
+
+      - name: Restore Docker config
+        if: always()
+        run: |
+          [ -f ~/.docker/config.json.bak ] && mv ~/.docker/config.json.bak ~/.docker/config.json || true
 
       - name: Clean up old images
         run: docker image prune -f
