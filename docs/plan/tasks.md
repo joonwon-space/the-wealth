@@ -47,5 +47,5 @@ Each item should be completable in a single commit.
 
 - [x] 대시보드 API KIS 중복 호출 제거 — `fetch_domestic_price_detail` 단일 호출로 통합
 - [x] 백엔드 유닛 테스트 추가 — analytics 지표 계산 (CAGR, MDD, Sharpe)
-- [ ] 백엔드 유닛 테스트 추가 — price snapshot 서비스 (save_snapshots, get_prev_close)
+- [x] 백엔드 유닛 테스트 추가 — price snapshot 서비스 (save_snapshots, get_prev_close)
 - [ ] 월별 수익률 데이터 API (`GET /analytics/monthly-returns`) + 분석 페이지 히트맵
