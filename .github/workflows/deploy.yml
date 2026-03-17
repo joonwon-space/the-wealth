@@ -15,6 +15,11 @@ jobs:
       - name: Write backend .env
         run: echo "${{ secrets.BACKEND_ENV_FILE }}" > backend/.env
 
+      - name: Disable Docker credential store for non-interactive session
+        run: |
+          mkdir -p ~/.docker
+          echo '{"auths":{},"currentContext":"desktop-linux"}' > ~/.docker/config.json
+
       - name: Build and restart services
         run: |
           cd ${{ github.workspace }}
