@@ -24,6 +24,8 @@ interface HoldingRow {
   pnl_amount: number | string | null;
   pnl_rate: number | string | null;
   day_change_rate: number | string | null;
+  w52_high: number | string | null;
+  w52_low: number | string | null;
 }
 
 interface Props {
@@ -89,6 +91,29 @@ const columns: ColumnDef<HoldingRow>[] = [
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
       return v != null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>;
+    },
+  },
+  {
+    id: "w52_range",
+    header: "52주 범위",
+    enableSorting: false,
+    cell: ({ row }) => {
+      const high = Number(row.original.w52_high);
+      const low = Number(row.original.w52_low);
+      const cur = Number(row.original.current_price);
+      if (!high || !low || !cur || high <= low) return <span className="text-muted-foreground">—</span>;
+      const pct = Math.min(Math.max(((cur - low) / (high - low)) * 100, 0), 100);
+      return (
+        <div className="w-24 space-y-0.5">
+          <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className="absolute left-0 top-0 h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums">
+            <span>{formatKRW(low)}</span>
+            <span>{formatKRW(high)}</span>
+          </div>
+        </div>
+      );
     },
   },
 ];

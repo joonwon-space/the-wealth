@@ -25,6 +25,8 @@ interface HoldingRow {
   pnl_amount: number | null;
   pnl_rate: number | null;
   day_change_rate: number | null;
+  w52_high: number | null;
+  w52_low: number | null;
 }
 
 interface AllocationItem {

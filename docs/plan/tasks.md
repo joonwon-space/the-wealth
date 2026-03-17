@@ -29,9 +29,9 @@ Each item should be completable in a single commit.
 
 ## Milestone 11-3: 보유 종목 테이블 52주 고/저
 
-- [ ] `PriceDetail`에 `w52_high` / `w52_low` 추가 (FHKST01010100 응답 활용)
-- [ ] dashboard API 응답 `HoldingWithPnL`에 `w52_high` / `w52_low` 추가
-- [ ] 보유 종목 테이블에 52주 범위 프로그레스 바 컬럼 추가
+- [x] `PriceDetail`에 `w52_high` / `w52_low` 추가 (FHKST01010100 응답 활용)
+- [x] dashboard API 응답 `HoldingWithPnL`에 `w52_high` / `w52_low` 추가
+- [x] 보유 종목 테이블에 52주 범위 프로그레스 바 컬럼 추가
 
 ## Milestone 12-2: SSE 실시간 가격
 
