@@ -19,12 +19,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh on 401
+const AUTH_ENDPOINTS = ["/auth/login", "/auth/register", "/auth/refresh"];
+
+// Auto-refresh on 401 (skip for auth endpoints to let callers handle errors)
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthEndpoint = AUTH_ENDPOINTS.some((p) => original?.url?.endsWith(p));
+
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true;
       const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
       if (refreshToken) {
@@ -45,7 +49,7 @@ api.interceptors.response.use(
         window.location.href = "/login";
       }
     }
-    // Show toast for non-401 errors
+    // Show toast for non-401 errors (auth endpoint 401s are handled by callers)
     if (error.response?.status !== 401) {
       const detail = error.response?.data?.detail ?? error.message ?? "요청에 실패했습니다";
       toast.error(detail);
