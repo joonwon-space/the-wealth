@@ -42,3 +42,10 @@ Each item should be completable in a single commit.
 
 - [x] 투자 성과 지표 계산 API (`GET /analytics/metrics`) — 샤프 비율, MDD, CAGR, 총 수익률
 - [x] 분석 페이지에 성과 지표 카드 표시
+
+## Milestone 12-3: 성능 최적화
+
+- [x] 대시보드 API KIS 중복 호출 제거 — `fetch_domestic_price_detail` 단일 호출로 통합
+- [ ] 백엔드 유닛 테스트 추가 — analytics 지표 계산 (CAGR, MDD, Sharpe)
+- [ ] 백엔드 유닛 테스트 추가 — price snapshot 서비스 (save_snapshots, get_prev_close)
+- [ ] 월별 수익률 데이터 API (`GET /analytics/monthly-returns`) + 분석 페이지 히트맵

@@ -21,7 +21,7 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
 from app.schemas.dashboard import AllocationItem, DashboardSummary, HoldingWithPnL
-from app.services.kis_price import fetch_prices_parallel
+from app.services.kis_price import _cache_price, _get_cached_price
 from app.services.price_snapshot import fetch_domestic_price_detail
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -106,9 +106,8 @@ async def get_summary(
         try:
             app_key = decrypt(kis_acct.app_key_enc)
             app_secret = decrypt(kis_acct.app_secret_enc)
-            prices = await fetch_prices_parallel(tickers, app_key, app_secret)
 
-            # 전일 대비율 + 52주 고/저 병렬 조회
+            # 단일 API 호출로 현재가 + 전일 대비 + 52주 고/저 동시 조회
             async with httpx.AsyncClient(timeout=10.0) as client:
                 details = await asyncio.gather(
                     *[fetch_domestic_price_detail(t, app_key, app_secret, client) for t in tickers],
@@ -116,9 +115,17 @@ async def get_summary(
                 )
             for ticker, detail in zip(tickers, details):
                 if detail and not isinstance(detail, Exception):
+                    prices[ticker] = detail.current
                     day_change_rates[ticker] = detail.day_change_rate
                     w52_highs[ticker] = detail.w52_high
                     w52_lows[ticker] = detail.w52_low
+                    await _cache_price(ticker, detail.current)
+                else:
+                    # KIS API 실패 시 Redis 캐시 폴백
+                    cached = await _get_cached_price(ticker)
+                    if cached is not None:
+                        prices[ticker] = cached
+                        logger.info("Using cached price for %s: %s", ticker, cached)
         except Exception as e:
             logger.warning("Failed to fetch prices: %s", e)
 
