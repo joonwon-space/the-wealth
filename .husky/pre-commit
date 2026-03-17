@@ -1,0 +1,3 @@
+#!/bin/sh
+# Run lint-staged for frontend TypeScript/JavaScript files
+cd frontend && npx lint-staged
