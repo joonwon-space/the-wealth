@@ -9,6 +9,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useState } from "react";
+import Link from "next/link";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatNumber } from "@/lib/format";
@@ -37,10 +38,10 @@ const columns: ColumnDef<HoldingRow>[] = [
     accessorKey: "name",
     header: "종목명",
     cell: ({ row }) => (
-      <div>
+      <Link href={`/dashboard/stocks/${row.original.ticker}`} className="hover:underline">
         <div className="font-medium">{row.original.name}</div>
         <div className="text-xs text-muted-foreground">{row.original.ticker}</div>
-      </div>
+      </Link>
     ),
   },
   {
@@ -139,10 +140,10 @@ export function HoldingsTable({ holdings }: Props) {
           return (
             <div key={row.id} className="rounded-lg border p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <div>
+                <Link href={`/dashboard/stocks/${h.ticker}`} className="hover:underline">
                   <div className="font-medium text-sm">{h.name}</div>
                   <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                </div>
+                </Link>
                 <div className="text-right space-y-0.5">
                   {h.pnl_rate != null ? <PnLBadge value={h.pnl_rate} suffix="%" /> : <span className="text-xs text-muted-foreground">—</span>}
                   {h.day_change_rate != null && (

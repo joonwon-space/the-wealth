@@ -62,8 +62,8 @@ Each item should be completable in a single commit.
 
 ## Milestone 11-4: 종목 상세 페이지
 
-- [ ] `GET /stocks/{ticker}/detail` B/E — KIS 종목 기본 정보 (시가총액, PER, PBR, 배당수익률) `FHKST01010100` output 활용
-- [ ] `/dashboard/stocks/[ticker]` 프론트엔드 라우트 — 캔들스틱 차트 + 기본 정보 카드 + 내 보유 현황 오버레이
+- [x] `GET /stocks/{ticker}/detail` B/E — KIS 종목 기본 정보 (시가총액, PER, PBR, 배당수익률) `FHKST01010100` output 활용
+- [x] `/dashboard/stocks/[ticker]` 프론트엔드 라우트 — 캔들스틱 차트 + 기본 정보 카드 + 내 보유 현황 오버레이
 
 ## Milestone 14: 인프라
 
