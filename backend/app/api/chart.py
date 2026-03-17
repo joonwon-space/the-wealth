@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @router.get("/daily")
 async def get_daily_chart(
     ticker: str = Query(..., min_length=1, max_length=20),
-    period: str = Query(default="3M", regex="^(1M|3M|6M|1Y|3Y)$"),
+    period: str = Query(default="3M", pattern="^(1M|3M|6M|1Y|3Y)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
