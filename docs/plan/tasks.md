@@ -67,4 +67,4 @@ Each item should be completable in a single commit.
 
 ## Milestone 14: 인프라
 
-- [ ] Dockerfile 멀티스테이지 빌드 최적화 (backend) — builder + runtime 단계 분리, 이미지 슬림화
+- [x] Dockerfile 멀티스테이지 빌드 최적화 (backend) — builder + runtime 단계 분리, 이미지 슬림화

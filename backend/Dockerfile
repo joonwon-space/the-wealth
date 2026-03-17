@@ -1,12 +1,30 @@
-FROM python:3.12-slim AS base
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# ---- builder: install deps into an isolated venv ----
+FROM python:3.12-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-FROM base AS deps
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-FROM deps AS runner
+# ---- runner: slim image with only the venv + app code ----
+FROM python:3.12-slim AS runner
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl libpq5 && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /venv /venv
+ENV PATH="/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 COPY . .
 
 EXPOSE 8000
