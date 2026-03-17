@@ -115,7 +115,7 @@ Each item should be completable in a single commit.
 
 ## Milestone 10: AI 브라우저 에이전트
 
-- [ ] `.mcp.json` 생성 — Playwright MCP 서버 설정 (팀 공유용)
+- [x] `.mcp.json` 생성 — Playwright MCP 서버 설정 (팀 공유용)
 - [ ] `.claude/commands/visual-qa.md` 생성 — 스크린샷 → 이슈 탐지 → 수정 제안 워크플로우
 - [ ] `.claude/commands/fix-ui.md` 생성 — UI 문제 수정 커맨드 (스크린샷 → 분석 → 수정 → 재검증)
 - [ ] `.claude/commands/e2e-check.md` 생성 — 핵심 사용자 플로우 자동 검증 커맨드
