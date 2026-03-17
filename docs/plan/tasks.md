@@ -37,3 +37,8 @@ Each item should be completable in a single commit.
 
 - [x] `GET /prices/stream` SSE 엔드포인트 — 보유 종목 가격 30초 간격 push
 - [x] 프론트엔드 SSE 클라이언트 — 대시보드 가격 실시간 업데이트 (시장 개장 시간 한정)
+
+## Milestone 11-2: 분석 페이지 강화
+
+- [ ] 투자 성과 지표 계산 API (`GET /analytics/metrics`) — 샤프 비율, MDD, CAGR, 총 수익률
+- [ ] 분석 페이지에 성과 지표 카드 표시

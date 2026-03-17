@@ -1,0 +1,167 @@
+"""투자 성과 지표 API."""
+
+import logging
+import math
+from decimal import Decimal
+from typing import Optional
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_user
+from app.db.session import get_db
+from app.models.holding import Holding
+from app.models.kis_account import KisAccount
+from app.models.portfolio import Portfolio
+from app.models.price_snapshot import PriceSnapshot
+from app.models.user import User
+from app.core.encryption import decrypt
+from app.services.kis_price import fetch_prices_parallel
+
+router = APIRouter(prefix="/analytics", tags=["analytics"])
+logger = logging.getLogger(__name__)
+
+_RISK_FREE_RATE = 0.035  # 연 3.5% (국고채 기준)
+
+
+def _calc_mdd(values: list[float]) -> float:
+    """최대 낙폭(MDD) 계산."""
+    if len(values) < 2:
+        return 0.0
+    peak = values[0]
+    max_dd = 0.0
+    for v in values:
+        if v > peak:
+            peak = v
+        dd = (peak - v) / peak if peak > 0 else 0
+        if dd > max_dd:
+            max_dd = dd
+    return max_dd * 100  # %
+
+
+def _calc_cagr(start: float, end: float, years: float) -> Optional[float]:
+    """CAGR (연복리 수익률) 계산."""
+    if start <= 0 or years <= 0:
+        return None
+    return ((end / start) ** (1 / years) - 1) * 100  # %
+
+
+def _calc_sharpe(daily_returns: list[float]) -> Optional[float]:
+    """샤프 비율 계산 (일별 수익률 기반, 연 환산)."""
+    if len(daily_returns) < 5:
+        return None
+    n = len(daily_returns)
+    mean = sum(daily_returns) / n
+    variance = sum((r - mean) ** 2 for r in daily_returns) / n
+    std = math.sqrt(variance)
+    if std == 0:
+        return None
+    annual_return = mean * 252
+    annual_std = std * math.sqrt(252)
+    return (annual_return - _RISK_FREE_RATE) / annual_std
+
+
+@router.get("/metrics")
+async def get_metrics(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """포트폴리오 성과 지표 계산.
+
+    Returns: total_return_rate, cagr, mdd, sharpe_ratio
+    """
+    # 보유 종목 조회
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
+    portfolio_ids = [p.id for p in port_result.scalars().all()]
+    if not portfolio_ids:
+        return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+
+    hold_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    )
+    holdings = hold_result.scalars().all()
+    if not holdings:
+        return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+
+    tickers = list({h.ticker for h in holdings})
+
+    # 현재가 조회
+    acct_result = await db.execute(
+        select(KisAccount).where(KisAccount.user_id == current_user.id).limit(1)
+    )
+    acct = acct_result.scalar_one_or_none()
+    current_prices: dict[str, Optional[Decimal]] = {}
+    if acct:
+        try:
+            app_key = decrypt(acct.app_key_enc)
+            app_secret = decrypt(acct.app_secret_enc)
+            current_prices = await fetch_prices_parallel(tickers, app_key, app_secret)
+        except Exception as e:
+            logger.warning("Failed to fetch prices for metrics: %s", e)
+
+    # 현재 포트폴리오 가치 계산
+    total_invested = sum(float(h.quantity) * float(h.avg_price) for h in holdings)
+    total_current = sum(
+        float(h.quantity) * float(current_prices.get(h.ticker) or h.avg_price)
+        for h in holdings
+    )
+
+    if total_invested <= 0:
+        return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+
+    total_return_rate = (total_current - total_invested) / total_invested * 100
+
+    # price_snapshots 기반 일별 포트폴리오 가치 시계열 계산
+    snap_result = await db.execute(
+        select(PriceSnapshot)
+        .where(PriceSnapshot.ticker.in_(tickers))
+        .order_by(PriceSnapshot.snapshot_date)
+    )
+    snapshots = snap_result.scalars().all()
+
+    # 날짜별 {ticker: close} 맵
+    date_ticker_map: dict[str, dict[str, float]] = {}
+    for snap in snapshots:
+        d = snap.snapshot_date.isoformat()
+        if d not in date_ticker_map:
+            date_ticker_map[d] = {}
+        date_ticker_map[d][snap.ticker] = float(snap.close)
+
+    # 날짜별 포트폴리오 총 가치
+    holding_map = {h.ticker: h for h in holdings}
+    portfolio_values: list[float] = []
+    for date_str in sorted(date_ticker_map.keys()):
+        prices_on_date = date_ticker_map[date_str]
+        value = sum(
+            float(holding_map[t].quantity) * prices_on_date[t]
+            for t in tickers
+            if t in prices_on_date and t in holding_map
+        )
+        if value > 0:
+            portfolio_values.append(value)
+
+    # 일별 수익률
+    daily_returns: list[float] = []
+    for i in range(1, len(portfolio_values)):
+        prev = portfolio_values[i - 1]
+        if prev > 0:
+            daily_returns.append((portfolio_values[i] - prev) / prev)
+
+    # CAGR: 첫 스냅샷 ~ 현재
+    cagr: Optional[float] = None
+    if portfolio_values:
+        years = len(portfolio_values) / 252
+        cagr = _calc_cagr(portfolio_values[0], total_current, years)
+
+    mdd = _calc_mdd(portfolio_values + [total_current]) if portfolio_values else 0.0
+    sharpe = _calc_sharpe(daily_returns)
+
+    return {
+        "total_return_rate": round(total_return_rate, 2),
+        "cagr": round(cagr, 2) if cagr is not None else None,
+        "mdd": round(mdd, 2),
+        "sharpe_ratio": round(sharpe, 3) if sharpe is not None else None,
+    }
