@@ -98,3 +98,9 @@ Each item should be completable in a single commit.
 - [x] `GET /portfolios/{id}/holdings` 응답에 현재가 포함 — `/with-prices` 엔드포인트 이미 존재
 - [x] `PATCH /portfolios/holdings/{id}` 부분 업데이트 지원 — 이미 구현됨 (quantity/avg_price 독립적 수정)
 - [x] 백엔드 전체 테스트 재실행 후 커버리지 리포트 갱신
+
+## Milestone 16-2b: 테스트 커버리지 확대
+
+- [ ] `app/api/auth.py` 통합 테스트 강화 — refresh token rotation, 잘못된 비밀번호, 이미 등록된 이메일
+- [ ] `app/services/kis_price.py` 유닛 테스트 — cache hit, cache miss, fetch_prices_parallel 폴백 로직
+- [ ] `app/api/analytics.py` 통합 테스트 — get_metrics 빈 데이터, get_portfolio_history, get_monthly_returns
