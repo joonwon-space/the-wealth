@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, deploy]
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write backend .env
+        run: echo "${{ secrets.BACKEND_ENV_FILE }}" > backend/.env
+
+      - name: Build and restart services
+        run: |
+          cd ${{ github.workspace }}
+          docker compose build --parallel
+          docker compose up -d --remove-orphans
+          docker compose ps
+
+      - name: Wait for health checks
+        run: |
+          echo "Waiting for backend health..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Backend healthy"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:8000/health || exit 1
+
+          echo "Waiting for frontend..."
+          for i in $(seq 1 15); do
+            if curl -sf -o /dev/null http://localhost:3000 2>&1; then
+              echo "Frontend healthy"
+              break
+            fi
+            sleep 2
+          done
+          curl -s -o /dev/null -w "Frontend: HTTP %{http_code}\n" http://localhost:3000
+
+      - name: Clean up old images
+        run: docker image prune -f
