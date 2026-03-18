@@ -42,20 +42,17 @@ Each item should be completable in a single commit.
 - [x] Milestone 14-4: 보안 헤더 강화 (all items)
 - [x] Milestone 15-4: 데이터 내보내기 — CSV export (all items)
 - [x] Milestone 14-3: CI/CD — Docker 빌드 검증 워크플로우
+- [x] 테스트 커버리지 보강 (신규 기능) — watchlist, csv_export, security_headers, sector_allocation, WatchlistSection, SectorAllocationChart
+- [x] portfolios.py 분할 — CSV export 로직을 portfolio_export.py로 분리
 
 </details>
 
 ---
 
-## 테스트 커버리지 보강 (신규 기능)
+## Milestone 12-1: 가격 히스토리 & 전일 대비
 
-- [x] `backend/tests/test_watchlist.py` — 워치리스트 API 테스트 (CRUD, 중복 409, IDOR 방지, 빈 ticker 검증)
-- [x] `backend/tests/test_csv_export.py` — CSV 내보내기 엔드포인트 테스트 (holdings CSV, transactions CSV, IDOR 방지)
-- [x] `backend/tests/test_security_headers.py` — SecurityHeadersMiddleware 테스트 (모든 응답에 보안 헤더 포함 확인)
-- [x] `backend/tests/test_sector_allocation.py` — 섹터 배분 API 테스트 (정상 응답, 빈 포트폴리오, 매핑 없는 종목)
-- [x] `frontend/src/components/WatchlistSection.test.tsx` — WatchlistSection 컴포넌트 단위 테스트
-- [x] `frontend/src/components/SectorAllocationChart.test.tsx` — SectorAllocationChart 컴포넌트 단위 테스트
-
-## 코드 품질
-
-- [x] `backend/app/api/portfolios.py` 분할 — 현재 485줄, CSV export 로직을 `backend/app/api/portfolio_export.py`로 분리
+- [ ] `price_snapshots` 테이블 Alembic 마이그레이션 생성 (ticker, date, open, high, low, close, volume; unique index on ticker+date)
+- [ ] 장 마감 후 일별 종가 스냅샷 스케줄러 — APScheduler cron KST 16:10, 보유 종목만, KIS 일별 시세 API 활용
+- [ ] `GET /dashboard/summary` 응답에 "전일 대비" 변동률 필드 추가 (price_snapshots 기반 계산)
+- [ ] 가격 히스토리 API — `GET /prices/{ticker}/history?from=&to=` 엔드포인트
+- [ ] 대시보드 요약 카드에 "전일 대비" 배지 표시 (▲ +2.3% / ▼ -1.5%, 한국 증시 컬러 적용)
