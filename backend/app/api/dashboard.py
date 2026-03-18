@@ -25,6 +25,7 @@ from app.services.kis_price import _cache_price, _get_cached_price
 from app.services.price_snapshot import fetch_domestic_price_detail
 from app.models.alert import Alert
 from app.api.alerts import check_triggered_alerts
+from app.services.price_snapshot import get_prev_close
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = logging.getLogger(__name__)
@@ -62,6 +63,8 @@ async def get_summary(
         total_pnl_amount=_ZERO,
         total_pnl_rate=_ZERO,
         total_day_change_rate=None,
+        day_change_pct=None,
+        day_change_amount=None,
         holdings=[],
         allocation=[],
     )
@@ -191,6 +194,26 @@ async def get_summary(
     if weight_total > _ZERO:
         total_day_change_rate = weighted_sum / weight_total
 
+    # price_snapshots 기반 전일 대비 계산
+    day_change_pct: Optional[Decimal] = None
+    day_change_amount: Optional[Decimal] = None
+    prev_closes = await get_prev_close(db, tickers)
+    if prev_closes and total_asset > _ZERO:
+        prev_total = _ZERO
+        curr_total = _ZERO
+        for item in holding_items:
+            prev_close = prev_closes.get(item.ticker)
+            if prev_close is not None and prev_close > _ZERO:
+                prev_total += item.quantity * prev_close
+                curr_total += (
+                    item.market_value
+                    if item.market_value is not None
+                    else item.quantity * item.avg_price
+                )
+        if prev_total > _ZERO:
+            day_change_amount = curr_total - prev_total
+            day_change_pct = day_change_amount / prev_total * 100
+
     # 목표가 알림 확인
     alert_result = await db.execute(
         select(Alert).where(Alert.user_id == current_user.id, Alert.is_active.is_(True))
@@ -205,6 +228,8 @@ async def get_summary(
         total_pnl_amount=total_pnl_amount,
         total_pnl_rate=total_pnl_rate,
         total_day_change_rate=total_day_change_rate,
+        day_change_pct=day_change_pct,
+        day_change_amount=day_change_amount,
         holdings=holding_items,
         allocation=allocation,
         triggered_alerts=triggered_alerts,

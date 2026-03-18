@@ -42,7 +42,9 @@ class DashboardSummary(BaseModel):
     total_invested: Decimal
     total_pnl_amount: Decimal
     total_pnl_rate: Decimal
-    total_day_change_rate: Optional[Decimal]  # 포트폴리오 전일 대비 가중 평균 변동률
+    total_day_change_rate: Optional[Decimal]  # 포트폴리오 전일 대비 가중 평균 변동률 (KIS 실시간)
+    day_change_pct: Optional[Decimal]  # 전일 대비 변동률 % (price_snapshots 기반)
+    day_change_amount: Optional[Decimal]  # 전일 대비 변동 금액 (price_snapshots 기반)
     holdings: list[HoldingWithPnL]
     allocation: list[AllocationItem]
     triggered_alerts: list[TriggeredAlert] = []
