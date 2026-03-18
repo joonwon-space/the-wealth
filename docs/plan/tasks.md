@@ -47,7 +47,7 @@ Each item should be completable in a single commit.
 ## Milestone 14-4: 보안 헤더 강화
 
 - [x] Next.js `next.config.ts`에 CSP, HSTS, X-Frame-Options, X-Content-Type-Options 등 보안 헤더 추가
-- [ ] FastAPI 백엔드에 `SecurityHeadersMiddleware` 추가 — X-Content-Type-Options, X-Frame-Options, Referrer-Policy 헤더
+- [x] FastAPI 백엔드에 `SecurityHeadersMiddleware` 추가 — X-Content-Type-Options, X-Frame-Options, Referrer-Policy 헤더
 
 ## Milestone 15-4: 데이터 내보내기
 

@@ -11,6 +11,7 @@ from slowapi.util import get_remote_address
 
 from app.api import alerts, analytics, auth, chart, dashboard, portfolios, prices, stocks, sync, users, watchlist
 from app.core.config import settings
+from app.core.middleware import SecurityHeadersMiddleware
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.services.stock_search import _load_stock_list
 
@@ -44,6 +45,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(auth.router)
 app.include_router(alerts.router)
