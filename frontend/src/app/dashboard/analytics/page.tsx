@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BarChart3, Search } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatKRW, formatRate } from "@/lib/format";
+import { formatKRW, formatRate, formatPrice } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,9 +27,11 @@ interface HoldingRow {
   avg_price: number;
   current_price: number | null;
   market_value: number | null;
+  market_value_krw: number | null;
   pnl_amount: number | null;
   pnl_rate: number | null;
   day_change_rate: number | null;
+  currency?: "KRW" | "USD";
 }
 
 interface AllocationItem {
@@ -195,9 +197,8 @@ export default function AnalyticsPage() {
   }
 
   const s = summary;
-  const sortedByPnl = [...s.holdings]
-    .filter((h) => h.pnl_rate != null)
-    .sort((a, b) => Number(b.pnl_rate) - Number(a.pnl_rate));
+  const sortedByMarketValue = [...s.holdings]
+    .sort((a, b) => Number(b.market_value_krw ?? b.market_value ?? 0) - Number(a.market_value_krw ?? a.market_value ?? 0));
 
   return (
     <div className="space-y-8">
@@ -327,13 +328,13 @@ export default function AnalyticsPage() {
       )}
 
       {/* Performance table */}
-      {sortedByPnl.length > 0 && (
+      {sortedByMarketValue.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">종목별 성과</h2>
 
           {/* Mobile card view */}
           <div className="space-y-3 md:hidden">
-            {sortedByPnl.map((h, i) => (
+            {sortedByMarketValue.map((h, i) => (
               <div
                 key={`${h.ticker}-${i}`}
                 className="cursor-pointer rounded-lg border p-3 space-y-2 active:bg-accent/50"
@@ -353,14 +354,18 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">현재가</span>
-                    <span className="tabular-nums">{h.current_price ? formatKRW(h.current_price) : "—"}</span>
+                    <span className="tabular-nums">{h.current_price ? formatPrice(h.current_price, h.currency ?? "KRW") : "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">평균단가</span>
-                    <span className="tabular-nums">{formatKRW(h.avg_price)}</span>
+                    <span className="tabular-nums">{formatPrice(h.avg_price, h.currency ?? "KRW")}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">수익금</span>
+                    <span className="text-muted-foreground">평가금액(₩)</span>
+                    <span className="tabular-nums">{formatKRW(h.market_value_krw)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">수익금(₩)</span>
                     <PnLBadge value={h.pnl_amount ?? 0} />
                   </div>
                 </div>
@@ -373,13 +378,13 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {["종목", "수량", "평균단가", "현재가", "손익", "수익률", "전일 대비"].map((h) => (
+                  {["종목", "수량", "평균단가", "현재가", "평가금액(₩)", "손익(₩)", "수익률", "전일 대비"].map((h) => (
                     <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {sortedByPnl.map((h, i) => (
+                {sortedByMarketValue.map((h, i) => (
                   <tr
                     key={`${h.ticker}-${i}`}
                     className="border-t cursor-pointer hover:bg-accent/50"
@@ -390,8 +395,9 @@ export default function AnalyticsPage() {
                       <div className="text-xs text-muted-foreground">{h.ticker}</div>
                     </td>
                     <td className="px-4 py-2 tabular-nums">{Number(h.quantity).toLocaleString("ko-KR")}</td>
-                    <td className="px-4 py-2 tabular-nums">{formatKRW(h.avg_price)}</td>
-                    <td className="px-4 py-2 tabular-nums">{h.current_price ? formatKRW(h.current_price) : "—"}</td>
+                    <td className="px-4 py-2 tabular-nums">{formatPrice(h.avg_price, h.currency ?? "KRW")}</td>
+                    <td className="px-4 py-2 tabular-nums">{h.current_price ? formatPrice(h.current_price, h.currency ?? "KRW") : "—"}</td>
+                    <td className="px-4 py-2 tabular-nums">{formatKRW(h.market_value_krw)}</td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_amount ?? 0} /></td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_rate ?? 0} suffix="%" /></td>
                     <td className="px-4 py-2">

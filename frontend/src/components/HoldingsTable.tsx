@@ -22,6 +22,7 @@ interface HoldingRow {
   avg_price: number | string;
   current_price: number | string | null;
   market_value: number | string | null;
+  market_value_krw: number | string | null;
   pnl_amount: number | string | null;
   pnl_rate: number | string | null;
   day_change_rate: number | string | null;
@@ -79,15 +80,11 @@ const columns: ColumnDef<HoldingRow>[] = [
     },
   },
   {
-    accessorKey: "market_value",
-    header: "평가금액",
+    accessorKey: "market_value_krw",
+    header: "평가금액(₩)",
     cell: ({ row }) => {
-      const v = row.original.market_value as number | null;
-      return (
-        <span className="tabular-nums">
-          {formatPrice(v, (row.original.currency as "KRW" | "USD") || "KRW")}
-        </span>
-      );
+      const v = row.original.market_value_krw as number | null;
+      return <span className="tabular-nums">{formatKRW(v)}</span>;
     },
   },
   {
@@ -143,7 +140,7 @@ const columns: ColumnDef<HoldingRow>[] = [
 ];
 
 export function HoldingsTable({ holdings }: Props) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "market_value_krw", desc: true }]);
 
   const table = useReactTable({
     data: holdings,
@@ -198,8 +195,8 @@ export function HoldingsTable({ holdings }: Props) {
                   <span className="tabular-nums">{formatPrice(h.avg_price, currency)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">평가금액</span>
-                  <span className="tabular-nums">{formatPrice(h.market_value, currency)}</span>
+                  <span className="text-muted-foreground">평가금액(₩)</span>
+                  <span className="tabular-nums">{formatKRW(h.market_value_krw)}</span>
                 </div>
               </div>
               {h.pnl_amount != null && (
