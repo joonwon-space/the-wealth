@@ -45,8 +45,9 @@ export default function RegisterPage() {
             <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
           )}
           <div className="space-y-1">
-            <label className="text-sm font-medium">이메일</label>
+            <label htmlFor="email" className="text-sm font-medium">이메일</label>
             <Input
+              id="email"
               type="email"
               required
               value={email}
@@ -55,8 +56,9 @@ export default function RegisterPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">비밀번호</label>
+            <label htmlFor="password" className="text-sm font-medium">비밀번호</label>
             <Input
+              id="password"
               type="password"
               required
               minLength={8}

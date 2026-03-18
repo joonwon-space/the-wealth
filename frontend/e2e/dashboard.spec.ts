@@ -2,11 +2,11 @@ import { test, expect } from "@playwright/test";
 
 // Shared login helper
 async function login(page: import("@playwright/test").Page) {
-  await page.goto("/auth/login");
-  await page.getByRole("textbox", { name: /이메일/i }).fill(
+  await page.goto("/login");
+  await page.getByLabel(/이메일/i).fill(
     process.env.E2E_TEST_EMAIL ?? "e2e@example.com"
   );
-  await page.getByRole("textbox", { name: /비밀번호/i }).fill(
+  await page.getByLabel(/비밀번호/i).fill(
     process.env.E2E_TEST_PASSWORD ?? "TestPass123!"
   );
   await page.getByRole("button", { name: /로그인/i }).click();
@@ -43,11 +43,11 @@ test.describe("Dashboard", () => {
 test.describe("Dashboard (unauthenticated)", () => {
   test("redirects to login", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/auth\/login/);
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("redirects analytics to login", async ({ page }) => {
     await page.goto("/dashboard/analytics");
-    await expect(page).toHaveURL(/\/auth\/login/);
+    await expect(page).toHaveURL(/\/login/);
   });
 });
