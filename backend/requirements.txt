@@ -54,7 +54,7 @@ pyparsing==3.3.2
 pytest==8.4.2
 pytest-asyncio==0.25.3
 pytest-cov==7.0.0
-python-dotenv==1.2.1
+python-dotenv==1.2.2
 PyJWT==2.12.1
 python-multipart==0.0.22
 redis==7.0.1
