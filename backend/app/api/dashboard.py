@@ -40,10 +40,27 @@ logger = get_logger(__name__)
 _ZERO = Decimal("0")
 # 국내 티커: 숫자+영문 혼합 6자리 (일반주 005930, ETF/ETN 0087F0 등)
 _DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
+# KIS 잔고 API ovrs_excg_cd (4자) → 가격 API EXCD (3자) 매핑
+_MARKET_CODE_MAP = {
+    "NASD": "NAS",
+    "NYSE": "NYS",
+    "AMEX": "AMS",
+    "SEHK": "HKS",
+    "TKSE": "TSE",
+    "SHAA": "SHS",
+    "SZAA": "SZS",
+    "HASE": "HNX",
+    "VNSE": "HSX",
+}
 
 
 def _is_domestic(ticker: str) -> bool:
     return bool(_DOMESTIC_TICKER_RE.match(ticker))
+
+
+def _normalize_market(code: str) -> str:
+    """KIS 잔고 API 거래소 코드 → 가격 API EXCD 코드로 변환."""
+    return _MARKET_CODE_MAP.get(code, code)
 
 
 def _calc_pnl(
@@ -105,7 +122,7 @@ async def get_summary(
     ticker_to_market: dict[str, str] = {}
     for h in holdings:
         if not _is_domestic(h.ticker) and h.market:
-            ticker_to_market[h.ticker] = h.market
+            ticker_to_market[h.ticker] = _normalize_market(h.market)
 
     prices: dict[str, Optional[Decimal]] = {}
 
@@ -213,10 +230,10 @@ async def get_summary(
                 market_value_krw = market_value_usd * exchange_rate
                 pnl_amount_krw = market_value_krw - invested_krw
                 pnl_rate = (pnl_amount_krw / invested_krw * 100) if invested_krw else None
-                market_value = current_price  # USD 그대로 (프론트에서 $ 표시)
+                market_value = market_value_usd  # USD 평가금액 (수량 × 현재가)
             else:
                 market_value_usd = invested_usd
-                market_value_krw = invested_krw
+                market_value_krw = invested_krw  # 현재가 없을 때 매입금액으로 대체
                 pnl_amount_krw = None
                 pnl_rate = None
                 market_value = None
@@ -233,7 +250,7 @@ async def get_summary(
                     avg_price=h.avg_price,
                     current_price=current_price,
                     market_value=market_value,
-                    market_value_krw=market_value_krw if current_price is not None else None,
+                    market_value_krw=market_value_krw,  # 항상 원화 금액 반환 (정렬/합계용)
                     pnl_amount=pnl_amount_krw,
                     pnl_rate=pnl_rate,
                     day_change_rate=day_change_rates.get(h.ticker),
