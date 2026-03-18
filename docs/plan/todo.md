@@ -112,9 +112,7 @@
 
 ### 11-2. 분석 페이지 강화 (`/dashboard/analytics`)
 - [ ] 포트폴리오 성과 시계열 차트 (일/주/월 단위) — 전체 자산 가치 추이
-- [ ] 섹터/자산군별 배분 차트 (도넛 or 트리맵)
-  - B/E: KIS 업종 코드 매핑 API 또는 수동 매핑 테이블
-  - F/E: Recharts TreeMap or sunburst chart
+- [x] 섹터/자산군별 배분 차트 (PieChart + sector_map.py 매핑)
 - [ ] KOSPI200 / S&P500 벤치마크 대비 성과 오버레이
   - B/E: KIS 지수 시세 API 연동 (`FHKUP03500100`)
   - F/E: 라인차트에 벤치마크 오버레이 + 알파/베타 계산
@@ -129,7 +127,7 @@
 - [x] 실시간 가격 업데이트 인디케이터 (마지막 업데이트 시간 + 수동 새로고침 버튼)
 - [ ] 보유 종목 테이블에 52주 최고/최저 대비 현재 위치 바 (프로그레스 바)
 - [ ] 드래그앤드롭 위젯 레이아웃 (react-grid-layout)
-- [ ] 워치리스트 기능 — 보유하지 않은 관심 종목 모니터링
+- [x] 워치리스트 기능 — 보유하지 않은 관심 종목 모니터링
 
 ### 11-4. 종목 상세 페이지 (신규)
 - [ ] `/dashboard/stocks/[ticker]` 라우트 생성
@@ -198,7 +196,7 @@
 ### 12-5. API 확장
 - [ ] GraphQL 레이어 추가 (Strawberry) — 프론트엔드 데이터 요청 최적화
 - [ ] API 버전관리 (`/api/v1/`, `/api/v2/`)
-- [ ] OpenAPI 스키마 자동 생성 → 프론트엔드 타입 자동 생성 (openapi-typescript)
+- [x] OpenAPI 스키마 자동 생성 → 프론트엔드 타입 자동 생성 (openapi-typescript)
 - [ ] Webhook 지원 — 외부 서비스 연동 (Slack, Discord, Zapier)
 
 ---
@@ -273,15 +271,17 @@
 
 ### 14-3. CI/CD 파이프라인 강화
 - [ ] GitHub Actions: 프리뷰 배포 (PR 생성 시 Vercel preview)
-- [ ] GitHub Actions: E2E 테스트 — Playwright (PR merge 전 필수)
-- [ ] GitHub Actions: 보안 스캐닝 (Dependabot, CodeQL, Snyk)
-- [ ] GitHub Actions: Docker 이미지 빌드 + Container Registry push
+- [x] GitHub Actions: E2E 테스트 — Playwright (PR merge 전 필수)
+- [x] GitHub Actions: 보안 스캐닝 (Dependabot, CodeQL)
+- [x] GitHub Actions: Docker 이미지 빌드 검증
+- [ ] GitHub Actions: Container Registry push (프로덕션 빌드)
 - [ ] 릴리스 자동화 — semantic-release (자동 버전 태깅, CHANGELOG 생성)
 
 ### 14-4. 보안 강화
 - [ ] CORS 프로덕션 도메인 설정 (localhost:3000 → 실제 도메인)
-- [ ] HTTPS 강제 적용 (HSTS 헤더)
-- [ ] CSP (Content Security Policy) 헤더 설정
+- [x] HTTPS 강제 적용 (HSTS 헤더) — Next.js security headers
+- [x] CSP (Content Security Policy) 헤더 설정 — Next.js security headers
+- [x] SecurityHeadersMiddleware — X-Content-Type-Options, X-Frame-Options, Referrer-Policy
 - [ ] API 키 로테이션 자동화
 - [ ] 보안 감사 로그 — 로그인 시도, 설정 변경, 데이터 접근 이력
 - [ ] 2FA (이중 인증) — TOTP (Google Authenticator 호환)
@@ -309,7 +309,8 @@
 - [ ] 위젯 (iOS Widget / Android Widget) — 총 자산, 일일 수익률
 
 ### 15-4. 데이터 내보내기 & 세금
-- [ ] 포트폴리오 데이터 CSV/Excel 내보내기
+- [x] 포트폴리오 데이터 CSV 내보내기 (holdings + transactions)
+- [ ] Excel 내보내기 (xlsx 형식, 서식 포함)
 - [ ] 세금 신고용 양도소득 계산기
   - 국내 주식: 대주주 양도소득세
   - 해외 주식: 250만원 초과 양도차익 22% 과세
@@ -328,9 +329,8 @@
 - [ ] `migration-reviewer` 에이전트 — Alembic 마이그레이션 안전성 검증
 
 ### 16-2. 테스트 인프라 강화
-- [ ] Playwright E2E 테스트 셋업 (frontend)
-  - 핵심 플로우: 로그인 → 대시보드 → 포트폴리오 → 거래
-  - CI에서 실행 (GitHub Actions)
+- [x] Playwright E2E 테스트 셋업 (frontend) — auth.spec.ts, dashboard.spec.ts
+- [x] CI에서 E2E 실행 (GitHub Actions e2e.yml)
 - [ ] 백엔드 테스트 커버리지 80% 달성 확인 및 리포트 자동화
 - [ ] 비주얼 리그레션 테스트 (Chromatic or Percy)
   - 컴포넌트 스토리북 → 스냅샷 비교
@@ -340,7 +340,7 @@
 
 ### 16-3. 코드 품질 도구
 - [ ] Storybook 도입 — 컴포넌트 카탈로그 및 독립 개발
-- [ ] openapi-typescript-codegen — 백엔드 OpenAPI 스키마에서 F/E 타입 자동 생성
+- [x] openapi-typescript — 백엔드 OpenAPI 스키마에서 F/E 타입 자동 생성
 - [ ] Turborepo or Nx — 모노레포 빌드 캐싱 및 태스크 오케스트레이션
 - [ ] Husky + lint-staged — 커밋 전 자동 린트/포맷
 - [ ] Commitlint — 커밋 메시지 형식 자동 검증

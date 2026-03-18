@@ -39,22 +39,23 @@ Each item should be completable in a single commit.
 - [x] Milestone 16-3: openapi-typescript 타입 자동 생성 (all items)
 - [x] Milestone 11-2: 섹터 배분 차트 (all items)
 - [x] Milestone 11-3: 워치리스트 (all items)
+- [x] Milestone 14-4: 보안 헤더 강화 (all items)
+- [x] Milestone 15-4: 데이터 내보내기 — CSV export (all items)
+- [x] Milestone 14-3: CI/CD — Docker 빌드 검증 워크플로우
 
 </details>
 
 ---
 
-## Milestone 14-4: 보안 헤더 강화
+## 테스트 커버리지 보강 (신규 기능)
 
-- [x] Next.js `next.config.ts`에 CSP, HSTS, X-Frame-Options, X-Content-Type-Options 등 보안 헤더 추가
-- [x] FastAPI 백엔드에 `SecurityHeadersMiddleware` 추가 — X-Content-Type-Options, X-Frame-Options, Referrer-Policy 헤더
+- [ ] `backend/tests/test_watchlist.py` — 워치리스트 API 테스트 (CRUD, 중복 409, IDOR 방지, 빈 ticker 검증)
+- [ ] `backend/tests/test_csv_export.py` — CSV 내보내기 엔드포인트 테스트 (holdings CSV, transactions CSV, IDOR 방지)
+- [ ] `backend/tests/test_security_headers.py` — SecurityHeadersMiddleware 테스트 (모든 응답에 보안 헤더 포함 확인)
+- [ ] `backend/tests/test_sector_allocation.py` — 섹터 배분 API 테스트 (정상 응답, 빈 포트폴리오, 매핑 없는 종목)
+- [ ] `frontend/src/components/WatchlistSection.test.tsx` — WatchlistSection 컴포넌트 단위 테스트
+- [ ] `frontend/src/components/SectorAllocationChart.test.tsx` — SectorAllocationChart 컴포넌트 단위 테스트
 
-## Milestone 15-4: 데이터 내보내기
+## 코드 품질
 
-- [x] `GET /portfolios/{id}/export/csv` 백엔드 엔드포인트 — 보유 종목 + 거래 내역 CSV 스트리밍 응답
-- [x] 포트폴리오 페이지에 "CSV 내보내기" 버튼 추가 — 클릭 시 파일 다운로드 트리거
-- [x] `GET /portfolios/{id}/transactions/export/csv` — 거래 내역 전용 CSV 내보내기 엔드포인트
-
-## Milestone 14-3: CI/CD 추가
-
-- [x] `.github/workflows/docker-build.yml` 추가 — PR 시 Docker 이미지 빌드 검증 (push 제외)
+- [ ] `backend/app/api/portfolios.py` 분할 — 현재 485줄, CSV export 로직을 `backend/app/api/portfolio_export.py`로 분리

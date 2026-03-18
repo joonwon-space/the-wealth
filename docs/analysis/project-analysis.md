@@ -10,33 +10,40 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Backend API | Complete | Auth, CRUD, sync, search, transactions |
-| DB Schema | Complete | 6 tables, 5 migrations |
-| Frontend UI | Complete | All pages, CRUD, mobile responsive (card views, responsive grid) |
+| Backend API | Complete | Auth, CRUD, sync, search, transactions, watchlist, analytics, CSV export |
+| DB Schema | Complete | 9 tables, 10 migrations |
+| Frontend UI | Complete | All pages, CRUD, mobile responsive, sector chart, watchlist |
 | KIS Integration | Complete | Multi-account, tokens, prices, balance, auto-sync |
-| Testing | Solid | Backend 63 + Frontend 25 = 88 tests, 0 failures |
-| Security | Hardened | jti token revocation, password policy, secret validation, error sanitization |
-| CI/CD | Done | GitHub Actions for backend (lint+test) and frontend (lint+typecheck+test+build) |
+| Testing | Solid | Backend 19 test files + Frontend 6 test files + 2 E2E specs |
+| Security | Hardened | jti revocation, password policy, secret validation, security headers middleware |
+| CI/CD | Done | 6 workflows: backend, frontend, e2e, docker-build, codeql, deploy |
 | Deployment | Not done | Dockerfiles exist, no actual deploy |
 
 ### Strengths
 
 - **Full vertical integration**: Auth → Portfolios → Stocks → Prices → P&L
-- **Security**: AES-256 encryption, IDOR prevention, JWT rotation with jti revocation, rate limiting, startup secret validation
+- **Security**: AES-256 encryption, IDOR prevention, JWT rotation with jti revocation, rate limiting, startup secret validation, security headers middleware
 - **Multi-account**: Multiple KIS accounts per user with auto-portfolio creation
 - **Real-time calc**: Prices fetched dynamically, never stored stale in DB
 - **Stock search**: 16,322 stocks (KIS MST files, domestic + overseas)
 - **Redis resilience**: Price cache fallback (1h TTL), startup preloading
+- **Watchlist**: User watchlist with duplicate prevention (unique constraint)
+- **Sector allocation**: Ticker-to-sector mapping with PieChart visualization
+- **Data export**: CSV streaming export for holdings and transactions
+- **CI/CD breadth**: 6 workflows including E2E (Playwright), Docker build, CodeQL security scanning
+- **Auto-generated types**: openapi-typescript for frontend API type safety
 
 ### Remaining Weaknesses
 
-- ~~Analytics page~~ → **Done**: summary cards, allocation donut, performance table
-- **Price history**: No daily snapshots for "vs previous day" display
+- ~~Analytics page~~ → **Done**: summary cards, allocation donut, performance table, sector chart
+- ~~Price history~~ → **Done**: price_snapshots table and service
 - ~~Input validation gaps~~ → **Fixed**: name min/max, qty/price gt=0, Literal type
 - ~~No pagination~~ → **Fixed**: transactions + sync logs now paginated
 - ~~N+1 query~~ → **Fixed**: list_portfolios uses LEFT JOIN GROUP BY
 - ~~Missing error handling~~ → **Fixed**: Settings page try-catch + toast on all actions
 - ~~Mobile overflow~~ → **Fixed**: responsive padding, 2-col grid form, card views for tables on mobile
+- **Test gaps**: No tests for watchlist API, CSV export endpoints, security headers middleware, sector allocation API
+- **Frontend component tests**: WatchlistSection and SectorAllocationChart lack unit tests
 
 ---
 
@@ -59,7 +66,7 @@ Technical strengths, weaknesses, risks, and improvement opportunities.
 
 - ~~KRX/Naver scraping~~ → Replaced with KIS MST files (stable)
 - ~~KIS API failure~~ → Redis price cache fallback + error UI
-- ~~No tests~~ → 88 tests (pytest 63 + vitest 25)
+- ~~No tests~~ → 19 backend test files + 6 frontend test files + 2 E2E specs
 - ~~Token replay~~ → jti + Redis one-time use
 - ~~Weak passwords~~ → 8-char minimum enforced server-side
 - ~~Cache key collision~~ → SHA-256 hash of full app_key

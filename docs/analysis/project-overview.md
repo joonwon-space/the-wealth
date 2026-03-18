@@ -22,6 +22,8 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | **Stock Data** | KIS MST/COD master files | 16,322 stocks (4,278 domestic + 12,044 overseas) |
 | **Keyboard** | Cmd+K / Ctrl+K | Global stock search shortcut |
 | **Keyboard** | Cmd+? (Cmd+Shift+/) | Keyboard shortcuts help modal |
+| **Security** | SecurityHeadersMiddleware | X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy |
+| **CI/CD** | GitHub Actions | backend.yml, frontend.yml, e2e.yml, docker-build.yml, codeql.yml, deploy.yml |
 | **Dev Tools** | `scripts/dev-tmux.sh` | tmux session for frontend+backend with mobile IP |
 
 ## API Endpoints
@@ -49,11 +51,18 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | GET | `/portfolios/{id}/transactions` | List transactions (desc, limit 200) |
 | POST | `/portfolios/{id}/transactions` | Create transaction (BUY/SELL) |
 | DELETE | `/portfolios/transactions/{id}` | Delete transaction |
+| GET | `/portfolios/{id}/export/csv` | Holdings CSV export (streaming) |
+| GET | `/portfolios/{id}/transactions/export/csv` | Transactions CSV export (streaming) |
 
 ### Dashboard (`/dashboard`)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/dashboard/summary` | Total assets, P&L, allocation (uses kis_accounts) |
+
+### Analytics (`/analytics`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/analytics/sector-allocation` | Sector allocation (ticker → sector mapping via sector_map) |
 
 ### Chart (`/chart`)
 | Method | Path | Description |
@@ -64,6 +73,13 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/stocks/search?q=` | Search 16K+ stocks (domestic + overseas, chosung support) |
+
+### Watchlist (`/watchlist`)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/watchlist` | List user's watchlist items |
+| POST | `/watchlist` | Add ticker to watchlist (unique per user) |
+| DELETE | `/watchlist/{id}` | Remove from watchlist |
 
 ### Users (`/users`)
 | Method | Path | Description |
@@ -91,6 +107,9 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | **holdings** | portfolio_id, ticker, name, quantity, avg_price | Current price NOT stored |
 | **transactions** | portfolio_id, ticker, type (BUY/SELL), quantity, price, traded_at | Trade history |
 | **sync_logs** | user_id, portfolio_id, status, inserted, updated, deleted | Audit log |
+| **watchlist** | user_id, ticker, name, market, added_at | Unique (user_id, ticker) constraint |
+| **price_snapshots** | ticker, date, open, high, low, close, volume | Daily price history |
+| **alerts** | user_id, ticker, condition, threshold, is_active | Price alerts |
 
 ## Frontend Pages
 
@@ -115,3 +134,5 @@ Follows Korean stock market color convention (up=red, down=blue). Real-time P&L 
 | **reconciliation.py** | DB vs KIS holdings diff → INSERT/UPDATE/DELETE |
 | **stock_search.py** | KIS MST/COD file parsing → Redis cache → local search |
 | **scheduler.py** | APScheduler 1h auto sync for all KIS accounts |
+| **price_snapshot.py** | Daily price snapshot storage |
+| **sector_map.py** | Ticker → sector mapping (data module) |
