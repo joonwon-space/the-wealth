@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     KIS_BASE_URL: str = "https://openapi.koreainvestment.com:9443"
     CORS_ORIGINS: str = "http://localhost:3000"
+    # Cookie domain for cross-subdomain auth (e.g. ".joonwon.dev" for prod).
+    # Leave empty for localhost dev (domain not set on cookie).
+    COOKIE_DOMAIN: str = ""
 
     @model_validator(mode="after")
     def reject_placeholder_secrets(self) -> "Settings":

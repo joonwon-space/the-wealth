@@ -34,6 +34,8 @@ _ACCESS_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 _REFRESH_MAX_AGE = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
 # Secure flag: off when CORS origins include localhost (local dev via HTTP)
 _SECURE_COOKIE = "localhost" not in settings.CORS_ORIGINS
+# Domain: set to e.g. ".joonwon.dev" so both joonwon.dev and api.joonwon.dev share cookies
+_COOKIE_DOMAIN = settings.COOKIE_DOMAIN or None
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -50,6 +52,7 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         secure=_SECURE_COOKIE,
         samesite="lax",
         path="/",
+        domain=_COOKIE_DOMAIN,
     )
     response.set_cookie(
         key="refresh_token",
@@ -59,6 +62,7 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         secure=_SECURE_COOKIE,
         samesite="lax",
         path="/",
+        domain=_COOKIE_DOMAIN,
     )
     # Non-HttpOnly flag for client-side auth state detection
     response.set_cookie(
@@ -69,14 +73,15 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         secure=_SECURE_COOKIE,
         samesite="lax",
         path="/",
+        domain=_COOKIE_DOMAIN,
     )
 
 
 def _clear_auth_cookies(response: Response) -> None:
     """Clear auth cookies on logout."""
-    response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/")
-    response.delete_cookie(key="auth_status", path="/")
+    response.delete_cookie(key="access_token", path="/", domain=_COOKIE_DOMAIN)
+    response.delete_cookie(key="refresh_token", path="/", domain=_COOKIE_DOMAIN)
+    response.delete_cookie(key="auth_status", path="/", domain=_COOKIE_DOMAIN)
 
 
 @router.post(
