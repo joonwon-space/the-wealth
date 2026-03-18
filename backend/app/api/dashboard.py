@@ -38,7 +38,8 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = get_logger(__name__)
 
 _ZERO = Decimal("0")
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9]{6}$")
+# 국내 티커: 숫자+영문 혼합 6자리 (일반주 005930, ETF/ETN 0087F0 등)
+_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
 
 
 def _is_domestic(ticker: str) -> bool:

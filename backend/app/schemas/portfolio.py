@@ -5,9 +5,9 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-# Korean ticker: exactly 6 digits (e.g. 005930)
+# Korean ticker: exactly 6 alphanumeric chars (e.g. 005930, 0087F0 for ETFs)
 # US ticker: 1–5 uppercase letters (e.g. AAPL, TSLA)
-_TICKER_RE = re.compile(r"^[0-9]{6}$|^[A-Z]{1,5}$")
+_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$|^[A-Z]{1,5}$")
 
 
 def validate_ticker(value: str) -> str:
@@ -15,7 +15,7 @@ def validate_ticker(value: str) -> str:
     value = value.strip().upper()
     if not _TICKER_RE.match(value):
         raise ValueError(
-            "ticker must be a 6-digit Korean code (e.g. 005930) "
+            "ticker must be a 6-char Korean code (e.g. 005930, 0087F0) "
             "or 1–5 uppercase letters (e.g. AAPL)"
         )
     return value
