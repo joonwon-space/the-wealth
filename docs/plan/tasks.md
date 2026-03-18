@@ -49,7 +49,7 @@ Each item should be completable in a single commit.
 
 ## Lint/Code Quality Fixes
 
-- [ ] Fix ruff lint errors in test files (10 errors) -- remove unused imports and variables in `tests/test_dashboard.py`, `tests/test_price_snapshot.py`, `tests/test_scheduler.py`
+- [x] Fix ruff lint errors in test files (10 errors) -- remove unused imports and variables in `tests/test_dashboard.py`, `tests/test_price_snapshot.py`, `tests/test_scheduler.py`
 
 ## Test Coverage Improvement (71% -> 80%)
 

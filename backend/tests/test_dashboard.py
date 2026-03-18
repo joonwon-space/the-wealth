@@ -102,20 +102,6 @@ class TestDashboardSummary:
             headers=headers,
         )
 
-        # Register mock KIS account
-        from app.core.encryption import encrypt as _encrypt
-        encrypted_key = _encrypt("test_key")
-        encrypted_secret = _encrypt("test_secret")
-
-        from app.db.base import Base
-        from sqlalchemy.ext.asyncio import AsyncSession
-
-        # Directly insert KIS account via DB override
-        from app.db.session import get_db as _get_db
-        from app.main import app as _app
-
-        kis_acct_id: list[int] = []
-
         async def _inject_kis_acct():
             """Use the test's overridden DB to insert a KIS account."""
             pass  # We'll skip actual KIS account registration for this test

@@ -374,14 +374,13 @@ class TestSnapshotDailyClose:
 @pytest.mark.unit
 class TestSchedulerLifecycle:
     def test_start_scheduler_adds_jobs(self) -> None:
-        from app.services.scheduler import scheduler, start_scheduler
+        from app.services.scheduler import start_scheduler
 
         mock_scheduler = MagicMock()
         with patch("app.services.scheduler.scheduler", mock_scheduler):
             start_scheduler()
 
         assert mock_scheduler.add_job.call_count == 2
-        call_ids = [c.kwargs.get("id") or c[1].get("id") for c in mock_scheduler.add_job.call_args_list]
         job_ids = []
         for c in mock_scheduler.add_job.call_args_list:
             job_ids.append(c.kwargs.get("id") or c[0][1] if len(c[0]) > 1 else None)

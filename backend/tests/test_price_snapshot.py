@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.services.price_snapshot import (
     OhlcvData,
-    PriceDetail,
     fetch_domestic_price_detail,
     get_prev_close,
     save_ohlcv_snapshots,
