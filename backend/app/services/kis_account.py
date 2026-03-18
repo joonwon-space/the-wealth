@@ -1,7 +1,8 @@
 """KIS OpenAPI 계좌 잔고 조회 및 Reconciliation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
+from typing import Optional
 
 import httpx
 
@@ -18,6 +19,7 @@ class KisHolding:
     name: str
     quantity: Decimal
     avg_price: Decimal
+    market: Optional[str] = field(default=None)
 
 
 async def fetch_account_holdings(
@@ -92,6 +94,86 @@ async def fetch_account_holdings(
     except Exception as e:
         logger.warning(
             "Failed to fetch KIS account holdings for %s-%s: %s",
+            account_no,
+            account_product_code,
+            e,
+        )
+        return []
+
+
+async def fetch_overseas_account_holdings(
+    app_key: str,
+    app_secret: str,
+    account_no: str,
+    account_product_code: str = "01",
+) -> list[KisHolding]:
+    """KIS 해외주식 잔고 조회 (TTTS3012R).
+
+    Returns list of KisHolding with market field set to exchange code (e.g. NAS, NYS).
+    """
+    token = await get_kis_access_token(app_key, app_secret)
+    headers = {
+        "authorization": f"Bearer {token}",
+        "appkey": app_key,
+        "appsecret": app_secret,
+        "tr_id": "TTTS3012R",
+        "Content-Type": "application/json; charset=utf-8",
+    }
+    params = {
+        "CANO": account_no,
+        "ACNT_PRDT_CD": account_product_code,
+        "OVRS_EXCG_CD": "",
+        "TR_CRCY_CD": "USD",
+        "INQR_DVSN_CD": "00",
+        "UNPR_DVSN": "01",
+        "FUND_STTL_ICLD_YN": "N",
+        "FNCG_AMT_AUTO_RDPT_YN": "N",
+        "OFL_YN": "",
+        "CTX_AREA_FK200": "",
+        "CTX_AREA_NK200": "",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/inquire-balance",
+                headers=headers,
+                params=params,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        rt_cd = data.get("rt_cd")
+        if rt_cd != "0":
+            msg = data.get("msg1", "Unknown KIS API error")
+            logger.warning(
+                "KIS overseas API error for %s-%s: rt_cd=%s msg=%s",
+                account_no,
+                account_product_code,
+                rt_cd,
+                msg,
+            )
+            return []
+
+        output1: list = data.get("output1", [])
+        result = []
+        for item in output1:
+            qty = Decimal(str(item.get("ovrs_cblc_qty", "0")))
+            if qty <= 0:
+                continue
+            result.append(
+                KisHolding(
+                    ticker=item.get("ovrs_pdno", ""),
+                    name=item.get("ovrs_item_name", ""),
+                    quantity=qty,
+                    avg_price=Decimal(str(item.get("pchs_avg_pric", "0"))),
+                    market=item.get("ovrs_excg_cd") or None,
+                )
+            )
+        return result
+    except Exception as e:
+        logger.warning(
+            "Failed to fetch KIS overseas account holdings for %s-%s: %s",
             account_no,
             account_product_code,
             e,
