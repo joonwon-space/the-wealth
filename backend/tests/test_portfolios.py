@@ -249,3 +249,264 @@ class TestMultiplePortfoliosHoldings:
             h = await client.get(f"/portfolios/{p['id']}/holdings", headers=_auth_headers(token))
             total += len(h.json())
         assert total == 4
+
+
+@pytest.mark.integration
+class TestPortfolioUpdate:
+    async def test_update_portfolio_name(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "upd1@example.com")
+        port = await client.post(
+            "/portfolios", json={"name": "Old Name"}, headers=_auth_headers(token)
+        )
+        pid = port.json()["id"]
+
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"name": "New Name"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "New Name"
+
+    async def test_update_portfolio_not_found(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "upd2@example.com")
+        resp = await client.patch(
+            "/portfolios/99999",
+            json={"name": "Doesn't Matter"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    async def test_update_other_user_portfolio_is_forbidden(
+        self, client: AsyncClient
+    ) -> None:
+        token_a = await _register_and_get_token(client, "upd3a@example.com")
+        token_b = await _register_and_get_token(client, "upd3b@example.com")
+
+        port = await client.post(
+            "/portfolios", json={"name": "Owner's Portfolio"}, headers=_auth_headers(token_a)
+        )
+        pid = port.json()["id"]
+
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"name": "Stolen"},
+            headers=_auth_headers(token_b),
+        )
+        assert resp.status_code in (403, 404)
+
+
+@pytest.mark.integration
+class TestHoldingEdgeCases:
+    async def test_add_holding_to_nonexistent_portfolio(
+        self, client: AsyncClient
+    ) -> None:
+        token = await _register_and_get_token(client, "hld1@example.com")
+        resp = await client.post(
+            "/portfolios/99999/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 1, "avg_price": 70000},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    async def test_add_holding_to_other_user_portfolio(
+        self, client: AsyncClient
+    ) -> None:
+        token_a = await _register_and_get_token(client, "hld2a@example.com")
+        token_b = await _register_and_get_token(client, "hld2b@example.com")
+
+        port = await client.post(
+            "/portfolios", json={"name": "P"}, headers=_auth_headers(token_a)
+        )
+        pid = port.json()["id"]
+
+        resp = await client.post(
+            f"/portfolios/{pid}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 1, "avg_price": 70000},
+            headers=_auth_headers(token_b),
+        )
+        assert resp.status_code in (403, 404)
+
+    async def test_update_holding_not_found(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "hld3@example.com")
+        resp = await client.patch(
+            "/portfolios/holdings/99999",
+            json={"quantity": 5},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    async def test_delete_holding_not_found(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "hld4@example.com")
+        resp = await client.delete(
+            "/portfolios/holdings/99999",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    async def test_list_holdings_nonexistent_portfolio(
+        self, client: AsyncClient
+    ) -> None:
+        token = await _register_and_get_token(client, "hld5@example.com")
+        resp = await client.get(
+            "/portfolios/99999/holdings", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 404
+
+
+@pytest.mark.integration
+class TestTransactionsCRUD:
+    async def _create_portfolio(self, client: AsyncClient, token: str) -> int:
+        resp = await client.post(
+            "/portfolios", json={"name": "Txn Test"}, headers=_auth_headers(token)
+        )
+        return resp.json()["id"]
+
+    async def test_create_transaction(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "txn1@example.com")
+        pid = await self._create_portfolio(client, token)
+
+        resp = await client.post(
+            f"/portfolios/{pid}/transactions",
+            json={"ticker": "005930", "type": "BUY", "quantity": 10, "price": 70000},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["ticker"] == "005930"
+        assert data["type"] == "BUY"
+        assert float(data["quantity"]) == 10
+
+    async def test_list_transactions_empty(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "txn2@example.com")
+        pid = await self._create_portfolio(client, token)
+
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    async def test_list_transactions_after_create(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "txn3@example.com")
+        pid = await self._create_portfolio(client, token)
+
+        await client.post(
+            f"/portfolios/{pid}/transactions",
+            json={"ticker": "005930", "type": "BUY", "quantity": 5, "price": 65000},
+            headers=_auth_headers(token),
+        )
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+    async def test_delete_transaction(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "txn4@example.com")
+        pid = await self._create_portfolio(client, token)
+
+        txn = await client.post(
+            f"/portfolios/{pid}/transactions",
+            json={"ticker": "000660", "type": "SELL", "quantity": 3, "price": 130000},
+            headers=_auth_headers(token),
+        )
+        tid = txn.json()["id"]
+
+        resp = await client.delete(
+            f"/portfolios/transactions/{tid}", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 204
+
+        # Deleted transaction should not appear in listing (soft delete)
+        listing = await client.get(
+            f"/portfolios/{pid}/transactions", headers=_auth_headers(token)
+        )
+        ids = [t["id"] for t in listing.json()]
+        assert tid not in ids
+
+    async def test_delete_nonexistent_transaction(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "txn5@example.com")
+        resp = await client.delete(
+            "/portfolios/transactions/99999", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 404
+
+    async def test_list_transactions_nonexistent_portfolio(
+        self, client: AsyncClient
+    ) -> None:
+        token = await _register_and_get_token(client, "txn6@example.com")
+        resp = await client.get(
+            "/portfolios/99999/transactions", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 404
+
+    async def test_create_transaction_with_traded_at(
+        self, client: AsyncClient
+    ) -> None:
+        token = await _register_and_get_token(client, "txn7@example.com")
+        pid = await self._create_portfolio(client, token)
+
+        resp = await client.post(
+            f"/portfolios/{pid}/transactions",
+            json={
+                "ticker": "035720",
+                "type": "BUY",
+                "quantity": 2,
+                "price": 50000,
+                "traded_at": "2024-01-15T10:00:00",
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 201
+        assert "2024-01-15" in resp.json()["traded_at"]
+
+
+@pytest.mark.integration
+class TestHoldingsWithPrices:
+    async def test_holdings_with_prices_empty_portfolio(
+        self, client: AsyncClient
+    ) -> None:
+        token = await _register_and_get_token(client, "wp1@example.com")
+        port = await client.post(
+            "/portfolios", json={"name": "WP"}, headers=_auth_headers(token)
+        )
+        pid = port.json()["id"]
+
+        resp = await client.get(
+            f"/portfolios/{pid}/holdings/with-prices", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    async def test_holdings_with_prices_no_kis_account(
+        self, client: AsyncClient
+    ) -> None:
+        """No KIS account → prices are None but holdings are returned."""
+        token = await _register_and_get_token(client, "wp2@example.com")
+        port = await client.post(
+            "/portfolios", json={"name": "WP2"}, headers=_auth_headers(token)
+        )
+        pid = port.json()["id"]
+
+        await client.post(
+            f"/portfolios/{pid}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 5, "avg_price": 70000},
+            headers=_auth_headers(token),
+        )
+
+        resp = await client.get(
+            f"/portfolios/{pid}/holdings/with-prices", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 200
+        items = resp.json()
+        assert len(items) == 1
+        # No KIS account → current_price is None
+        assert items[0]["current_price"] is None
+
+    async def test_holdings_with_prices_not_found(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "wp3@example.com")
+        resp = await client.get(
+            "/portfolios/99999/holdings/with-prices", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 404
