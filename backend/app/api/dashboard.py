@@ -1,6 +1,7 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 
 import asyncio
+import re
 from decimal import Decimal
 from typing import Optional
 
@@ -22,7 +23,12 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
 from app.schemas.dashboard import AllocationItem, DashboardSummary, HoldingWithPnL, TriggeredAlert
-from app.services.kis_price import _cache_price, _get_cached_price
+from app.services.kis_price import (
+    _cache_price,
+    _get_cached_price,
+    fetch_overseas_price_detail,
+    fetch_usd_krw_rate,
+)
 from app.services.price_snapshot import fetch_domestic_price_detail
 from app.models.alert import Alert
 from app.api.alerts import check_triggered_alerts
@@ -32,6 +38,11 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = get_logger(__name__)
 
 _ZERO = Decimal("0")
+_DOMESTIC_TICKER_RE = re.compile(r"^[0-9]{6}$")
+
+
+def _is_domestic(ticker: str) -> bool:
+    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 def _calc_pnl(
@@ -84,8 +95,17 @@ async def get_summary(
     if not holdings:
         return _empty
 
-    # Fetch prices using first available KIS account credentials
+    # Ticker 분류: 국내(6자리 숫자) vs 해외
     tickers = list({h.ticker for h in holdings})
+    domestic_tickers = [t for t in tickers if _is_domestic(t)]
+    overseas_tickers = [t for t in tickers if not _is_domestic(t)]
+
+    # 해외주식 ticker → market 코드 매핑 (Holding.market 에서)
+    ticker_to_market: dict[str, str] = {}
+    for h in holdings:
+        if not _is_domestic(h.ticker) and h.market:
+            ticker_to_market[h.ticker] = h.market
+
     prices: dict[str, Optional[Decimal]] = {}
 
     # Force-refresh: clear price cache for these tickers
@@ -105,19 +125,43 @@ async def get_summary(
     day_change_rates: dict[str, Optional[Decimal]] = {}
     w52_highs: dict[str, Optional[Decimal]] = {}
     w52_lows: dict[str, Optional[Decimal]] = {}
+    exchange_rate: Decimal = Decimal("1350")  # default fallback
 
     if kis_acct:
         try:
             app_key = decrypt(kis_acct.app_key_enc)
             app_secret = decrypt(kis_acct.app_secret_enc)
 
-            # 단일 API 호출로 현재가 + 전일 대비 + 52주 고/저 동시 조회
             async with httpx.AsyncClient(timeout=10.0) as client:
-                details = await asyncio.gather(
-                    *[fetch_domestic_price_detail(t, app_key, app_secret, client) for t in tickers],
+                # 환율 1회 조회 (해외주식이 있는 경우)
+                if overseas_tickers:
+                    exchange_rate = await fetch_usd_krw_rate(app_key, app_secret, client)
+
+                # 국내주식: 현재가 + 전일 대비 + 52주 고/저
+                domestic_tasks = [
+                    fetch_domestic_price_detail(t, app_key, app_secret, client)
+                    for t in domestic_tickers
+                ]
+                # 해외주식: 현재가 (USD) + 전일 대비
+                overseas_tasks = [
+                    fetch_overseas_price_detail(
+                        t,
+                        ticker_to_market.get(t, "NAS"),  # 기본값 NAS
+                        app_key,
+                        app_secret,
+                        client,
+                    )
+                    for t in overseas_tickers
+                ]
+
+                all_results = await asyncio.gather(
+                    *domestic_tasks,
+                    *overseas_tasks,
                     return_exceptions=True,
                 )
-            for ticker, detail in zip(tickers, details):
+
+            # 국내주식 결과 처리
+            for ticker, detail in zip(domestic_tickers, all_results[: len(domestic_tickers)]):
                 if detail and not isinstance(detail, Exception):
                     prices[ticker] = detail.current
                     day_change_rates[ticker] = detail.day_change_rate
@@ -125,11 +169,27 @@ async def get_summary(
                     w52_lows[ticker] = detail.w52_low
                     await _cache_price(ticker, detail.current)
                 else:
-                    # KIS API 실패 시 Redis 캐시 폴백
                     cached = await _get_cached_price(ticker)
                     if cached is not None:
                         prices[ticker] = cached
                         logger.info("Using cached price for %s: %s", ticker, cached)
+
+            # 해외주식 결과 처리
+            overseas_results = all_results[len(domestic_tickers):]
+            for ticker, detail in zip(overseas_tickers, overseas_results):
+                if detail and not isinstance(detail, Exception):
+                    prices[ticker] = detail.current
+                    day_change_rates[ticker] = detail.day_change_rate
+                    # 해외주식은 52주 고/저 None
+                    w52_highs[ticker] = None
+                    w52_lows[ticker] = None
+                    await _cache_price(ticker, detail.current)
+                else:
+                    cached = await _get_cached_price(ticker)
+                    if cached is not None:
+                        prices[ticker] = cached
+                        logger.info("Using cached price for %s: %s", ticker, cached)
+
         except Exception as e:
             logger.warning("Failed to fetch prices: %s", e)
 
@@ -139,50 +199,100 @@ async def get_summary(
     total_invested = _ZERO
 
     for h in holdings:
+        is_overseas = not _is_domestic(h.ticker)
         current_price = prices.get(h.ticker)
-        pnl_amount, pnl_rate = _calc_pnl(h.quantity, h.avg_price, current_price)
-        market_value = h.quantity * current_price if current_price is not None else None
 
-        total_invested += h.quantity * h.avg_price
-        total_asset += (
-            market_value if market_value is not None else h.quantity * h.avg_price
-        )
+        if is_overseas:
+            # 해외주식: 현재가는 USD, 원화 환산으로 손익 계산
+            invested_usd = h.quantity * h.avg_price
+            invested_krw = invested_usd * exchange_rate
 
-        holding_items.append(
-            HoldingWithPnL(
-                id=h.id,
-                ticker=h.ticker,
-                name=h.name,
-                quantity=h.quantity,
-                avg_price=h.avg_price,
-                current_price=current_price,
-                market_value=market_value,
-                pnl_amount=pnl_amount,
-                pnl_rate=pnl_rate,
-                day_change_rate=day_change_rates.get(h.ticker),
-                w52_high=w52_highs.get(h.ticker),
-                w52_low=w52_lows.get(h.ticker),
+            if current_price is not None:
+                market_value_usd = h.quantity * current_price
+                market_value_krw = market_value_usd * exchange_rate
+                pnl_amount_krw = market_value_krw - invested_krw
+                pnl_rate = (pnl_amount_krw / invested_krw * 100) if invested_krw else None
+                market_value = current_price  # USD 그대로 (프론트에서 $ 표시)
+            else:
+                market_value_usd = invested_usd
+                market_value_krw = invested_krw
+                pnl_amount_krw = None
+                pnl_rate = None
+                market_value = None
+
+            total_invested += invested_krw
+            total_asset += market_value_krw
+
+            holding_items.append(
+                HoldingWithPnL(
+                    id=h.id,
+                    ticker=h.ticker,
+                    name=h.name,
+                    quantity=h.quantity,
+                    avg_price=h.avg_price,
+                    current_price=current_price,
+                    market_value=market_value,
+                    market_value_krw=market_value_krw if current_price is not None else None,
+                    pnl_amount=pnl_amount_krw,
+                    pnl_rate=pnl_rate,
+                    day_change_rate=day_change_rates.get(h.ticker),
+                    w52_high=None,
+                    w52_low=None,
+                    currency="USD",
+                )
             )
-        )
+        else:
+            # 국내주식: 원화 기준
+            pnl_amount, pnl_rate = _calc_pnl(h.quantity, h.avg_price, current_price)
+            market_value = h.quantity * current_price if current_price is not None else None
+
+            total_invested += h.quantity * h.avg_price
+            total_asset += (
+                market_value if market_value is not None else h.quantity * h.avg_price
+            )
+
+            holding_items.append(
+                HoldingWithPnL(
+                    id=h.id,
+                    ticker=h.ticker,
+                    name=h.name,
+                    quantity=h.quantity,
+                    avg_price=h.avg_price,
+                    current_price=current_price,
+                    market_value=market_value,
+                    market_value_krw=market_value,
+                    pnl_amount=pnl_amount,
+                    pnl_rate=pnl_rate,
+                    day_change_rate=day_change_rates.get(h.ticker),
+                    w52_high=w52_highs.get(h.ticker),
+                    w52_low=w52_lows.get(h.ticker),
+                    currency="KRW",
+                )
+            )
 
     total_pnl_amount = total_asset - total_invested
     total_pnl_rate = (
         (total_pnl_amount / total_invested * 100) if total_invested else _ZERO
     )
 
-    # 자산 배분 계산
+    # 자산 배분 계산 (원화 환산 기준)
     allocation: list[AllocationItem] = []
     if total_asset > _ZERO:
         for item in holding_items:
-            value = (
-                item.market_value
-                if item.market_value is not None
-                else item.quantity * item.avg_price
+            # allocation value는 항상 원화 기준
+            value_krw = (
+                item.market_value_krw
+                if item.market_value_krw is not None
+                else (
+                    item.quantity * item.avg_price * exchange_rate
+                    if item.currency == "USD"
+                    else item.quantity * item.avg_price
+                )
             )
-            ratio = value / total_asset * 100
+            ratio = value_krw / total_asset * 100
             allocation.append(
                 AllocationItem(
-                    ticker=item.ticker, name=item.name, value=value, ratio=ratio
+                    ticker=item.ticker, name=item.name, value=value_krw, ratio=ratio
                 )
             )
 
@@ -191,9 +301,16 @@ async def get_summary(
     weighted_sum = _ZERO
     weight_total = _ZERO
     for item in holding_items:
-        if item.day_change_rate is not None and item.market_value is not None:
-            weighted_sum += item.day_change_rate * item.market_value
-            weight_total += item.market_value
+        if item.day_change_rate is not None:
+            # 가중치는 원화 기준 시가총액
+            weight = (
+                item.market_value_krw
+                if item.market_value_krw is not None
+                else None
+            )
+            if weight is not None:
+                weighted_sum += item.day_change_rate * weight
+                weight_total += weight
     if weight_total > _ZERO:
         total_day_change_rate = weighted_sum / weight_total
 
@@ -207,12 +324,20 @@ async def get_summary(
         for item in holding_items:
             prev_close = prev_closes.get(item.ticker)
             if prev_close is not None and prev_close > _ZERO:
-                prev_total += item.quantity * prev_close
-                curr_total += (
-                    item.market_value
-                    if item.market_value is not None
-                    else item.quantity * item.avg_price
-                )
+                if item.currency == "USD":
+                    prev_total += item.quantity * prev_close * exchange_rate
+                    curr_total += (
+                        item.market_value_krw
+                        if item.market_value_krw is not None
+                        else item.quantity * item.avg_price * exchange_rate
+                    )
+                else:
+                    prev_total += item.quantity * prev_close
+                    curr_total += (
+                        item.market_value
+                        if item.market_value is not None
+                        else item.quantity * item.avg_price
+                    )
         if prev_total > _ZERO:
             day_change_amount = curr_total - prev_total
             day_change_pct = day_change_amount / prev_total * 100

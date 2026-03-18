@@ -14,11 +14,13 @@ class HoldingWithPnL(BaseModel):
     avg_price: Decimal
     current_price: Optional[Decimal]
     market_value: Optional[Decimal]
+    market_value_krw: Optional[Decimal]  # 해외주식의 원화 환산 시가총액 (allocation/합산용)
     pnl_amount: Optional[Decimal]
     pnl_rate: Optional[Decimal]
     day_change_rate: Optional[Decimal]  # 전일 대비율 (%, e.g. 1.25 means +1.25%)
     w52_high: Optional[Decimal]
     w52_low: Optional[Decimal]
+    currency: str = "KRW"  # "KRW" for domestic, "USD" for overseas
 
 
 class AllocationItem(BaseModel):
