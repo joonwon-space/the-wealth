@@ -16,7 +16,6 @@ from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
-from app.models.user import User
 from app.services.kis_account import fetch_account_holdings
 from app.services.kis_price import fetch_domestic_daily_ohlcv, fetch_domestic_price
 from app.services.price_snapshot import OhlcvData, save_ohlcv_snapshots, save_snapshots
@@ -28,28 +27,22 @@ scheduler = AsyncIOScheduler()
 
 
 async def _sync_all_accounts() -> None:
-    """KIS 자격증명이 있는 모든 사용자의 계좌를 순차 동기화."""
+    """KIS 계좌가 등록된 모든 포트폴리오를 순차 동기화."""
     logger.info("[Scheduler] Starting periodic KIS account sync")
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(User).where(
-                User.kis_app_key_enc.isnot(None),
-                User.kis_app_secret_enc.isnot(None),
-                User.kis_account_no.isnot(None),
-            )
-        )
-        users = list(result.scalars().all())
+        # KIS 계좌가 연결된 포트폴리오를 KisAccount 테이블에서 조회
+        result = await db.execute(select(KisAccount))
+        kis_accounts = list(result.scalars().all())
 
-        if not users:
-            logger.info("[Scheduler] No users with KIS credentials, skipping")
+        if not kis_accounts:
+            logger.info("[Scheduler] No KIS accounts found, skipping")
             return
 
-        for user in users:
+        for acct in kis_accounts:  # type: ignore[assignment]
             portfolio_result = await db.execute(
                 select(Portfolio)
-                .where(Portfolio.user_id == user.id)
-                .order_by(Portfolio.id)
+                .where(Portfolio.kis_account_id == acct.id)
                 .limit(1)
             )
             portfolio = portfolio_result.scalar_one_or_none()
@@ -57,9 +50,9 @@ async def _sync_all_accounts() -> None:
                 continue
 
             try:
-                app_key = decrypt(user.kis_app_key_enc)
-                app_secret = decrypt(user.kis_app_secret_enc)
-                account_no = user.kis_account_no
+                app_key = decrypt(acct.app_key_enc)
+                app_secret = decrypt(acct.app_secret_enc)
+                account_no = acct.account_no
 
                 kis_holdings = await fetch_account_holdings(
                     app_key, app_secret, account_no
@@ -67,7 +60,7 @@ async def _sync_all_accounts() -> None:
                 counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
 
                 log_entry = SyncLog(
-                    user_id=user.id,
+                    user_id=acct.user_id,
                     portfolio_id=portfolio.id,
                     status="success",
                     inserted=counts["inserted"],
@@ -79,7 +72,7 @@ async def _sync_all_accounts() -> None:
 
                 logger.info(
                     "[Scheduler] Synced user=%d portfolio=%d: +%d ~%d -%d",
-                    user.id,
+                    acct.user_id,
                     portfolio.id,
                     counts["inserted"],
                     counts["updated"],
@@ -87,14 +80,14 @@ async def _sync_all_accounts() -> None:
                 )
             except Exception as exc:
                 log_entry = SyncLog(
-                    user_id=user.id,
+                    user_id=acct.user_id,
                     portfolio_id=portfolio.id,
                     status="error",
                     message=str(exc)[:500],
                 )
                 db.add(log_entry)
                 await db.commit()
-                logger.warning("[Scheduler] Sync failed user=%d: %s", user.id, exc)
+                logger.warning("[Scheduler] Sync failed user=%d: %s", acct.user_id, exc)
 
 
 async def _snapshot_daily_close() -> None:

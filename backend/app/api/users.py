@@ -11,25 +11,9 @@ from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
-from app.schemas.user import KisCredentialsRequest
 from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
-
-
-@router.post("/kis-credentials", status_code=204)
-async def save_kis_credentials(
-    body: KisCredentialsRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    """Save KIS credentials to user model (legacy)."""
-    current_user.kis_app_key_enc = encrypt(body.app_key)
-    current_user.kis_app_secret_enc = encrypt(body.app_secret)
-    if body.account_no:
-        current_user.kis_account_no = body.account_no
-        current_user.kis_acnt_prdt_cd = body.acnt_prdt_cd
-    await db.commit()
 
 
 class KisAccountCreate(BaseModel):
