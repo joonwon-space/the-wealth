@@ -86,7 +86,7 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-5: API 품질 개선
 
-- [ ] 표준화된 에러 응답 포맷 — `{"error": {"code": "...", "message": "...", "request_id": "..."}}` 형식으로 FastAPI exception handler 통일
+- [x] 표준화된 에러 응답 포맷 — `{"error": {"code": "...", "message": "...", "request_id": "..."}}` 형식으로 FastAPI exception handler 통일
 - [ ] API 버전관리 — 모든 APIRouter에 `/api/v1` prefix 추가, 프론트엔드 Axios baseURL 업데이트
 
 ## Milestone 16-3: 코드 품질 도구
