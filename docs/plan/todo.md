@@ -385,8 +385,8 @@
 ### 16-2. 테스트 인프라 강화
 - [x] Playwright E2E 테스트 셋업 (frontend) — auth.spec.ts, dashboard.spec.ts
 - [x] CI에서 E2E 실행 (GitHub Actions e2e.yml)
-- [ ] 백엔드 테스트 커버리지 70%+ 달성 (리뷰 7.2) — services/ 85%+, core/security.py 90%+
-- [ ] KIS API 모킹 테스트 (리뷰 7.1) — httpx 응답 모킹: 정상/429/401/timeout/부분실패 시나리오
+- [x] 백엔드 테스트 커버리지 70%+ 달성 (리뷰 7.2) — services/ 85%+, core/security.py 90%+
+- [x] KIS API 모킹 테스트 (리뷰 7.1) — httpx 응답 모킹: 정상/429/401/timeout/부분실패 시나리오
 - [ ] 보안 테스트 — IDOR 시도, 만료 JWT, 소진된 JTI, rate limit 429 검증
 - [ ] SSE 연결 테스트 — 연결/재연결, 비장 시간 비활성화, 데이터 파싱 오류 처리
 - [ ] 비주얼 리그레션 테스트 (Chromatic or Percy)

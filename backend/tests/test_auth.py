@@ -190,3 +190,168 @@ class TestRefresh:
         )
         assert third_resp.status_code == 200
         assert "access_token" in third_resp.json()
+
+    async def test_refresh_missing_token_returns_401(self, client: AsyncClient) -> None:
+        """Refresh with empty/missing token returns 401."""
+        resp = await client.post("/auth/refresh", json={"refresh_token": ""})
+        assert resp.status_code == 401
+
+    async def test_refresh_sets_cookies(self, client: AsyncClient) -> None:
+        """Successful refresh should set HttpOnly auth cookies."""
+        await client.post(
+            "/auth/register",
+            json={"email": "cookie@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "cookie@example.com", "password": TEST_PASSWORD},
+        )
+        refresh_token = login_resp.json()["refresh_token"]
+        refresh_resp = await client.post(
+            "/auth/refresh", json={"refresh_token": refresh_token}
+        )
+        assert refresh_resp.status_code == 200
+        # Cookie headers should include set-cookie
+        assert "set-cookie" in refresh_resp.headers
+
+
+@pytest.mark.integration
+class TestChangePassword:
+    async def test_change_password_success(self, client: AsyncClient) -> None:
+        await client.post(
+            "/auth/register",
+            json={"email": "changepw@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "changepw@example.com", "password": TEST_PASSWORD},
+        )
+        token = login_resp.json()["access_token"]
+
+        resp = await client.post(
+            "/auth/change-password",
+            json={"current_password": TEST_PASSWORD, "new_password": "NewPass9999!"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 204
+
+    async def test_change_password_wrong_current(self, client: AsyncClient) -> None:
+        await client.post(
+            "/auth/register",
+            json={"email": "changepw2@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "changepw2@example.com", "password": TEST_PASSWORD},
+        )
+        token = login_resp.json()["access_token"]
+
+        resp = await client.post(
+            "/auth/change-password",
+            json={"current_password": "WrongCurrent!", "new_password": "NewPass9999!"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 400
+
+    async def test_change_password_too_short(self, client: AsyncClient) -> None:
+        await client.post(
+            "/auth/register",
+            json={"email": "changepw3@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "changepw3@example.com", "password": TEST_PASSWORD},
+        )
+        token = login_resp.json()["access_token"]
+
+        resp = await client.post(
+            "/auth/change-password",
+            json={"current_password": TEST_PASSWORD, "new_password": "short"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 400
+
+    async def test_change_password_unauthenticated(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/auth/change-password",
+            json={"current_password": TEST_PASSWORD, "new_password": "NewPass9999!"},
+        )
+        assert resp.status_code in (401, 403)
+
+    async def test_new_password_works_after_change(self, client: AsyncClient) -> None:
+        """After changing password, old password is rejected and new one works."""
+        await client.post(
+            "/auth/register",
+            json={"email": "changepw4@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "changepw4@example.com", "password": TEST_PASSWORD},
+        )
+        token = login_resp.json()["access_token"]
+        new_pass = "NewPass9999!"
+
+        await client.post(
+            "/auth/change-password",
+            json={"current_password": TEST_PASSWORD, "new_password": new_pass},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        # Old password should fail
+        old_resp = await client.post(
+            "/auth/login",
+            json={"email": "changepw4@example.com", "password": TEST_PASSWORD},
+        )
+        assert old_resp.status_code == 401
+
+        # New password should work
+        new_resp = await client.post(
+            "/auth/login",
+            json={"email": "changepw4@example.com", "password": new_pass},
+        )
+        assert new_resp.status_code == 200
+
+
+@pytest.mark.integration
+class TestLogout:
+    async def test_logout_success(self, client: AsyncClient) -> None:
+        await client.post(
+            "/auth/register",
+            json={"email": "logout@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "logout@example.com", "password": TEST_PASSWORD},
+        )
+        token = login_resp.json()["access_token"]
+
+        resp = await client.post(
+            "/auth/logout",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 204
+
+    async def test_logout_unauthenticated(self, client: AsyncClient) -> None:
+        resp = await client.post("/auth/logout")
+        assert resp.status_code in (401, 403)
+
+    async def test_logout_clears_cookies(self, client: AsyncClient) -> None:
+        """Logout response should clear auth cookies."""
+        await client.post(
+            "/auth/register",
+            json={"email": "logout2@example.com", "password": TEST_PASSWORD},
+        )
+        login_resp = await client.post(
+            "/auth/login",
+            json={"email": "logout2@example.com", "password": TEST_PASSWORD},
+        )
+        token = login_resp.json()["access_token"]
+
+        resp = await client.post(
+            "/auth/logout",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 204
+        # Cookies should be deleted (set with empty value or max-age=0)
+        cookie_headers = resp.headers.get_list("set-cookie")
+        assert len(cookie_headers) > 0  # At least one cookie is being cleared

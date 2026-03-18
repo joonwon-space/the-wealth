@@ -53,7 +53,7 @@ Each item should be completable in a single commit.
 
 - [x] `stock_search.py` 유닛 테스트 — `_parse_domestic`, `_parse_overseas`, `_extract_chosung`, `_is_chosung_query`, `search_stocks` (Redis 모킹, 가상 MST 파일) — 목표: 85%+
 - [x] `scheduler.py` 유닛 테스트 — `_sync_all_accounts`, `_snapshot_daily_close` (DB/KIS API/asyncio 모킹) — 목표: 70%+
-- [ ] `price_snapshot.py` 커버리지 보강 — `fetch_domestic_price_detail` httpx 모킹 테스트 + `save_ohlcv_snapshots` DB 통합 테스트 — 목표: 90%+
+- [x] `price_snapshot.py` 커버리지 보강 — `fetch_domestic_price_detail` httpx 모킹 테스트 + `save_ohlcv_snapshots` DB 통합 테스트 — 목표: 90%+
 
 ---
 
