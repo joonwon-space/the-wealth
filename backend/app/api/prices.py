@@ -73,7 +73,11 @@ async def get_price_history(
     return [
         {
             "date": snap.snapshot_date.isoformat(),
+            "open": str(Decimal(str(snap.open))) if snap.open is not None else None,
+            "high": str(Decimal(str(snap.high))) if snap.high is not None else None,
+            "low": str(Decimal(str(snap.low))) if snap.low is not None else None,
             "close": str(Decimal(str(snap.close))),
+            "volume": snap.volume,
         }
         for snap in sorted(snapshots, key=lambda s: s.snapshot_date)
     ]
