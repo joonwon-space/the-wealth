@@ -1,8 +1,24 @@
+import re
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# Korean ticker: exactly 6 digits (e.g. 005930)
+# US ticker: 1–5 uppercase letters (e.g. AAPL, TSLA)
+_TICKER_RE = re.compile(r"^[0-9]{6}$|^[A-Z]{1,5}$")
+
+
+def validate_ticker(value: str) -> str:
+    """Validate and normalise a stock ticker symbol."""
+    value = value.strip().upper()
+    if not _TICKER_RE.match(value):
+        raise ValueError(
+            "ticker must be a 6-digit Korean code (e.g. 005930) "
+            "or 1–5 uppercase letters (e.g. AAPL)"
+        )
+    return value
 
 
 class PortfolioCreate(BaseModel):
@@ -28,6 +44,11 @@ class HoldingCreate(BaseModel):
     quantity: Decimal = Field(gt=0)
     avg_price: Decimal = Field(gt=0)
 
+    @field_validator("ticker")
+    @classmethod
+    def ticker_format(cls, v: str) -> str:
+        return validate_ticker(v)
+
 
 class HoldingUpdate(BaseModel):
     quantity: Optional[Decimal] = None
@@ -52,6 +73,11 @@ class TransactionCreate(BaseModel):
     quantity: Decimal = Field(gt=0)
     price: Decimal = Field(gt=0)
     traded_at: Optional[datetime] = None
+
+    @field_validator("ticker")
+    @classmethod
+    def ticker_format(cls, v: str) -> str:
+        return validate_ticker(v)
 
 
 class TransactionResponse(BaseModel):

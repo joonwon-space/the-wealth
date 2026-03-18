@@ -23,11 +23,9 @@ class WatchlistCreate(BaseModel):
 
     @field_validator("ticker")
     @classmethod
-    def ticker_nonempty(cls, v: str) -> str:
-        v = v.strip().upper()
-        if not v:
-            raise ValueError("ticker must not be empty")
-        return v
+    def ticker_format(cls, v: str) -> str:
+        from app.schemas.portfolio import validate_ticker
+        return validate_ticker(v)
 
     @field_validator("market")
     @classmethod
