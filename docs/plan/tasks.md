@@ -16,7 +16,6 @@ Each item should be completable in a single commit.
 - [x] `backend/.env.example`에 `CORS_ORIGINS` 항목 추가
 - [x] KIS 자격증명 등록 시 API 연결 테스트 엔드포인트
 - [x] KIS 자격증명 연결 테스트 UI
-- [x] Milestone 12-1: 가격 히스토리 & 전일 대비 (all items)
 - [x] Milestone 11-1: 모바일 UX (all items)
 - [x] Milestone 11-3: 보유 종목 테이블 52주 고/저 (all items)
 - [x] Milestone 12-2: SSE 실시간 가격 (all items)
@@ -44,15 +43,19 @@ Each item should be completable in a single commit.
 - [x] Milestone 14-3: CI/CD — Docker 빌드 검증 워크플로우
 - [x] 테스트 커버리지 보강 (신규 기능) — watchlist, csv_export, security_headers, sector_allocation, WatchlistSection, SectorAllocationChart
 - [x] portfolios.py 분할 — CSV export 로직을 portfolio_export.py로 분리
+- [x] Milestone 12-1: 가격 히스토리 & 전일 대비 (all items)
 
 </details>
 
 ---
 
-## Milestone 12-1: 가격 히스토리 & 전일 대비
+## Milestone 11-1: 모바일 UX (잔여)
 
-- [x] `price_snapshots` 테이블 Alembic 마이그레이션 생성 (ticker, date, open, high, low, close, volume; unique index on ticker+date)
-- [x] 장 마감 후 일별 종가 스냅샷 스케줄러 — APScheduler cron KST 16:10, 보유 종목만, KIS 일별 시세 API 활용
-- [x] `GET /dashboard/summary` 응답에 "전일 대비" 변동률 필드 추가 (price_snapshots 기반 계산)
-- [x] 가격 히스토리 API — `GET /prices/{ticker}/history?from=&to=` 엔드포인트
-- [x] 대시보드 요약 카드에 "전일 대비" 배지 표시 (▲ +2.3% / ▼ -1.5%, 한국 증시 컬러 적용)
+- [ ] PWA 지원 — `frontend/public/manifest.json` 생성, `<link rel="manifest">` 추가, 앱 아이콘 설정
+- [ ] 사이드바 드로어 제스처 지원 — 모바일에서 swipe to close (터치 이벤트 기반)
+- [ ] 모바일 하단 네비게이션 바 — 모바일(md 미만)에서 사이드바 대신 하단 탭 바 (홈/분석/종목검색/설정)
+
+## Milestone 14-2: 백엔드 구조화 로깅
+
+- [ ] `structlog` 도입 — `backend/requirements.txt`에 추가, `backend/app/core/logging.py` 설정, JSON 포맷 + request_id 컨텍스트
+- [ ] 기존 `print()` 및 `logging.basicConfig` 호출을 structlog 로거로 교체 (api/, services/ 전체)
