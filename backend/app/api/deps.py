@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import Cookie, Depends, HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
