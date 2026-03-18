@@ -106,6 +106,64 @@ async def _get_cached_price(ticker: str) -> Optional[Decimal]:
     return None
 
 
+async def fetch_domestic_daily_ohlcv(
+    ticker: str,
+    app_key: str,
+    app_secret: str,
+    client: httpx.AsyncClient,
+    target_date: Optional[str] = None,
+) -> Optional[dict]:
+    """국내주식 일별 OHLCV 조회 (FHKST01010400).
+
+    Returns dict with open, high, low, close, volume or None on failure.
+    target_date: YYYYMMDD format. If None, uses latest available.
+    """
+    headers = await _get_headers(app_key, app_secret)
+    headers["tr_id"] = "FHKST01010400"
+    from datetime import date as date_type, timedelta
+
+    end_date = target_date or date_type.today().strftime("%Y%m%d")
+    # Request a small window to get today's close
+    start_date = (
+        date_type.fromisoformat(f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:8]}")
+        - timedelta(days=1)
+    ).strftime("%Y%m%d")
+
+    params = {
+        "fid_cond_mrkt_div_code": "J",
+        "fid_input_iscd": ticker,
+        "fid_input_date_1": start_date,
+        "fid_input_date_2": end_date,
+        "fid_period_div_code": "D",
+        "fid_org_adj_prc": "0",
+    }
+    try:
+        resp = await client.get(
+            f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+            headers=headers,
+            params=params,
+        )
+        resp.raise_for_status()
+        output_list = resp.json().get("output2", [])
+        if not output_list:
+            return None
+        # Most recent entry first
+        row = output_list[0]
+        close_str = row.get("stck_clpr", "0")
+        if not close_str or close_str == "0":
+            return None
+        return {
+            "open": Decimal(row["stck_oprc"]) if row.get("stck_oprc") else None,
+            "high": Decimal(row["stck_hgpr"]) if row.get("stck_hgpr") else None,
+            "low": Decimal(row["stck_lwpr"]) if row.get("stck_lwpr") else None,
+            "close": Decimal(close_str),
+            "volume": int(row["acml_vol"]) if row.get("acml_vol") else None,
+        }
+    except Exception as e:
+        logger.warning("Failed to fetch daily OHLCV for %s: %s", ticker, e)
+        return None
+
+
 async def fetch_prices_parallel(
     tickers: list[str], app_key: str, app_secret: str, market: str = "domestic"
 ) -> dict[str, Optional[Decimal]]:

@@ -2,7 +2,7 @@
 
 FastAPI 앱 startup/shutdown 이벤트에 연결하여 사용합니다.
 KIS 자격증명이 등록된 사용자의 첫 번째 포트폴리오를 1시간 간격으로 동기화.
-장 마감(KST 16:05) 후 보유 종목 종가를 price_snapshots에 저장.
+장 마감(KST 16:10) 후 보유 종목 OHLCV를 price_snapshots에 저장.
 """
 
 import logging
@@ -19,8 +19,8 @@ from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
 from app.models.user import User
 from app.services.kis_account import fetch_account_holdings
-from app.services.kis_price import fetch_domestic_price
-from app.services.price_snapshot import save_snapshots
+from app.services.kis_price import fetch_domestic_daily_ohlcv, fetch_domestic_price
+from app.services.price_snapshot import OhlcvData, save_ohlcv_snapshots, save_snapshots
 from app.services.reconciliation import reconcile_holdings
 
 logger = logging.getLogger(__name__)
@@ -99,10 +99,13 @@ async def _sync_all_accounts() -> None:
 
 
 async def _snapshot_daily_close() -> None:
-    """장 마감 후 보유 종목 종가를 price_snapshots에 저장.
+    """장 마감 후 보유 종목 OHLCV를 price_snapshots에 저장.
 
-    KST 16:05 (UTC 07:05) 평일 실행.
+    KST 16:10 (UTC 07:10) 평일 실행.
     """
+    import asyncio
+    from decimal import Decimal
+
     logger.info("[Scheduler] Starting daily close snapshot")
 
     async with AsyncSessionLocal() as db:
@@ -123,21 +126,39 @@ async def _snapshot_daily_close() -> None:
             logger.info("[Scheduler] No holdings found, skipping snapshot")
             return
 
-        # 현재가 병렬 조회
-        from decimal import Decimal
-
-        prices: dict[str, Decimal] = {}
+        # 일별 OHLCV 병렬 조회
         async with httpx.AsyncClient(timeout=10.0) as client:
-            import asyncio
             results = await asyncio.gather(
-                *[fetch_domestic_price(t, app_key, app_secret, client) for t in tickers],
+                *[fetch_domestic_daily_ohlcv(t, app_key, app_secret, client) for t in tickers],
                 return_exceptions=True,
             )
-        for ticker, price in zip(tickers, results):
-            if isinstance(price, Decimal) and price > 0:
-                prices[ticker] = price
 
-        count = await save_snapshots(db, prices)
+        ohlcv_map: dict[str, OhlcvData] = {}
+        for ticker, result in zip(tickers, results):
+            if isinstance(result, dict) and result.get("close"):
+                ohlcv_map[ticker] = OhlcvData(
+                    open=result.get("open"),
+                    high=result.get("high"),
+                    low=result.get("low"),
+                    close=result["close"],
+                    volume=result.get("volume"),
+                )
+
+        if ohlcv_map:
+            count = await save_ohlcv_snapshots(db, ohlcv_map)
+        else:
+            # OHLCV 조회 실패 시 현재가 폴백
+            prices: dict[str, Decimal] = {}
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                price_results = await asyncio.gather(
+                    *[fetch_domestic_price(t, app_key, app_secret, client) for t in tickers],
+                    return_exceptions=True,
+                )
+            for ticker, price in zip(tickers, price_results):
+                if isinstance(price, Decimal) and price > 0:
+                    prices[ticker] = price
+            count = await save_snapshots(db, prices)
+
         logger.info("[Scheduler] Saved %d price snapshots", count)
 
 
@@ -154,13 +175,13 @@ def start_scheduler() -> None:
         trigger="cron",
         day_of_week="mon-fri",
         hour=7,
-        minute=5,
+        minute=10,
         timezone="UTC",
         id="daily_close_snapshot",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("[Scheduler] APScheduler started — KIS sync every 1 hour, daily close snapshot at KST 16:05")
+    logger.info("[Scheduler] APScheduler started — KIS sync every 1 hour, daily close snapshot at KST 16:10")
 
 
 def stop_scheduler() -> None:

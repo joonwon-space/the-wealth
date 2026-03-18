@@ -76,6 +76,17 @@ async def fetch_domestic_price_detail(
         return None
 
 
+@dataclass(frozen=True)
+class OhlcvData:
+    """일별 OHLCV 데이터."""
+
+    open: Optional[Decimal]
+    high: Optional[Decimal]
+    low: Optional[Decimal]
+    close: Decimal
+    volume: Optional[int]
+
+
 async def save_snapshots(
     db: AsyncSession,
     ticker_prices: dict[str, Decimal],
@@ -97,6 +108,48 @@ async def save_snapshots(
         .on_conflict_do_update(
             constraint="uq_price_snapshot_ticker_date",
             set_={"close": insert(PriceSnapshot).excluded.close},
+        )
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return len(rows)
+
+
+async def save_ohlcv_snapshots(
+    db: AsyncSession,
+    ticker_ohlcv: dict[str, OhlcvData],
+    snapshot_date: Optional[date] = None,
+) -> int:
+    """종목별 OHLCV를 price_snapshots 테이블에 upsert. 저장 건수 반환."""
+    if not ticker_ohlcv:
+        return 0
+
+    today = snapshot_date or datetime.now(timezone.utc).date()
+    rows = [
+        {
+            "ticker": ticker,
+            "snapshot_date": today,
+            "open": float(data.open) if data.open is not None else None,
+            "high": float(data.high) if data.high is not None else None,
+            "low": float(data.low) if data.low is not None else None,
+            "close": float(data.close),
+            "volume": data.volume,
+        }
+        for ticker, data in ticker_ohlcv.items()
+    ]
+
+    stmt = (
+        insert(PriceSnapshot)
+        .values(rows)
+        .on_conflict_do_update(
+            constraint="uq_price_snapshot_ticker_date",
+            set_={
+                "open": insert(PriceSnapshot).excluded.open,
+                "high": insert(PriceSnapshot).excluded.high,
+                "low": insert(PriceSnapshot).excluded.low,
+                "close": insert(PriceSnapshot).excluded.close,
+                "volume": insert(PriceSnapshot).excluded.volume,
+            },
         )
     )
     await db.execute(stmt)
