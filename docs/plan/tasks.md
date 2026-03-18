@@ -51,7 +51,7 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-1: 가격 히스토리 & 전일 대비
 
-- [ ] `price_snapshots` 테이블 Alembic 마이그레이션 생성 (ticker, date, open, high, low, close, volume; unique index on ticker+date)
+- [x] `price_snapshots` 테이블 Alembic 마이그레이션 생성 (ticker, date, open, high, low, close, volume; unique index on ticker+date)
 - [ ] 장 마감 후 일별 종가 스냅샷 스케줄러 — APScheduler cron KST 16:10, 보유 종목만, KIS 일별 시세 API 활용
 - [ ] `GET /dashboard/summary` 응답에 "전일 대비" 변동률 필드 추가 (price_snapshots 기반 계산)
 - [ ] 가격 히스토리 API — `GET /prices/{ticker}/history?from=&to=` 엔드포인트
