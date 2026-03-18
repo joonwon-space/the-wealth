@@ -1,12 +1,19 @@
 ---
+name: discover-tasks
 description: Research project analysis docs and codebase state to refresh tasks.md (current work) and todo.md (future work).
+model: opus
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
 ---
 
 # Discover Tasks
 
-Use the **discover-tasks** agent for this task. The agent runs on Opus for deep research and analysis.
-
-Delegate all work to the `discover-tasks` agent now.
+Analyze current project state and discover work items to refresh task lists.
 
 ## Document roles
 

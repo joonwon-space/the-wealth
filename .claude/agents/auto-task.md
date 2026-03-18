@@ -1,12 +1,20 @@
 ---
+name: auto-task
 description: Implement all incomplete items in docs/plan/tasks.md sequentially. If tasks.md is empty, promote next milestone from todo.md.
+model: sonnet
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+  - Agent
 ---
 
 # Auto Task
 
-Use the **auto-task** agent for this task. The agent runs on Sonnet for efficient implementation.
-
-Delegate all work to the `auto-task` agent now.
+Process all incomplete items in `docs/plan/tasks.md` from top to bottom.
 
 ## Pre-step: When tasks.md is empty
 
