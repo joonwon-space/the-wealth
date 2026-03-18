@@ -49,13 +49,13 @@ Each item should be completable in a single commit.
 
 ## 테스트 커버리지 보강 (신규 기능)
 
-- [ ] `backend/tests/test_watchlist.py` — 워치리스트 API 테스트 (CRUD, 중복 409, IDOR 방지, 빈 ticker 검증)
-- [ ] `backend/tests/test_csv_export.py` — CSV 내보내기 엔드포인트 테스트 (holdings CSV, transactions CSV, IDOR 방지)
-- [ ] `backend/tests/test_security_headers.py` — SecurityHeadersMiddleware 테스트 (모든 응답에 보안 헤더 포함 확인)
-- [ ] `backend/tests/test_sector_allocation.py` — 섹터 배분 API 테스트 (정상 응답, 빈 포트폴리오, 매핑 없는 종목)
-- [ ] `frontend/src/components/WatchlistSection.test.tsx` — WatchlistSection 컴포넌트 단위 테스트
-- [ ] `frontend/src/components/SectorAllocationChart.test.tsx` — SectorAllocationChart 컴포넌트 단위 테스트
+- [x] `backend/tests/test_watchlist.py` — 워치리스트 API 테스트 (CRUD, 중복 409, IDOR 방지, 빈 ticker 검증)
+- [x] `backend/tests/test_csv_export.py` — CSV 내보내기 엔드포인트 테스트 (holdings CSV, transactions CSV, IDOR 방지)
+- [x] `backend/tests/test_security_headers.py` — SecurityHeadersMiddleware 테스트 (모든 응답에 보안 헤더 포함 확인)
+- [x] `backend/tests/test_sector_allocation.py` — 섹터 배분 API 테스트 (정상 응답, 빈 포트폴리오, 매핑 없는 종목)
+- [x] `frontend/src/components/WatchlistSection.test.tsx` — WatchlistSection 컴포넌트 단위 테스트
+- [x] `frontend/src/components/SectorAllocationChart.test.tsx` — SectorAllocationChart 컴포넌트 단위 테스트
 
 ## 코드 품질
 
-- [ ] `backend/app/api/portfolios.py` 분할 — 현재 485줄, CSV export 로직을 `backend/app/api/portfolio_export.py`로 분리
+- [x] `backend/app/api/portfolios.py` 분할 — 현재 485줄, CSV export 로직을 `backend/app/api/portfolio_export.py`로 분리
