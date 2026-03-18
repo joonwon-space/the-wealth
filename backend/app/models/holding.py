@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -22,6 +22,9 @@ class Holding(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     avg_price: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    market: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
