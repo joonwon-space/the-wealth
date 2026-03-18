@@ -123,9 +123,9 @@ Each item should be completable in a single commit.
 ## Milestone 16-1: Claude Code 에이전트 확장
 
 - [x] `.claude/agents/visual-qa.md` 생성 — Playwright MCP 기반 자동 UI 검사 에이전트 (뷰포트별 스크린샷 → 이슈 탐지)
-- [ ] `.claude/agents/e2e-runner.md` 생성 — Playwright MCP 기반 실제 브라우저 E2E 테스트 에이전트
-- [ ] `.claude/agents/perf-analyzer.md` 생성 — 번들 사이즈 분석 + Lighthouse 점수 체크 에이전트
-- [ ] `.claude/agents/migration-reviewer.md` 생성 — Alembic 마이그레이션 안전성 검증 에이전트
+- [x] `.claude/agents/e2e-runner.md` 생성 — Playwright MCP 기반 실제 브라우저 E2E 테스트 에이전트
+- [x] `.claude/agents/perf-analyzer.md` 생성 — 번들 사이즈 분석 + Lighthouse 점수 체크 에이전트
+- [x] `.claude/agents/migration-reviewer.md` 생성 — Alembic 마이그레이션 안전성 검증 에이전트
 
 ## Milestone 16-2: Playwright E2E 테스트 셋업
 
