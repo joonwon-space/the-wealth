@@ -6,5 +6,6 @@ from app.models.price_snapshot import PriceSnapshot
 from app.models.sync_log import SyncLog
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.models.watchlist import Watchlist
 
-__all__ = ["Alert", "User", "KisAccount", "Portfolio", "Holding", "Transaction", "SyncLog", "PriceSnapshot"]
+__all__ = ["Alert", "User", "KisAccount", "Portfolio", "Holding", "Transaction", "SyncLog", "PriceSnapshot", "Watchlist"]

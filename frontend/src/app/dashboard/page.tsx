@@ -11,6 +11,7 @@ import { AllocationDonut } from "@/components/AllocationDonut";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatRate } from "@/lib/format";
+import { WatchlistSection } from "@/components/WatchlistSection";
 import { toast } from "sonner";
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -266,6 +267,9 @@ export default function DashboardPage() {
               </div>
             </section>
           )}
+
+          {/* 관심 종목 */}
+          <WatchlistSection />
 
           {/* 보유 종목 테이블 */}
           <section className="space-y-2">

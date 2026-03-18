@@ -147,6 +147,6 @@ Each item should be completable in a single commit.
 
 ## Milestone 11-3: 워치리스트
 
-- [ ] `watchlist` SQLAlchemy 모델 + Alembic 마이그레이션 (user_id, ticker, name, market)
-- [ ] `POST /watchlist` + `GET /watchlist` + `DELETE /watchlist/{id}` API
-- [ ] 대시보드에 워치리스트 섹션 추가 — 관심 종목 현재가 표시 (SSE 스트림 활용)
+- [x] `watchlist` SQLAlchemy 모델 + Alembic 마이그레이션 (user_id, ticker, name, market)
+- [x] `POST /watchlist` + `GET /watchlist` + `DELETE /watchlist/{id}` API
+- [x] 대시보드에 워치리스트 섹션 추가 — 관심 종목 표시 (종목명, 시장, 상세 링크)
