@@ -91,4 +91,4 @@ Each item should be completable in a single commit.
 
 ## Milestone 16-3: 코드 품질 도구
 
-- [ ] Husky + lint-staged — `frontend/` 에 설치, 커밋 전 `eslint --fix` + `tsc --noEmit` 자동 실행
+- [x] Husky + lint-staged — `frontend/` 에 설치, 커밋 전 `eslint --fix` + `tsc --noEmit` 자동 실행

@@ -57,7 +57,11 @@
     "vitest": "^4.1.0"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx,js}": [
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "bash -c 'tsc --noEmit'"
+    ],
+    "src/**/*.js": [
       "eslint --fix"
     ]
   }
