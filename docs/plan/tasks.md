@@ -136,8 +136,8 @@ Each item should be completable in a single commit.
 
 ## Milestone 16-3: openapi-typescript 타입 자동 생성
 
-- [ ] `openapi-typescript` 패키지 설치 + `frontend/src/types/api.ts` 자동 생성 스크립트 (`package.json` `generate:types` 스크립트)
-- [ ] 자동 생성된 타입으로 기존 `src/types/` 수동 타입 교체 (dashboard, portfolio, analytics 스키마)
+- [x] `openapi-typescript` 패키지 설치 + `frontend/src/types/api.ts` 자동 생성 스크립트 (`package.json` `generate:types` 스크립트)
+- [x] 자동 생성된 타입으로 기존 `src/types/` 수동 타입 교체 (dashboard, portfolio, analytics 스키마)
 
 ## Milestone 11-2: 섹터 배분 차트
 
