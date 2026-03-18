@@ -17,7 +17,11 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
 from app.models.user import User
-from app.services.kis_account import KisHolding, fetch_account_holdings
+from app.services.kis_account import (
+    KisHolding,
+    fetch_account_holdings,
+    fetch_overseas_account_holdings,
+)
 from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 from app.services.reconciliation import reconcile_holdings
 
@@ -90,9 +94,13 @@ async def _fetch_balance_raw(
         raise RuntimeError(f"KIS API 오류 (rt_cd={rt_cd}): {msg}")
 
     summary = (data.get("output2") or [{}])[0]
-    holdings_list = await fetch_account_holdings(
+    domestic_holdings = await fetch_account_holdings(
         app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
     )
+    overseas_holdings = await fetch_overseas_account_holdings(
+        app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
+    )
+    holdings_list = domestic_holdings + overseas_holdings
 
     return summary, holdings_list
 
@@ -258,9 +266,13 @@ async def sync_portfolio(
     app_secret = decrypt(acct.app_secret_enc)
 
     try:
-        kis_holdings = await fetch_account_holdings(
+        domestic_holdings = await fetch_account_holdings(
             app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
         )
+        overseas_holdings = await fetch_overseas_account_holdings(
+            app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
+        )
+        kis_holdings = domestic_holdings + overseas_holdings
         counts = await reconcile_holdings(db, portfolio_id, kis_holdings)
 
         log = SyncLog(

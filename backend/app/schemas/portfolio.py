@@ -43,6 +43,7 @@ class HoldingCreate(BaseModel):
     name: str
     quantity: Decimal = Field(gt=0)
     avg_price: Decimal = Field(gt=0)
+    market: Optional[str] = None  # e.g. "NAS", "NYS" for overseas; None for domestic
 
     @field_validator("ticker")
     @classmethod
@@ -64,6 +65,7 @@ class HoldingResponse(BaseModel):
     name: str
     quantity: Decimal
     avg_price: Decimal
+    market: Optional[str] = None
     created_at: datetime
 
 

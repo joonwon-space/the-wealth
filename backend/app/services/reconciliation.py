@@ -45,19 +45,25 @@ async def reconcile_holdings(
                 name=kis.name,
                 quantity=kis.quantity,
                 avg_price=kis.avg_price,
+                market=kis.market,
             )
             db.add(new_holding)
             counts["inserted"] += 1
             logger.info("Reconcile INSERT: %s (portfolio=%d)", ticker, portfolio_id)
 
-    # UPDATE: 양쪽에 있지만 수량/단가 다른 종목
+    # UPDATE: 양쪽에 있지만 수량/단가/market 다른 종목
     for ticker, db_h in db_map.items():
         if ticker in kis_map:
             kis = kis_map[ticker]
-            changed = db_h.quantity != kis.quantity or db_h.avg_price != kis.avg_price
+            changed = (
+                db_h.quantity != kis.quantity
+                or db_h.avg_price != kis.avg_price
+                or db_h.market != kis.market
+            )
             if changed:
                 db_h.quantity = kis.quantity
                 db_h.avg_price = kis.avg_price
+                db_h.market = kis.market
                 counts["updated"] += 1
                 logger.info("Reconcile UPDATE: %s (portfolio=%d)", ticker, portfolio_id)
 

@@ -258,6 +258,7 @@ async def add_holding(
         name=body.name,
         quantity=body.quantity,
         avg_price=body.avg_price,
+        market=body.market,
     )
     db.add(holding)
     await db.commit()
