@@ -63,6 +63,7 @@ rich==14.3.3
 ruff==0.15.6
 six==1.17.0
 slowapi==0.1.9
+structlog==25.4.0
 sortedcontainers==2.4.0
 SQLAlchemy==2.0.48
 starlette==0.52.1

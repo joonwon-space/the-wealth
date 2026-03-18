@@ -1,4 +1,3 @@
-import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -11,12 +10,13 @@ from slowapi.util import get_remote_address
 
 from app.api import alerts, analytics, auth, chart, dashboard, portfolio_export, portfolios, prices, stocks, sync, users, watchlist
 from app.core.config import settings
+from app.core.logging import configure_logging, generate_request_id, get_logger, set_request_id
 from app.core.middleware import SecurityHeadersMiddleware
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.services.stock_search import _load_stock_list
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+configure_logging()
+logger = get_logger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
@@ -46,6 +46,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):  # type: ignore[type-arg]
+    """Assign a unique request_id to each incoming request."""
+    request_id = generate_request_id()
+    set_request_id(request_id)
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 
 app.include_router(auth.router)
 app.include_router(alerts.router)
