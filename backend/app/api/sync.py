@@ -3,7 +3,7 @@
 import asyncio
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -296,8 +296,8 @@ async def sync_portfolio(
 @limiter.limit("5/minute")
 async def get_sync_logs(
     request: Request,
-    offset: int = 0,
-    limit: int = 50,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
@@ -306,7 +306,7 @@ async def get_sync_logs(
         .where(SyncLog.user_id == current_user.id)
         .order_by(SyncLog.synced_at.desc())
         .offset(offset)
-        .limit(min(limit, 100))
+        .limit(limit)
     )
     logs = result.scalars().all()
     return [

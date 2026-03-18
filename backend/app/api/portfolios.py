@@ -318,7 +318,7 @@ async def delete_holding(
 async def list_transactions(
     portfolio_id: int,
     offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Transaction]:
