@@ -79,7 +79,7 @@ Each item should be completable in a single commit.
 
 ## Milestone 16-2: 테스트 커버리지 강화
 
-- [ ] core/security.py 테스트 보강 — `revoke_all_refresh_tokens_for_user`, `decode_refresh_token` 엣지케이스, 만료 JWT, 잘못된 타입 검증 (목표: 90%+)
+- [x] core/security.py 테스트 보강 — `revoke_all_refresh_tokens_for_user`, `decode_refresh_token` 엣지케이스, 만료 JWT, 잘못된 타입 검증 (목표: 90%+)
 - [ ] services/kis_price.py KIS API 모킹 테스트 — httpx 응답 모킹으로 정상/429/401/timeout/빈 응답 시나리오 (목표: 85%+)
 - [ ] services/kis_account.py 테스트 보강 — KIS 계정 CRUD 및 잔고 동기화 로직 단위 테스트 (목표: 85%+)
 - [ ] 보안 테스트 — IDOR 시도(타 사용자 리소스 접근), 만료 JWT 거부, 소진 JTI 거부, rate limit 429 검증
