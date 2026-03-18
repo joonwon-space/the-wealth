@@ -74,3 +74,21 @@ Each item should be completable in a single commit.
 - [x] Error Boundary 추가 — 대시보드/분석/포트폴리오 페이지에 React Error Boundary + fallback UI (에러 메시지 + Retry 버튼)
 - [x] 번들 최적화 — lightweight-charts와 Recharts를 next/dynamic으로 동적 import 전환, @next/bundle-analyzer 설치 및 스크립트 추가
 - [x] Graceful Shutdown — FastAPI lifespan shutdown에 SSE 연결 종료 이벤트 + APScheduler.shutdown(wait=True) + docker-compose.yml에 stop_grace_period: 30s 추가
+
+---
+
+## Milestone 16-2: 테스트 커버리지 강화
+
+- [ ] core/security.py 테스트 보강 — `revoke_all_refresh_tokens_for_user`, `decode_refresh_token` 엣지케이스, 만료 JWT, 잘못된 타입 검증 (목표: 90%+)
+- [ ] services/kis_price.py KIS API 모킹 테스트 — httpx 응답 모킹으로 정상/429/401/timeout/빈 응답 시나리오 (목표: 85%+)
+- [ ] services/kis_account.py 테스트 보강 — KIS 계정 CRUD 및 잔고 동기화 로직 단위 테스트 (목표: 85%+)
+- [ ] 보안 테스트 — IDOR 시도(타 사용자 리소스 접근), 만료 JWT 거부, 소진 JTI 거부, rate limit 429 검증
+
+## Milestone 12-5: API 품질 개선
+
+- [ ] 표준화된 에러 응답 포맷 — `{"error": {"code": "...", "message": "...", "request_id": "..."}}` 형식으로 FastAPI exception handler 통일
+- [ ] API 버전관리 — 모든 APIRouter에 `/api/v1` prefix 추가, 프론트엔드 Axios baseURL 업데이트
+
+## Milestone 16-3: 코드 품질 도구
+
+- [ ] Husky + lint-staged — `frontend/` 에 설치, 커밋 전 `eslint --fix` + `tsc --noEmit` 자동 실행
