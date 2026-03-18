@@ -51,9 +51,9 @@ Each item should be completable in a single commit.
 
 ## Milestone 15-4: 데이터 내보내기
 
-- [ ] `GET /portfolios/{id}/export/csv` 백엔드 엔드포인트 — 보유 종목 + 거래 내역 CSV 스트리밍 응답
+- [x] `GET /portfolios/{id}/export/csv` 백엔드 엔드포인트 — 보유 종목 + 거래 내역 CSV 스트리밍 응답
 - [ ] 포트폴리오 페이지에 "CSV 내보내기" 버튼 추가 — 클릭 시 파일 다운로드 트리거
-- [ ] `GET /portfolios/{id}/transactions/export/csv` — 거래 내역 전용 CSV 내보내기 엔드포인트
+- [x] `GET /portfolios/{id}/transactions/export/csv` — 거래 내역 전용 CSV 내보내기 엔드포인트
 
 ## Milestone 14-3: CI/CD 추가
 
