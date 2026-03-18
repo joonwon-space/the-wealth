@@ -87,7 +87,10 @@ async def export_transactions_csv(
 
     result = await db.execute(
         select(Transaction)
-        .where(Transaction.portfolio_id == portfolio_id)
+        .where(
+            Transaction.portfolio_id == portfolio_id,
+            Transaction.deleted_at.is_(None),
+        )
         .order_by(Transaction.traded_at.desc())
     )
     transactions = list(result.scalars().all())

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -331,7 +332,10 @@ async def list_transactions(
 
     result = await db.execute(
         select(Transaction)
-        .where(Transaction.portfolio_id == portfolio_id)
+        .where(
+            Transaction.portfolio_id == portfolio_id,
+            Transaction.deleted_at.is_(None),
+        )
         .order_by(Transaction.traded_at.desc())
         .offset(offset)
         .limit(limit)
@@ -379,7 +383,7 @@ async def delete_transaction(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     txn = await db.get(Transaction, transaction_id)
-    if not txn:
+    if not txn or txn.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
         )
@@ -389,7 +393,8 @@ async def delete_transaction(
             status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
         )
     _assert_portfolio_owner(portfolio, current_user)
-    await db.delete(txn)
+    # Soft delete: set deleted_at instead of hard delete
+    txn.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
 
