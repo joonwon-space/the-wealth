@@ -57,4 +57,4 @@ Each item should be completable in a single commit.
 
 ## Milestone 14-3: CI/CD 추가
 
-- [ ] `.github/workflows/docker-build.yml` 추가 — PR 시 Docker 이미지 빌드 검증 (push 제외)
+- [x] `.github/workflows/docker-build.yml` 추가 — PR 시 Docker 이미지 빌드 검증 (push 제외)
