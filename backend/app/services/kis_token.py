@@ -7,7 +7,6 @@ KIS tokens are valid for 24 hours.
 """
 
 import hashlib
-import logging
 from datetime import datetime
 from typing import Optional
 
@@ -15,8 +14,9 @@ import httpx
 import redis.asyncio as aioredis
 
 from app.core.config import settings
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _ROTATION_BUFFER_SECONDS = 600  # rotate 10 min before expiry
 _TOKEN_TTL_SECONDS = 86400  # 24 h fallback (KIS spec)

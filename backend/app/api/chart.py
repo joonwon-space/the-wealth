@@ -1,6 +1,5 @@
 """Stock chart data API — KIS daily OHLCV for candlestick charts."""
 
-import logging
 from datetime import date, timedelta
 
 import httpx
@@ -10,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
@@ -17,7 +17,7 @@ from app.models.user import User
 from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/chart", tags=["chart"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.get("/daily")

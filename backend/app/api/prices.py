@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import logging
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional
@@ -21,10 +20,11 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
+from app.core.logging import get_logger
 from app.services.kis_price import fetch_domestic_price
 
 router = APIRouter(prefix="/prices", tags=["prices"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _KST = timezone(timedelta(hours=9))
 _MARKET_OPEN = (9, 0)    # KST 09:00

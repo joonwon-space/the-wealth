@@ -8,15 +8,15 @@ backend/data/mst/ 폴더의 마스터 파일을 파싱하여 Redis에 캐싱 후
 
 import asyncio
 import json
-import logging
 from pathlib import Path
 from typing import TypedDict
 
 import redis.asyncio as aioredis
 
 from app.core.config import settings
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _CACHE_KEY = "mst:stock_list"
 _CACHE_TTL = 86400  # 24h

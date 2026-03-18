@@ -1,7 +1,6 @@
 """투자 성과 지표 API."""
 
 import asyncio
-import logging
 import math
 from decimal import Decimal
 from typing import Optional
@@ -19,13 +18,14 @@ from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
 from app.core.encryption import decrypt
+from app.core.logging import get_logger
 from app.services.kis_price import _cache_price, _get_cached_price
 from app.services.price_snapshot import fetch_domestic_price_detail
 from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _RISK_FREE_RATE = 0.035  # 연 3.5% (국고채 기준)
 

@@ -1,6 +1,5 @@
 """목표가 알림 API."""
 
-import logging
 from decimal import Decimal
 from typing import Literal, Optional
 
@@ -10,12 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.logging import get_logger
 from app.db.session import get_db
 from app.models.alert import Alert
 from app.models.user import User
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AlertCreate(BaseModel):

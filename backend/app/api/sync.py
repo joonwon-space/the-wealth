@@ -1,7 +1,6 @@
 """KIS 계좌 자동 동기화 API."""
 
 import asyncio
-import logging
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
@@ -21,7 +21,7 @@ from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 from app.services.reconciliation import reconcile_holdings
 
 router = APIRouter(prefix="/sync", tags=["sync"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def _fetch_balance_raw(

@@ -5,13 +5,12 @@ KIS 자격증명이 등록된 사용자의 첫 번째 포트폴리오를 1시간
 장 마감(KST 16:10) 후 보유 종목 OHLCV를 price_snapshots에 저장.
 """
 
-import logging
-
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 
 from app.core.encryption import decrypt
+from app.core.logging import get_logger
 from app.db.session import AsyncSessionLocal
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
@@ -23,7 +22,7 @@ from app.services.kis_price import fetch_domestic_daily_ohlcv, fetch_domestic_pr
 from app.services.price_snapshot import OhlcvData, save_ohlcv_snapshots, save_snapshots
 from app.services.reconciliation import reconcile_holdings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 scheduler = AsyncIOScheduler()
 

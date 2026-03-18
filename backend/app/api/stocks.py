@@ -1,6 +1,5 @@
 """종목 검색 엔드포인트 — KIS 마스터 파일 기반 로컬 검색."""
 
-import logging
 from typing import Optional
 
 import httpx
@@ -10,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.holding import Holding
@@ -21,7 +21,7 @@ from app.services.stock_search import search_stocks as _search
 from fastapi import Query
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.get("/search")

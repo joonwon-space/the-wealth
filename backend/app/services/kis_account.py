@@ -1,15 +1,15 @@
 """KIS OpenAPI 계좌 잔고 조회 및 Reconciliation."""
 
-import logging
 from dataclasses import dataclass
 from decimal import Decimal
 
 import httpx
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.services.kis_token import get_kis_access_token
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)

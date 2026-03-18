@@ -2,7 +2,6 @@
 
 import csv
 import io
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -10,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.logging import get_logger
 from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.portfolio import Portfolio
@@ -17,7 +17,7 @@ from app.models.transaction import Transaction
 from app.models.user import User
 
 router = APIRouter(prefix="/portfolios", tags=["portfolio-export"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:

@@ -1,7 +1,6 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 
 import asyncio
-import logging
 from decimal import Decimal
 from typing import Optional
 
@@ -14,6 +13,7 @@ import redis.asyncio as aioredis
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.holding import Holding
@@ -28,7 +28,7 @@ from app.api.alerts import check_triggered_alerts
 from app.services.price_snapshot import get_prev_close
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _ZERO = Decimal("0")
 

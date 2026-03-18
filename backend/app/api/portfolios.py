@@ -1,4 +1,3 @@
-import logging
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,6 +12,7 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.core.logging import get_logger
 from app.services.kis_price import fetch_prices_parallel
 from app.schemas.portfolio import (
     HoldingCreate,
@@ -25,7 +25,7 @@ from app.schemas.portfolio import (
 )
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:

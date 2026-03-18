@@ -6,15 +6,14 @@
 - 수량/평균단가 변경 → UPDATE
 """
 
-import logging
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import get_logger
 from app.models.holding import Holding
 from app.services.kis_account import KisHolding
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def reconcile_holdings(

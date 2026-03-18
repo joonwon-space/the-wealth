@@ -58,4 +58,4 @@ Each item should be completable in a single commit.
 ## Milestone 14-2: 백엔드 구조화 로깅
 
 - [x] `structlog` 도입 — `backend/requirements.txt`에 추가, `backend/app/core/logging.py` 설정, JSON 포맷 + request_id 컨텍스트
-- [ ] 기존 `print()` 및 `logging.basicConfig` 호출을 structlog 로거로 교체 (api/, services/ 전체)
+- [x] 기존 `print()` 및 `logging.basicConfig` 호출을 structlog 로거로 교체 (api/, services/ 전체)

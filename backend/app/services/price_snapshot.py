@@ -1,6 +1,5 @@
 """일별 종가 스냅샷 저장 및 전일 대비 조회 서비스."""
 
-import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -12,10 +11,11 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.models.price_snapshot import PriceSnapshot
 from app.services.kis_token import get_kis_access_token
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
