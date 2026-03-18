@@ -8,6 +8,7 @@ import { usePriceStream } from "@/hooks/usePriceStream";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AllocationDonut } from "@/components/AllocationDonut";
+import { DayChangeBadge } from "@/components/DayChangeBadge";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatRate } from "@/lib/format";
@@ -54,6 +55,8 @@ interface Summary {
   total_pnl_amount: number;
   total_pnl_rate: number;
   total_day_change_rate: number | null;
+  day_change_pct: number | null;
+  day_change_amount: number | null;
   holdings: HoldingRow[];
   allocation: AllocationItem[];
   triggered_alerts: TriggeredAlert[];
@@ -178,6 +181,8 @@ export default function DashboardPage() {
     total_pnl_amount: 0,
     total_pnl_rate: 0,
     total_day_change_rate: null,
+    day_change_pct: null,
+    day_change_amount: null,
     holdings: [],
     allocation: [],
     triggered_alerts: [],
@@ -228,9 +233,13 @@ export default function DashboardPage() {
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">총 자산</p>
                 <p className="mt-1 text-xl font-bold tabular-nums">{formatKRW(s.total_asset)}</p>
-                {s.total_day_change_rate != null && (
-                  <p className="mt-0.5 text-xs">
-                    전일 대비 <PnLBadge value={s.total_day_change_rate} suffix="%" />
+                {(s.day_change_pct != null || s.total_day_change_rate != null) && (
+                  <p className="mt-0.5 text-xs flex items-center gap-1">
+                    <span className="text-muted-foreground">전일 대비</span>
+                    <DayChangeBadge pct={s.day_change_pct ?? s.total_day_change_rate} />
+                    {s.day_change_amount != null && (
+                      <PnLBadge value={s.day_change_amount} />
+                    )}
                   </p>
                 )}
               </CardContent>

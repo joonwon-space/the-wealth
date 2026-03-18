@@ -55,4 +55,4 @@ Each item should be completable in a single commit.
 - [x] 장 마감 후 일별 종가 스냅샷 스케줄러 — APScheduler cron KST 16:10, 보유 종목만, KIS 일별 시세 API 활용
 - [x] `GET /dashboard/summary` 응답에 "전일 대비" 변동률 필드 추가 (price_snapshots 기반 계산)
 - [x] 가격 히스토리 API — `GET /prices/{ticker}/history?from=&to=` 엔드포인트
-- [ ] 대시보드 요약 카드에 "전일 대비" 배지 표시 (▲ +2.3% / ▼ -1.5%, 한국 증시 컬러 적용)
+- [x] 대시보드 요약 카드에 "전일 대비" 배지 표시 (▲ +2.3% / ▼ -1.5%, 한국 증시 컬러 적용)
