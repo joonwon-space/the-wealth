@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Search, Trash2, PackageOpen } from "lucide-react";
+import { Plus, Search, Trash2, PackageOpen, Download } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -144,14 +144,44 @@ export default function PortfolioDetailPage() {
     setDeleteConfirmId(null);
   };
 
+  const downloadCsv = async (path: string, filename: string) => {
+    const response = await api.get<string>(path, { responseType: "blob" });
+    const url = URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">보유 종목</h1>
-        <Button onClick={() => setSearchOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          종목 추가
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsv(`/portfolios/${portfolioId}/export/csv`, `holdings_portfolio_${portfolioId}.csv`)}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            보유 종목 CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsv(`/portfolios/${portfolioId}/transactions/export/csv`, `transactions_portfolio_${portfolioId}.csv`)}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            거래 내역 CSV
+          </Button>
+          <Button onClick={() => setSearchOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            종목 추가
+          </Button>
+        </div>
       </div>
 
       {loading ? (
