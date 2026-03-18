@@ -21,7 +21,8 @@ from app.models.user import User
 from app.core.encryption import decrypt
 from app.services.kis_price import _cache_price, _get_cached_price
 from app.services.price_snapshot import fetch_domestic_price_detail
-from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint
+from app.data.sector_map import get_sector
+from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = logging.getLogger(__name__)
@@ -317,3 +318,47 @@ async def get_portfolio_history(
             history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
 
     return history
+
+
+@router.get("/sector-allocation", response_model=list[SectorAllocation])
+async def get_sector_allocation(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[SectorAllocation]:
+    """보유 종목의 섹터별 자산 배분 반환.
+
+    평균 매입가 기준으로 섹터별 투자 금액 비중을 계산한다.
+    현재가 조회 없이 빠르게 응답한다.
+    """
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
+    portfolio_ids = [p.id for p in port_result.scalars().all()]
+    if not portfolio_ids:
+        return []
+
+    hold_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    )
+    holdings = hold_result.scalars().all()
+    if not holdings:
+        return []
+
+    sector_values: dict[str, float] = {}
+    for h in holdings:
+        sector = get_sector(h.ticker)
+        value = float(h.quantity) * float(h.avg_price)
+        sector_values[sector] = sector_values.get(sector, 0.0) + value
+
+    total = sum(sector_values.values())
+    if total <= 0:
+        return []
+
+    return [
+        SectorAllocation(
+            sector=sector,
+            value=round(value, 0),
+            weight=round(value / total * 100, 1),
+        )
+        for sector, value in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
+    ]

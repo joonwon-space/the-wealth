@@ -141,9 +141,9 @@ Each item should be completable in a single commit.
 
 ## Milestone 11-2: 섹터 배분 차트
 
-- [ ] 수동 섹터 매핑 테이블 추가 (`backend/app/data/sector_map.py`) — 주요 종목 50개 섹터 분류 (IT, 금융, 헬스케어 등)
-- [ ] `GET /analytics/sector-allocation` API — 보유 종목의 섹터별 비중 반환
-- [ ] 분석 페이지에 섹터 배분 도넛 차트 추가 (Recharts PieChart)
+- [x] 수동 섹터 매핑 테이블 추가 (`backend/app/data/sector_map.py`) — 주요 종목 50개 섹터 분류 (IT, 금융, 헬스케어 등)
+- [x] `GET /analytics/sector-allocation` API — 보유 종목의 섹터별 비중 반환
+- [x] 분석 페이지에 섹터 배분 도넛 차트 추가 (Recharts PieChart)
 
 ## Milestone 11-3: 워치리스트
 

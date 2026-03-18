@@ -13,6 +13,7 @@ import { CandlestickChart } from "@/components/CandlestickChart";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { MonthlyHeatmap } from "@/components/MonthlyHeatmap";
 import { PortfolioHistoryChart } from "@/components/PortfolioHistoryChart";
+import { SectorAllocationChart } from "@/components/SectorAllocationChart";
 
 const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
@@ -72,6 +73,12 @@ interface HistoryPoint {
   value: number;
 }
 
+interface SectorAllocationItem {
+  sector: string;
+  value: number;
+  weight: number;
+}
+
 export default function AnalyticsPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +86,7 @@ export default function AnalyticsPage() {
   const [monthlyReturns, setMonthlyReturns] = useState<MonthlyReturnItem[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<HistoryPoint[]>([]);
   const [historyPeriod, setHistoryPeriod] = useState<"1M" | "3M" | "6M" | "1Y" | "ALL">("3M");
+  const [sectorAllocation, setSectorAllocation] = useState<SectorAllocationItem[]>([]);
 
   // Chart state
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -95,11 +103,13 @@ export default function AnalyticsPage() {
       api.get<Metrics>("/analytics/metrics"),
       api.get<MonthlyReturnItem[]>("/analytics/monthly-returns"),
       api.get<HistoryPoint[]>("/analytics/portfolio-history"),
-    ]).then(([summaryRes, metricsRes, monthlyRes, historyRes]) => {
+      api.get<SectorAllocationItem[]>("/analytics/sector-allocation"),
+    ]).then(([summaryRes, metricsRes, monthlyRes, historyRes, sectorRes]) => {
       setSummary(summaryRes.data);
       setMetrics(metricsRes.data);
       setMonthlyReturns(monthlyRes.data);
       setPortfolioHistory(historyRes.data);
+      setSectorAllocation(sectorRes.data);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -159,6 +169,11 @@ export default function AnalyticsPage() {
         <div className="space-y-2">
           <Skeleton className="h-5 w-24" />
           <Skeleton className="h-24 w-full rounded-lg" />
+        </div>
+        {/* Sector chart */}
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-[240px] w-full rounded-lg" />
         </div>
       </div>
     );
@@ -222,6 +237,18 @@ export default function AnalyticsPage() {
         <h2 className="text-base font-semibold">월별 수익률</h2>
         <MonthlyHeatmap data={monthlyReturns} />
       </section>
+
+      {/* 섹터 배분 */}
+      {sectorAllocation.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">섹터 배분</h2>
+          <Card>
+            <CardContent className="p-4">
+              <SectorAllocationChart data={sectorAllocation} />
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Stock Chart */}
       <section className="space-y-3">
