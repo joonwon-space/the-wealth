@@ -119,3 +119,34 @@ Each item should be completable in a single commit.
 - [x] `.claude/commands/visual-qa.md` 생성 — 스크린샷 → 이슈 탐지 → 수정 제안 워크플로우
 - [x] `.claude/commands/fix-ui.md` 생성 — UI 문제 수정 커맨드 (스크린샷 → 분석 → 수정 → 재검증)
 - [x] `.claude/commands/e2e-check.md` 생성 — 핵심 사용자 플로우 자동 검증 커맨드
+
+## Milestone 16-1: Claude Code 에이전트 확장
+
+- [ ] `.claude/agents/visual-qa.md` 생성 — Playwright MCP 기반 자동 UI 검사 에이전트 (뷰포트별 스크린샷 → 이슈 탐지)
+- [ ] `.claude/agents/e2e-runner.md` 생성 — Playwright MCP 기반 실제 브라우저 E2E 테스트 에이전트
+- [ ] `.claude/agents/perf-analyzer.md` 생성 — 번들 사이즈 분석 + Lighthouse 점수 체크 에이전트
+- [ ] `.claude/agents/migration-reviewer.md` 생성 — Alembic 마이그레이션 안전성 검증 에이전트
+
+## Milestone 16-2: Playwright E2E 테스트 셋업
+
+- [ ] frontend에 `@playwright/test` 설치 + `playwright.config.ts` 설정 (baseURL: localhost:3000)
+- [ ] E2E 테스트 파일 생성 — 로그인 플로우 (`e2e/auth.spec.ts`)
+- [ ] E2E 테스트 파일 생성 — 대시보드 + 포트폴리오 플로우 (`e2e/dashboard.spec.ts`)
+- [ ] GitHub Actions E2E 워크플로우 추가 (`.github/workflows/e2e.yml`) — PR 시 실행
+
+## Milestone 16-3: openapi-typescript 타입 자동 생성
+
+- [ ] `openapi-typescript` 패키지 설치 + `frontend/src/types/api.ts` 자동 생성 스크립트 (`package.json` `generate:types` 스크립트)
+- [ ] 자동 생성된 타입으로 기존 `src/types/` 수동 타입 교체 (dashboard, portfolio, analytics 스키마)
+
+## Milestone 11-2: 섹터 배분 차트
+
+- [ ] 수동 섹터 매핑 테이블 추가 (`backend/app/data/sector_map.py`) — 주요 종목 50개 섹터 분류 (IT, 금융, 헬스케어 등)
+- [ ] `GET /analytics/sector-allocation` API — 보유 종목의 섹터별 비중 반환
+- [ ] 분석 페이지에 섹터 배분 도넛 차트 추가 (Recharts PieChart)
+
+## Milestone 11-3: 워치리스트
+
+- [ ] `watchlist` SQLAlchemy 모델 + Alembic 마이그레이션 (user_id, ticker, name, market)
+- [ ] `POST /watchlist` + `GET /watchlist` + `DELETE /watchlist/{id}` API
+- [ ] 대시보드에 워치리스트 섹션 추가 — 관심 종목 현재가 표시 (SSE 스트림 활용)
