@@ -54,7 +54,7 @@ Each item should be completable in a single commit.
 ## Test Coverage Improvement (71% -> 80%)
 
 - [x] `api/chart.py` router tests -- currently 25% coverage, add tests for daily chart data endpoint with KIS API mocking
-- [ ] `api/sync.py` router tests -- currently 29% coverage, add tests for balance sync, portfolio sync, sync logs endpoints
+- [x] `api/sync.py` router tests -- currently 29% coverage, add tests for balance sync, portfolio sync, sync logs endpoints
 - [ ] `api/portfolios.py` router tests -- currently 36% coverage, add tests for holdings CRUD, transactions CRUD, KIS account linking
 - [ ] `api/prices.py` router tests -- currently 38% coverage, add tests for price history and SSE stream endpoints
 - [ ] `api/stocks.py` router tests -- currently 38% coverage, add tests for stock search and detail endpoints
