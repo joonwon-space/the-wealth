@@ -148,10 +148,10 @@ npx vitest run                                # 테스트
 
 ## 문서
 
-- [프로젝트 개요](docs/project_overview.md) — 기능 명세, 페이지 구조
-- [프로젝트 분석](docs/project_analysis.md) — 아키텍처 분석, DB 스키마
-- [인프라](docs/infrastructure.md) — 배포, Docker, CI/CD, 보안
-- [비용 관리](docs/cost_management.md) — KIS API 최적화, Redis 캐싱 전략
+- [프로젝트 개요](docs/architecture/overview.md) — 기능 명세, 페이지 구조
+- [프로젝트 분석](docs/architecture/analysis.md) — 아키텍처 분석, DB 스키마
+- [인프라](docs/architecture/infrastructure.md) — 배포, Docker, CI/CD, 보안
+- [비용 관리](docs/reviews/cost_management.md) — KIS API 최적화, Redis 캐싱 전략
 
 ## 라이선스
 

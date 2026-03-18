@@ -241,17 +241,20 @@ async def fetch_usd_krw_rate(
         )
         resp.raise_for_status()
         output = resp.json().get("output", {})
-        rate_str = output.get("base_exchange_rate") or output.get("rate", "")
+        rate_str = output.get("base_exchange_rate", "")
         if rate_str and rate_str != "0":
             rate = Decimal(rate_str)
-            try:
-                async with aioredis.from_url(
-                    settings.REDIS_URL, decode_responses=True
-                ) as r:
-                    await r.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, str(rate))
-            except Exception as cache_err:
-                logger.debug("Failed to cache FX rate: %s", cache_err)
-            return rate
+            # sanity check: USD/KRW 환율은 100 이상이어야 함
+            # rate(전일대비율) 필드 오염 방지 (e.g. -1.50 → 잘못된 환율)
+            if rate > 100:
+                try:
+                    async with aioredis.from_url(
+                        settings.REDIS_URL, decode_responses=True
+                    ) as r:
+                        await r.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, str(rate))
+                except Exception as cache_err:
+                    logger.debug("Failed to cache FX rate: %s", cache_err)
+                return rate
     except Exception as e:
         logger.warning("Failed to fetch USD/KRW rate via KIS API: %s", e)
 
