@@ -230,7 +230,7 @@ class TestTransactionsCSVExport:
         """total column should equal quantity * price."""
         token = await _register_and_get_token(client, "csv_t_total@example.com")
         pid = await _create_portfolio(client, token)
-        await _add_transaction(client, token, pid, "005930", "buy", 10, 70000)
+        await _add_transaction(client, token, pid, "005930", "BUY", 10, 70000)
 
         resp = await client.get(
             f"/portfolios/{pid}/transactions/export/csv", headers=_auth_headers(token)
