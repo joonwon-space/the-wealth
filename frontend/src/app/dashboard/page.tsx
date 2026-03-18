@@ -26,11 +26,13 @@ interface HoldingRow {
   avg_price: number;
   current_price: number | null;
   market_value: number | null;
+  market_value_krw: number | null;
   pnl_amount: number | null;
   pnl_rate: number | null;
   day_change_rate: number | null;
   w52_high: number | null;
   w52_low: number | null;
+  currency: "KRW" | "USD";
 }
 
 interface AllocationItem {
@@ -74,17 +76,25 @@ export default function DashboardPage() {
   const handleStreamPrices = useCallback((prices: Record<string, string>) => {
     setSummary((prev) => {
       if (!prev) return prev;
+      // SSE에서 환율을 모를 경우 기존 계산을 유지 (국내주식만 업데이트)
       const updatedHoldings = prev.holdings.map((h) => {
         const newPrice = prices[h.ticker];
         if (!newPrice) return h;
         const current_price = Number(newPrice);
+        if (h.currency === "USD") {
+          // 해외주식: 현재가만 업데이트 (PnL은 서버에서 원화 환산 필요)
+          return { ...h, current_price };
+        }
         const market_value = h.quantity * current_price;
         const invested = h.quantity * h.avg_price;
         const pnl_amount = market_value - invested;
         const pnl_rate = invested ? (pnl_amount / invested) * 100 : null;
-        return { ...h, current_price, market_value, pnl_amount, pnl_rate };
+        return { ...h, current_price, market_value, market_value_krw: market_value, pnl_amount, pnl_rate };
       });
-      const total_asset = updatedHoldings.reduce((sum, h) => sum + (h.market_value ?? h.quantity * h.avg_price), 0);
+      const total_asset = updatedHoldings.reduce(
+        (sum, h) => sum + (h.market_value_krw ?? h.quantity * h.avg_price),
+        0
+      );
       const total_pnl_amount = total_asset - prev.total_invested;
       const total_pnl_rate = prev.total_invested ? (total_pnl_amount / prev.total_invested) * 100 : 0;
       return { ...prev, holdings: updatedHoldings, total_asset, total_pnl_amount, total_pnl_rate };

@@ -12,7 +12,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { PnLBadge } from "@/components/PnLBadge";
-import { formatKRW, formatNumber } from "@/lib/format";
+import { formatKRW, formatPrice, formatNumber } from "@/lib/format";
 
 interface HoldingRow {
   id: number;
@@ -27,6 +27,7 @@ interface HoldingRow {
   day_change_rate: number | string | null;
   w52_high: number | string | null;
   w52_low: number | string | null;
+  currency?: string;
 }
 
 interface Props {
@@ -40,7 +41,14 @@ const columns: ColumnDef<HoldingRow>[] = [
     cell: ({ row }) => (
       <Link href={`/dashboard/stocks/${row.original.ticker}`} className="hover:underline">
         <div className="font-medium">{row.original.name}</div>
-        <div className="text-xs text-muted-foreground">{row.original.ticker}</div>
+        <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <span>{row.original.ticker}</span>
+          {row.original.currency === "USD" && (
+            <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+              해외
+            </span>
+          )}
+        </div>
       </Link>
     ),
   },
@@ -52,27 +60,39 @@ const columns: ColumnDef<HoldingRow>[] = [
   {
     accessorKey: "avg_price",
     header: "평균단가",
-    cell: ({ getValue }) => <span className="tabular-nums">{formatKRW(getValue() as number)}</span>,
+    cell: ({ row }) => (
+      <span className="tabular-nums">
+        {formatPrice(row.original.avg_price, (row.original.currency as "KRW" | "USD") || "KRW")}
+      </span>
+    ),
   },
   {
     accessorKey: "current_price",
     header: "현재가",
-    cell: ({ getValue }) => {
-      const v = getValue() as number | null;
-      return <span className="tabular-nums">{formatKRW(v)}</span>;
+    cell: ({ row }) => {
+      const v = row.original.current_price as number | null;
+      return (
+        <span className="tabular-nums">
+          {formatPrice(v, (row.original.currency as "KRW" | "USD") || "KRW")}
+        </span>
+      );
     },
   },
   {
     accessorKey: "market_value",
     header: "평가금액",
-    cell: ({ getValue }) => {
-      const v = getValue() as number | null;
-      return <span className="tabular-nums">{formatKRW(v)}</span>;
+    cell: ({ row }) => {
+      const v = row.original.market_value as number | null;
+      return (
+        <span className="tabular-nums">
+          {formatPrice(v, (row.original.currency as "KRW" | "USD") || "KRW")}
+        </span>
+      );
     },
   },
   {
     accessorKey: "pnl_amount",
-    header: "수익금",
+    header: "수익금(₩)",
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
       return v != null ? <PnLBadge value={v} /> : <span className="text-muted-foreground">—</span>;
@@ -99,6 +119,9 @@ const columns: ColumnDef<HoldingRow>[] = [
     header: "52주 범위",
     enableSorting: false,
     cell: ({ row }) => {
+      if (row.original.currency === "USD") {
+        return <span className="text-muted-foreground">—</span>;
+      }
       const high = Number(row.original.w52_high);
       const low = Number(row.original.w52_low);
       const cur = Number(row.original.current_price);
@@ -137,12 +160,20 @@ export function HoldingsTable({ holdings }: Props) {
       <div className="space-y-3 md:hidden">
         {table.getRowModel().rows.map((row) => {
           const h = row.original;
+          const currency = (h.currency as "KRW" | "USD") || "KRW";
           return (
             <div key={row.id} className="rounded-lg border p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <Link href={`/dashboard/stocks/${h.ticker}`} className="hover:underline">
                   <div className="font-medium text-sm">{h.name}</div>
-                  <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span>{h.ticker}</span>
+                    {currency === "USD" && (
+                      <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                        해외
+                      </span>
+                    )}
+                  </div>
                 </Link>
                 <div className="text-right space-y-0.5">
                   {h.pnl_rate != null ? <PnLBadge value={h.pnl_rate} suffix="%" /> : <span className="text-xs text-muted-foreground">—</span>}
@@ -160,20 +191,20 @@ export function HoldingsTable({ holdings }: Props) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">현재가</span>
-                  <span className="tabular-nums">{formatKRW(h.current_price)}</span>
+                  <span className="tabular-nums">{formatPrice(h.current_price, currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">평균단가</span>
-                  <span className="tabular-nums">{formatKRW(h.avg_price)}</span>
+                  <span className="tabular-nums">{formatPrice(h.avg_price, currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">평가금액</span>
-                  <span className="tabular-nums">{formatKRW(h.market_value)}</span>
+                  <span className="tabular-nums">{formatPrice(h.market_value, currency)}</span>
                 </div>
               </div>
               {h.pnl_amount != null && (
                 <div className="flex justify-between text-xs border-t pt-2">
-                  <span className="text-muted-foreground">수익금</span>
+                  <span className="text-muted-foreground">수익금(₩)</span>
                   <PnLBadge value={h.pnl_amount} />
                 </div>
               )}
