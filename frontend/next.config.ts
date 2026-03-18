@@ -33,7 +33,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'", // inline styles used by Tailwind + shadcn
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      "connect-src 'self' http://localhost:8000 https://localhost:8000",
+      "connect-src 'self' http://localhost:8000 https://localhost:8000 https://api.joonwon.dev",
       "frame-ancestors 'none'",
     ].join("; "),
   },
