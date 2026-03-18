@@ -55,7 +55,7 @@ async def _add_transaction(
     token: str,
     portfolio_id: int,
     ticker: str = "005930",
-    txn_type: str = "buy",
+    txn_type: str = "BUY",
     quantity: int = 10,
     price: int = 70000,
 ) -> int:
@@ -214,8 +214,8 @@ class TestTransactionsCSVExport:
     async def test_transactions_csv_contains_data(self, client: AsyncClient) -> None:
         token = await _register_and_get_token(client, "csv_t_data@example.com")
         pid = await _create_portfolio(client, token)
-        await _add_transaction(client, token, pid, "005930", "buy", 10, 70000)
-        await _add_transaction(client, token, pid, "000660", "sell", 5, 120000)
+        await _add_transaction(client, token, pid, "005930", "BUY", 10, 70000)
+        await _add_transaction(client, token, pid, "000660", "SELL", 5, 120000)
 
         resp = await client.get(
             f"/portfolios/{pid}/transactions/export/csv", headers=_auth_headers(token)
