@@ -3,12 +3,13 @@
 import asyncio
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.db.session import get_db
@@ -126,7 +127,9 @@ async def _ensure_portfolio_for_account(
 
 
 @router.post("/balance")
+@limiter.limit("5/minute")
 async def get_account_balance(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -225,8 +228,10 @@ async def get_account_balance(
 
 
 @router.post("/{portfolio_id}")
+@limiter.limit("5/minute")
 async def sync_portfolio(
     portfolio_id: int,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -288,7 +293,9 @@ async def sync_portfolio(
 
 
 @router.get("/logs")
+@limiter.limit("5/minute")
 async def get_sync_logs(
+    request: Request,
     offset: int = 0,
     limit: int = 50,
     current_user: User = Depends(get_current_user),

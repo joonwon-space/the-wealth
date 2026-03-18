@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,7 @@ import redis.asyncio as aioredis
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.db.session import get_db
@@ -46,7 +47,9 @@ def _calc_pnl(
 
 
 @router.get("/summary", response_model=DashboardSummary)
+@limiter.limit("120/minute")
 async def get_summary(
+    request: Request,
     refresh: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

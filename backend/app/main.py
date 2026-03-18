@@ -4,12 +4,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app.api import alerts, analytics, auth, chart, dashboard, portfolio_export, portfolios, prices, stocks, sync, users, watchlist
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logging import configure_logging, generate_request_id, get_logger, set_request_id
 from app.core.middleware import SecurityHeadersMiddleware
 from app.services.scheduler import start_scheduler, stop_scheduler
@@ -17,8 +17,6 @@ from app.services.stock_search import _load_stock_list
 
 configure_logging()
 logger = get_logger(__name__)
-
-limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 
 @asynccontextmanager
