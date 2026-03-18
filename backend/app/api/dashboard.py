@@ -310,9 +310,10 @@ async def get_summary(
             ratio = value_krw / total_asset * 100
             allocation.append(
                 AllocationItem(
-                    ticker=item.ticker, name=item.name, value=value_krw, ratio=ratio
+                    ticker=item.ticker, name=item.name, value=value_krw, ratio=ratio,
                 )
             )
+    allocation.sort(key=lambda x: x.ratio, reverse=True)
 
     # 포트폴리오 전일 대비: 시가총액 가중 평균
     total_day_change_rate: Optional[Decimal] = None
