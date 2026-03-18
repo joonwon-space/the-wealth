@@ -8,6 +8,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.api import alerts, analytics, auth, chart, dashboard, portfolio_export, portfolios, prices, stocks, sync, users, watchlist
+from app.api.prices import signal_sse_shutdown
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import configure_logging, generate_request_id, get_logger, set_request_id
@@ -24,11 +25,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     start_scheduler()
     # Preload KRX + ETF stock list into Redis cache at startup
     try:
-        stocks = await _load_stock_list()
-        logger.info("Preloaded %d stocks into cache at startup", len(stocks))
+        stocks_list = await _load_stock_list()
+        logger.info("Preloaded %d stocks into cache at startup", len(stocks_list))
     except Exception as e:
         logger.warning("Failed to preload stock list: %s", e)
     yield
+    # Graceful shutdown: signal SSE streams to close, then stop scheduler
+    logger.info("Initiating graceful shutdown...")
+    signal_sse_shutdown()
     stop_scheduler()
 
 

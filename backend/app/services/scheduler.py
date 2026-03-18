@@ -177,5 +177,5 @@ def start_scheduler() -> None:
 
 
 def stop_scheduler() -> None:
-    scheduler.shutdown(wait=False)
-    logger.info("[Scheduler] APScheduler stopped")
+    scheduler.shutdown(wait=True)
+    logger.info("[Scheduler] APScheduler stopped (waited for running jobs)")

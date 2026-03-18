@@ -32,6 +32,14 @@ _MARKET_CLOSE = (15, 30)  # KST 15:30
 _SSE_INTERVAL = 30        # seconds
 _SSE_TIMEOUT = 3600       # 1 hour max connection
 
+# Global shutdown event — set during lifespan shutdown to terminate SSE streams
+_shutdown_event: asyncio.Event = asyncio.Event()
+
+
+def signal_sse_shutdown() -> None:
+    """Signal all active SSE connections to close gracefully."""
+    _shutdown_event.set()
+
 
 def _is_market_open() -> bool:
     now = datetime.now(_KST)
@@ -114,10 +122,17 @@ async def stream_prices(
         app_key = decrypt(acct.app_key_enc)
         app_secret = decrypt(acct.app_secret_enc)
 
-        while elapsed < _SSE_TIMEOUT:
+        while elapsed < _SSE_TIMEOUT and not _shutdown_event.is_set():
             if not _is_market_open():
                 yield f"data: {json.dumps({'market_open': False})}\n\n"
-                await asyncio.sleep(_SSE_INTERVAL)
+                # Wait for interval or shutdown, whichever comes first
+                try:
+                    await asyncio.wait_for(
+                        _shutdown_event.wait(), timeout=_SSE_INTERVAL
+                    )
+                    break  # Shutdown signaled
+                except asyncio.TimeoutError:
+                    pass
                 elapsed += _SSE_INTERVAL
                 continue
 
@@ -148,8 +163,15 @@ async def stream_prices(
                 logger.warning("SSE price fetch error: %s", e)
                 yield f"data: {json.dumps({'error': 'fetch_failed'})}\n\n"
 
-            await asyncio.sleep(_SSE_INTERVAL)
+            try:
+                await asyncio.wait_for(_shutdown_event.wait(), timeout=_SSE_INTERVAL)
+                break  # Shutdown signaled
+            except asyncio.TimeoutError:
+                pass
             elapsed += _SSE_INTERVAL
+
+        if _shutdown_event.is_set():
+            logger.info("SSE stream closed due to server shutdown")
 
     return StreamingResponse(
         event_generator(),
