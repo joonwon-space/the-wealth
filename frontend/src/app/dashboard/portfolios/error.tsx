@@ -7,6 +7,6 @@ interface Props {
   reset: () => void;
 }
 
-export default function DashboardError({ error, reset }: Props) {
+export default function PortfoliosError({ error, reset }: Props) {
   return <DefaultErrorFallback error={error} reset={reset} />;
 }
