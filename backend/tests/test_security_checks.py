@@ -112,7 +112,6 @@ class TestIDOR:
             headers={"Authorization": f"Bearer {token_b}"},
         )
         assert resp.status_code == 200
-        ids = [p["id"] for p in resp.json()]
 
         # Create one for B to verify B can see their own
         b_port_id = await _create_portfolio(client, token_b, "B-Port")

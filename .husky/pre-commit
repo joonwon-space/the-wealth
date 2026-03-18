@@ -1,3 +1,23 @@
 #!/bin/sh
 # Run lint-staged for frontend TypeScript/JavaScript files
 cd frontend && npx lint-staged
+cd ..
+
+# Run ruff on staged Python files in backend/
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '^backend/.*\.py$')
+if [ -n "$STAGED_PY" ]; then
+  echo "[pre-commit] Running ruff on staged Python files..."
+  VENV="backend/venv"
+  if [ -d "$VENV" ]; then
+    RUFF="$VENV/bin/ruff"
+  else
+    RUFF="ruff"
+  fi
+  echo "$STAGED_PY" | xargs "$RUFF" check --fix
+  if [ $? -ne 0 ]; then
+    echo "[pre-commit] ruff found errors that could not be auto-fixed. Please fix them before committing."
+    exit 1
+  fi
+  # Re-stage auto-fixed files
+  echo "$STAGED_PY" | xargs git add
+fi

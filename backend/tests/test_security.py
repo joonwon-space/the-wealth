@@ -8,7 +8,6 @@ Tests cover:
 - Edge cases: expired tokens, wrong type, missing sub/jti
 """
 
-import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
