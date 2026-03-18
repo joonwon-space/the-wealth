@@ -65,22 +65,31 @@ frontend/src/
 │   ├── register/                 # 회원가입 페이지
 │   └── dashboard/                # 대시보드 (인증 필요)
 │       ├── page.tsx              # 메인 대시보드
+│       ├── error.tsx             # 대시보드 에러 바운더리
+│       ├── layout.tsx            # 대시보드 레이아웃 (사이드바+하단 네비)
 │       ├── analytics/            # 분석 페이지
-│       ├── chart/                # 차트 페이지
-│       ├── alerts/               # 알림 관리
+│       ├── portfolios/           # 포트폴리오 목록/상세
+│       │   ├── page.tsx          # 포트폴리오 목록
+│       │   └── [id]/             # 포트폴리오 상세 (거래내역)
+│       ├── stocks/[ticker]/      # 종목 상세 (캔들스틱 차트)
 │       └── settings/             # 설정
 ├── components/
 │   ├── AllocationDonut.tsx       # 자산 배분 도넛 차트
 │   ├── BottomNav.tsx             # 모바일 하단 네비게이션
 │   ├── CandlestickChart.tsx      # 캔들스틱 차트 (lightweight-charts)
 │   ├── DayChangeBadge.tsx        # 일간 변동률 뱃지 (상승=빨강/하락=파랑)
+│   ├── DynamicCharts.tsx         # 동적 import 차트 래퍼 (번들 최적화)
+│   ├── ErrorBoundary.tsx         # React Error Boundary + fallback UI
 │   ├── HoldingsTable.tsx         # 보유종목 테이블 (TanStack Table)
+│   ├── KeyboardShortcutsDialog.tsx # 키보드 단축키 도움말 (Cmd+?)
 │   ├── MonthlyHeatmap.tsx        # 월별 수익률 히트맵
 │   ├── PnLBadge.tsx              # 수익/손실 뱃지 (상승=빨강/하락=파랑)
 │   ├── PortfolioHistoryChart.tsx  # 포트폴리오 가치 추이
 │   ├── SectorAllocationChart.tsx  # 섹터별 배분 차트
 │   ├── Sidebar.tsx               # 데스크톱 사이드바
 │   ├── StockSearchDialog.tsx     # Cmd+K 종목 검색
+│   ├── ThemeProvider.tsx         # next-themes 테마 프로바이더
+│   ├── TransactionChart.tsx      # 거래내역 차트 (월별 매수/매도)
 │   ├── WatchlistSection.tsx      # 관심종목 섹션
 │   └── ui/                       # shadcn/ui 컴포넌트
 ├── hooks/
@@ -596,7 +605,76 @@ if portfolio.user_id != current_user.id:
 
 ### 5.3 레이트 리미팅
 
-slowapi 기반 IP별 레이트 리미팅: **60 요청/분** (기본값)
+slowapi 기반 IP별 레이트 리미팅:
+
+| 엔드포인트 | 제한 |
+|-----------|------|
+| POST /auth/login | 5/min |
+| POST /auth/register | 3/min |
+| POST /sync/* | 5/min |
+| GET /dashboard/* | 120/min |
+| 기타 | 60/min (기본값) |
+
+---
+
+## 6. 프로젝트 현황 분석 (2026-03-19)
+
+### 6.1 완성도
+
+| 영역 | 상태 | 비고 |
+|------|------|------|
+| 인증 (JWT + HttpOnly Cookie) | 완료 | Refresh token rotation, IDOR 방지 |
+| 포트폴리오 CRUD | 완료 | CSV export, 거래내역 soft delete 포함 |
+| 대시보드 | 완료 | SSE 실시간, 30초 폴링, 자산 배분 도넛 |
+| KIS API 연동 | 완료 | 국내/해외 현재가, OHLCV, 잔고 동기화 |
+| 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리 |
+| 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
+| 관심종목 | 완료 | 마켓별 구분 |
+| 알림 | 완료 | 가격 알림 CRUD (푸시 알림 미구현) |
+| 자동 동기화 | 완료 | APScheduler 1시간 주기 + 일일 스냅샷 |
+| API 버전관리 | 완료 | /api/v1 prefix |
+| 에러 처리 | 완료 | 표준 에러 응답, Error Boundary |
+| 프로덕션 배포 | 미착수 | Vercel + Railway/Fly.io 예정 |
+| 모니터링 | 미착수 | Sentry + 로그 수집 예정 |
+
+### 6.2 테스트 커버리지 (백엔드)
+
+전체: **71%** (425 tests passed)
+
+| 모듈 | 커버리지 | 비고 |
+|------|---------|------|
+| core/ (security, encryption, middleware) | 95-100% | 우수 |
+| models/ | 100% | ORM 모델 |
+| schemas/ | 100% | Pydantic 스키마 |
+| services/ | 93-100% | kis_price, reconciliation, scheduler 등 |
+| api/ routers | 25-81% | chart(25%), sync(29%), portfolios(36%) 등 보강 필요 |
+
+### 6.3 강점
+
+- KIS API 비동기 병렬 호출 + Redis 캐시 폴백으로 안정적 가격 조회
+- HttpOnly Cookie 인증으로 XSS 토큰 탈취 방지
+- AES-256-GCM으로 KIS 자격증명 안전하게 저장
+- 구조화 로깅 (structlog) + request_id 트레이싱
+- 해외주식 원화 환산 (환율 자동 적용)
+- 보유종목 market_value_krw 기준 내림차순 정렬
+
+### 6.4 약점 및 개선 필요 사항
+
+- API router 테스트 커버리지 낮음 (chart 25%, sync 29%, portfolios 36%)
+- 테스트 파일에 ruff lint 오류 10건 (미사용 import/변수)
+- 프로덕션 배포 환경 미구축
+- 모니터링/APM 미도입
+- 알림 전송 채널 미구현 (CRUD만 존재, 실제 푸시/이메일 없음)
+- TanStack Query 미도입 (수동 Axios state 관리)
+
+### 6.5 리스크
+
+| 리스크 | 심각도 | 설명 |
+|--------|--------|------|
+| KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초 제한) |
+| 단일 사용자 환경 | 저 | 현재 다중 사용자 동시 접속 부하 테스트 미실시 |
+| 프로덕션 미배포 | 중 | 실사용 환경에서의 검증 없음 |
+| DB 백업 미구성 | 중 | 프로덕션 데이터 손실 위험 |
 
 ---
 
