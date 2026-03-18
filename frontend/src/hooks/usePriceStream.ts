@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useAuthStore } from "@/store/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -22,15 +23,15 @@ interface Options {
  */
 export function usePriceStream({ onPrices, enabled = true }: Options): void {
   const esRef = useRef<EventSource | null>(null);
+  // Access token from Zustand memory state (set after login, not from localStorage)
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
-
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
+    if (!accessToken) return;
 
     // EventSource는 Authorization 헤더를 지원하지 않으므로 query param으로 토큰 전달
-    const url = `${API_BASE}/prices/stream?token=${encodeURIComponent(token)}`;
+    const url = `${API_BASE}/prices/stream?token=${encodeURIComponent(accessToken)}`;
     const es = new EventSource(url);
     esRef.current = es;
 
@@ -54,5 +55,5 @@ export function usePriceStream({ onPrices, enabled = true }: Options): void {
       es.close();
       esRef.current = null;
     };
-  }, [enabled, onPrices]);
+  }, [enabled, onPrices, accessToken]);
 }

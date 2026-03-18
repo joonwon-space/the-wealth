@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic import BaseModel
 
+from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.security import (
     create_access_token,
@@ -28,6 +29,55 @@ from app.schemas.auth import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Cookie settings
+_ACCESS_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+_REFRESH_MAX_AGE = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
+# Secure flag: off when CORS origins include localhost (local dev via HTTP)
+_SECURE_COOKIE = "localhost" not in settings.CORS_ORIGINS
+
+
+def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    """Set HttpOnly auth cookies on the response.
+
+    Also sets a non-HttpOnly `auth_status=1` flag cookie so the client can
+    detect login state without reading the HttpOnly token.
+    """
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        max_age=_ACCESS_MAX_AGE,
+        httponly=True,
+        secure=_SECURE_COOKIE,
+        samesite="lax",
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        max_age=_REFRESH_MAX_AGE,
+        httponly=True,
+        secure=_SECURE_COOKIE,
+        samesite="lax",
+        path="/",
+    )
+    # Non-HttpOnly flag for client-side auth state detection
+    response.set_cookie(
+        key="auth_status",
+        value="1",
+        max_age=_ACCESS_MAX_AGE,
+        httponly=False,
+        secure=_SECURE_COOKIE,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    """Clear auth cookies on logout."""
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+    response.delete_cookie(key="auth_status", path="/")
+
 
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
@@ -50,7 +100,10 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def login(
-    request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    body: LoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
@@ -59,20 +112,34 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
 
+    access_token = create_access_token(user.id)
     refresh_token, jti = create_refresh_token(user.id)
     await store_refresh_jti(jti, user.id)
 
+    _set_auth_cookies(response, access_token, refresh_token)
+
     return TokenResponse(
-        access_token=create_access_token(user.id),
+        access_token=access_token,
         refresh_token=refresh_token,
     )
 
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(
-    body: RefreshRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    response: Response,
+    body: RefreshRequest,
+    db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    decoded = decode_refresh_token(body.refresh_token)
+    # Accept refresh token from JSON body or HttpOnly cookie
+    token_str = body.refresh_token or request.cookies.get("refresh_token")
+    if not token_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token required",
+        )
+
+    decoded = decode_refresh_token(token_str)
     if decoded is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -95,11 +162,14 @@ async def refresh(
         )
 
     # Issue new refresh token (rotation)
+    new_access_token = create_access_token(user.id)
     new_refresh_token, new_jti = create_refresh_token(user.id)
     await store_refresh_jti(new_jti, user.id)
 
+    _set_auth_cookies(response, new_access_token, new_refresh_token)
+
     return TokenResponse(
-        access_token=create_access_token(user.id),
+        access_token=new_access_token,
         refresh_token=new_refresh_token,
     )
 
@@ -129,3 +199,13 @@ async def change_password(
     current_user.hashed_password = hash_password(body.new_password)
     await db.commit()
     await revoke_all_refresh_tokens_for_user(current_user.id)
+
+
+@router.post("/logout", status_code=204)
+async def logout(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Revoke all refresh tokens and clear auth cookies."""
+    await revoke_all_refresh_tokens_for_user(current_user.id)
+    _clear_auth_cookies(response)

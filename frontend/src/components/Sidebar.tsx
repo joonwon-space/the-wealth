@@ -25,7 +25,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Clear HttpOnly cookies on the backend
+      const { api } = await import("@/lib/api");
+      await api.post("/auth/logout");
+    } catch {
+      // Ignore errors — redirect to login regardless
+    }
     logout();
     router.push("/login");
   };

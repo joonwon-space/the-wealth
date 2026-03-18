@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
@@ -25,7 +27,8 @@ class TokenResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    # refresh_token optional — can come from HttpOnly cookie instead
+    refresh_token: Optional[str] = None
 
 
 class UserResponse(BaseModel):

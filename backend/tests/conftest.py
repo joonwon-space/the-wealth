@@ -18,10 +18,18 @@ TEST_DB_URL = os.environ.get(
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    """Provide an async HTTP client with a fresh test DB."""
+    """Provide an async HTTP client with a fresh test DB and reset rate limits."""
+    from app.core.limiter import limiter
     from app.db.base import Base
     from app.db.session import get_db
     from app.main import app
+
+    # Reset in-memory rate limit counters before each test
+    # This prevents rate limits from one test bleeding into another
+    try:
+        limiter._storage.reset()  # type: ignore[attr-defined]
+    except Exception:
+        pass  # Storage may not support reset; best-effort
 
     engine = create_async_engine(TEST_DB_URL, echo=False)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

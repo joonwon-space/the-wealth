@@ -22,7 +22,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await api.post("/auth/login", { email, password });
-      login(data.access_token, data.refresh_token);
+      // Tokens are set as HttpOnly cookies by the server.
+      // Keep access_token in memory (Zustand) for SSE endpoint usage.
+      login(data.access_token);
       router.push("/dashboard");
     } catch (err: unknown) {
       const msg =
