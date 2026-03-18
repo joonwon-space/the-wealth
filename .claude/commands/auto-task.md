@@ -50,8 +50,8 @@ Repeat until no `[ ]` items remain:
    - Mark completed: `[ ]` → `[x]`
 
 4. **Update related docs** (only if changed, skip if no diff needed):
-   - `docs/analysis/project-overview.md` — API, DB models, pages, services, tech stack changes
-   - `docs/analysis/project-analysis.md` — strengths/weaknesses, risks, completeness changes
+   - `docs/architecture/overview.md` — API, DB models, pages, services, tech stack changes
+   - `docs/architecture/analysis.md` — strengths/weaknesses, risks, completeness changes
    - `docs/plan/todo.md` — check off promoted items, add newly discovered future work
    - `docs/plan/manual-tasks.md` — add user-action items, remove completed ones
 

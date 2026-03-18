@@ -20,8 +20,8 @@ Delegate all work to the `discover-tasks` agent now.
 ### 1. Read analysis docs
 
 Read all of:
-- `docs/analysis/project-overview.md` — current structure, tech stack, API list
-- `docs/analysis/project-analysis.md` — strengths, weaknesses, risks, improvements, bottlenecks
+- `docs/architecture/overview.md` — current structure, tech stack, API list
+- `docs/architecture/analysis.md` — strengths, weaknesses, risks, improvements, bottlenecks
 - `docs/plan/tasks.md` — current task list
 - `docs/plan/todo.md` — future backlog
 - `docs/plan/manual-tasks.md` — manual items
@@ -39,8 +39,8 @@ Investigate actual code state vs docs:
 ### 3. Update analysis docs
 
 Based on research:
-- `docs/analysis/project-overview.md` — reflect new APIs, models, pages, services
-- `docs/analysis/project-analysis.md` — update completeness, strengths/weaknesses, risks. Remove resolved weaknesses, add new risks
+- `docs/architecture/overview.md` — reflect new APIs, models, pages, services
+- `docs/architecture/analysis.md` — update completeness, strengths/weaknesses, risks. Remove resolved weaknesses, add new risks
 
 ### 4. Refresh task lists
 

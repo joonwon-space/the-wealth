@@ -30,8 +30,8 @@ Pick the first incomplete item (`[ ]`) from `docs/plan/tasks.md`, implement it, 
 
 | Doc | When to update |
 |-----|----------------|
-| `docs/analysis/project-overview.md` | API endpoints, DB models, pages, services, tech stack, directory structure changed |
-| `docs/analysis/project-analysis.md` | Strengths/weaknesses, risks, completeness changed |
+| `docs/architecture/overview.md` | API endpoints, DB models, pages, services, tech stack, directory structure changed |
+| `docs/architecture/analysis.md` | Strengths/weaknesses, risks, completeness changed |
 | `docs/plan/todo.md` | Future work discovered during implementation |
 | `docs/plan/manual-tasks.md` | User-action items found; completed items removed |
 
