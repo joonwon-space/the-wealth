@@ -132,7 +132,7 @@ Each item should be completable in a single commit.
 - [x] frontend에 `@playwright/test` 설치 + `playwright.config.ts` 설정 (baseURL: localhost:3000)
 - [x] E2E 테스트 파일 생성 — 로그인 플로우 (`e2e/auth.spec.ts`)
 - [x] E2E 테스트 파일 생성 — 대시보드 + 포트폴리오 플로우 (`e2e/dashboard.spec.ts`)
-- [ ] GitHub Actions E2E 워크플로우 추가 (`.github/workflows/e2e.yml`) — PR 시 실행
+- [x] GitHub Actions E2E 워크플로우 추가 (`.github/workflows/e2e.yml`) — PR 시 실행
 
 ## Milestone 16-3: openapi-typescript 타입 자동 생성
 
