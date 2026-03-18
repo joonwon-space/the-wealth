@@ -72,5 +72,5 @@ Each item should be completable in a single commit.
 - [x] transactions soft delete — `deleted_at` nullable DateTime 컬럼 추가 Alembic 마이그레이션 + DELETE API → SET deleted_at + 조회 쿼리 WHERE deleted_at IS NULL
 - [x] HttpOnly cookie 인증 마이그레이션 — 백엔드 Set-Cookie (HttpOnly+Secure+SameSite=Lax), 프론트엔드 withCredentials:true + localStorage 토큰 저장 제거
 - [x] Error Boundary 추가 — 대시보드/분석/포트폴리오 페이지에 React Error Boundary + fallback UI (에러 메시지 + Retry 버튼)
-- [ ] 번들 최적화 — lightweight-charts와 Recharts를 next/dynamic으로 동적 import 전환, @next/bundle-analyzer 설치 및 스크립트 추가
+- [x] 번들 최적화 — lightweight-charts와 Recharts를 next/dynamic으로 동적 import 전환, @next/bundle-analyzer 설치 및 스크립트 추가
 - [ ] Graceful Shutdown — FastAPI lifespan shutdown에 SSE 연결 종료 이벤트 + APScheduler.shutdown(wait=True) + docker-compose.yml에 stop_grace_period: 30s 추가

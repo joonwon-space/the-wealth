@@ -8,12 +8,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PnLBadge } from "@/components/PnLBadge";
-import { AllocationDonut } from "@/components/AllocationDonut";
-import { CandlestickChart } from "@/components/CandlestickChart";
+import {
+  AllocationDonut,
+  CandlestickChart,
+  PortfolioHistoryChart,
+  SectorAllocationChart,
+} from "@/components/DynamicCharts";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { MonthlyHeatmap } from "@/components/MonthlyHeatmap";
-import { PortfolioHistoryChart } from "@/components/PortfolioHistoryChart";
-import { SectorAllocationChart } from "@/components/SectorAllocationChart";
 
 const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;

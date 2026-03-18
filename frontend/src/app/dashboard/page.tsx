@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AllocationDonut } from "@/components/AllocationDonut";
+import { AllocationDonut } from "@/components/DynamicCharts";
 import { DayChangeBadge } from "@/components/DayChangeBadge";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";

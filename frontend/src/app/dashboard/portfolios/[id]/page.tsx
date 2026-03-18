@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
-import { TransactionChart } from "@/components/TransactionChart";
+import { TransactionChart } from "@/components/DynamicCharts";
 
 interface TxnRow {
   id: number;

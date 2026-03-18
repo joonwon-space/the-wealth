@@ -9,7 +9,7 @@ import { formatKRW, formatRate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PnLBadge } from "@/components/PnLBadge";
-import { CandlestickChart } from "@/components/CandlestickChart";
+import { CandlestickChart } from "@/components/DynamicCharts";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
 
