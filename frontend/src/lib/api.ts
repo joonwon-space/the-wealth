@@ -1,7 +1,8 @@
 import axios from "axios";
 import { toast } from "sonner";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = `${API_HOST}/api/v1`;
 
 export const api = axios.create({
   baseURL: API_BASE,
@@ -11,6 +12,19 @@ export const api = axios.create({
 });
 
 const AUTH_ENDPOINTS = ["/auth/login", "/auth/register", "/auth/refresh"];
+
+/** Extract a human-readable error message from standardized error envelope or legacy format. */
+function extractErrorMessage(data: unknown, fallback: string): string {
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    if (d.error && typeof d.error === "object") {
+      const err = d.error as Record<string, unknown>;
+      if (typeof err.message === "string") return err.message;
+    }
+    if (typeof d.detail === "string") return d.detail;
+  }
+  return fallback;
+}
 
 // Auto-refresh on 401 (skip for auth endpoints to let callers handle errors)
 api.interceptors.response.use(
@@ -37,8 +51,10 @@ api.interceptors.response.use(
     }
     // Show toast for non-401 errors (auth endpoint 401s are handled by callers)
     if (error.response?.status !== 401) {
-      const detail =
-        error.response?.data?.detail ?? error.message ?? "요청에 실패했습니다";
+      const detail = extractErrorMessage(
+        error.response?.data,
+        error.message ?? "요청에 실패했습니다"
+      );
       toast.error(detail);
     }
     return Promise.reject(error);

@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -62,18 +62,28 @@ async def request_id_middleware(request: Request, call_next):  # type: ignore[ty
     return response
 
 
-app.include_router(auth.router)
-app.include_router(alerts.router)
-app.include_router(portfolios.router)
-app.include_router(portfolio_export.router)
-app.include_router(stocks.router)
-app.include_router(dashboard.router)
-app.include_router(users.router)
-app.include_router(sync.router)
-app.include_router(chart.router)
-app.include_router(prices.router)
-app.include_router(analytics.router)
-app.include_router(watchlist.router)
+v1_router = APIRouter(prefix="/api/v1")
+v1_router.include_router(auth.router)
+v1_router.include_router(alerts.router)
+v1_router.include_router(portfolios.router)
+v1_router.include_router(portfolio_export.router)
+v1_router.include_router(stocks.router)
+v1_router.include_router(dashboard.router)
+v1_router.include_router(users.router)
+v1_router.include_router(sync.router)
+v1_router.include_router(chart.router)
+v1_router.include_router(prices.router)
+v1_router.include_router(analytics.router)
+v1_router.include_router(watchlist.router)
+
+
+@v1_router.get("/health")
+async def health_check_v1() -> dict:
+    """Health check under /api/v1/health for tests using versioned base URL."""
+    return {"status": "ok"}
+
+
+app.include_router(v1_router)
 
 
 def _error_body(code: str, message: str) -> dict:

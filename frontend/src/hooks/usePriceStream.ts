@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = `${API_HOST}/api/v1`;
 
 interface PriceStreamEvent {
   market_open?: boolean;
