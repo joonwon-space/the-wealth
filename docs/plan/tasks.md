@@ -59,3 +59,18 @@ Each item should be completable in a single commit.
 
 - [x] `structlog` 도입 — `backend/requirements.txt`에 추가, `backend/app/core/logging.py` 설정, JSON 포맷 + request_id 컨텍스트
 - [x] 기존 `print()` 및 `logging.basicConfig` 호출을 structlog 로거로 교체 (api/, services/ 전체)
+
+---
+
+## Short-term 개선 (아키텍처 리뷰 기반)
+
+- [ ] DB 인덱스 추가 — Alembic 마이그레이션: portfolios.user_id, holdings.portfolio_id, transactions(portfolio_id+traded_at DESC), price_snapshots(ticker+snapshot_date DESC), sync_logs(user_id+synced_at DESC), watchlist.user_id, alerts(user_id+is_active) partial index
+- [ ] users 테이블 레거시 컬럼 정리 — 코드에서 legacy 컬럼 참조 제거 후 Alembic DROP COLUMN 마이그레이션 (kis_app_key_enc, kis_app_secret_enc, kis_account_no, kis_acnt_prdt_cd)
+- [ ] 엔드포인트별 Rate Limit 세분화 — slowapi decorator로 /auth/login 5/min, /auth/register 3/min, /sync/* 5/min, /dashboard/* 120/min 개별 설정
+- [ ] ticker 정규식 검증 추가 — HoldingCreate, TransactionCreate, WatchlistCreate 스키마에 field_validator 추가 (국내: `^[0-9]{6}$`, 해외: `^[A-Z]{1,5}$`)
+- [ ] pagination max limit 캡 — transactions list, sync_logs list 엔드포인트에 최대 limit=100 제한
+- [ ] transactions soft delete — `deleted_at` nullable DateTime 컬럼 추가 Alembic 마이그레이션 + DELETE API → SET deleted_at + 조회 쿼리 WHERE deleted_at IS NULL
+- [ ] HttpOnly cookie 인증 마이그레이션 — 백엔드 Set-Cookie (HttpOnly+Secure+SameSite=Lax), 프론트엔드 withCredentials:true + localStorage 토큰 저장 제거
+- [ ] Error Boundary 추가 — 대시보드/분석/포트폴리오 페이지에 React Error Boundary + fallback UI (에러 메시지 + Retry 버튼)
+- [ ] 번들 최적화 — lightweight-charts와 Recharts를 next/dynamic으로 동적 import 전환, @next/bundle-analyzer 설치 및 스크립트 추가
+- [ ] Graceful Shutdown — FastAPI lifespan shutdown에 SSE 연결 종료 이벤트 + APScheduler.shutdown(wait=True) + docker-compose.yml에 stop_grace_period: 30s 추가

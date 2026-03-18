@@ -146,6 +146,9 @@
 - [x] 키보드 단축키 도움말 모달 (Cmd+? 로 열기)
 - [ ] 알림 센터 — 인앱 알림 드롭다운 (목표가 도달, 동기화 결과, 에러)
 - [ ] 온보딩 투어 — 첫 로그인 시 주요 기능 안내 (react-joyride)
+- [ ] Error Boundary 추가 (리뷰 6.1) — 페이지 레벨 React Error Boundary + fallback UI ("Retry" 버튼)
+- [ ] TanStack Query 도입 (리뷰 6.2) — Axios 수동 state 관리 대체, refetchInterval로 30초 폴링 통합
+- [ ] 번들 최적화 (리뷰 6.3) — lightweight-charts/Recharts dynamic import (next/dynamic), @next/bundle-analyzer
 
 ---
 
@@ -170,6 +173,10 @@
   - Zustand 미들웨어로 실시간 가격 상태 관리
   - 연결 끊김 자동 재연결 (exponential backoff)
   - 시장 개장 시간에만 활성화
+- [ ] SSE 연결 관리 강화 (리뷰 2.3)
+  - 사용자당 최대 SSE 연결 수 제한 (예: 3개)
+  - 서버→클라이언트 heartbeat (15s 간격) + 무응답 시 연결 종료
+  - 서버 측 최대 연결 유지 시간 설정 (예: 2시간)
 
 ### 12-3. 성능 최적화
 - [ ] 종목 검색 trie 구조 구현 or Redis ZRANGEBYLEX 인덱싱
@@ -195,9 +202,12 @@
 
 ### 12-5. API 확장
 - [ ] GraphQL 레이어 추가 (Strawberry) — 프론트엔드 데이터 요청 최적화
-- [ ] API 버전관리 (`/api/v1/`, `/api/v2/`)
+- [ ] API 버전관리 (`/api/v1/`) — FastAPI APIRouter에 prefix="/api/v1" 추가 (리뷰 5.1)
 - [x] OpenAPI 스키마 자동 생성 → 프론트엔드 타입 자동 생성 (openapi-typescript)
 - [ ] Webhook 지원 — 외부 서비스 연동 (Slack, Discord, Zapier)
+- [ ] 표준화된 에러 응답 포맷 (리뷰 5.2) — error.code + message + details + request_id 포함
+- [ ] Cursor 기반 페이지네이션 (리뷰 5.3) — transactions, sync_logs 등
+- [ ] 벌크 오퍼레이션 API (리뷰 5.4) — POST /portfolios/{id}/holdings/bulk
 
 ---
 
@@ -238,6 +248,35 @@
 
 ---
 
+## Milestone 13-3: DB 안정성 & 데이터 보호 (리뷰 기반)
+
+### 13-3-1. DB 인덱스 최적화 (리뷰 4.1)
+- [ ] Alembic 마이그레이션으로 명시적 인덱스 추가
+  - `idx_portfolios_user_id` ON portfolios(user_id)
+  - `idx_holdings_portfolio_id` ON holdings(portfolio_id)
+  - `idx_transactions_portfolio_traded` ON transactions(portfolio_id, traded_at DESC)
+  - `idx_price_snapshots_ticker_date` ON price_snapshots(ticker, snapshot_date DESC)
+  - `idx_sync_logs_user_synced` ON sync_logs(user_id, synced_at DESC)
+  - `idx_watchlist_user_id` ON watchlist(user_id)
+  - `idx_alerts_user_active` ON alerts(user_id, is_active) WHERE is_active = true (partial index)
+
+### 13-3-2. users 테이블 레거시 컬럼 정리 (리뷰 4.2)
+- [ ] 코드에서 legacy 컬럼 참조 제거 (kis_app_key_enc, kis_app_secret_enc, kis_account_no, kis_acnt_prdt_cd)
+- [ ] Alembic DROP COLUMN 마이그레이션
+
+### 13-3-3. Transactions Soft Delete (리뷰 4.3)
+- [ ] transactions 테이블에 `deleted_at` (nullable DateTime) 컬럼 추가 — Alembic 마이그레이션
+- [ ] 삭제 API: DELETE → SET deleted_at = now()
+- [ ] 조회 쿼리 전체에 `WHERE deleted_at IS NULL` 필터 적용
+
+### 13-3-4. 자동 DB 백업 (리뷰 2.1)
+- [ ] 일일 pg_dump 백업 스크립트 (`scripts/backup_db.sh`)
+- [ ] Docker Compose에 백업 컨테이너 또는 cron 스케줄 추가
+- [ ] 외부 스토리지 연동 (S3, GCS, Cloudflare R2 등)
+- [ ] 복구 절차 문서화 및 정기 테스트
+
+---
+
 ## Milestone 14: 인프라 & 배포
 
 ### 14-1. 프로덕션 배포
@@ -261,13 +300,17 @@
 - [ ] APM 도입 (Sentry)
   - 프론트엔드: `@sentry/nextjs` — 에러 트래킹, 성능 모니터링
   - 백엔드: `sentry-sdk[fastapi]` — 에러 트래킹, 트레이싱
-- [ ] 로깅 인프라
-  - 구조화 로깅 (structlog or loguru)
-  - 로그 수집 (Datadog, Loki, or CloudWatch)
-- [ ] 업타임 모니터링 (UptimeRobot or Betterstack)
+- [x] 구조화 로깅 (structlog) — JSON 포맷 + request_id 컨텍스트
+- [ ] 로그 수집 인프라 (리뷰 8.1)
+  - Option A: Grafana + Loki (self-hosted, Docker Compose에 2 서비스 추가)
+  - Option B: Betterstack (SaaS 무료 플랜)
+- [ ] 업타임 모니터링 (UptimeRobot or Betterstack) — 서버 다운 시 이메일/Slack 알림
 - [ ] 알림 대시보드 (Grafana or Datadog Dashboard)
   - API 응답 시간, 에러율, KIS API 호출 횟수
   - Redis 캐시 히트율, DB 쿼리 시간
+- [ ] Graceful Shutdown 구현 (리뷰 8.3)
+  - SIGTERM 시: SSE 연결 종료 → APScheduler stop → DB/Redis pool cleanup
+  - Docker Compose stop_grace_period: 30s 설정
 
 ### 14-3. CI/CD 파이프라인 강화
 - [ ] GitHub Actions: 프리뷰 배포 (PR 생성 시 Vercel preview)
@@ -285,6 +328,17 @@
 - [ ] API 키 로테이션 자동화
 - [ ] 보안 감사 로그 — 로그인 시도, 설정 변경, 데이터 접근 이력
 - [ ] 2FA (이중 인증) — TOTP (Google Authenticator 호환)
+- [ ] HttpOnly Cookie 기반 인증 마이그레이션 (리뷰 3.1)
+  - 백엔드: 로그인/리프레시 시 Set-Cookie (HttpOnly + Secure + SameSite=Lax)
+  - 프론트엔드: Axios withCredentials: true, localStorage 토큰 저장 제거
+  - Zustand store는 인증 여부(boolean)만 관리
+- [ ] 엔드포인트별 Rate Limit 세분화 (리뷰 3.2)
+  - POST /auth/login: 5/min, POST /auth/register: 3/min
+  - POST /sync/*: 5/min, GET /dashboard/*: 120/min
+- [ ] Input Validation 강화 (리뷰 3.3)
+  - ticker 정규식: 국내 `^[0-9]{6}$`, 해외 `^[A-Z]{1,5}$`
+  - pagination max limit 캡 (최대 100)
+  - sync_logs message 필드 민감 정보 필터링
 
 ---
 
@@ -331,7 +385,10 @@
 ### 16-2. 테스트 인프라 강화
 - [x] Playwright E2E 테스트 셋업 (frontend) — auth.spec.ts, dashboard.spec.ts
 - [x] CI에서 E2E 실행 (GitHub Actions e2e.yml)
-- [ ] 백엔드 테스트 커버리지 80% 달성 확인 및 리포트 자동화
+- [ ] 백엔드 테스트 커버리지 70%+ 달성 (리뷰 7.2) — services/ 85%+, core/security.py 90%+
+- [ ] KIS API 모킹 테스트 (리뷰 7.1) — httpx 응답 모킹: 정상/429/401/timeout/부분실패 시나리오
+- [ ] 보안 테스트 — IDOR 시도, 만료 JWT, 소진된 JTI, rate limit 429 검증
+- [ ] SSE 연결 테스트 — 연결/재연결, 비장 시간 비활성화, 데이터 파싱 오류 처리
 - [ ] 비주얼 리그레션 테스트 (Chromatic or Percy)
   - 컴포넌트 스토리북 → 스냅샷 비교
 - [ ] 부하 테스트 (Locust or k6)
