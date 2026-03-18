@@ -58,10 +58,16 @@ class TestTickerValidation:
         with pytest.raises(ValueError):
             validate_ticker("")
 
-    def test_invalid_ticker_mixed_alphanum(self) -> None:
+    def test_etf_ticker_alphanum_valid(self) -> None:
+        # Korean ETF/ETN tickers can mix digits and uppercase letters (e.g. 0087F0)
+        from app.schemas.portfolio import validate_ticker
+        assert validate_ticker("0087F0") == "0087F0"
+
+    def test_invalid_ticker_7_alphanum(self) -> None:
+        # 7-char alphanumeric is not a valid Korean ticker (must be exactly 6)
         from app.schemas.portfolio import validate_ticker
         with pytest.raises(ValueError):
-            validate_ticker("005A30")
+            validate_ticker("0087F00")
 
     def test_invalid_ticker_too_long_us(self) -> None:
         from app.schemas.portfolio import validate_ticker
