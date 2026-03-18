@@ -21,6 +21,9 @@ backend/data/mst/*.zip
 backend/.env
 frontend/.env.local
 
+# Claude Code runtime
+.claude/scheduled_tasks.lock
+
 # Playwright MCP
 .playwright-mcp/
 
