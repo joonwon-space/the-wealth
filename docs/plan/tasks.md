@@ -52,8 +52,8 @@ Each item should be completable in a single commit.
 ## Milestone 11-1: 모바일 UX (잔여)
 
 - [x] PWA 지원 — `frontend/public/manifest.json` 생성, `<link rel="manifest">` 추가, 앱 아이콘 설정
-- [ ] 사이드바 드로어 제스처 지원 — 모바일에서 swipe to close (터치 이벤트 기반)
-- [ ] 모바일 하단 네비게이션 바 — 모바일(md 미만)에서 사이드바 대신 하단 탭 바 (홈/분석/종목검색/설정)
+- [x] 사이드바 드로어 제스처 지원 — 모바일에서 swipe to close (터치 이벤트 기반)
+- [x] 모바일 하단 네비게이션 바 — 모바일(md 미만)에서 사이드바 대신 하단 탭 바 (홈/분석/종목검색/설정)
 
 ## Milestone 14-2: 백엔드 구조화 로깅
 
