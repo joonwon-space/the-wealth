@@ -64,7 +64,7 @@ Each item should be completable in a single commit.
 
 ## Short-term 개선 (아키텍처 리뷰 기반)
 
-- [ ] DB 인덱스 추가 — Alembic 마이그레이션: portfolios.user_id, holdings.portfolio_id, transactions(portfolio_id+traded_at DESC), price_snapshots(ticker+snapshot_date DESC), sync_logs(user_id+synced_at DESC), watchlist.user_id, alerts(user_id+is_active) partial index
+- [x] DB 인덱스 추가 — Alembic 마이그레이션: portfolios.user_id, holdings.portfolio_id, transactions(portfolio_id+traded_at DESC), price_snapshots(ticker+snapshot_date DESC), sync_logs(user_id+synced_at DESC), watchlist.user_id, alerts(user_id+is_active) partial index
 - [ ] users 테이블 레거시 컬럼 정리 — 코드에서 legacy 컬럼 참조 제거 후 Alembic DROP COLUMN 마이그레이션 (kis_app_key_enc, kis_app_secret_enc, kis_account_no, kis_acnt_prdt_cd)
 - [ ] 엔드포인트별 Rate Limit 세분화 — slowapi decorator로 /auth/login 5/min, /auth/register 3/min, /sync/* 5/min, /dashboard/* 120/min 개별 설정
 - [ ] ticker 정규식 검증 추가 — HoldingCreate, TransactionCreate, WatchlistCreate 스키마에 field_validator 추가 (국내: `^[0-9]{6}$`, 해외: `^[A-Z]{1,5}$`)
