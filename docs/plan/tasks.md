@@ -80,7 +80,7 @@ Each item should be completable in a single commit.
 
 ### 🔴 Critical — 버그 수정 (P0)
 
-- [ ] **로그아웃 쿠키 미삭제 → /dashboard 재리다이렉트**
+- [x] **로그아웃 쿠키 미삭제 → /dashboard 재리다이렉트**
   - 현상: 로그아웃 클릭 → API 204 성공 → 브라우저 쿠키 미삭제 → `proxy.ts` 미들웨어가 `access_token` 쿠키 감지 → /dashboard로 재리다이렉트
   - 원인: `delete_cookie(domain=COOKIE_DOMAIN)`이 도메인 불일치로 쿠키 삭제 실패
   - 파일: `backend/app/api/auth.py:80-84` (`_clear_auth_cookies`), `frontend/src/proxy.ts:23-25`
