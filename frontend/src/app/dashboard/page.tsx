@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, Plus, RefreshCw } from "lucide-react";
+import { BarChart3, Plus, RefreshCw } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,10 +14,12 @@ import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatRate } from "@/lib/format";
 import { WatchlistSection } from "@/components/WatchlistSection";
+import { PageError } from "@/components/PageError";
 import { toast } from "sonner";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+const DASHBOARD_QUERY_KEY = ["dashboard", "summary"] as const;
 
 interface HoldingRow {
   id: number;
@@ -64,82 +67,88 @@ interface Summary {
   triggered_alerts: TriggeredAlert[];
 }
 
+async function fetchSummary(refresh = false): Promise<Summary> {
+  const { data } = await api.get<Summary>("/dashboard/summary", {
+    params: refresh ? { refresh: true } : undefined,
+  });
+  return data;
+}
+
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const queryClient = useQueryClient();
 
-  // SSE 실시간 가격 업데이트
-  const handleStreamPrices = useCallback((prices: Record<string, string>) => {
-    setSummary((prev) => {
-      if (!prev) return prev;
-      // SSE에서 환율을 모를 경우 기존 계산을 유지 (국내주식만 업데이트)
-      const updatedHoldings = prev.holdings.map((h) => {
-        const newPrice = prices[h.ticker];
-        if (!newPrice) return h;
-        const current_price = Number(newPrice);
-        if (h.currency === "USD") {
-          // 해외주식: 현재가만 업데이트 (PnL은 서버에서 원화 환산 필요)
-          return { ...h, current_price };
-        }
-        const qty = Number(h.quantity);
-        const avg = Number(h.avg_price);
-        const market_value = qty * current_price;
-        const invested = qty * avg;
-        const pnl_amount = market_value - invested;
-        const pnl_rate = invested ? (pnl_amount / invested) * 100 : null;
-        return { ...h, current_price, market_value, market_value_krw: market_value, pnl_amount, pnl_rate };
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    dataUpdatedAt,
+    refetch,
+  } = useQuery<Summary>({
+    queryKey: DASHBOARD_QUERY_KEY,
+    queryFn: () => fetchSummary(),
+    refetchInterval: REFRESH_INTERVAL_MS,
+  });
+
+  // Show toast for triggered alerts when data refreshes
+  const shownAlertIds = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!summary) return;
+    for (const alert of summary.triggered_alerts ?? []) {
+      if (shownAlertIds.current.has(alert.id)) continue;
+      shownAlertIds.current.add(alert.id);
+      const label = alert.name || alert.ticker;
+      const dir = alert.condition === "above" ? "이상" : "이하";
+      toast.warning(`목표가 도달 — ${label}`, {
+        description: `현재 ${formatKRW(alert.current_price)} — 목표 ${dir} ${formatKRW(alert.threshold)}`,
+        duration: 8000,
       });
-      const total_asset = updatedHoldings.reduce(
-        (sum, h) => sum + (Number(h.market_value_krw) || Number(h.quantity) * Number(h.avg_price)),
-        0
-      );
-      const total_pnl_amount = total_asset - prev.total_invested;
-      const total_pnl_rate = prev.total_invested ? (total_pnl_amount / prev.total_invested) * 100 : 0;
-      return { ...prev, holdings: updatedHoldings, total_asset, total_pnl_amount, total_pnl_rate };
-    });
-    setLastUpdated(new Date());
-  }, []);
-
-  usePriceStream({ onPrices: handleStreamPrices, enabled: !loading });
-
-  const fetchSummary = async (refresh = false) => {
-    if (refresh) setRefreshing(true);
-    try {
-      const { data } = await api.get<Summary>("/dashboard/summary", {
-        params: refresh ? { refresh: true } : undefined,
-      });
-      setSummary(data);
-      setError(null);
-      setLastUpdated(new Date());
-      // 목표가 알림 토스트
-      for (const alert of data.triggered_alerts ?? []) {
-        const label = alert.name || alert.ticker;
-        const dir = alert.condition === "above" ? "이상" : "이하";
-        toast.warning(`📊 ${label} 목표가 도달`, {
-          description: `현재 ${formatKRW(alert.current_price)} — 목표 ${dir} ${formatKRW(alert.threshold)}`,
-          duration: 8000,
-        });
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "서버에 연결할 수 없습니다";
-      setError(message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
+  }, [summary]);
+
+  // SSE 실시간 가격 업데이트 — queryClient.setQueryData로 캐시 직접 패치
+  const handleStreamPrices = useCallback(
+    (prices: Record<string, string>) => {
+      queryClient.setQueryData<Summary>(DASHBOARD_QUERY_KEY, (prev) => {
+        if (!prev) return prev;
+        const updatedHoldings = prev.holdings.map((h) => {
+          const newPrice = prices[h.ticker];
+          if (!newPrice) return h;
+          const current_price = Number(newPrice);
+          if (h.currency === "USD") {
+            return { ...h, current_price };
+          }
+          const qty = Number(h.quantity);
+          const avg = Number(h.avg_price);
+          const market_value = qty * current_price;
+          const invested = qty * avg;
+          const pnl_amount = market_value - invested;
+          const pnl_rate = invested ? (pnl_amount / invested) * 100 : null;
+          return { ...h, current_price, market_value, market_value_krw: market_value, pnl_amount, pnl_rate };
+        });
+        const total_asset = updatedHoldings.reduce(
+          (sum, h) => sum + (Number(h.market_value_krw) || Number(h.quantity) * Number(h.avg_price)),
+          0
+        );
+        const total_pnl_amount = total_asset - prev.total_invested;
+        const total_pnl_rate = prev.total_invested ? (total_pnl_amount / prev.total_invested) * 100 : 0;
+        return { ...prev, holdings: updatedHoldings, total_asset, total_pnl_amount, total_pnl_rate };
+      });
+    },
+    [queryClient]
+  );
+
+  usePriceStream({ onPrices: handleStreamPrices, enabled: !isLoading });
+
+  const handleManualRefresh = async () => {
+    const result = await api.get<Summary>("/dashboard/summary", { params: { refresh: true } });
+    queryClient.setQueryData(DASHBOARD_QUERY_KEY, result.data);
   };
 
-  useEffect(() => {
-    fetchSummary();
-    intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL_MS);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, []);
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-8">
         <Skeleton className="h-8 w-32" />
@@ -167,27 +176,17 @@ export default function DashboardPage() {
     );
   }
 
-  if (error && !summary) {
+  if (isError && !summary) {
+    const message = error instanceof Error ? error.message : "서버에 연결할 수 없습니다";
     return (
       <div className="space-y-8">
         <h1 className="text-2xl font-bold">대시보드</h1>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-16 text-center">
-          <AlertTriangle className="mb-3 h-10 w-10 text-destructive/60" />
-          <p className="text-lg font-semibold">데이터를 불러올 수 없습니다</p>
-          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-          <button
-            onClick={() => { setLoading(true); setError(null); fetchSummary(); }}
-            className="mt-5 flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            <RefreshCw className="h-4 w-4" />
-            다시 시도
-          </button>
-        </div>
+        <PageError message={message} onRetry={() => refetch()} />
       </div>
     );
   }
 
-  const s = summary ?? {
+  const s: Summary = summary ?? {
     total_asset: 0,
     total_invested: 0,
     total_pnl_amount: 0,
@@ -200,7 +199,7 @@ export default function DashboardPage() {
     triggered_alerts: [],
   };
 
-  const hasNoPortfolio = !loading && s.holdings.length === 0 && s.total_invested === 0;
+  const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
 
   return (
     <div className="space-y-8">
@@ -209,16 +208,16 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           {lastUpdated && (
             <span className="text-xs text-muted-foreground">
-              {refreshing ? "업데이트 중..." : lastUpdated.toLocaleTimeString("ko-KR")}
+              {isFetching ? "업데이트 중..." : lastUpdated.toLocaleTimeString("ko-KR")}
             </span>
           )}
           <button
-            onClick={() => fetchSummary(true)}
-            disabled={refreshing}
+            onClick={handleManualRefresh}
+            disabled={isFetching}
             className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
             title="새로고침"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>

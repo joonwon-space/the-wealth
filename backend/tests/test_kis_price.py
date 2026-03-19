@@ -14,7 +14,7 @@ from app.services.kis_price import (
 
 @pytest.mark.unit
 class TestPriceCache:
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_cache_and_retrieve(self, mock_aioredis) -> None:
         """캐시 저장 후 조회 시 값이 반환되어야 한다."""
         store: dict[str, str] = {}
@@ -30,7 +30,7 @@ class TestPriceCache:
         result = await _get_cached_price("005930")
         assert result == Decimal("70000")
 
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_cache_miss_returns_none(self, mock_aioredis) -> None:
         """캐시에 없으면 None 반환."""
         mock_redis = AsyncMock()

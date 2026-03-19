@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "1" }),
@@ -25,6 +26,15 @@ vi.mock("@/components/PnLBadge", () => ({
 import PortfolioDetailPage from "./page";
 import { api } from "@/lib/api";
 
+function renderWithQuery(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  );
+}
+
 describe("PortfolioDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -33,7 +43,7 @@ describe("PortfolioDetailPage", () => {
   it("shows empty state when no holdings", async () => {
     vi.mocked(api.get).mockResolvedValue({ data: [] });
 
-    render(<PortfolioDetailPage />);
+    renderWithQuery(<PortfolioDetailPage />);
     const text = await screen.findByText("보유 종목이 없습니다");
     expect(text).toBeInTheDocument();
   });
@@ -45,7 +55,7 @@ describe("PortfolioDetailPage", () => {
       ],
     });
 
-    render(<PortfolioDetailPage />);
+    renderWithQuery(<PortfolioDetailPage />);
     const name = await screen.findByText("삼성전자");
     expect(name).toBeInTheDocument();
   });

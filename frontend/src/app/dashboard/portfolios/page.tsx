@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Pencil, Plus, Trash2, Wallet } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -25,35 +26,52 @@ interface Portfolio {
   total_invested: string;
 }
 
+const PORTFOLIOS_QUERY_KEY = ["portfolios"] as const;
+
+async function fetchPortfolios(): Promise<Portfolio[]> {
+  const { data } = await api.get<Portfolio[]>("/portfolios");
+  return data;
+}
+
 export default function PortfoliosPage() {
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
 
-  const fetchPortfolios = async () => {
-    try {
-      const { data } = await api.get<Portfolio[]>("/portfolios");
-      setPortfolios(data);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: portfolios = [], isLoading } = useQuery<Portfolio[]>({
+    queryKey: PORTFOLIOS_QUERY_KEY,
+    queryFn: fetchPortfolios,
+  });
 
-  useEffect(() => { fetchPortfolios(); }, []);
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      api.patch<Portfolio>(`/portfolios/${id}`, { name }).then((r) => r.data),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, (prev) =>
+        prev ? prev.map((p) => (p.id === updated.id ? { ...p, name: updated.name } : p)) : []
+      );
+      setEditingId(null);
+    },
+  });
 
-  const handleRename = async (id: number) => {
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/portfolios/${id}`),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, (prev) =>
+        prev ? prev.filter((p) => p.id !== id) : []
+      );
+    },
+  });
+
+  const handleRename = (id: number) => {
     if (!editName.trim()) return;
-    const { data } = await api.patch<Portfolio>(`/portfolios/${id}`, { name: editName });
-    setPortfolios((prev) => prev.map((p) => p.id === id ? { ...p, name: data.name } : p));
-    setEditingId(null);
+    renameMutation.mutate({ id, name: editName });
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
     if (!confirm("포트폴리오를 삭제하시겠습니까?")) return;
-    await api.delete(`/portfolios/${id}`);
-    setPortfolios((prev) => prev.filter((p) => p.id !== id));
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -66,7 +84,7 @@ export default function PortfoliosPage() {
         </Button>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-xl border p-5 space-y-3">
@@ -102,7 +120,7 @@ export default function PortfoliosPage() {
                           <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-6 w-28 text-sm" autoFocus
                             onKeyDown={(e) => { if (e.key === "Enter") handleRename(p.id); if (e.key === "Escape") setEditingId(null); }}
                           />
-                          <Button size="sm" onClick={() => handleRename(p.id)} className="h-6 px-2 text-xs">OK</Button>
+                          <Button size="sm" onClick={() => handleRename(p.id)} className="h-6 px-2 text-xs" disabled={renameMutation.isPending}>OK</Button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
@@ -122,7 +140,8 @@ export default function PortfoliosPage() {
                 </Link>
                 <button
                   onClick={() => handleDelete(p.id)}
-                  className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                  disabled={deleteMutation.isPending}
+                  className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-50"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -135,7 +154,12 @@ export default function PortfoliosPage() {
       <CreatePortfolioDialog
         open={showModal}
         onClose={() => setShowModal(false)}
-        onCreate={(p) => { setPortfolios((prev) => [...prev, p]); setShowModal(false); }}
+        onCreate={(p) => {
+          queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, (prev) =>
+            prev ? [...prev, p] : [p]
+          );
+          setShowModal(false);
+        }}
       />
     </div>
   );
