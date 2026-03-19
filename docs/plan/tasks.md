@@ -77,7 +77,7 @@ Each item should be completable in a single commit.
 
 ### Milestone 13-5b: Data Integrity — Orphan Cleanup (P2)
 
-- [ ] Add `GET /health/orphan-records` endpoint — detect holdings/transactions/watchlist items referencing deleted portfolios; return counts per table
+- [x] Add `GET /health/orphan-records` endpoint — detect holdings/transactions/watchlist items referencing deleted portfolios; return counts per table
 
 ### Milestone 13-5c: KIS API Health Check (P2)
 
