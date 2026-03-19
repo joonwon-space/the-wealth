@@ -50,6 +50,10 @@ Each item should be completable in a single commit.
 - [x] Test coverage gaps (prices.py 61%, dashboard.py 85%)
 - [x] P0 Automated DB Backup: daily pg_dump script + retention policy
 - [x] P0 Single Server Resilience: restart policy + managed DB/Redis docs
+- [x] Milestone 12-4: Alert Notification Logic (last_triggered_at, SSE integration, PATCH endpoint)
+- [x] Milestone 16-2: Frontend Test Coverage (format.ts, auth store, usePriceStream)
+- [x] Milestone 13-5c: Adaptive Cache TTL
+- [x] Milestone 13-5b: Data Integrity Health Checks
 
 </details>
 
@@ -57,26 +61,17 @@ Each item should be completable in a single commit.
 
 ## Current work
 
-### Milestone 12-4: Alert Notification Logic (P1)
-Alert CRUD exists but no price-triggered notification logic.
+### Milestone 11-5: TanStack Query Adoption (P1)
+Replace manual Axios + useState data fetching with TanStack Query for cache consistency and deduplication.
 
-- [x] Add `last_triggered_at` column to `alerts` table via Alembic migration
-- [x] Integrate alert condition check into SSE stream loop — emit `alerts` event when triggered; dedup with 1h cooldown; auto-deactivate after trigger
-- [x] Add `PATCH /alerts/{id}` endpoint to reactivate/update alert `is_active` and `threshold`
+- [ ] Install `@tanstack/react-query` + `@tanstack/react-query-devtools`; add `QueryClientProvider` to `app/layout.tsx`
+- [ ] Migrate dashboard page (`/dashboard`) to use `useQuery` with `refetchInterval: 30_000`; keep SSE price update via `queryClient.setQueryData`
+- [ ] Migrate portfolios list page (`/dashboard/portfolios`) to use `useQuery`; use `useMutation` + `invalidateQueries` for create/rename/delete
+- [ ] Migrate portfolio detail page (`/dashboard/portfolios/[id]`) holdings and transactions to `useQuery`/`useMutation`
+- [ ] Add unified skeleton loading states and standardized error UI components using TanStack Query `isLoading`/`isError` states
 
-### Milestone 16-2: Frontend Test Coverage (P1)
-Backend coverage 93% vs frontend minimal.
+### Milestone 13-5b: Data Integrity (P2)
+- [ ] Add holdings quantity reconciliation endpoint `GET /health/holdings-reconciliation` — detect mismatch between transaction sum and current holdings quantity
 
-- [x] Add `lib/format.ts` unit tests (formatKRW, formatUSD, formatPrice, formatNumber, formatRate, formatPnL)
-- [x] Add `store/auth.ts` Zustand store tests (login, logout, initialize with cookie mock)
-- [x] Add `hooks/usePriceStream.ts` tests (connect, skip when disabled, skip when no token, close on unmount)
-
-### Milestone 13-5c: Adaptive Cache TTL (P2)
-After market close, price cache TTL should extend from 300s to 24h to reduce KIS API calls.
-
-- [x] Add `get_adaptive_ttl()` helper in `services/kis_price.py` — returns 300s during market hours, 86400s after close
-- [x] Apply adaptive TTL in `services/kis_price.py` Redis cache write
-
-### Milestone 13-5b: Data Integrity Health Checks (P2)
-
-- [x] Add `GET /health/data-integrity` endpoint — check for `price_snapshots` gaps (missing weekday snapshots in last 7 days) and return summary JSON
+### Milestone 13-5a: Operational Stability (P2)
+- [ ] Add Redis failure fallback — wrap Redis calls in `try/except`; fall back to in-memory dict cache with warning log when Redis is unavailable
