@@ -421,3 +421,269 @@ class TestSSEConnectionManagement:
         # Cleanup
         async with prices_mod._connections_lock:
             prices_mod._active_connections.pop(uid, None)
+
+
+# ---------------------------------------------------------------------------
+# Tests — signal_sse_shutdown helper
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSignalSseShutdown:
+    def test_signal_sets_shutdown_event(self) -> None:
+        import asyncio
+        from app.api import prices as prices_mod
+
+        # Save the original event and replace with a fresh one for isolation
+        original_event = prices_mod._shutdown_event
+        prices_mod._shutdown_event = asyncio.Event()
+        try:
+            assert not prices_mod._shutdown_event.is_set()
+            prices_mod.signal_sse_shutdown()
+            assert prices_mod._shutdown_event.is_set()
+        finally:
+            # Restore original event
+            prices_mod._shutdown_event = original_event
+
+
+# ---------------------------------------------------------------------------
+# Tests — SSE event_generator body (market closed / open / fetch error paths)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+class TestSSEEventGeneratorPaths:
+    """Tests that exercise the event_generator body in stream_prices.
+
+    We mock AsyncSessionLocal to return portfolio + KIS account data,
+    mock _is_market_open to control which branch executes, and mock
+    _shutdown_event to stop the loop immediately after one iteration.
+    """
+
+    async def _make_session_mock_with_data(self, portfolio_ids: list, has_acct: bool) -> MagicMock:
+        """Build a nested mock simulating a DB session that has portfolios and optionally a KIS account."""
+        from unittest.mock import MagicMock, AsyncMock
+
+        acct = None
+        if has_acct:
+            acct = MagicMock()
+            acct.app_key_enc = b"key"
+            acct.app_secret_enc = b"secret"
+
+        # First call: portfolios; second call: KIS account
+        portfolio_scalars = MagicMock()
+        portfolio_scalars.all.return_value = [
+            MagicMock(id=pid) for pid in portfolio_ids
+        ]
+        portfolio_execute_result = MagicMock()
+        portfolio_execute_result.scalars.return_value = portfolio_scalars
+
+        acct_scalar_result = MagicMock()
+        acct_scalar_result.scalar_one_or_none.return_value = acct
+
+        session = MagicMock()
+        session.execute = AsyncMock(
+            side_effect=[portfolio_execute_result, acct_scalar_result]
+        )
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+
+        return session
+
+    async def test_stream_yields_no_data_when_no_portfolio(
+        self, client: AsyncClient
+    ) -> None:
+        """When the user has no portfolio, stream yields no_data error."""
+
+        token = await _register_and_login(client, "stream_noport@test.com")
+
+        session = await self._make_session_mock_with_data(
+            portfolio_ids=[], has_acct=False
+        )
+        mock_session_local = MagicMock()
+        mock_session_local.return_value = session
+
+        with patch("app.api.prices.AsyncSessionLocal", mock_session_local):
+            resp = await client.get("/prices/stream", params={"token": token})
+
+        assert resp.status_code == 200
+        assert b"no_data" in resp.content
+
+    def _make_one_shot_event(self) -> MagicMock:
+        """Return a mock event whose is_set() returns False once then True forever.
+
+        This lets the outer `while not event.is_set()` enter exactly once, while
+        any inner `while not event.is_set()` loop exits immediately.
+        """
+        call_count = 0
+
+        def _is_set() -> bool:
+            nonlocal call_count
+            call_count += 1
+            return call_count > 1
+
+        mock_evt = MagicMock()
+        mock_evt.is_set = _is_set
+        # wait() should be a coroutine that raises TimeoutError when used with wait_for
+        # — but in tests the inner heartbeat loops check is_set first, so wait is rarely called.
+        # Provide a coroutine that raises asyncio.TimeoutError to keep inner loops moving.
+        import asyncio
+
+        async def _wait() -> None:
+            raise asyncio.TimeoutError
+
+        mock_evt.wait = _wait
+        return mock_evt
+
+    def _make_session_pair(
+        self,
+        second_execute_result: MagicMock | None = None,
+        second_execute_raises: Exception | None = None,
+    ) -> tuple[MagicMock, MagicMock]:
+        """Build (first_session, mock_factory) where:
+        - first_session handles the initial portfolio+KIS account queries
+        - second_session (or error) handles the in-loop holdings query
+        """
+        acct = MagicMock()
+        acct.app_key_enc = "dummy_key"
+        acct.app_secret_enc = "dummy_secret"
+
+        portfolio_scalars = MagicMock()
+        portfolio_scalars.all.return_value = [MagicMock(id=1)]
+        portfolio_execute_result = MagicMock()
+        portfolio_execute_result.scalars.return_value = portfolio_scalars
+
+        acct_result = MagicMock()
+        acct_result.scalar_one_or_none.return_value = acct
+
+        first_session = MagicMock()
+        first_session.execute = AsyncMock(
+            side_effect=[portfolio_execute_result, acct_result]
+        )
+        first_session.__aenter__ = AsyncMock(return_value=first_session)
+        first_session.__aexit__ = AsyncMock(return_value=False)
+
+        second_session = MagicMock()
+        if second_execute_raises is not None:
+            second_session.execute = AsyncMock(side_effect=second_execute_raises)
+        elif second_execute_result is not None:
+            second_session.execute = AsyncMock(return_value=second_execute_result)
+        else:
+            second_session.execute = AsyncMock(return_value=MagicMock())
+        second_session.__aenter__ = AsyncMock(return_value=second_session)
+        second_session.__aexit__ = AsyncMock(return_value=False)
+
+        session_call = 0
+
+        def _factory() -> MagicMock:
+            nonlocal session_call
+            session_call += 1
+            return first_session if session_call == 1 else second_session
+
+        return first_session, MagicMock(side_effect=_factory)
+
+    async def test_stream_market_closed_path(
+        self, client: AsyncClient
+    ) -> None:
+        """When market is closed, stream yields market_open: false then exits."""
+        from app.api import prices as prices_mod
+
+        token = await _register_and_login(client, "stream_closed@test.com")
+
+        _first_session, mock_session_local = self._make_session_pair()
+        mock_evt = self._make_one_shot_event()
+
+        with (
+            patch("app.api.prices.AsyncSessionLocal", mock_session_local),
+            patch("app.api.prices._is_market_open", return_value=False),
+            patch("app.api.prices.decrypt", return_value="mock_val"),
+            patch.object(prices_mod, "_shutdown_event", mock_evt),
+        ):
+            resp = await client.get("/prices/stream", params={"token": token})
+
+        assert resp.status_code == 200
+        assert b"market_open" in resp.content
+
+    async def test_stream_market_open_no_tickers(
+        self, client: AsyncClient
+    ) -> None:
+        """When market is open but user has no holdings, yields empty prices dict."""
+        from app.api import prices as prices_mod
+
+        token = await _register_and_login(client, "stream_open_notick@test.com")
+
+        ticker_result = MagicMock()
+        ticker_result.all.return_value = []
+
+        _first_session, mock_session_local = self._make_session_pair(
+            second_execute_result=ticker_result
+        )
+        mock_evt = self._make_one_shot_event()
+
+        with (
+            patch("app.api.prices.AsyncSessionLocal", mock_session_local),
+            patch("app.api.prices._is_market_open", return_value=True),
+            patch("app.api.prices.decrypt", return_value="mock_val"),
+            patch.object(prices_mod, "_shutdown_event", mock_evt),
+        ):
+            resp = await client.get("/prices/stream", params={"token": token})
+
+        assert resp.status_code == 200
+        assert b"prices" in resp.content
+
+    async def test_stream_market_open_with_tickers(
+        self, client: AsyncClient
+    ) -> None:
+        """When market is open with tickers, fetches prices and yields them."""
+        from decimal import Decimal
+        from app.api import prices as prices_mod
+
+        token = await _register_and_login(client, "stream_open_tick@test.com")
+
+        ticker_result = MagicMock()
+        ticker_result.all.return_value = [("005930",)]
+
+        _first_session, mock_session_local = self._make_session_pair(
+            second_execute_result=ticker_result
+        )
+        mock_evt = self._make_one_shot_event()
+
+        with (
+            patch("app.api.prices.AsyncSessionLocal", mock_session_local),
+            patch("app.api.prices._is_market_open", return_value=True),
+            patch("app.api.prices.decrypt", return_value="mock_val"),
+            patch.object(prices_mod, "_shutdown_event", mock_evt),
+            patch(
+                "app.api.prices.fetch_domestic_price",
+                new_callable=AsyncMock,
+                return_value=Decimal("70000"),
+            ),
+        ):
+            resp = await client.get("/prices/stream", params={"token": token})
+
+        assert resp.status_code == 200
+        assert b"prices" in resp.content
+
+    async def test_stream_fetch_error_yields_fetch_failed(
+        self, client: AsyncClient
+    ) -> None:
+        """When holdings DB query raises, stream yields fetch_failed error event."""
+        from app.api import prices as prices_mod
+
+        token = await _register_and_login(client, "stream_fetcherr@test.com")
+
+        _first_session, mock_session_local = self._make_session_pair(
+            second_execute_raises=Exception("DB error")
+        )
+        mock_evt = self._make_one_shot_event()
+
+        with (
+            patch("app.api.prices.AsyncSessionLocal", mock_session_local),
+            patch("app.api.prices._is_market_open", return_value=True),
+            patch("app.api.prices.decrypt", return_value="mock_val"),
+            patch.object(prices_mod, "_shutdown_event", mock_evt),
+        ):
+            resp = await client.get("/prices/stream", params={"token": token})
+
+        assert resp.status_code == 200
+        assert b"fetch_failed" in resp.content
