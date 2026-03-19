@@ -11,19 +11,17 @@ from datetime import datetime
 from typing import Optional
 
 import httpx
-import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.redis_cache import RedisCache
 
 logger = get_logger(__name__)
 
 _ROTATION_BUFFER_SECONDS = 600  # rotate 10 min before expiry
 _TOKEN_TTL_SECONDS = 86400  # 24 h fallback (KIS spec)
 
-
-def _get_redis() -> aioredis.Redis:
-    return aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+_cache = RedisCache(settings.REDIS_URL)
 
 
 def _cache_key_for(app_key: str) -> str:
@@ -33,16 +31,15 @@ def _cache_key_for(app_key: str) -> str:
 
 
 async def get_kis_access_token(app_key: str, app_secret: str) -> str:
-    """Return a valid KIS access token, fetching from Redis cache or issuing a new one."""
-    async with _get_redis() as redis:
-        cache_key = _cache_key_for(app_key)
-        cached = await redis.get(cache_key)
-        if cached:
-            return cached
+    """Return a valid KIS access token, fetching from cache or issuing a new one."""
+    cache_key = _cache_key_for(app_key)
+    cached = await _cache.get(cache_key)
+    if cached:
+        return cached
 
-        token, ttl = await _issue_token(app_key, app_secret)
-        await redis.setex(cache_key, max(ttl - _ROTATION_BUFFER_SECONDS, 60), token)
-        return token
+    token, ttl = await _issue_token(app_key, app_secret)
+    await _cache.setex(cache_key, max(ttl - _ROTATION_BUFFER_SECONDS, 60), token)
+    return token
 
 
 async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
@@ -77,5 +74,4 @@ async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
 
 async def invalidate_kis_token(app_key: str) -> None:
     """Force evict the cached token so the next call will re-issue."""
-    async with _get_redis() as redis:
-        await redis.delete(_cache_key_for(app_key))
+    await _cache.delete(_cache_key_for(app_key))

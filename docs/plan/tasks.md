@@ -74,4 +74,4 @@ Replace manual Axios + useState data fetching with TanStack Query for cache cons
 - [x] Add holdings quantity reconciliation endpoint `GET /health/holdings-reconciliation` — detect mismatch between transaction sum and current holdings quantity
 
 ### Milestone 13-5a: Operational Stability (P2)
-- [ ] Add Redis failure fallback — wrap Redis calls in `try/except`; fall back to in-memory dict cache with warning log when Redis is unavailable
+- [x] Add Redis failure fallback — wrap Redis calls in `try/except`; fall back to in-memory dict cache with warning log when Redis is unavailable

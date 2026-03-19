@@ -11,13 +11,15 @@ from decimal import Decimal
 from typing import Optional
 
 import httpx
-import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.redis_cache import RedisCache
 from app.services.kis_token import get_kis_access_token
 
 logger = get_logger(__name__)
+
+_cache = RedisCache(settings.REDIS_URL)
 
 _PRICE_CACHE_PREFIX = "price:"
 _PRICE_CACHE_TTL_MARKET_OPEN = 300     # 5 min during market hours
@@ -120,26 +122,16 @@ async def fetch_overseas_price(
 
 
 async def _cache_price(ticker: str, price: Decimal) -> None:
-    """Redis에 가격을 캐싱 (적응형 TTL: 시장 개장 중 5분 / 마감 후 24시간)."""
+    """Redis(or in-memory fallback)에 가격을 캐싱."""
     ttl = get_adaptive_ttl()
-    try:
-        async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
-            await r.setex(
-                f"{_PRICE_CACHE_PREFIX}{ticker}", ttl, str(price)
-            )
-    except Exception as e:
-        logger.debug("Failed to cache price for %s: %s", ticker, e)
+    await _cache.setex(f"{_PRICE_CACHE_PREFIX}{ticker}", ttl, str(price))
 
 
 async def _get_cached_price(ticker: str) -> Optional[Decimal]:
-    """Redis에서 캐시된 가격 조회."""
-    try:
-        async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
-            cached = await r.get(f"{_PRICE_CACHE_PREFIX}{ticker}")
-            if cached:
-                return Decimal(cached)
-    except Exception as e:
-        logger.debug("Failed to get cached price for %s: %s", ticker, e)
+    """Redis(or in-memory fallback)에서 캐시된 가격 조회."""
+    cached = await _cache.get(f"{_PRICE_CACHE_PREFIX}{ticker}")
+    if cached:
+        return Decimal(cached)
     return None
 
 
@@ -237,18 +229,14 @@ async def fetch_usd_krw_rate(
     app_secret: str,
     client: httpx.AsyncClient,
 ) -> Decimal:
-    """USD/KRW 환율 조회. Redis 1시간 캐싱, 실패 시 fallback 1350.
+    """USD/KRW 환율 조회. Redis(or in-memory fallback) 1시간 캐싱, 실패 시 fallback 1350.
 
     KIS 해외주식 현재가 API의 base_exchange_rate 필드를 활용.
     직접 FX API가 없으므로 AAPL 현재가 응답의 환율 필드 사용.
     """
-    try:
-        async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
-            cached = await r.get(_FX_CACHE_KEY)
-            if cached:
-                return Decimal(cached)
-    except Exception as e:
-        logger.debug("Failed to get cached FX rate: %s", e)
+    cached = await _cache.get(_FX_CACHE_KEY)
+    if cached:
+        return Decimal(cached)
 
     try:
         headers = await _get_headers(app_key, app_secret)
@@ -271,13 +259,7 @@ async def fetch_usd_krw_rate(
             # sanity check: USD/KRW 환율은 100 이상이어야 함
             # rate(전일대비율) 필드 오염 방지 (e.g. -1.50 → 잘못된 환율)
             if rate > 100:
-                try:
-                    async with aioredis.from_url(
-                        settings.REDIS_URL, decode_responses=True
-                    ) as r:
-                        await r.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, str(rate))
-                except Exception as cache_err:
-                    logger.debug("Failed to cache FX rate: %s", cache_err)
+                await _cache.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, str(rate))
                 return rate
     except Exception as e:
         logger.warning("Failed to fetch USD/KRW rate via KIS API: %s", e)

@@ -210,7 +210,7 @@ class TestFetchOverseasPriceDetail:
 
 @pytest.mark.unit
 class TestFetchUsdKrwRate:
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     @patch("app.services.kis_price.get_kis_access_token")
     async def test_returns_cached_rate(self, mock_token, mock_aioredis) -> None:
         """Redis에 캐시된 환율이 있으면 API 호출 없이 반환."""
@@ -228,7 +228,7 @@ class TestFetchUsdKrwRate:
         assert result == Decimal("1380.5")
         mock_client.get.assert_not_called()
 
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     @patch("app.services.kis_price.get_kis_access_token")
     async def test_fallback_rate_on_exception(self, mock_token, mock_aioredis) -> None:
         """API 호출 및 캐시 모두 실패하면 fallback 1350 반환."""

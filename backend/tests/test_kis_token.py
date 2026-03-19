@@ -115,8 +115,8 @@ class TestIssueTokenTtlParsing:
 
 @pytest.mark.unit
 class TestGetKisAccessToken:
-    @patch("app.services.kis_token.aioredis.from_url")
-    async def test_returns_cached_token(self, mock_redis_cls: MagicMock) -> None:
+    @patch("app.core.redis_cache.aioredis")
+    async def test_returns_cached_token(self, mock_aioredis: MagicMock) -> None:
         """Returns token from Redis cache without calling KIS API."""
         from app.services.kis_token import get_kis_access_token
 
@@ -124,7 +124,7 @@ class TestGetKisAccessToken:
         mock_redis.get = AsyncMock(return_value="cached_token_xyz")
         mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
         mock_redis.__aexit__ = AsyncMock(return_value=False)
-        mock_redis_cls.return_value = mock_redis
+        mock_aioredis.from_url.return_value = mock_redis
 
         token = await get_kis_access_token("key", "secret")
 
@@ -132,9 +132,9 @@ class TestGetKisAccessToken:
         mock_redis.get.assert_called_once()
 
     @patch("app.services.kis_token._issue_token", new_callable=AsyncMock)
-    @patch("app.services.kis_token.aioredis.from_url")
+    @patch("app.core.redis_cache.aioredis")
     async def test_issues_new_token_on_cache_miss(
-        self, mock_redis_cls: MagicMock, mock_issue: AsyncMock
+        self, mock_aioredis: MagicMock, mock_issue: AsyncMock
     ) -> None:
         """Issues new token and caches it when Redis has no entry."""
         from app.services.kis_token import get_kis_access_token
@@ -144,7 +144,7 @@ class TestGetKisAccessToken:
         mock_redis.setex = AsyncMock()
         mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
         mock_redis.__aexit__ = AsyncMock(return_value=False)
-        mock_redis_cls.return_value = mock_redis
+        mock_aioredis.from_url.return_value = mock_redis
 
         mock_issue.return_value = ("fresh_token_abc", 86400)
 

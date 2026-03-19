@@ -80,13 +80,13 @@ Current actionable work is in `tasks.md`.
 - [ ] i18n (next-intl, Korean/English)
 - [ ] In-app notification center (price alerts, sync results, errors)
 - [ ] Onboarding tour (react-joyride)
-- [ ] TanStack Query adoption (replace manual Axios state management)
-  - [ ] Install + QueryClientProvider setup
-  - [ ] Migrate dashboard fetching (`refetchInterval: 30_000`)
-  - [ ] Migrate portfolio/holdings lists
-  - [ ] Integrate SSE via `queryClient.setQueryData()`
-  - [ ] Standardize loading/error/empty state UI
-  - [ ] Optimistic updates for add/delete
+- [x] TanStack Query adoption (replace manual Axios state management)
+  - [x] Install + QueryClientProvider setup
+  - [x] Migrate dashboard fetching (`refetchInterval: 30_000`)
+  - [x] Migrate portfolio/holdings lists
+  - [x] Integrate SSE via `queryClient.setQueryData()`
+  - [x] Standardize loading/error/empty state UI
+  - [ ] Optimistic updates for add/delete (partial — mutations use setQueryData for immediate cache update)
 
 ### 11-7. Frontend Quality
 - [ ] Bundle size budget — `@next/bundle-analyzer` + CI warning on budget exceed
@@ -167,14 +167,14 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 > Newly identified from cross-document analysis ([action plan 2026-03-19](../reviews/the-wealth-action-plan_20260319.md))
 
 ### 13-5a. Operational Stability
-- [ ] Redis failure fallback — in-memory fallback or graceful degradation when Redis is down
+- [x] Redis failure fallback — in-memory fallback or graceful degradation when Redis is down
 - [ ] Scheduler failure alerting — alert on consecutive `kis_sync` / `daily_close_snapshot` failures (currently only logged to `sync_logs`)
 - [ ] Docker volume monitoring — track `pg_data`, `redis_data` disk usage with threshold alerts
 - [ ] TLS certificate renewal check — HTTPS cert expiry monitoring
 
 ### 13-5b. Data Integrity
 - [x] `price_snapshots` gap detection — health check for missing weekday snapshots
-- [ ] Holdings quantity reconciliation — detect mismatch between transaction sum and current holdings
+- [x] Holdings quantity reconciliation — detect mismatch between transaction sum and current holdings
 - [ ] Orphan record cleanup — periodic scan for residual data from deleted portfolios
 
 ### 13-5c. KIS API Dependency Reduction

@@ -267,7 +267,7 @@ class TestFetchDomesticDailyOhlcv:
 @pytest.mark.unit
 class TestFetchUsdKrwRate:
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_success_with_cache_miss(
         self, mock_aioredis: MagicMock, mock_token: AsyncMock
     ) -> None:
@@ -290,7 +290,7 @@ class TestFetchUsdKrwRate:
         assert result == Decimal("1330.50")
 
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_cache_hit_returns_cached(
         self, mock_aioredis: MagicMock, mock_token: AsyncMock
     ) -> None:
@@ -310,7 +310,7 @@ class TestFetchUsdKrwRate:
         mock_client.get.assert_not_called()
 
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_fallback_on_api_failure(
         self, mock_aioredis: MagicMock, mock_token: AsyncMock
     ) -> None:
@@ -330,7 +330,7 @@ class TestFetchUsdKrwRate:
         assert result == Decimal("1350")
 
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_zero_rate_uses_fallback(
         self, mock_aioredis: MagicMock, mock_token: AsyncMock
     ) -> None:
@@ -445,7 +445,12 @@ class TestFetchOverseasPriceDetail:
 
 @pytest.mark.unit
 class TestCachePriceErrorHandling:
-    @patch("app.services.kis_price.aioredis")
+    def setup_method(self) -> None:
+        """각 테스트 전에 in-memory fallback 캐시를 초기화한다."""
+        from app.core.redis_cache import reset_fallback_cache
+        reset_fallback_cache()
+
+    @patch("app.core.redis_cache.aioredis")
     async def test_cache_price_redis_error_silently_ignored(
         self, mock_aioredis: MagicMock
     ) -> None:
@@ -455,10 +460,10 @@ class TestCachePriceErrorHandling:
         mock_redis.__aexit__ = AsyncMock(return_value=None)
         mock_aioredis.from_url.return_value = mock_redis
 
-        # Should not raise
+        # Should not raise — falls back to in-memory cache
         await _cache_price("005930", Decimal("70000"))
 
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_get_cached_price_redis_error_returns_none(
         self, mock_aioredis: MagicMock
     ) -> None:
@@ -468,7 +473,8 @@ class TestCachePriceErrorHandling:
         mock_redis.__aexit__ = AsyncMock(return_value=None)
         mock_aioredis.from_url.return_value = mock_redis
 
-        result = await _get_cached_price("005930")
+        # Redis fails → fallback to in-memory, which is empty → returns None
+        result = await _get_cached_price("fresh_key_12345")
         assert result is None
 
 
@@ -503,8 +509,13 @@ class TestFetchPricesParallelOverseas:
 
 @pytest.mark.unit
 class TestFetchUsdKrwRateCacheWriteError:
+    def setup_method(self) -> None:
+        """각 테스트 전에 in-memory fallback 캐시를 초기화한다."""
+        from app.core.redis_cache import reset_fallback_cache
+        reset_fallback_cache()
+
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_cache_write_error_silently_ignored(
         self, mock_aioredis: MagicMock, mock_token: AsyncMock
     ) -> None:
@@ -535,20 +546,20 @@ class TestFetchUsdKrwRateCacheWriteError:
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
 
-        # Should not raise even if Redis setex fails
+        # Should not raise even if Redis setex fails (falls back to in-memory)
         result = await fetch_usd_krw_rate("key", "secret", mock_client)
         assert result == Decimal("1325.0")
 
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
-    @patch("app.services.kis_price.aioredis")
+    @patch("app.core.redis_cache.aioredis")
     async def test_redis_get_error_proceeds_to_api(
         self, mock_aioredis: MagicMock, mock_token: AsyncMock
     ) -> None:
-        """Redis GET error (ConnectionError) → falls through to API call."""
+        """Redis GET error (ConnectionError) → falls through to API call via in-memory fallback."""
         mock_token.return_value = "fake-token"
 
         mock_redis = AsyncMock()
-        # First call: GET throws ConnectionError
+        # GET throws ConnectionError → RedisCache falls back to in-memory (returns None)
         mock_redis.get = AsyncMock(side_effect=ConnectionError("redis down"))
         mock_redis.setex = AsyncMock()
         mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
