@@ -378,9 +378,10 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {["종목", "수량", "평균단가", "현재가", "평가금액(₩)", "손익(₩)", "수익률", "전일 대비"].map((h) => (
+                  {(["종목", "수량", "평균단가", "현재가", "평가금액(₩)", "손익(₩)", "수익률"] as const).map((h) => (
                     <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                   ))}
+                  <th className="hidden lg:table-cell px-4 py-2 text-left font-medium text-muted-foreground">전일 대비</th>
                 </tr>
               </thead>
               <tbody>
@@ -400,7 +401,7 @@ export default function AnalyticsPage() {
                     <td className="px-4 py-2 tabular-nums">{formatKRW(h.market_value_krw)}</td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_amount ?? 0} /></td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_rate ?? 0} suffix="%" /></td>
-                    <td className="px-4 py-2">
+                    <td className="hidden lg:table-cell px-4 py-2">
                       {h.day_change_rate != null
                         ? <PnLBadge value={h.day_change_rate} suffix="%" />
                         : <span className="text-muted-foreground">—</span>}

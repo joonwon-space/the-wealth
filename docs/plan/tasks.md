@@ -104,7 +104,7 @@ Each item should be completable in a single commit.
   - 파일: `frontend/src/components/HoldingsTable.tsx`
   - 수정안: (A) 태블릿에서 `52주 범위` 열 숨김 (`hidden lg:table-cell`), 또는 (B) `overflow-x-auto` + 가로 스크롤 힌트 UI
 
-- [ ] **Analytics 종목별 성과 테이블 태블릿 가로 overflow**
+- [x] **Analytics 종목별 성과 테이블 태블릿 가로 overflow**
   - 현상: 768px에서 테이블 1055px → 287px 초과
   - 파일: `frontend/src/app/dashboard/analytics/page.tsx` — 종목별 성과 테이블
   - 수정안: 위 보유종목 테이블과 동일 접근
