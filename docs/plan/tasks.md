@@ -83,7 +83,7 @@ No monitoring means scheduler failures and API outages go completely silent.
 ### Single Server Resilience
 All services on one server — server down = full outage.
 
-- [ ] Add `restart: unless-stopped` to all services in docker-compose.yml
+- [x] Add `restart: unless-stopped` to all services in docker-compose.yml
 - [ ] Document managed DB / serverless Redis evaluation (Supabase, Neon, Upstash)
 
 ---
