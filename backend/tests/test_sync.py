@@ -160,7 +160,7 @@ class TestSyncAPI:
             patch(
                 "app.api.sync.fetch_overseas_account_holdings",
                 new_callable=AsyncMock,
-                return_value=[],
+                return_value=([], {}),
             ),
         ):
             resp = await client.post(f"/sync/{pid}", headers=headers)
@@ -184,7 +184,7 @@ class TestSyncAPI:
             patch(
                 "app.api.sync.fetch_overseas_account_holdings",
                 new_callable=AsyncMock,
-                return_value=[],
+                return_value=([], {}),
             ),
         ):
             resp = await client.post(f"/sync/{pid}", headers=headers)
@@ -250,7 +250,7 @@ class TestSyncAPI:
             patch(
                 "app.api.sync.fetch_overseas_account_holdings",
                 new_callable=AsyncMock,
-                return_value=[],
+                return_value=([], {}),
             ),
         ):
             await client.post(f"/sync/{pid}", headers=headers)

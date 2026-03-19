@@ -324,3 +324,13 @@ async def fetch_overseas_price_detail(
             "Failed to fetch overseas price detail for %s/%s: %s", ticker, market, e
         )
         return None
+
+
+async def get_exchange_rate(app_key: str, app_secret: str) -> float:
+    """USD/KRW 환율 조회 (캐시 우선, 실패 시 fallback 1350).
+
+    sync.py 등 httpx 클라이언트 없이 환율만 필요한 호출자용 convenience wrapper.
+    """
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        rate = await fetch_usd_krw_rate(app_key, app_secret, client)
+    return float(rate)

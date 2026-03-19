@@ -106,10 +106,13 @@ async def fetch_overseas_account_holdings(
     app_secret: str,
     account_no: str,
     account_product_code: str = "01",
-) -> list[KisHolding]:
+) -> tuple[list[KisHolding], dict]:
     """KIS 해외주식 잔고 조회 (TTTS3012R).
 
-    Returns list of KisHolding with market field set to exchange code (e.g. NAS, NYS).
+    Returns (holdings, output2_summary) where summary contains USD totals:
+    - ovrs_tot_pfls: 해외주식 평가손익합계 (USD)
+    - frcr_evlu_pfls_amt: 해외주식 평가금액 (USD)
+    - tot_evlu_pfls_amt: 전체 평가손익 (USD)
     """
     token = await get_kis_access_token(app_key, app_secret)
     headers = {
@@ -153,7 +156,7 @@ async def fetch_overseas_account_holdings(
                 rt_cd,
                 msg,
             )
-            return []
+            return [], {}
 
         output1: list = data.get("output1", [])
         result = []
@@ -170,7 +173,7 @@ async def fetch_overseas_account_holdings(
                     market=item.get("ovrs_excg_cd") or None,
                 )
             )
-        return result
+        return result, data.get("output2") or {}
     except Exception as e:
         logger.warning(
             "Failed to fetch KIS overseas account holdings for %s-%s: %s",
@@ -178,4 +181,4 @@ async def fetch_overseas_account_holdings(
             account_product_code,
             e,
         )
-        return []
+        return [], {}

@@ -101,13 +101,14 @@ class TestFetchOverseasAccountHoldings:
         with patch("app.services.kis_account.httpx.AsyncClient") as mock_ctx:
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-            result = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
+            holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
 
-        assert len(result) == 1
-        assert result[0].ticker == "AAPL"
-        assert result[0].market == "NAS"
-        assert result[0].quantity == Decimal("5")
-        assert result[0].avg_price == Decimal("183.42")
+        assert len(holdings) == 1
+        assert holdings[0].ticker == "AAPL"
+        assert holdings[0].market == "NAS"
+        assert holdings[0].quantity == Decimal("5")
+        assert holdings[0].avg_price == Decimal("183.42")
+        assert isinstance(summary, dict)
 
     @patch("app.services.kis_account.get_kis_access_token")
     async def test_returns_empty_on_api_error(self, mock_token) -> None:
@@ -124,9 +125,10 @@ class TestFetchOverseasAccountHoldings:
         with patch("app.services.kis_account.httpx.AsyncClient") as mock_ctx:
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-            result = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
+            holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
 
-        assert result == []
+        assert holdings == []
+        assert summary == {}
 
     @patch("app.services.kis_account.get_kis_access_token")
     async def test_returns_empty_on_exception(self, mock_token) -> None:
@@ -139,9 +141,10 @@ class TestFetchOverseasAccountHoldings:
         with patch("app.services.kis_account.httpx.AsyncClient") as mock_ctx:
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-            result = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
+            holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
 
-        assert result == []
+        assert holdings == []
+        assert summary == {}
 
 
 # ---------------------------------------------------------------------------

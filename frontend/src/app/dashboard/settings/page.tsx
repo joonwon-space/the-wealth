@@ -5,7 +5,7 @@ import { Bell, CheckCircle, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2, Wifi,
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { formatKRW, formatNumber } from "@/lib/format";
+import { formatKRW, formatNumber, formatUSD } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ interface BalanceHolding {
   name: string;
   quantity: string;
   avg_price: string;
+  currency: "KRW" | "USD";
 }
 
 interface AccountBalance {
@@ -354,7 +355,9 @@ export default function SettingsPage() {
                                 <div className="text-xs text-muted-foreground">{h.ticker}</div>
                               </td>
                               <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
-                              <td className="px-4 py-2 tabular-nums">{formatKRW(h.avg_price)}</td>
+                              <td className="px-4 py-2 tabular-nums">
+                                {h.currency === "USD" ? formatUSD(Number(h.avg_price)) : formatKRW(h.avg_price)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

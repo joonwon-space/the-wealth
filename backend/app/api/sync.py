@@ -22,6 +22,7 @@ from app.services.kis_account import (
     fetch_account_holdings,
     fetch_overseas_account_holdings,
 )
+from app.services.kis_price import get_exchange_rate
 from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 from app.services.reconciliation import reconcile_holdings
 
@@ -93,16 +94,36 @@ async def _fetch_balance_raw(
         )
         raise RuntimeError(f"KIS API 오류 (rt_cd={rt_cd}): {msg}")
 
-    summary = (data.get("output2") or [{}])[0]
+    domestic_summary = (data.get("output2") or [{}])[0]
     domestic_holdings = await fetch_account_holdings(
         app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
     )
-    overseas_holdings = await fetch_overseas_account_holdings(
+    overseas_holdings, overseas_summary = await fetch_overseas_account_holdings(
         app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
     )
     holdings_list = domestic_holdings + overseas_holdings
 
-    return summary, holdings_list
+    # 해외주식 평가금액/손익을 원화로 환산해서 합계에 반영
+    exchange_rate = await get_exchange_rate(app_key, app_secret)
+    ovrs_eval_usd = float(overseas_summary.get("frcr_evlu_pfls_amt", 0) or 0)
+    ovrs_pnl_usd = float(overseas_summary.get("ovrs_tot_pfls", 0) or 0)
+
+    dom_stock_eval = int(domestic_summary.get("scts_evlu_amt", 0) or 0)
+    dom_pnl = int(domestic_summary.get("evlu_pfls_smtl_amt", 0) or 0)
+    dom_deposit = int(domestic_summary.get("dnca_tot_amt", 0) or 0)
+
+    combined_stock_eval = dom_stock_eval + int(ovrs_eval_usd * exchange_rate)
+    combined_pnl = dom_pnl + int(ovrs_pnl_usd * exchange_rate)
+    combined_total_eval = dom_deposit + combined_stock_eval
+
+    combined_summary = {
+        "dnca_tot_amt": str(dom_deposit),
+        "tot_evlu_amt": str(combined_total_eval),
+        "scts_evlu_amt": str(combined_stock_eval),
+        "evlu_pfls_smtl_amt": str(combined_pnl),
+    }
+
+    return combined_summary, holdings_list
 
 
 async def _ensure_portfolio_for_account(
@@ -226,6 +247,7 @@ async def get_account_balance(
                         "name": h.name,
                         "quantity": str(h.quantity),
                         "avg_price": str(h.avg_price),
+                        "currency": "USD" if h.market else "KRW",
                     }
                     for h in kis_holdings
                 ],
@@ -269,7 +291,7 @@ async def sync_portfolio(
         domestic_holdings = await fetch_account_holdings(
             app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
         )
-        overseas_holdings = await fetch_overseas_account_holdings(
+        overseas_holdings, _ = await fetch_overseas_account_holdings(
             app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
         )
         kis_holdings = domestic_holdings + overseas_holdings

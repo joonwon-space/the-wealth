@@ -288,11 +288,12 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert len(result) == 1
-        assert result[0].ticker == "AAPL"
-        assert result[0].quantity == Decimal("5")
-        assert result[0].market == "NAS"
+        holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678")
+        assert len(holdings) == 1
+        assert holdings[0].ticker == "AAPL"
+        assert holdings[0].quantity == Decimal("5")
+        assert holdings[0].market == "NAS"
+        assert isinstance(summary, dict)
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
@@ -328,9 +329,9 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert len(result) == 1
-        assert result[0].ticker == "MSFT"
+        holdings, _ = await fetch_overseas_account_holdings("key", "secret", "12345678")
+        assert len(holdings) == 1
+        assert holdings[0].ticker == "MSFT"
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
@@ -345,8 +346,9 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert result == []
+        holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678")
+        assert holdings == []
+        assert summary == {}
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
@@ -361,8 +363,9 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert result == []
+        holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678")
+        assert holdings == []
+        assert summary == {}
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
@@ -376,8 +379,9 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert result == []
+        holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678")
+        assert holdings == []
+        assert summary == {}
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
@@ -407,6 +411,6 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert len(result) == 1
-        assert result[0].market is None
+        holdings, _ = await fetch_overseas_account_holdings("key", "secret", "12345678")
+        assert len(holdings) == 1
+        assert holdings[0].market is None
