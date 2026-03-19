@@ -34,11 +34,11 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Next.js dev HMR
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com", // unsafe-eval needed for Next.js dev HMR
       "style-src 'self' 'unsafe-inline'", // inline styles used by Tailwind + shadcn
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      "connect-src 'self' http://localhost:8000 https://localhost:8000 https://api.joonwon.dev",
+      "connect-src 'self' http://localhost:8000 https://localhost:8000 https://api.joonwon.dev https://cloudflareinsights.com",
       "frame-ancestors 'none'",
     ].join("; "),
   },

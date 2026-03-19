@@ -144,7 +144,7 @@ Each item should be completable in a single commit.
   - 현상: `title="새로고침"`은 있으나 `aria-label` 없음 (title은 스크린 리더 지원 불일치)
   - 수정안: `aria-label="새로고침"` 추가
 
-- [ ] **Cloudflare Analytics CSP 차단**
+- [x] **Cloudflare Analytics CSP 차단**
   - 현상: `static.cloudflareinsights.com` beacon.min.js가 CSP `script-src`에 의해 차단 → 콘솔 에러
   - 수정안: CSP 헤더에 `https://static.cloudflareinsights.com` 추가, 또는 Cloudflare Analytics 비활성화
 
