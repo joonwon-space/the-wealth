@@ -89,10 +89,10 @@ Current actionable work is in `tasks.md`.
   - [ ] Optimistic updates for add/delete (partial — mutations use setQueryData for immediate cache update)
 
 ### 11-7. Frontend Quality
-- [ ] Bundle size budget — `@next/bundle-analyzer` + CI warning on budget exceed
-- [ ] Granular error boundaries — per-widget isolation (chart error shouldn't crash entire dashboard)
-- [ ] SSE reconnection UI — connection status indicator + manual reconnect button
-- [ ] Non-color indicators — ▲/▼ icons for gain/loss (accessibility)
+- [x] Bundle size budget — `@next/bundle-analyzer` + CI warning on budget exceed
+- [x] Granular error boundaries — per-widget isolation (chart error shouldn't crash entire dashboard)
+- [x] SSE reconnection UI — connection status indicator + manual reconnect button
+- [x] Non-color indicators — ▲/▼ icons for gain/loss (accessibility)
 - [ ] Unified skeleton UI loading states
 
 ### 11-6. Next.js 16 Migration
@@ -168,18 +168,18 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ### 13-5a. Operational Stability
 - [x] Redis failure fallback — in-memory fallback or graceful degradation when Redis is down
-- [ ] Scheduler failure alerting — alert on consecutive `kis_sync` / `daily_close_snapshot` failures (currently only logged to `sync_logs`)
+- [x] Scheduler failure alerting — alert on consecutive `kis_sync` / `daily_close_snapshot` failures (currently only logged to `sync_logs`)
 - [ ] Docker volume monitoring — track `pg_data`, `redis_data` disk usage with threshold alerts
 - [ ] TLS certificate renewal check — HTTPS cert expiry monitoring
 
 ### 13-5b. Data Integrity
 - [x] `price_snapshots` gap detection — health check for missing weekday snapshots
 - [x] Holdings quantity reconciliation — detect mismatch between transaction sum and current holdings
-- [ ] Orphan record cleanup — periodic scan for residual data from deleted portfolios
+- [x] Orphan record cleanup — periodic scan for residual data from deleted portfolios
 
 ### 13-5c. KIS API Dependency Reduction
 - [x] Adaptive cache TTL — after market close, extend price cache TTL from 300s to 24h
-- [ ] KIS API health check on startup — auto-switch to cache-only mode on failure
+- [x] KIS API health check on startup — auto-switch to cache-only mode on failure
 - [ ] Price fetch failure rate tracking — alert when threshold exceeded (e.g., 30%)
 
 ---

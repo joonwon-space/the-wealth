@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import configure_logging, generate_request_id, get_logger, get_request_id, set_request_id
 from app.core.middleware import SecurityHeadersMiddleware
+from app.services.kis_health import check_kis_api_health
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.services.stock_search import _load_stock_list
 
@@ -25,6 +26,8 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     start_scheduler()
+    # Check KIS API connectivity at startup; sets KIS_AVAILABLE flag
+    await check_kis_api_health()
     # Preload KRX + ETF stock list into Redis cache at startup
     try:
         stocks_list = await _load_stock_list()

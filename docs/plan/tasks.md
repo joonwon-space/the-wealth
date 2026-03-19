@@ -81,4 +81,4 @@ Each item should be completable in a single commit.
 
 ### Milestone 13-5c: KIS API Health Check (P2)
 
-- [ ] Add KIS API health check on startup — attempt a test price fetch; log WARNING and set a `KIS_AVAILABLE` flag; price endpoints return cached data when flag is False
+- [x] Add KIS API health check on startup — attempt a test price fetch; log WARNING and set a `KIS_AVAILABLE` flag; price endpoints return cached data when flag is False

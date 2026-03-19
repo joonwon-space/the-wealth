@@ -15,6 +15,7 @@ import httpx
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.redis_cache import RedisCache
+from app.services.kis_health import get_kis_availability
 from app.services.kis_token import get_kis_access_token
 
 logger = get_logger(__name__)
@@ -196,7 +197,22 @@ async def fetch_domestic_daily_ohlcv(
 async def fetch_prices_parallel(
     tickers: list[str], app_key: str, app_secret: str, market: str = "domestic"
 ) -> dict[str, Optional[Decimal]]:
-    """여러 종목 현재가를 asyncio.gather로 병렬 조회. 실패 시 Redis 캐시 폴백."""
+    """여러 종목 현재가를 asyncio.gather로 병렬 조회. 실패 시 Redis 캐시 폴백.
+
+    KIS API 가용성 플래그(get_kis_availability())가 False인 경우
+    API 호출을 건너뛰고 캐시 전용 모드로 동작한다.
+    """
+    price_map: dict[str, Optional[Decimal]] = {}
+
+    if not get_kis_availability():
+        logger.warning(
+            "[KisPrice] KIS API unavailable — returning cached prices for %d tickers",
+            len(tickers),
+        )
+        for ticker in tickers:
+            price_map[ticker] = await _get_cached_price(ticker)
+        return price_map
+
     async with httpx.AsyncClient(timeout=10.0) as client:
         if market == "domestic":
             tasks = [
@@ -209,7 +225,6 @@ async def fetch_prices_parallel(
             ]
         results = await asyncio.gather(*tasks)
 
-    price_map: dict[str, Optional[Decimal]] = {}
     for ticker, price in zip(tickers, results):
         if price is not None:
             price_map[ticker] = price
