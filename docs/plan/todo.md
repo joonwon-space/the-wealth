@@ -87,9 +87,9 @@ Current actionable work is in `tasks.md`.
 ## Milestone 12: Backend Enhancement (Remaining)
 
 ### 12-2. SSE Connection Hardening
-- [ ] Per-user max SSE connection limit (e.g., 3)
-- [ ] Server heartbeat (15s) + idle connection cleanup
-- [ ] Max connection duration (e.g., 2 hours)
+- [x] Per-user max SSE connection limit (e.g., 3)
+- [x] Server heartbeat (15s) + idle connection cleanup
+- [x] Max connection duration (e.g., 2 hours)
 
 ### 12-3. Performance Optimization
 - [ ] Stock search trie structure or Redis ZRANGEBYLEX indexing
@@ -198,7 +198,7 @@ Current actionable work is in `tasks.md`.
 ### 16-3. Code Quality Tools
 - [ ] Storybook -- component catalog
 - [ ] Turborepo or Nx -- monorepo build caching
-- [ ] Commitlint -- commit message format validation
+- [x] Commitlint -- commit message format validation
 
 ---
 

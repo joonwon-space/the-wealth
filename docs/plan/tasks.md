@@ -55,8 +55,8 @@ Each item should be completable in a single commit.
 
 ## Milestone 12-2: SSE Connection Hardening
 
-- [ ] Per-user max SSE connection limit (3) — track active connections in a module-level dict; return 429 when exceeded; decrement on disconnect
-- [ ] SSE server heartbeat (15s ping comment) + idle detection — send `: ping` comment every 15s when no price data is being sent; detect no-yield for 30s and close
-- [ ] SSE max connection duration (2 hours) — replace `_SSE_TIMEOUT = 3600` with `7200`; send `data: {"close": "max_duration"}\n\n` before closing
+- [x] Per-user max SSE connection limit (3) — track active connections in a module-level dict; return 429 when exceeded; decrement on disconnect
+- [x] SSE server heartbeat (15s ping comment) + idle detection — send `: ping` comment every 15s when no price data is being sent; detect no-yield for 30s and close
+- [x] SSE max connection duration (2 hours) — replace `_SSE_TIMEOUT = 3600` with `7200`; send `data: {"close": "max_duration"}\n\n` before closing
 
 ---

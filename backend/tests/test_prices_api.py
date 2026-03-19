@@ -320,3 +320,104 @@ class TestSSEStreamEndpoint:
 
         # Should succeed (200) since authentication is valid
         assert resp.status_code == 200
+
+    async def test_stream_max_connections_returns_429(
+        self, client: AsyncClient
+    ) -> None:
+        """When per-user connection limit is exceeded, 429 is returned."""
+        from app.api import prices as prices_mod
+
+        token = await _register_and_login(client, "sse2@test.com")
+
+        # Artificially fill up the connection slots for this user
+        # We need to register+login to get the user's ID from the DB
+        from app.models.user import User
+        from app.db.session import get_db
+        from app.main import app
+        from sqlalchemy import select as sa_select
+
+        get_db_override = app.dependency_overrides[get_db]
+        async for session in get_db_override():
+            result = await session.execute(
+                sa_select(User).where(User.email == "sse2@test.com")
+            )
+            user = result.scalar_one()
+            user_id = user.id
+            break
+
+        # Manually set the connection count to the maximum
+        async with prices_mod._connections_lock:
+            prices_mod._active_connections[user_id] = prices_mod._SSE_MAX_CONNECTIONS
+
+        try:
+            resp = await client.get("/prices/stream", params={"token": token})
+            assert resp.status_code == 429
+        finally:
+            # Clean up
+            async with prices_mod._connections_lock:
+                prices_mod._active_connections.pop(user_id, None)
+
+
+# ---------------------------------------------------------------------------
+# Tests — SSE connection management helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSSEConnectionManagement:
+    async def test_increment_allows_first_connection(self) -> None:
+        from app.api import prices as prices_mod
+
+        async with prices_mod._connections_lock:
+            prices_mod._active_connections.pop(9999, None)
+
+        result = await prices_mod._increment_connection(9999)
+        assert result is True
+        async with prices_mod._connections_lock:
+            assert prices_mod._active_connections[9999] == 1
+        # Cleanup
+        await prices_mod._decrement_connection(9999)
+
+    async def test_increment_allows_up_to_max_connections(self) -> None:
+        from app.api import prices as prices_mod
+
+        uid = 9998
+        async with prices_mod._connections_lock:
+            prices_mod._active_connections.pop(uid, None)
+
+        # Fill to max
+        for _ in range(prices_mod._SSE_MAX_CONNECTIONS):
+            result = await prices_mod._increment_connection(uid)
+            assert result is True
+
+        # Next one should be rejected
+        result = await prices_mod._increment_connection(uid)
+        assert result is False
+
+        # Cleanup
+        async with prices_mod._connections_lock:
+            prices_mod._active_connections.pop(uid, None)
+
+    async def test_decrement_removes_entry_when_zero(self) -> None:
+        from app.api import prices as prices_mod
+
+        uid = 9997
+        await prices_mod._increment_connection(uid)
+        await prices_mod._decrement_connection(uid)
+
+        async with prices_mod._connections_lock:
+            assert uid not in prices_mod._active_connections
+
+    async def test_decrement_preserves_count_above_one(self) -> None:
+        from app.api import prices as prices_mod
+
+        uid = 9996
+        await prices_mod._increment_connection(uid)
+        await prices_mod._increment_connection(uid)
+        await prices_mod._decrement_connection(uid)
+
+        async with prices_mod._connections_lock:
+            assert prices_mod._active_connections[uid] == 1
+        # Cleanup
+        async with prices_mod._connections_lock:
+            prices_mod._active_connections.pop(uid, None)
