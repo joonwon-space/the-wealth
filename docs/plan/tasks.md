@@ -74,7 +74,7 @@ Backend coverage 93% vs frontend minimal.
 ### Milestone 13-5c: Adaptive Cache TTL (P2)
 After market close, price cache TTL should extend from 300s to 24h to reduce KIS API calls.
 
-- [ ] Add `get_adaptive_ttl()` helper in `services/kis_price.py` — returns 300s during market hours, 86400s after close
+- [x] Add `get_adaptive_ttl()` helper in `services/kis_price.py` — returns 300s during market hours, 86400s after close
 - [ ] Apply adaptive TTL in `services/kis_price.py` Redis cache write
 
 ### Milestone 13-5b: Data Integrity Health Checks (P2)
