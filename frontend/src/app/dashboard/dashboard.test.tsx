@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -23,8 +24,21 @@ vi.mock("@/components/PnLBadge", () => ({
   PnLBadge: ({ value }: { value: number }) => <span>{value}</span>,
 }));
 
+vi.mock("@/components/WatchlistSection", () => ({
+  WatchlistSection: () => <div data-testid="watchlist" />,
+}));
+
 import DashboardPage from "./page";
 import { api } from "@/lib/api";
+
+function renderWithQuery(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  );
+}
 
 describe("DashboardPage", () => {
   beforeEach(() => {
@@ -34,7 +48,7 @@ describe("DashboardPage", () => {
   it("shows skeleton while loading", () => {
     // api.get never resolves → stays in loading state
     vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
-    render(<DashboardPage />);
+    renderWithQuery(<DashboardPage />);
     // Skeleton elements should be present (the animated rectangles)
     const skeletons = document.querySelectorAll("[data-slot='skeleton']");
     expect(skeletons.length).toBeGreaterThan(0);
@@ -49,10 +63,11 @@ describe("DashboardPage", () => {
         total_pnl_rate: 0,
         holdings: [],
         allocation: [],
+        triggered_alerts: [],
       },
     });
 
-    render(<DashboardPage />);
+    renderWithQuery(<DashboardPage />);
     const text = await screen.findByText("아직 보유 종목이 없습니다");
     expect(text).toBeInTheDocument();
   });
@@ -60,7 +75,7 @@ describe("DashboardPage", () => {
   it("shows error UI when API fails", async () => {
     vi.mocked(api.get).mockRejectedValue(new Error("Network error"));
 
-    render(<DashboardPage />);
+    renderWithQuery(<DashboardPage />);
     const errorText = await screen.findByText("데이터를 불러올 수 없습니다");
     expect(errorText).toBeInTheDocument();
     expect(screen.getByText("다시 시도")).toBeInTheDocument();
