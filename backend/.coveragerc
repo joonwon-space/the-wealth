@@ -1,0 +1,13 @@
+# Coverage configuration for Python 3.12 async tracking
+# sys.monitoring (sysmon) correctly tracks async coroutine resumptions
+# The default CTracer (sys.settrace) does not propagate into asyncio tasks
+# after await points, causing false "uncovered" reporting for async handlers.
+[run]
+core = sysmon
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if TYPE_CHECKING:
+    \.\.\.

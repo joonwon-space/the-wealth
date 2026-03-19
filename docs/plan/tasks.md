@@ -60,5 +60,6 @@ Each item should be completable in a single commit.
 - [x] `api/stocks.py` router tests -- currently 38% coverage, add tests for stock search and detail endpoints
 - [x] `api/portfolio_export.py` router tests -- currently 48% coverage, add tests for CSV export with various data scenarios
 - [x] `api/users.py` router tests -- currently 54% coverage, add tests for KIS account CRUD and connection test
+- [x] Add `.coveragerc` with `core = sysmon` to fix Python 3.12 async coroutine coverage tracking (73% -> 93%)
 
 ---

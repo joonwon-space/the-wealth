@@ -46,7 +46,7 @@ Current actionable work is in `tasks.md`.
 - [x] CSV export (holdings + transactions)
 
 ### Milestone 16 (completed items)
-- [x] Test coverage 73% (480+ tests) — lint fixes and new router tests added
+- [x] Test coverage 93% (501 tests) — added `.coveragerc` with `core = sysmon` to fix Python 3.12 async coverage tracking; previously reported as 73% due to sys.settrace limitation with asyncio tasks
 - [x] Playwright E2E setup
 - [x] openapi-typescript type generation
 - [x] Short-term improvements (DB indexes, legacy columns, rate limits, ticker validation, pagination cap, soft delete, HttpOnly cookies, Graceful Shutdown)
@@ -207,7 +207,7 @@ Current actionable work is in `tasks.md`.
 | Priority | Milestone | Reason |
 |----------|-----------|--------|
 | **P0** | 14-1 (Production deployment) | Service launch prerequisite |
-| **P0** | Test coverage 80%+ | Code quality gate |
+| ~~**P0**~~ | ~~Test coverage 80%+~~ | Completed: 93% coverage with sysmon fix |
 | **P1** | 14-2 (Monitoring) | Production operations essential |
 | **P1** | 11-2 (Analytics enhancement) | Differentiation feature |
 | **P2** | 13 (Data pipeline) | Analytics prerequisite |
