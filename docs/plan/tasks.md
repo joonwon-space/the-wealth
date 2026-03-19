@@ -140,7 +140,7 @@ Each item should be completable in a single commit.
   - 현상: 12x12px, 14x14px 아이콘 버튼에 텍스트/aria-label 없음
   - 수정안: `aria-label` 추가
 
-- [ ] **대시보드 새로고침 버튼 `aria-label` 부재**
+- [x] **대시보드 새로고침 버튼 `aria-label` 부재**
   - 현상: `title="새로고침"`은 있으나 `aria-label` 없음 (title은 스크린 리더 지원 불일치)
   - 수정안: `aria-label="새로고침"` 추가
 

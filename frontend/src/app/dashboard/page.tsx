@@ -232,8 +232,9 @@ export default function DashboardPage() {
           <button
             onClick={handleManualRefresh}
             disabled={isFetching}
-            className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-50"
             title="새로고침"
+            aria-label="새로고침"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           </button>
