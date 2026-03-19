@@ -69,7 +69,7 @@ Backend coverage 93% vs frontend minimal.
 
 - [x] Add `lib/format.ts` unit tests (formatKRW, formatUSD, formatPrice, formatNumber, formatRate, formatPnL)
 - [x] Add `store/auth.ts` Zustand store tests (login, logout, initialize with cookie mock)
-- [ ] Add `hooks/usePriceStream.ts` tests (connect, skip when disabled, skip when no token, close on unmount)
+- [x] Add `hooks/usePriceStream.ts` tests (connect, skip when disabled, skip when no token, close on unmount)
 
 ### Milestone 13-5c: Adaptive Cache TTL (P2)
 After market close, price cache TTL should extend from 300s to 24h to reduce KIS API calls.
