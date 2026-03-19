@@ -54,7 +54,7 @@ Each item should be completable in a single commit.
 ## Current work
 
 ### Next.js middleware deprecation fix
-- [ ] Migrate `frontend/src/middleware.ts` from `middleware` to `proxy` convention — Next.js 16 build warns the `middleware` file convention is deprecated
+- [x] Migrate `frontend/src/middleware.ts` from `middleware` to `proxy` convention — Next.js 16 build warns the `middleware` file convention is deprecated
 
 ### Test coverage gaps (prices.py 61%)
 - [ ] Add SSE endpoint tests for `api/prices.py` to bring coverage from 61% to 80%+
