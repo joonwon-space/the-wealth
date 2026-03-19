@@ -71,7 +71,7 @@ Replace manual Axios + useState data fetching with TanStack Query for cache cons
 - [x] Add unified skeleton loading states and standardized error UI components using TanStack Query `isLoading`/`isError` states
 
 ### Milestone 13-5b: Data Integrity (P2)
-- [ ] Add holdings quantity reconciliation endpoint `GET /health/holdings-reconciliation` — detect mismatch between transaction sum and current holdings quantity
+- [x] Add holdings quantity reconciliation endpoint `GET /health/holdings-reconciliation` — detect mismatch between transaction sum and current holdings quantity
 
 ### Milestone 13-5a: Operational Stability (P2)
 - [ ] Add Redis failure fallback — wrap Redis calls in `try/except`; fall back to in-memory dict cache with warning log when Redis is unavailable
