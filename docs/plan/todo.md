@@ -81,6 +81,19 @@ Current actionable work is in `tasks.md`.
 - [ ] In-app notification center (price alerts, sync results, errors)
 - [ ] Onboarding tour (react-joyride)
 - [ ] TanStack Query adoption (replace manual Axios state management)
+  - [ ] Install + QueryClientProvider setup
+  - [ ] Migrate dashboard fetching (`refetchInterval: 30_000`)
+  - [ ] Migrate portfolio/holdings lists
+  - [ ] Integrate SSE via `queryClient.setQueryData()`
+  - [ ] Standardize loading/error/empty state UI
+  - [ ] Optimistic updates for add/delete
+
+### 11-7. Frontend Quality
+- [ ] Bundle size budget — `@next/bundle-analyzer` + CI warning on budget exceed
+- [ ] Granular error boundaries — per-widget isolation (chart error shouldn't crash entire dashboard)
+- [ ] SSE reconnection UI — connection status indicator + manual reconnect button
+- [ ] Non-color indicators — ▲/▼ icons for gain/loss (accessibility)
+- [ ] Unified skeleton UI loading states
 
 ### 11-6. Next.js 16 Migration
 - [ ] Migrate `middleware.ts` to `proxy` convention (deprecated in Next.js 16)
@@ -98,6 +111,19 @@ Current actionable work is in `tasks.md`.
 - [ ] Stock search trie structure or Redis ZRANGEBYLEX indexing
 - [ ] KIS batch price API exploration
 - [ ] ETag/If-None-Match header support for dashboard caching
+- [ ] Multi-worker uvicorn (`--workers 2` or gunicorn + uvicorn worker class)
+- [ ] APScheduler dedup in multi-worker (Redis distributed lock or scheduler separation)
+- [ ] SSE connection management in multi-worker
+
+### 12-4. Alert System — Notification Logic
+Alert CRUD exists but no logic to actually notify users when price conditions are met.
+
+- [x] Price condition check in SSE streaming loop
+- [ ] In-app notification center (toast + notification list)
+- [ ] Email alerts (SendGrid / Resend)
+- [ ] Telegram bot alerts
+- [x] Dedup — `last_triggered_at` column + cooldown
+- [x] Auto-deactivate triggered alerts
 
 ### 12-5. API Extension
 - [ ] GraphQL layer (Strawberry)
@@ -130,7 +156,31 @@ Current actionable work is in `tasks.md`.
 ### 13-4. DB Stability
 - [ ] Automated daily pg_dump backup script
 - [ ] External storage integration (S3/GCS/R2)
-- [ ] Recovery procedure documentation
+- [ ] Retention policy (7 daily + 4 weekly + 3 monthly)
+- [ ] Recovery procedure documentation + periodic restore test
+- [ ] Backup failure alerting (email or Telegram)
+
+---
+
+## Milestone 13-5: Operational Stability & Data Integrity
+
+> Newly identified from cross-document analysis ([action plan 2026-03-19](../reviews/the-wealth-action-plan_20260319.md))
+
+### 13-5a. Operational Stability
+- [ ] Redis failure fallback — in-memory fallback or graceful degradation when Redis is down
+- [ ] Scheduler failure alerting — alert on consecutive `kis_sync` / `daily_close_snapshot` failures (currently only logged to `sync_logs`)
+- [ ] Docker volume monitoring — track `pg_data`, `redis_data` disk usage with threshold alerts
+- [ ] TLS certificate renewal check — HTTPS cert expiry monitoring
+
+### 13-5b. Data Integrity
+- [x] `price_snapshots` gap detection — health check for missing weekday snapshots
+- [ ] Holdings quantity reconciliation — detect mismatch between transaction sum and current holdings
+- [ ] Orphan record cleanup — periodic scan for residual data from deleted portfolios
+
+### 13-5c. KIS API Dependency Reduction
+- [x] Adaptive cache TTL — after market close, extend price cache TTL from 300s to 24h
+- [ ] KIS API health check on startup — auto-switch to cache-only mode on failure
+- [ ] Price fetch failure rate tracking — alert when threshold exceeded (e.g., 30%)
 
 ---
 
@@ -151,8 +201,9 @@ Current actionable work is in `tasks.md`.
 
 ### 14-3. CI/CD Pipeline Enhancement
 - [ ] GitHub Actions: preview deployment (Vercel preview per PR)
-- [ ] Container Registry push (production builds)
-- [ ] Release automation (semantic-release, CHANGELOG)
+- [ ] Container Registry push (production builds, tag to GHCR/DockerHub for rollback)
+- [ ] Release automation (semantic-release, auto CHANGELOG)
+- [ ] Blue-Green or rolling deploy (current `docker compose up -d` may cause downtime)
 
 ### 14-4. Security Enhancement
 - [ ] CORS production domain configuration
@@ -195,6 +246,11 @@ Current actionable work is in `tasks.md`.
 
 ### 16-2. Test Infrastructure
 - [ ] SSE connection tests (connect/reconnect, off-hours deactivation)
+- [ ] Frontend test coverage expansion
+  - [x] `usePriceStream` hook tests (connect/reconnect/off-hours)
+  - [ ] Key page component tests (dashboard, portfolio list)
+  - [x] `lib/format.ts` utility tests
+  - [x] `store/auth.ts` Zustand store tests
 - [ ] Visual regression testing (Chromatic or Percy)
 - [ ] Load testing (Locust or k6)
 
@@ -209,12 +265,18 @@ Current actionable work is in `tasks.md`.
 
 | Priority | Milestone | Reason |
 |----------|-----------|--------|
-| **P0** | 14-1 (Production deployment) | Service launch prerequisite |
+| **P0** | 13-4 (DB Backup) | Disk failure = total data loss |
+| **P0** | 14-2 (Monitoring & APM) | Silent failures in production |
+| **P0** | 14-1 (Server resilience) | Single point of failure |
 | ~~**P0**~~ | ~~Test coverage 80%+~~ | Completed: 93% coverage with sysmon fix |
-| **P1** | 14-2 (Monitoring) | Production operations essential |
+| **P1** | 12-4 (Alert notification logic) | CRUD exists but no actual dispatch |
+| **P1** | 11-5 (TanStack Query) | Cache inconsistency & code duplication |
+| **P1** | 16-2 (Frontend test coverage) | Backend 94% vs frontend minimal |
 | **P1** | 11-2 (Analytics enhancement) | Differentiation feature |
+| **P2** | 13-5 (Operational stability & data integrity) | Production reliability |
 | **P2** | 13 (Data pipeline) | Analytics prerequisite |
-| ~~**P2**~~ | ~~12-2 (SSE hardening)~~ | Completed: per-user limit, heartbeat, 2h timeout |
 | **P2** | 14-4 (Security) | Production readiness |
+| **P2** | 11-7 (Frontend quality) | Error boundaries, bundle budget |
+| ~~**P2**~~ | ~~12-2 (SSE hardening)~~ | Completed: per-user limit, heartbeat, 2h timeout |
 | **P3** | 15 (Extensions) | Long-term roadmap |
 | **P3** | 16 (Dev tools) | DX improvement |
