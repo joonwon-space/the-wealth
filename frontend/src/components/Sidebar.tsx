@@ -104,7 +104,7 @@ export function Sidebar() {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-50 rounded-lg border bg-background p-2 shadow-sm md:hidden"
+        className="fixed left-4 top-4 z-50 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border bg-background shadow-sm md:hidden"
         aria-label="메뉴 열기"
       >
         <Menu className="h-5 w-5" />
@@ -129,7 +129,7 @@ export function Sidebar() {
       >
         <button
           onClick={() => setMobileOpen(false)}
-          className="absolute right-3 top-4 rounded-lg p-1 text-sidebar-foreground hover:bg-sidebar-accent/60"
+          className="absolute right-3 top-4 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/60"
           aria-label="메뉴 닫기"
         >
           <X className="h-5 w-5" />

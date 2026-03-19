@@ -109,7 +109,7 @@ Each item should be completable in a single commit.
   - 파일: `frontend/src/app/dashboard/analytics/page.tsx` — 종목별 성과 테이블
   - 수정안: 위 보유종목 테이블과 동일 접근
 
-- [ ] **모바일 터치 타겟 44px 미달 (전 페이지)**
+- [x] **모바일 터치 타겟 44px 미달 (전 페이지)**
   - 미달 요소 목록:
     - "메뉴 열기" 버튼: 38x38px → 44x44px
     - "메뉴 닫기" 버튼: 28x28px → 44x44px

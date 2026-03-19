@@ -379,8 +379,9 @@ function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
   return (
     <button
       onClick={onReconnect}
-      className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80"
+      className="inline-flex min-h-[44px] items-center gap-1 rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground hover:bg-muted/80"
       title="SSE 재연결"
+      aria-label="SSE 재연결"
     >
       <WifiOff className="h-3 w-3" />
       연결 끊김 — 재연결

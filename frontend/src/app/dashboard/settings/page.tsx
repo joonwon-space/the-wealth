@@ -204,7 +204,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-4 p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">KIS 계좌 목록</h2>
-            <Button size="sm" variant="outline" onClick={() => setShowAddAccount(!showAddAccount)} className="gap-1">
+            <Button size="sm" variant="outline" onClick={() => setShowAddAccount(!showAddAccount)} className="min-h-[44px] gap-1">
               <Plus className="h-3.5 w-3.5" />
               {showAddAccount ? "취소" : "계좌 추가"}
             </Button>
@@ -265,8 +265,9 @@ export default function SettingsPage() {
                     <button
                       onClick={() => handleTestAccount(a.id)}
                       disabled={testingAcctId === a.id}
-                      className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
+                      className="min-h-[44px] rounded border px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
                       title="연결 테스트"
+                      aria-label="KIS 연결 테스트"
                     >
                       {testingAcctId === a.id ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
