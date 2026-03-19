@@ -6,6 +6,7 @@ import { BarChart3, Plus, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
+import { useAuthStore } from "@/store/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AllocationDonut } from "@/components/DynamicCharts";
@@ -78,6 +79,16 @@ async function fetchSummary(refresh = false): Promise<Summary> {
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refreshAccessToken = useAuthStore((s) => s.refreshAccessToken);
+
+  // On page load after refresh, accessToken is null (not persisted).
+  // Silently call /auth/refresh so the SSE hook gets a token.
+  useEffect(() => {
+    if (!accessToken) {
+      void refreshAccessToken();
+    }
+  }, [accessToken, refreshAccessToken]);
 
   const {
     data: summary,

@@ -129,7 +129,7 @@ Each item should be completable in a single commit.
   - 파일: `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx` (또는 해당 레이아웃 컴포넌트)
   - 수정안: 현재 경로와 일치하는 링크에 `aria-current="page"` 속성 추가
 
-- [ ] **SSE 연결 "연결 끊김 — 재연결" 항상 표시**
+- [x] **SSE 연결 "연결 끊김 — 재연결" 항상 표시**
   - 현상: 배포 환경에서 SSE 연결이 맺어지지 않아 대시보드 헤더에 항상 "연결 끊김" 표시
   - 파일: `frontend/src/hooks/usePriceStream.ts` (또는 SSE 연결 훅), 백엔드 SSE 엔드포인트
   - 수정안: 배포 환경 SSE 엔드포인트 연결 확인 (CORS, 프록시 설정 등)
