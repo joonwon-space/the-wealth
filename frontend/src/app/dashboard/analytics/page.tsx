@@ -218,9 +218,9 @@ export default function AnalyticsPage() {
           <h2 className="text-base font-semibold">성과 지표</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <MetricCard label="총 수익률" value={metrics.total_return_rate} suffix="%" tooltip="전체 투자 기간 동안의 누적 수익률" />
-            <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다." />
-            <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭(MDD): 고점 대비 최대 하락폭입니다. 값이 클수록 손실 위험이 큽니다." />
-            <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="샤프 비율: 위험(변동성) 한 단위당 초과 수익률. 1 이상이면 양호, 2 이상이면 우수합니다." />
+            <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다." nullHint="데이터 30일 이상 필요" />
+            <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭(MDD): 고점 대비 최대 하락폭입니다. 값이 클수록 손실 위험이 큽니다." nullHint="이력 데이터 부족" />
+            <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="샤프 비율: 위험(변동성) 한 단위당 초과 수익률. 1 이상이면 양호, 2 이상이면 우수합니다." nullHint="데이터 30일 이상 필요" />
           </div>
         </section>
       )}
@@ -428,6 +428,8 @@ interface MetricCardProps {
   value: number | null;
   suffix?: string;
   tooltip?: string;
+  /** Short hint shown below "—" when value is null */
+  nullHint?: string;
 }
 
 function MetricTooltip({ text }: { text: string }) {
@@ -468,7 +470,7 @@ function MetricTooltip({ text }: { text: string }) {
   );
 }
 
-function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
+function MetricCard({ label, value, suffix = "", tooltip, nullHint }: MetricCardProps) {
   const display = value != null ? `${value > 0 && suffix === "%" ? "+" : ""}${value.toFixed(suffix === "%" ? 2 : 3)}${suffix}` : "—";
   const color = value == null ? "" : value > 0 ? "text-[#e31f26]" : value < 0 ? "text-[#1a56db]" : "";
   return (
@@ -479,6 +481,9 @@ function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
           {tooltip && <MetricTooltip text={tooltip} />}
         </div>
         <p className={`mt-1 text-lg font-bold tabular-nums ${color}`}>{display}</p>
+        {value == null && nullHint && (
+          <p className="mt-0.5 text-[10px] text-muted-foreground/70">{nullHint}</p>
+        )}
       </CardContent>
     </Card>
   );

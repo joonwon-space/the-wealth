@@ -148,7 +148,7 @@ Each item should be completable in a single commit.
   - 현상: `static.cloudflareinsights.com` beacon.min.js가 CSP `script-src`에 의해 차단 → 콘솔 에러
   - 수정안: CSP 헤더에 `https://static.cloudflareinsights.com` 추가, 또는 Cloudflare Analytics 비활성화
 
-- [ ] **CAGR/샤프 비율 "—" 사유 안내 텍스트 없음**
+- [x] **CAGR/샤프 비율 "—" 사유 안내 텍스트 없음**
   - 현상: 데이터 부족 시 단순 "—" 표시 → 사용자가 왜 비어있는지 모름
   - 수정안: "—" 아래 또는 hover 시 "데이터 30일 이상 필요" 등 안내 표시
 
