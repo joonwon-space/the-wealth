@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Search, Trash2, PackageOpen, Download } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
 import { TransactionChart } from "@/components/DynamicCharts";
@@ -42,107 +44,133 @@ interface AddForm {
 
 const EMPTY_FORM: AddForm = { ticker: "", name: "", quantity: "", avg_price: "" };
 
+function holdingsKey(portfolioId: number) {
+  return ["portfolios", portfolioId, "holdings"] as const;
+}
+
+function transactionsKey(portfolioId: number) {
+  return ["portfolios", portfolioId, "transactions"] as const;
+}
+
 export default function PortfolioDetailPage() {
   const { id } = useParams<{ id: string }>();
   const portfolioId = Number(id);
+  const queryClient = useQueryClient();
 
-  const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [addForm, setAddForm] = useState<AddForm | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{ quantity: string; avg_price: string }>({ quantity: "", avg_price: "" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [transactions, setTransactions] = useState<TxnRow[]>([]);
   const [showTxnForm, setShowTxnForm] = useState(false);
   const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "", traded_at: "" });
-  const [txnSaving, setTxnSaving] = useState(false);
   const [deleteTxnId, setDeleteTxnId] = useState<number | null>(null);
 
-  const fetchHoldings = async () => {
-    try {
+  const { data: holdings = [], isLoading } = useQuery<Holding[]>({
+    queryKey: holdingsKey(portfolioId),
+    queryFn: async () => {
       const { data } = await api.get<Holding[]>(`/portfolios/${portfolioId}/holdings/with-prices`);
-      setHoldings(data);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data;
+    },
+  });
 
-  const fetchTransactions = async () => {
-    try {
-      const { data } = await api.get<TxnRow[]>(`/portfolios/${portfolioId}/transactions`);
-      setTransactions(data);
-    } catch { /* ignore */ }
-  };
+  const { data: transactions = [] } = useQuery<TxnRow[]>({
+    queryKey: transactionsKey(portfolioId),
+    queryFn: async () => {
+      try {
+        const { data } = await api.get<TxnRow[]>(`/portfolios/${portfolioId}/transactions`);
+        return data;
+      } catch {
+        return [];
+      }
+    },
+  });
 
-  const handleDeleteTxn = async (txnId: number) => {
-    await api.delete(`/portfolios/transactions/${txnId}`);
-    setTransactions((prev) => prev.filter((t) => t.id !== txnId));
-  };
+  const addHoldingMutation = useMutation({
+    mutationFn: (form: AddForm) =>
+      api.post<Holding>(`/portfolios/${portfolioId}/holdings`, {
+        ticker: form.ticker,
+        name: form.name,
+        quantity: Number(form.quantity),
+        avg_price: Number(form.avg_price),
+      }).then((r) => r.data),
+    onSuccess: (data) => {
+      queryClient.setQueryData<Holding[]>(holdingsKey(portfolioId), (prev) =>
+        prev ? [...prev, data] : [data]
+      );
+      setAddForm(null);
+    },
+  });
 
-  useEffect(() => { fetchHoldings(); fetchTransactions(); }, [portfolioId]);
+  const editHoldingMutation = useMutation({
+    mutationFn: ({ holdingId, quantity, avg_price }: { holdingId: number; quantity: number; avg_price: number }) =>
+      api.patch<Holding>(`/portfolios/holdings/${holdingId}`, { quantity, avg_price }).then((r) => r.data),
+    onSuccess: (data) => {
+      queryClient.setQueryData<Holding[]>(holdingsKey(portfolioId), (prev) =>
+        prev ? prev.map((h) => (h.id === data.id ? data : h)) : []
+      );
+      setEditId(null);
+    },
+  });
 
-  const handleTxnSubmit = async () => {
-    if (!txnForm.ticker || !txnForm.quantity || !txnForm.price) return;
-    if (Number(txnForm.quantity) <= 0 || Number(txnForm.price) <= 0) return;
-    setTxnSaving(true);
-    try {
-      await api.post(`/portfolios/${portfolioId}/transactions`, {
+  const deleteHoldingMutation = useMutation({
+    mutationFn: (holdingId: number) => api.delete(`/portfolios/holdings/${holdingId}`),
+    onSuccess: (_, holdingId) => {
+      queryClient.setQueryData<Holding[]>(holdingsKey(portfolioId), (prev) =>
+        prev ? prev.filter((h) => h.id !== holdingId) : []
+      );
+      setDeleteConfirmId(null);
+    },
+  });
+
+  const addTxnMutation = useMutation({
+    mutationFn: () =>
+      api.post(`/portfolios/${portfolioId}/transactions`, {
         ticker: txnForm.ticker,
         type: txnForm.type,
         quantity: Number(txnForm.quantity),
         price: Number(txnForm.price),
         ...(txnForm.traded_at ? { traded_at: new Date(txnForm.traded_at).toISOString() } : {}),
-      });
+      }),
+    onSuccess: () => {
       setTxnForm({ ticker: "", type: "BUY", quantity: "", price: "", traded_at: "" });
       setShowTxnForm(false);
-      await fetchTransactions();
-    } finally {
-      setTxnSaving(false);
-    }
+      queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
+    },
+  });
+
+  const deleteTxnMutation = useMutation({
+    mutationFn: (txnId: number) => api.delete(`/portfolios/transactions/${txnId}`),
+    onSuccess: (_, txnId) => {
+      queryClient.setQueryData<TxnRow[]>(transactionsKey(portfolioId), (prev) =>
+        prev ? prev.filter((t) => t.id !== txnId) : []
+      );
+      setDeleteTxnId(null);
+    },
+  });
+
+  const handleTxnSubmit = () => {
+    if (!txnForm.ticker || !txnForm.quantity || !txnForm.price) return;
+    if (Number(txnForm.quantity) <= 0 || Number(txnForm.price) <= 0) return;
+    addTxnMutation.mutate();
   };
 
   const handleStockSelect = (ticker: string, name: string) => {
-    setAddForm({ ticker, name, quantity: "", avg_price: "" });
+    setAddForm({ ...EMPTY_FORM, ticker, name });
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm) return;
-    setSaving(true);
-    try {
-      const { data } = await api.post<Holding>(`/portfolios/${portfolioId}/holdings`, {
-        ticker: addForm.ticker,
-        name: addForm.name,
-        quantity: Number(addForm.quantity),
-        avg_price: Number(addForm.avg_price),
-      });
-      setHoldings((prev) => [...prev, data]);
-      setAddForm(null);
-    } finally {
-      setSaving(false);
-    }
+    addHoldingMutation.mutate(addForm);
   };
 
-  const handleEditSave = async (holdingId: number) => {
-    setSaving(true);
-    try {
-      const { data } = await api.patch<Holding>(`/portfolios/holdings/${holdingId}`, {
-        quantity: Number(editForm.quantity),
-        avg_price: Number(editForm.avg_price),
-      });
-      setHoldings((prev) => prev.map((h) => (h.id === holdingId ? data : h)));
-      setEditId(null);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (holdingId: number) => {
-    await api.delete(`/portfolios/holdings/${holdingId}`);
-    setHoldings((prev) => prev.filter((h) => h.id !== holdingId));
-    setDeleteConfirmId(null);
+  const handleEditSave = (holdingId: number) => {
+    editHoldingMutation.mutate({
+      holdingId,
+      quantity: Number(editForm.quantity),
+      avg_price: Number(editForm.avg_price),
+    });
   };
 
   const downloadCsv = async (path: string, filename: string) => {
@@ -185,8 +213,12 @@ export default function PortfolioDetailPage() {
         </div>
       </div>
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">불러오는 중...</p>
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
       ) : holdings.length === 0 && !addForm ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <PackageOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
@@ -234,7 +266,7 @@ export default function PortfolioDetailPage() {
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={saving}>저장</Button>
+                          <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={editHoldingMutation.isPending}>저장</Button>
                           <Button size="sm" variant="outline" onClick={() => setEditId(null)}>취소</Button>
                         </div>
                       </td>
@@ -297,7 +329,13 @@ export default function PortfolioDetailPage() {
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={handleAdd} disabled={saving || !addForm.quantity || !addForm.avg_price}>추가</Button>
+                      <Button
+                        size="sm"
+                        onClick={handleAdd}
+                        disabled={addHoldingMutation.isPending || !addForm.quantity || !addForm.avg_price}
+                      >
+                        추가
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => setAddForm(null)}>취소</Button>
                     </div>
                   </td>
@@ -316,7 +354,14 @@ export default function PortfolioDetailPage() {
             <p className="text-sm text-muted-foreground">이 작업은 되돌릴 수 없습니다.</p>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirmId(null)}>취소</Button>
-              <Button variant="destructive" className="flex-1" onClick={() => handleDelete(deleteConfirmId)}>삭제</Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={deleteHoldingMutation.isPending}
+                onClick={() => deleteHoldingMutation.mutate(deleteConfirmId)}
+              >
+                삭제
+              </Button>
             </div>
           </div>
         </div>
@@ -330,7 +375,14 @@ export default function PortfolioDetailPage() {
             <p className="text-sm text-muted-foreground">이 작업은 되돌릴 수 없습니다.</p>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setDeleteTxnId(null)}>취소</Button>
-              <Button variant="destructive" className="flex-1" onClick={() => { handleDeleteTxn(deleteTxnId); setDeleteTxnId(null); }}>삭제</Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={deleteTxnMutation.isPending}
+                onClick={() => deleteTxnMutation.mutate(deleteTxnId)}
+              >
+                삭제
+              </Button>
             </div>
           </div>
         </div>
@@ -374,8 +426,8 @@ export default function PortfolioDetailPage() {
               <label className="text-xs text-muted-foreground">날짜</label>
               <Input type="date" value={txnForm.traded_at} onChange={(e) => setTxnForm((f) => ({ ...f, traded_at: e.target.value }))} className="h-8 w-full sm:w-36" />
             </div>
-            <Button size="sm" className="col-span-2 sm:col-span-1" onClick={handleTxnSubmit} disabled={txnSaving}>
-              {txnSaving ? "저장 중..." : "저장"}
+            <Button size="sm" className="col-span-2 sm:col-span-1" onClick={handleTxnSubmit} disabled={addTxnMutation.isPending}>
+              {addTxnMutation.isPending ? "저장 중..." : "저장"}
             </Button>
           </div>
         )}
