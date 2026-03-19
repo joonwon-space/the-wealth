@@ -62,7 +62,7 @@ Alert CRUD exists but no price-triggered notification logic.
 
 - [x] Add `last_triggered_at` column to `alerts` table via Alembic migration
 - [x] Integrate alert condition check into SSE stream loop — emit `alerts` event when triggered; dedup with 1h cooldown; auto-deactivate after trigger
-- [ ] Add `PATCH /alerts/{id}` endpoint to reactivate/update alert `is_active` and `threshold`
+- [x] Add `PATCH /alerts/{id}` endpoint to reactivate/update alert `is_active` and `threshold`
 
 ### Milestone 16-2: Frontend Test Coverage (P1)
 Backend coverage 93% vs frontend minimal.
