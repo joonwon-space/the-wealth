@@ -58,6 +58,6 @@ Each item should be completable in a single commit.
 
 ### Test coverage gaps (prices.py 61%)
 - [x] Add SSE endpoint tests for `api/prices.py` to bring coverage from 61% to 80%+
-- [ ] Add missing `api/dashboard.py` tests for uncovered lines (85% -> 90%+)
+- [x] Add missing `api/dashboard.py` tests for uncovered lines (85% -> 90%+)
 
 ---

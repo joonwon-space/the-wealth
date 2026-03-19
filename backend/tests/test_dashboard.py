@@ -397,3 +397,183 @@ class TestDashboardSummary:
 
         # Should still return 200 with fallback values
         assert resp.status_code == 200
+
+    async def test_summary_portfolio_exists_but_no_holdings(self, client: AsyncClient) -> None:
+        """포트폴리오가 있지만 보유 종목이 없으면 빈 결과 반환 (line 114 coverage)."""
+        await client.post(
+            "/auth/register",
+            json={"email": "noholdings@example.com", "password": "Test1234!"},
+        )
+        resp = await client.post(
+            "/auth/login",
+            json={"email": "noholdings@example.com", "password": "Test1234!"},
+        )
+        token = resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Create a portfolio but add no holdings
+        await client.post("/portfolios", json={"name": "empty_port"}, headers=headers)
+
+        resp = await client.get("/dashboard/summary", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert float(data["total_asset"]) == 0
+        assert data["holdings"] == []
+
+    async def test_summary_refresh_true_with_holdings(self, client: AsyncClient) -> None:
+        """refresh=true with holdings clears Redis cache (lines 131-136 coverage).
+
+        Redis is not running in test env, so the exception is caught gracefully.
+        """
+        await client.post(
+            "/auth/register",
+            json={"email": "refresh_hold@example.com", "password": "Test1234!"},
+        )
+        resp = await client.post(
+            "/auth/login",
+            json={"email": "refresh_hold@example.com", "password": "Test1234!"},
+        )
+        token = resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        port = await client.post("/portfolios", json={"name": "r_test"}, headers=headers)
+        pid = port.json()["id"]
+        await client.post(
+            f"/portfolios/{pid}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 1, "avg_price": 70000},
+            headers=headers,
+        )
+
+        # Redis is not running → exception caught on line 135; should still return 200
+        resp = await client.get("/dashboard/summary?refresh=true", headers=headers)
+        assert resp.status_code == 200
+        assert len(resp.json()["holdings"]) == 1
+
+    async def test_summary_domestic_price_failed_but_cached(self, client: AsyncClient) -> None:
+        """국내주식 현재가 조회 실패 시 캐시된 가격 사용 (lines 192-193 coverage)."""
+        token, _pid = await self._setup_user_with_kis_account(client, "kis_cached@example.com")
+        headers = {"Authorization": f"Bearer {token}"}
+
+        with (
+            patch(
+                "app.api.dashboard.fetch_domestic_price_detail",
+                new_callable=AsyncMock,
+                side_effect=Exception("KIS timeout"),
+            ),
+            patch(
+                "app.api.dashboard._get_cached_price",
+                new_callable=AsyncMock,
+                return_value=Decimal("72000"),
+            ),
+            patch(
+                "app.services.kis_token.get_kis_access_token",
+                new_callable=AsyncMock,
+                return_value="mock_token",
+            ),
+        ):
+            resp = await client.get("/dashboard/summary", headers=headers)
+
+        assert resp.status_code == 200
+        data = resp.json()
+        # current_price should reflect the cached value
+        assert len(data["holdings"]) == 1
+        assert float(data["holdings"][0]["current_price"]) == 72000
+
+    async def test_summary_overseas_price_failed_but_cached(self, client: AsyncClient) -> None:
+        """해외주식 현재가 조회 실패 시 캐시된 가격 사용 (lines 206-212 coverage)."""
+        await client.post(
+            "/auth/register",
+            json={"email": "ovrs_cache@example.com", "password": "Test1234!"},
+        )
+        resp = await client.post(
+            "/auth/login",
+            json={"email": "ovrs_cache@example.com", "password": "Test1234!"},
+        )
+        token = resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        await client.post(
+            "/users/kis-accounts",
+            json={
+                "label": "해외캐시계좌",
+                "account_no": "11223344",
+                "acnt_prdt_cd": "01",
+                "app_key": "test_app_key",
+                "app_secret": "test_app_secret",
+            },
+            headers=headers,
+        )
+
+        port = await client.post("/portfolios", json={"name": "ovrs"}, headers=headers)
+        pid = port.json()["id"]
+        await client.post(
+            f"/portfolios/{pid}/holdings",
+            json={"ticker": "AAPL", "name": "Apple", "quantity": 1, "avg_price": 150, "market": "NASD"},
+            headers=headers,
+        )
+
+        with (
+            patch(
+                "app.api.dashboard.fetch_overseas_price_detail",
+                new_callable=AsyncMock,
+                side_effect=Exception("KIS overseas timeout"),
+            ),
+            patch(
+                "app.api.dashboard.fetch_usd_krw_rate",
+                new_callable=AsyncMock,
+                return_value=Decimal("1350"),
+            ),
+            patch(
+                "app.api.dashboard._get_cached_price",
+                new_callable=AsyncMock,
+                return_value=Decimal("160"),
+            ),
+            patch(
+                "app.services.kis_token.get_kis_access_token",
+                new_callable=AsyncMock,
+                return_value="mock_token",
+            ),
+        ):
+            resp = await client.get("/dashboard/summary", headers=headers)
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["holdings"]) == 1
+        assert float(data["holdings"][0]["current_price"]) == 160
+
+    async def test_summary_day_change_from_prev_close(self, client: AsyncClient) -> None:
+        """get_prev_close 반환값으로 day_change_pct 계산 (lines 341-362 coverage)."""
+        await client.post(
+            "/auth/register",
+            json={"email": "prevclose@example.com", "password": "Test1234!"},
+        )
+        resp = await client.post(
+            "/auth/login",
+            json={"email": "prevclose@example.com", "password": "Test1234!"},
+        )
+        token = resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        port = await client.post("/portfolios", json={"name": "pc_test"}, headers=headers)
+        pid = port.json()["id"]
+        await client.post(
+            f"/portfolios/{pid}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000},
+            headers=headers,
+        )
+
+        # Mock get_prev_close to return a previous close price so day_change is computed
+        with patch(
+            "app.api.dashboard.get_prev_close",
+            new_callable=AsyncMock,
+            return_value={"005930": Decimal("68000")},
+        ):
+            resp = await client.get("/dashboard/summary", headers=headers)
+
+        assert resp.status_code == 200
+        data = resp.json()
+        # day_change_pct should now be populated
+        assert data["day_change_pct"] is not None
+        # current = avg_price * qty = 700000, prev = 68000 * 10 = 680000
+        # change = (700000 - 680000) / 680000 * 100 ≈ 2.94%
+        assert float(data["day_change_pct"]) > 0
