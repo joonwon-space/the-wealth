@@ -99,7 +99,7 @@ Each item should be completable in a single commit.
 
 ### 🟡 Warning — UX 개선 (P1)
 
-- [ ] **대시보드 보유종목 테이블 태블릿 가로 overflow**
+- [x] **대시보드 보유종목 테이블 태블릿 가로 overflow**
   - 현상: 768px에서 테이블 실제 너비 1183px → 415px 초과, `수익금`, `수익률`, `전일 대비`, `52주 범위` 열이 화면 밖
   - 파일: `frontend/src/components/HoldingsTable.tsx`
   - 수정안: (A) 태블릿에서 `52주 범위` 열 숨김 (`hidden lg:table-cell`), 또는 (B) `overflow-x-auto` + 가로 스크롤 힌트 UI
