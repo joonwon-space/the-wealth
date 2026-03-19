@@ -67,7 +67,7 @@ Alert CRUD exists but no price-triggered notification logic.
 ### Milestone 16-2: Frontend Test Coverage (P1)
 Backend coverage 93% vs frontend minimal.
 
-- [ ] Add `lib/format.ts` unit tests (formatKRW, formatUSD, formatPrice, formatNumber, formatRate, formatPnL)
+- [x] Add `lib/format.ts` unit tests (formatKRW, formatUSD, formatPrice, formatNumber, formatRate, formatPnL)
 - [ ] Add `store/auth.ts` Zustand store tests (login, logout, initialize with cookie mock)
 - [ ] Add `hooks/usePriceStream.ts` tests (connect, skip when disabled, skip when no token, close on unmount)
 
