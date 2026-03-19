@@ -255,7 +255,11 @@ export default function SettingsPage() {
                   ) : (
                     <div className="flex items-center gap-1">
                       <span className="font-medium">{a.label}</span>
-                      <button onClick={() => { setEditingAcctId(a.id); setEditLabel(a.label); }} className="text-muted-foreground/50 hover:text-muted-foreground">
+                      <button
+                        onClick={() => { setEditingAcctId(a.id); setEditLabel(a.label); }}
+                        aria-label={`${a.label} 계좌 별칭 편집`}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground"
+                      >
                         <Pencil className="h-3 w-3" />
                       </button>
                       <span className="ml-1 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
@@ -280,7 +284,11 @@ export default function SettingsPage() {
                       )}
                       테스트
                     </button>
-                    <button onClick={() => handleDeleteAccount(a.id)} className="text-muted-foreground hover:text-destructive">
+                    <button
+                      onClick={() => handleDeleteAccount(a.id)}
+                      aria-label={`${a.label} 계좌 삭제`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -439,7 +447,8 @@ export default function SettingsPage() {
                   </div>
                   <button
                     onClick={() => handleDeleteAlert(a.id)}
-                    className="rounded p-1 text-muted-foreground hover:text-destructive"
+                    aria-label={`${a.name || a.ticker} 알림 삭제`}
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

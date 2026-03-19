@@ -136,7 +136,7 @@ Each item should be completable in a single commit.
 
 ### 🟢 Minor — 개선 권장 (P2)
 
-- [ ] **Settings 계좌 목록 소형 아이콘 버튼 접근성**
+- [x] **Settings 계좌 목록 소형 아이콘 버튼 접근성**
   - 현상: 12x12px, 14x14px 아이콘 버튼에 텍스트/aria-label 없음
   - 수정안: `aria-label` 추가
 
