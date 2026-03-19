@@ -1,7 +1,7 @@
 "use client";
 
 import { Cell, Pie, PieChart, Tooltip } from "recharts";
-import { formatKRW } from "@/lib/format";
+import { formatKRW, formatRate } from "@/lib/format";
 
 interface AllocationItem {
   ticker: string;
@@ -15,8 +15,30 @@ interface Props {
   totalAsset: number;
 }
 
+interface TooltipPayloadItem {
+  payload: AllocationItem & { value: number };
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+}
+
 const COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 const SIZE = 240;
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const item = payload[0].payload;
+  return (
+    <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
+      <p className="font-semibold">{item.name}</p>
+      <p className="text-muted-foreground">{item.ticker}</p>
+      <p className="mt-1 tabular-nums">{formatRate(item.ratio)}%</p>
+      <p className="tabular-nums text-foreground">{formatKRW(item.value)}</p>
+    </div>
+  );
+}
 
 export function AllocationDonut({ data, totalAsset }: Props) {
   // API may return numeric strings from Decimal fields — coerce to numbers
@@ -38,9 +60,7 @@ export function AllocationDonut({ data, totalAsset }: Props) {
             <Cell key={index} fill={COLORS[index % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip
-          formatter={(value) => [formatKRW(value as number), "평가금액"]}
-        />
+        <Tooltip content={<CustomTooltip />} />
       </PieChart>
 
       {/* 중앙 텍스트 오버레이 */}

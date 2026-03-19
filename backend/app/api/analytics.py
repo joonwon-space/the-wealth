@@ -2,6 +2,8 @@
 
 import asyncio
 import math
+import re
+from datetime import date as date_type
 from decimal import Decimal
 from typing import Optional
 
@@ -19,10 +21,16 @@ from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
 from app.core.encryption import decrypt
 from app.core.logging import get_logger
-from app.services.kis_price import _cache_price, _get_cached_price
+from app.services.kis_price import _cache_price, _get_cached_price, get_cached_fx_rate
 from app.services.price_snapshot import fetch_domestic_price_detail
 from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
+
+_DOMESTIC_TICKER_RE = re.compile(r"^\d{6}$")
+
+
+def _is_domestic(ticker: str) -> bool:
+    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = get_logger(__name__)
@@ -147,9 +155,9 @@ async def get_metrics(
             date_ticker_map[d] = {}
         date_ticker_map[d][snap.ticker] = float(snap.close)
 
-    # 날짜별 포트폴리오 총 가치
+    # 날짜별 포트폴리오 총 가치 (날짜 추적 포함)
     holding_map = {h.ticker: h for h in holdings}
-    portfolio_values: list[float] = []
+    portfolio_date_values: list[tuple[str, float]] = []
     for date_str in sorted(date_ticker_map.keys()):
         prices_on_date = date_ticker_map[date_str]
         value = sum(
@@ -158,7 +166,9 @@ async def get_metrics(
             if t in prices_on_date and t in holding_map
         )
         if value > 0:
-            portfolio_values.append(value)
+            portfolio_date_values.append((date_str, value))
+
+    portfolio_values = [v for _, v in portfolio_date_values]
 
     # 일별 수익률
     daily_returns: list[float] = []
@@ -167,11 +177,15 @@ async def get_metrics(
         if prev > 0:
             daily_returns.append((portfolio_values[i] - prev) / prev)
 
-    # CAGR: 첫 스냅샷 ~ 현재
+    # CAGR: 실제 날짜 범위 기반 (최소 30일 이상 데이터 필요)
     cagr: Optional[float] = None
-    if portfolio_values:
-        years = len(portfolio_values) / 252
-        cagr = _calc_cagr(portfolio_values[0], total_current, years)
+    if portfolio_date_values:
+        start_date = date_type.fromisoformat(portfolio_date_values[0][0])
+        end_date = date_type.fromisoformat(portfolio_date_values[-1][0])
+        days = (end_date - start_date).days
+        if days >= 30:
+            years = days / 365.25
+            cagr = _calc_cagr(portfolio_date_values[0][1], total_current, years)
 
     mdd = _calc_mdd(portfolio_values + [total_current]) if portfolio_values else 0.0
     sharpe = _calc_sharpe(daily_returns)
@@ -344,10 +358,15 @@ async def get_sector_allocation(
     if not holdings:
         return []
 
+    # 해외주식 USD → KRW 환산을 위해 캐시에서 환율 조회
+    usd_krw = await get_cached_fx_rate()
+
     sector_values: dict[str, float] = {}
     for h in holdings:
         sector = get_sector(h.ticker)
-        value = float(h.quantity) * float(h.avg_price)
+        value_local = float(h.quantity) * float(h.avg_price)
+        # 해외주식(6자리 숫자가 아닌 ticker)은 USD → KRW 환산
+        value = value_local * usd_krw if not _is_domestic(h.ticker) else value_local
         sector_values[sector] = sector_values.get(sector, 0.0) + value
 
     total = sum(sector_values.values())

@@ -217,10 +217,10 @@ export default function AnalyticsPage() {
         <section className="space-y-2">
           <h2 className="text-base font-semibold">성과 지표</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MetricCard label="총 수익률" value={metrics.total_return_rate} suffix="%" />
-            <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률" />
-            <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭" />
-            <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="위험 대비 수익률 (>1 양호)" />
+            <MetricCard label="총 수익률" value={metrics.total_return_rate} suffix="%" tooltip="전체 투자 기간 동안의 누적 수익률" />
+            <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다." />
+            <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭(MDD): 고점 대비 최대 하락폭입니다. 값이 클수록 손실 위험이 큽니다." />
+            <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="샤프 비율: 위험(변동성) 한 단위당 초과 수익률. 1 이상이면 양호, 2 이상이면 우수합니다." />
           </div>
         </section>
       )}
@@ -435,7 +435,17 @@ function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
   return (
     <Card>
       <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground" title={tooltip}>{label}{tooltip ? " ℹ" : ""}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          {tooltip && (
+            <span className="group relative inline-block">
+              <span className="cursor-help text-xs text-muted-foreground/60 hover:text-muted-foreground">ⓘ</span>
+              <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 w-48 rounded-md border bg-popover px-2 py-1.5 text-xs text-popover-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100">
+                {tooltip}
+              </span>
+            </span>
+          )}
+        </div>
         <p className={`mt-1 text-lg font-bold tabular-nums ${color}`}>{display}</p>
       </CardContent>
     </Card>

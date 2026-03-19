@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatKRW, formatRate } from "@/lib/format";
+import { formatKRW, formatUSD, formatRate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PnLBadge } from "@/components/PnLBadge";
@@ -15,6 +15,10 @@ const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
 
 interface StockDetail {
   ticker: string;
+  name?: string | null;
+  currency?: "KRW" | "USD";
+  market?: string | null;
+  usd_krw_rate?: number | null;
   current_price: number | null;
   open: number | null;
   high: number | null;
@@ -104,6 +108,9 @@ export default function StockDetailPage() {
     );
   }
 
+  const isUSD = detail.currency === "USD";
+  const fmt = isUSD ? formatUSD : formatKRW;
+
   const w52Range =
     detail.w52_high && detail.w52_low && detail.current_price
       ? ((detail.current_price - detail.w52_low) / (detail.w52_high - detail.w52_low)) * 100
@@ -117,48 +124,58 @@ export default function StockDetailPage() {
           <ArrowLeft className="h-4 w-4" /> 대시보드
         </Link>
         <div className="flex items-end gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold">{ticker}</h1>
+          <div>
+            <h1 className="text-2xl font-bold">{detail.name || ticker}</h1>
+            <p className="text-sm text-muted-foreground">{ticker}{isUSD && detail.market ? ` · ${detail.market}` : ""}</p>
+          </div>
           {detail.current_price && (
-            <span className="text-xl font-semibold tabular-nums">{formatKRW(detail.current_price)}</span>
+            <span className="text-xl font-semibold tabular-nums">{fmt(detail.current_price)}</span>
           )}
           {detail.day_change_rate != null && (
             <PnLBadge value={detail.day_change_rate} suffix="%" />
           )}
         </div>
+        {isUSD && detail.usd_krw_rate && (
+          <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+            USD/KRW {formatKRW(detail.usd_krw_rate)}
+          </p>
+        )}
       </div>
 
       {/* Key stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">시가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.open ? formatKRW(detail.open) : "—"}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">고가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#e31f26]">{detail.high ? formatKRW(detail.high) : "—"}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">저가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#1a56db]">{detail.low ? formatKRW(detail.low) : "—"}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">전일 종가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.prev_close ? formatKRW(detail.prev_close) : "—"}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">시가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.open ? fmt(detail.open) : "—"}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">고가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#e31f26]">{detail.high ? fmt(detail.high) : "—"}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">저가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#1a56db]">{detail.low ? fmt(detail.low) : "—"}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">전일 종가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.prev_close ? fmt(detail.prev_close) : "—"}</p></CardContent></Card>
       </div>
 
-      {/* Candlestick chart */}
-      <section className="space-y-3">
-        <div className="flex gap-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                period === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-        {chartLoading ? (
-          <Skeleton className="h-[400px] w-full" />
-        ) : (
-          <CandlestickChart
-            candles={candles}
-            avgPrice={detail.my_holding?.avg_price}
-          />
-        )}
-      </section>
+      {/* Candlestick chart (domestic only for now) */}
+      {!isUSD && (
+        <section className="space-y-3">
+          <div className="flex gap-1">
+            {PERIODS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                  period === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          {chartLoading ? (
+            <Skeleton className="h-[400px] w-full" />
+          ) : (
+            <CandlestickChart
+              candles={candles}
+              avgPrice={detail.my_holding?.avg_price}
+            />
+          )}
+        </section>
+      )}
 
       {/* Fundamental & 52-week */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -166,12 +183,16 @@ export default function StockDetailPage() {
           <h2 className="text-base font-semibold">기본 정보</h2>
           <Card>
             <CardContent className="p-4 divide-y">
-              <InfoRow label="시가총액" value={detail.market_cap ? `${detail.market_cap.toLocaleString("ko-KR")}억` : null} />
+              {!isUSD && (
+                <InfoRow label="시가총액" value={detail.market_cap ? `${detail.market_cap.toLocaleString("ko-KR")}억` : null} />
+              )}
               <InfoRow label="거래량" value={detail.volume ? detail.volume.toLocaleString("ko-KR") : null} />
               <InfoRow label="PER" value={detail.per != null ? `${detail.per.toFixed(2)}배` : null} />
               <InfoRow label="PBR" value={detail.pbr != null ? `${detail.pbr.toFixed(2)}배` : null} />
-              <InfoRow label="EPS" value={detail.eps != null ? formatKRW(detail.eps) : null} />
-              <InfoRow label="BPS" value={detail.bps != null ? formatKRW(detail.bps) : null} />
+              <InfoRow label="EPS" value={detail.eps != null ? fmt(detail.eps) : null} />
+              {!isUSD && (
+                <InfoRow label="BPS" value={detail.bps != null ? fmt(detail.bps) : null} />
+              )}
             </CardContent>
           </Card>
         </section>
@@ -181,8 +202,8 @@ export default function StockDetailPage() {
           <Card>
             <CardContent className="p-4 space-y-4">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{detail.w52_low ? formatKRW(detail.w52_low) : "—"}</span>
-                <span>{detail.w52_high ? formatKRW(detail.w52_high) : "—"}</span>
+                <span>{detail.w52_low ? fmt(detail.w52_low) : "—"}</span>
+                <span>{detail.w52_high ? fmt(detail.w52_high) : "—"}</span>
               </div>
               {w52Range != null ? (
                 <div className="relative h-2 rounded-full bg-muted overflow-hidden">
@@ -208,11 +229,11 @@ export default function StockDetailPage() {
               <CardContent className="p-4 divide-y">
                 <h3 className="text-sm font-semibold pb-2">내 보유 현황</h3>
                 <InfoRow label="수량" value={`${detail.my_holding.quantity.toLocaleString("ko-KR")}주`} />
-                <InfoRow label="평균 단가" value={formatKRW(detail.my_holding.avg_price)} />
+                <InfoRow label="평균 단가" value={fmt(detail.my_holding.avg_price)} />
                 {detail.current_price && (
                   <InfoRow
                     label="평가 손익"
-                    value={formatKRW((detail.current_price - detail.my_holding.avg_price) * detail.my_holding.quantity)}
+                    value={fmt((detail.current_price - detail.my_holding.avg_price) * detail.my_holding.quantity)}
                   />
                 )}
               </CardContent>

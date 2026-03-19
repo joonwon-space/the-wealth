@@ -198,9 +198,8 @@ async def get_summary(
                 if detail and not isinstance(detail, Exception):
                     prices[ticker] = detail.current
                     day_change_rates[ticker] = detail.day_change_rate
-                    # 해외주식은 52주 고/저 None
-                    w52_highs[ticker] = None
-                    w52_lows[ticker] = None
+                    w52_highs[ticker] = detail.w52_high
+                    w52_lows[ticker] = detail.w52_low
                     await _cache_price(ticker, detail.current)
                 else:
                     cached = await _get_cached_price(ticker)
@@ -254,8 +253,8 @@ async def get_summary(
                     pnl_amount=pnl_amount_krw,
                     pnl_rate=pnl_rate,
                     day_change_rate=day_change_rates.get(h.ticker),
-                    w52_high=None,
-                    w52_low=None,
+                    w52_high=w52_highs.get(h.ticker),
+                    w52_low=w52_lows.get(h.ticker),
                     currency="USD",
                 )
             )

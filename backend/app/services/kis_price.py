@@ -59,6 +59,8 @@ class OverseasPriceDetail:
     current: Decimal
     prev_close: Optional[Decimal]
     day_change_rate: Decimal  # % (e.g. 1.25 means +1.25%)
+    w52_high: Optional[Decimal] = None
+    w52_low: Optional[Decimal] = None
 
 
 async def _get_headers(app_key: str, app_secret: str) -> dict[str, str]:
@@ -322,16 +324,34 @@ async def fetch_overseas_price_detail(
             return None
         rate_str = output.get("rate", "0") or "0"
         prev_close_str = output.get("base", "0") or "0"
+        w52_high_str = output.get("w52hgpr", "") or ""
+        w52_low_str = output.get("w52lwpr", "") or ""
         return OverseasPriceDetail(
             current=Decimal(price_str),
             prev_close=Decimal(prev_close_str) if prev_close_str != "0" else None,
             day_change_rate=Decimal(rate_str),
+            w52_high=Decimal(w52_high_str) if w52_high_str and w52_high_str != "0" else None,
+            w52_low=Decimal(w52_low_str) if w52_low_str and w52_low_str != "0" else None,
         )
     except Exception as e:
         logger.warning(
             "Failed to fetch overseas price detail for %s/%s: %s", ticker, market, e
         )
         return None
+
+
+async def get_cached_fx_rate() -> float:
+    """캐시(Redis)에서만 USD/KRW 환율 조회. API 호출 없이 폴백 1450 반환.
+
+    analytics 등 KIS 자격증명 없이 환율이 필요한 호출자용.
+    """
+    cached = await _cache.get(_FX_CACHE_KEY)
+    if cached:
+        return float(cached)
+    stale = await _cache.get(_FX_STALE_KEY)
+    if stale:
+        return float(stale)
+    return float(_FX_FALLBACK_RATE)
 
 
 async def get_exchange_rate(app_key: str, app_secret: str) -> float:
