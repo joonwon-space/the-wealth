@@ -46,6 +46,10 @@ Each item should be completable in a single commit.
 - [x] Test coverage 71% -> 93% (add router tests + .coveragerc sysmon fix)
 - [x] Milestone 16-3: Commitlint config + Husky hook
 - [x] Milestone 12-2: SSE connection hardening (per-user limit, heartbeat, 2h timeout)
+- [x] Next.js middleware deprecation fix
+- [x] Test coverage gaps (prices.py 61%, dashboard.py 85%)
+- [x] P0 Automated DB Backup: daily pg_dump script + retention policy
+- [x] P0 Single Server Resilience: restart policy + managed DB/Redis docs
 
 </details>
 
@@ -53,37 +57,26 @@ Each item should be completable in a single commit.
 
 ## Current work
 
-### Next.js middleware deprecation fix
-- [x] Migrate `frontend/src/middleware.ts` from `middleware` to `proxy` convention — Next.js 16 build warns the `middleware` file convention is deprecated
+### Milestone 12-4: Alert Notification Logic (P1)
+Alert CRUD exists but no price-triggered notification logic.
 
-### Test coverage gaps (prices.py 61%)
-- [x] Add SSE endpoint tests for `api/prices.py` to bring coverage from 61% to 80%+
-- [x] Add missing `api/dashboard.py` tests for uncovered lines (85% -> 90%+)
+- [x] Add `last_triggered_at` column to `alerts` table via Alembic migration
+- [x] Integrate alert condition check into SSE stream loop — emit `alerts` event when triggered; dedup with 1h cooldown; auto-deactivate after trigger
+- [x] Add `PATCH /alerts/{id}` endpoint to reactivate/update alert `is_active` and `threshold`
 
----
+### Milestone 16-2: Frontend Test Coverage (P1)
+Backend coverage 93% vs frontend minimal.
 
-## P0 — Critical (Service Stability)
+- [x] Add `lib/format.ts` unit tests (formatKRW, formatUSD, formatPrice, formatNumber, formatRate, formatPnL)
+- [x] Add `store/auth.ts` Zustand store tests (login, logout, initialize with cookie mock)
+- [x] Add `hooks/usePriceStream.ts` tests (connect, skip when disabled, skip when no token, close on unmount)
 
-> Source: [the-wealth-action-plan_20260319.md](../reviews/the-wealth-action-plan_20260319.md)
+### Milestone 13-5c: Adaptive Cache TTL (P2)
+After market close, price cache TTL should extend from 300s to 24h to reduce KIS API calls.
 
-### Automated DB Backup
-PostgreSQL runs on a single server with volume mount only — disk failure = total data loss.
+- [x] Add `get_adaptive_ttl()` helper in `services/kis_price.py` — returns 300s during market hours, 86400s after close
+- [x] Apply adaptive TTL in `services/kis_price.py` Redis cache write
 
-- [x] Daily `pg_dump` script + retention policy (cron in Docker Compose)
-- [x] Restore procedure docs
-- [ ] External storage integration (S3 / GCS / R2) — requires cloud credentials → see manual-tasks.md
-- [ ] Backup failure alerting (email or Telegram) — requires external service → see manual-tasks.md
+### Milestone 13-5b: Data Integrity Health Checks (P2)
 
-### Monitoring & APM
-No monitoring means scheduler failures and API outages go completely silent.
-
-- [ ] Sentry integration — frontend `@sentry/nextjs` + backend `sentry-sdk[fastapi]` — requires Sentry DSN → see manual-tasks.md
-- [ ] Uptime monitoring / alert channels / metrics dashboard — requires external service → see manual-tasks.md
-
-### Single Server Resilience
-All services on one server — server down = full outage.
-
-- [x] Add `restart: unless-stopped` to all services in docker-compose.yml
-- [x] Document managed DB / serverless Redis evaluation (Supabase, Neon, Upstash)
-
----
+- [x] Add `GET /health/data-integrity` endpoint — check for `price_snapshots` gaps (missing weekday snapshots in last 7 days) and return summary JSON

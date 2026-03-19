@@ -1,10 +1,12 @@
 """KIS 현재가 조회 서비스 (국내 + 해외주식, asyncio.gather 병렬 처리).
 
-Redis에 마지막 조회 가격을 캐싱(TTL 1h)하여 KIS API 장애 시 폴백.
+Redis에 마지막 조회 가격을 캐싱(TTL: 시장 개장 중 5분 / 장 마감 후 24시간)하여
+KIS API 장애 시 폴백.
 """
 
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -18,10 +20,31 @@ from app.services.kis_token import get_kis_access_token
 logger = get_logger(__name__)
 
 _PRICE_CACHE_PREFIX = "price:"
-_PRICE_CACHE_TTL = 300  # 5min
+_PRICE_CACHE_TTL_MARKET_OPEN = 300     # 5 min during market hours
+_PRICE_CACHE_TTL_MARKET_CLOSED = 86400  # 24 h after market close
 _FX_CACHE_KEY = "fx:USDKRW"
 _FX_CACHE_TTL = 3600  # 1 hour
 _FX_FALLBACK_RATE = Decimal("1350")
+
+# KST market hours constants (reused from prices.py logic)
+_KST = timezone(timedelta(hours=9))
+_MARKET_OPEN_HOUR_MIN = (9, 0)
+_MARKET_CLOSE_HOUR_MIN = (15, 30)
+
+
+def get_adaptive_ttl() -> int:
+    """현재 시각 기준 적응형 캐시 TTL 반환.
+
+    - 한국 주식 시장 개장 중 (KST 09:00~15:30, 평일): 300초 (5분)
+    - 그 외 (장 마감, 주말): 86400초 (24시간)
+    """
+    now = datetime.now(_KST)
+    if now.weekday() >= 5:
+        return _PRICE_CACHE_TTL_MARKET_CLOSED
+    t = (now.hour, now.minute)
+    if _MARKET_OPEN_HOUR_MIN <= t <= _MARKET_CLOSE_HOUR_MIN:
+        return _PRICE_CACHE_TTL_MARKET_OPEN
+    return _PRICE_CACHE_TTL_MARKET_CLOSED
 
 
 @dataclass(frozen=True)
@@ -97,11 +120,12 @@ async def fetch_overseas_price(
 
 
 async def _cache_price(ticker: str, price: Decimal) -> None:
-    """Redis에 가격을 캐싱."""
+    """Redis에 가격을 캐싱 (적응형 TTL: 시장 개장 중 5분 / 마감 후 24시간)."""
+    ttl = get_adaptive_ttl()
     try:
         async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
             await r.setex(
-                f"{_PRICE_CACHE_PREFIX}{ticker}", _PRICE_CACHE_TTL, str(price)
+                f"{_PRICE_CACHE_PREFIX}{ticker}", ttl, str(price)
             )
     except Exception as e:
         logger.debug("Failed to cache price for %s: %s", ticker, e)
