@@ -92,6 +92,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 ## 3. 페이지 구조
 
 ```
+/                           → 루트 (로그인 리다이렉트 또는 랜딩)
 /login                      → 로그인 페이지
 /register                   → 회원가입 페이지
 /dashboard                  → 메인 대시보드
@@ -151,32 +152,34 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 42개 엔드포인트:
+총 46개 엔드포인트 (모두 `/api/v1` prefix):
 
-### 인증 (4)
+### 인증 (5)
 | Method | Path | 설명 |
 |--------|------|------|
 | POST | `/auth/register` | 회원가입 |
 | POST | `/auth/login` | 로그인 |
 | POST | `/auth/refresh` | 토큰 갱신 |
 | POST | `/auth/change-password` | 비밀번호 변경 |
+| POST | `/auth/logout` | 로그아웃 |
 
-### 포트폴리오 (14)
+### 포트폴리오 (16)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/portfolios` | 포트폴리오 목록 |
 | POST | `/portfolios` | 포트폴리오 생성 |
-| GET | `/portfolios/{id}` | 포트폴리오 상세 |
 | PATCH | `/portfolios/{id}` | 포트폴리오 수정 |
 | DELETE | `/portfolios/{id}` | 포트폴리오 삭제 |
 | GET | `/portfolios/{id}/holdings` | 보유종목 목록 |
+| GET | `/portfolios/{id}/holdings/with-prices` | 보유종목 + 현재가 |
 | POST | `/portfolios/{id}/holdings` | 보유종목 추가 |
-| PATCH | `/portfolios/{id}/holdings/{hid}` | 보유종목 수정 |
-| DELETE | `/portfolios/{id}/holdings/{hid}` | 보유종목 삭제 |
+| PATCH | `/portfolios/holdings/{hid}` | 보유종목 수정 |
+| DELETE | `/portfolios/holdings/{hid}` | 보유종목 삭제 |
 | GET | `/portfolios/{id}/transactions` | 거래내역 목록 |
 | POST | `/portfolios/{id}/transactions` | 거래 기록 |
-| DELETE | `/portfolios/{id}/transactions/{tid}` | 거래 삭제 |
-| GET | `/portfolios/{id}/export/csv` | CSV 내보내기 |
+| DELETE | `/portfolios/transactions/{tid}` | 거래 삭제 |
+| GET | `/portfolios/{id}/export/csv` | 보유종목 CSV 내보내기 |
+| GET | `/portfolios/{id}/transactions/export/csv` | 거래내역 CSV 내보내기 |
 | PATCH | `/portfolios/{id}/kis-account` | KIS 계좌 연결 |
 
 ### 대시보드 (1)
@@ -239,7 +242,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/watchlist` | 관심종목 추가 |
 | DELETE | `/watchlist/{id}` | 관심종목 삭제 |
 
-### 헬스체크 (1)
+### 헬스체크 (2)
 | Method | Path | 설명 |
 |--------|------|------|
-| GET | `/health` | 서버 상태 확인 |
+| GET | `/health` | 서버 상태 확인 (루트) |
+| GET | `/api/v1/health` | 서버 상태 확인 (버전) |

@@ -431,7 +431,30 @@ Docker Compose 헬스체크:
 
 ---
 
+## 10. 환경변수 (`backend/.env`)
+
+`backend/.env.example`에서 복사하여 설정합니다.
+
+| 변수 | 필수 | 설명 | 예시 |
+|------|------|------|------|
+| `DATABASE_URL` | O | PostgreSQL 연결 문자열 (asyncpg) | `postgresql+asyncpg://postgres:postgres@localhost:5432/the_wealth` |
+| `JWT_SECRET_KEY` | O | JWT 서명 키 (최소 32자 hex 권장) | `openssl rand -hex 32` |
+| `JWT_ALGORITHM` | - | JWT 알고리즘 (기본: HS256) | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | - | Access token 유효시간 (기본: 30) | `30` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | - | Refresh token 유효일수 (기본: 7) | `7` |
+| `ENCRYPTION_MASTER_KEY` | O | AES-256 마스터 키 (64자 hex) | `openssl rand -hex 32` |
+| `REDIS_URL` | O | Redis 연결 URL | `redis://localhost:6379` |
+| `CORS_ORIGINS` | O | 허용 Origin (쉼표 구분) | `http://localhost:3000,https://joonwon.dev` |
+| `COOKIE_DOMAIN` | - | 쿠키 도메인 (프로덕션: `.joonwon.dev`) | `.joonwon.dev` |
+| `KIS_BASE_URL` | - | KIS OpenAPI 기본 URL | `https://openapi.koreainvestment.com:9443` |
+
+> KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
+
+---
+
 ## 관련 문서
 
-- [프로젝트 분석](project_analysis.md) — 아키텍처 분석, DB 스키마
-- [비용 관리](cost_management.md) — KIS API 최적화, Redis 캐싱 전략
+- [프로젝트 분석](analysis.md) -- 아키텍처 분석, DB 스키마
+- [비용 관리](../reviews/cost_management.md) -- KIS API 최적화, Redis 캐싱 전략
+- [API 레퍼런스](api-reference.md) -- 전체 엔드포인트 상세
+- [프론트엔드 가이드](frontend-guide.md) -- 프론트엔드 구조

@@ -14,7 +14,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 42 API endpoints (12 routers)                          │
+│   ├── 46 API endpoints (12 routers)                          │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (60/min)                          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -61,6 +61,7 @@
 frontend/src/
 ├── app/                          # Next.js App Router
 │   ├── layout.tsx                # 루트 레이아웃
+│   ├── page.tsx                  # 루트 페이지 (/ → 리다이렉트)
 │   ├── login/                    # 로그인 페이지
 │   ├── register/                 # 회원가입 페이지
 │   └── dashboard/                # 대시보드 (인증 필요)
@@ -243,10 +244,11 @@ frontend/src/
 ```
 backend/app/
 ├── main.py                    # FastAPI app, CORS, 미들웨어, 라우터 등록
-├── api/                       # 12개 API 라우터
-│   ├── auth.py                # 인증 (register, login, refresh, change-password)
+├── api/                       # 12개 API 라우터 + 공통 의존성
+│   ├── deps.py                # get_current_user, get_current_user_sse 인증 의존성
+│   ├── auth.py                # 인증 (register, login, refresh, change-password, logout)
 │   ├── portfolios.py          # 포트폴리오/보유종목/거래내역 CRUD
-│   ├── portfolio_export.py    # CSV 내보내기
+│   ├── portfolio_export.py    # CSV 내보내기 (보유종목 + 거래내역)
 │   ├── dashboard.py           # 대시보드 요약
 │   ├── analytics.py           # 수익률 분석, 월별 수익률, 섹터 배분
 │   ├── alerts.py              # 가격 알림
@@ -260,6 +262,7 @@ backend/app/
 │   ├── config.py              # Pydantic Settings (환경변수)
 │   ├── security.py            # JWT 생성/검증, bcrypt, refresh token rotation
 │   ├── encryption.py          # AES-256-GCM 암호화/복호화
+│   ├── limiter.py             # slowapi 레이트 리미터 인스턴스
 │   ├── middleware.py          # SecurityHeadersMiddleware
 │   └── logging.py             # structlog 설정, request_id
 ├── db/
@@ -623,9 +626,9 @@ slowapi 기반 IP별 레이트 리미팅:
 
 | 영역 | 상태 | 비고 |
 |------|------|------|
-| 인증 (JWT + HttpOnly Cookie) | 완료 | Refresh token rotation, IDOR 방지 |
-| 포트폴리오 CRUD | 완료 | CSV export, 거래내역 soft delete 포함 |
-| 대시보드 | 완료 | SSE 실시간, 30초 폴링, 자산 배분 도넛 |
+| 인증 (JWT + HttpOnly Cookie) | 완료 | Refresh token rotation, IDOR 방지, 로그아웃 |
+| 포트폴리오 CRUD | 완료 | CSV export (보유종목 + 거래내역), 거래내역 soft delete 포함 |
+| 대시보드 | 완료 | SSE 실시간, 30초 폴링, 자산 배분 도넛, 해외주식 USD 가격 표시 |
 | KIS API 연동 | 완료 | 국내/해외 현재가, OHLCV, 잔고 동기화 |
 | 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리 |
 | 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
@@ -634,22 +637,25 @@ slowapi 기반 IP별 레이트 리미팅:
 | 자동 동기화 | 완료 | APScheduler 1시간 주기 + 일일 스냅샷 |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
-| 에러 처리 | 완료 | 표준 에러 응답, Error Boundary |
+| 에러 처리 | 완료 | 표준 에러 응답 (envelope), Error Boundary, 전역 예외 핸들러 |
 | Commitlint | 완료 | @commitlint/config-conventional + Husky hook |
-| 프로덕션 배포 | 미착수 | Vercel + Railway/Fly.io 예정 |
+| Docker + CI/CD | 완료 | 멀티 스테이지 빌드, GitHub Actions 7개 워크플로우, self-hosted 배포 |
+| 프로덕션 배포 | 운영 중 | joonwon.dev (self-hosted Docker Compose) |
 | 모니터링 | 미착수 | Sentry + 로그 수집 예정 |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: **92%** (506 tests passed)
+전체: **94%** (517 tests passed)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
-| core/ (security, encryption, middleware) | 95-100% | 우수 |
+| core/ (security, encryption, middleware, limiter) | 95-100% | 우수 |
 | models/ | 100% | ORM 모델 |
 | schemas/ | 100% | Pydantic 스키마 |
 | services/ | 93-100% | kis_price, reconciliation, scheduler 등 |
-| api/ routers | 61-100% | prices(61%), sync(79%), dashboard(85%) 보강 가능 |
+| api/ routers | 83-100% | prices(83%), dashboard(97%) 등 대폭 개선 |
+| db/ | 75-100% | session.py 75% |
+| main.py | 84% | lifespan, 예외 핸들러 |
 
 ### 6.3 강점
 
@@ -657,35 +663,37 @@ slowapi 기반 IP별 레이트 리미팅:
 - HttpOnly Cookie 인증으로 XSS 토큰 탈취 방지
 - AES-256-GCM으로 KIS 자격증명 안전하게 저장
 - 구조화 로깅 (structlog) + request_id 트레이싱
-- 해외주식 원화 환산 (환율 자동 적용)
+- 해외주식 USD 가격 표시 및 원화 환산 (환율 자동 적용)
 - 보유종목 market_value_krw 기준 내림차순 정렬
 - SSE 연결 하드닝: 사용자별 제한, 하트비트, 유휴 감지, 최대 연결 시간
-- 테스트 커버리지 92% (506 tests) -- ruff lint 오류 0건
+- 테스트 커버리지 94% (517 tests) -- ruff lint 오류 0건
 - Commitlint 커밋 메시지 검증 자동화
+- 표준화된 에러 응답 envelope (error.code, error.message, request_id)
+- Graceful shutdown (SSE 연결 종료 시그널, 스케줄러 정지)
+- Next.js proxy 컨벤션 마이그레이션 완료
 
 ### 6.4 약점 및 개선 필요 사항
 
-- Next.js 16 middleware 파일 컨벤션 deprecated (proxy로 마이그레이션 필요)
-- prices.py 라우터 테스트 커버리지 61% (SSE 엔드포인트 테스트 어려움)
-- 프로덕션 배포 환경 미구축
-- 모니터링/APM 미도입
+- 모니터링/APM 미도입 (structlog만 운용)
 - 알림 전송 채널 미구현 (CRUD만 존재, 실제 푸시/이메일 없음)
 - TanStack Query 미도입 (수동 Axios state 관리)
+- DB 자동 백업 미구성
 
 ### 6.5 리스크
 
 | 리스크 | 심각도 | 설명 |
 |--------|--------|------|
-| Next.js middleware deprecation | 중 | Next.js 16에서 middleware가 deprecated, proxy로 전환 필요 |
 | KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초 제한) |
+| 단일 서버 | 중 | self-hosted 단일 서버, 서버 장애 시 전체 서비스 중단 |
 | 단일 사용자 환경 | 저 | 현재 다중 사용자 동시 접속 부하 테스트 미실시 |
-| 프로덕션 미배포 | 중 | 실사용 환경에서의 검증 없음 |
 | DB 백업 미구성 | 중 | 프로덕션 데이터 손실 위험 |
 
 ---
 
 ## 관련 문서
 
-- [프로젝트 개요](project_overview.md) — 기능 명세, API 엔드포인트 전체 목록
-- [인프라](infrastructure.md) — Docker, CI/CD, 배포, 암호화 아키텍처
-- [비용 관리](cost_management.md) — KIS API 최적화, Redis 캐싱 전략
+- [프로젝트 개요](overview.md) -- 기능 명세, API 엔드포인트 전체 목록
+- [인프라](infrastructure.md) -- Docker, CI/CD, 배포, 암호화 아키텍처
+- [API 레퍼런스](api-reference.md) -- 전체 엔드포인트 상세
+- [프론트엔드 가이드](frontend-guide.md) -- 프론트엔드 구조
+- [비용 관리](../reviews/cost_management.md) -- KIS API 최적화, Redis 캐싱 전략
