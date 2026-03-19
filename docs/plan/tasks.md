@@ -54,6 +54,9 @@ Each item should be completable in a single commit.
 - [x] Milestone 16-2: Frontend Test Coverage (format.ts, auth store, usePriceStream)
 - [x] Milestone 13-5c: Adaptive Cache TTL
 - [x] Milestone 13-5b: Data Integrity Health Checks
+- [x] Milestone 11-5: TanStack Query Adoption (all items)
+- [x] Milestone 13-5b: Holdings quantity reconciliation endpoint
+- [x] Milestone 13-5a: Redis failure fallback
 
 </details>
 
@@ -61,17 +64,21 @@ Each item should be completable in a single commit.
 
 ## Current work
 
-### Milestone 11-5: TanStack Query Adoption (P1)
-Replace manual Axios + useState data fetching with TanStack Query for cache consistency and deduplication.
+### Milestone 11-7: Frontend Quality (P2)
 
-- [x] Install `@tanstack/react-query` + `@tanstack/react-query-devtools`; add `QueryClientProvider` to `app/layout.tsx`
-- [x] Migrate dashboard page (`/dashboard`) to use `useQuery` with `refetchInterval: 30_000`; keep SSE price update via `queryClient.setQueryData`
-- [x] Migrate portfolios list page (`/dashboard/portfolios`) to use `useQuery`; use `useMutation` + `invalidateQueries` for create/rename/delete
-- [x] Migrate portfolio detail page (`/dashboard/portfolios/[id]`) holdings and transactions to `useQuery`/`useMutation`
-- [x] Add unified skeleton loading states and standardized error UI components using TanStack Query `isLoading`/`isError` states
+- [ ] Add ▲/▼ directional icons to PnLBadge for gain/loss (accessibility non-color indicators)
+- [ ] Wrap each dashboard widget (summary cards, allocation chart, holdings table) in granular ErrorBoundary so one widget failure doesn't crash the whole page
+- [ ] Add SSE connection status indicator to dashboard — show "실시간" badge when connected, "연결 끊김" + reconnect button when disconnected
+- [ ] Add `@next/bundle-analyzer` script to frontend package.json (`analyze` script using `ANALYZE=true npm run build`)
 
-### Milestone 13-5b: Data Integrity (P2)
-- [x] Add holdings quantity reconciliation endpoint `GET /health/holdings-reconciliation` — detect mismatch between transaction sum and current holdings quantity
+### Milestone 13-5a: Operational Stability — Scheduler Alerting (P2)
 
-### Milestone 13-5a: Operational Stability (P2)
-- [x] Add Redis failure fallback — wrap Redis calls in `try/except`; fall back to in-memory dict cache with warning log when Redis is unavailable
+- [ ] Track consecutive scheduler failures in `sync_logs` — add `consecutive_failures` counter and log CRITICAL when `kis_sync` or `daily_close_snapshot` fails 3+ times in a row
+
+### Milestone 13-5b: Data Integrity — Orphan Cleanup (P2)
+
+- [ ] Add `GET /health/orphan-records` endpoint — detect holdings/transactions/watchlist items referencing deleted portfolios; return counts per table
+
+### Milestone 13-5c: KIS API Health Check (P2)
+
+- [ ] Add KIS API health check on startup — attempt a test price fetch; log WARNING and set a `KIS_AVAILABLE` flag; price endpoints return cached data when flag is False
