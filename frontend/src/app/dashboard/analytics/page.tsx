@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BarChart3, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatKRW, formatRate, formatPrice } from "@/lib/format";
@@ -429,6 +429,44 @@ interface MetricCardProps {
   tooltip?: string;
 }
 
+function MetricTooltip({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
+
+  const show = () => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    setTooltipStyle({
+      position: "fixed",
+      top: rect.top - 8,
+      left: rect.left + rect.width / 2,
+      transform: "translate(-50%, -100%)",
+      zIndex: 9999,
+    });
+  };
+
+  return (
+    <>
+      <span
+        ref={ref}
+        className="cursor-help text-xs text-muted-foreground/60 hover:text-muted-foreground"
+        onMouseEnter={show}
+        onMouseLeave={() => setTooltipStyle(null)}
+      >
+        ⓘ
+      </span>
+      {tooltipStyle && (
+        <div
+          className="w-52 rounded-md border bg-popover px-2.5 py-2 text-xs text-popover-foreground shadow-lg"
+          style={tooltipStyle}
+        >
+          {text}
+        </div>
+      )}
+    </>
+  );
+}
+
 function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
   const display = value != null ? `${value > 0 && suffix === "%" ? "+" : ""}${value.toFixed(suffix === "%" ? 2 : 3)}${suffix}` : "—";
   const color = value == null ? "" : value > 0 ? "text-[#e31f26]" : value < 0 ? "text-[#1a56db]" : "";
@@ -437,14 +475,7 @@ function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
       <CardContent className="p-4">
         <div className="flex items-center gap-1">
           <p className="text-xs text-muted-foreground">{label}</p>
-          {tooltip && (
-            <span className="group relative inline-block">
-              <span className="cursor-help text-xs text-muted-foreground/60 hover:text-muted-foreground">ⓘ</span>
-              <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 w-48 rounded-md border bg-popover px-2 py-1.5 text-xs text-popover-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100">
-                {tooltip}
-              </span>
-            </span>
-          )}
+          {tooltip && <MetricTooltip text={tooltip} />}
         </div>
         <p className={`mt-1 text-lg font-bold tabular-nums ${color}`}>{display}</p>
       </CardContent>
