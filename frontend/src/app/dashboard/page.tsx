@@ -85,14 +85,16 @@ export default function DashboardPage() {
           // 해외주식: 현재가만 업데이트 (PnL은 서버에서 원화 환산 필요)
           return { ...h, current_price };
         }
-        const market_value = h.quantity * current_price;
-        const invested = h.quantity * h.avg_price;
+        const qty = Number(h.quantity);
+        const avg = Number(h.avg_price);
+        const market_value = qty * current_price;
+        const invested = qty * avg;
         const pnl_amount = market_value - invested;
         const pnl_rate = invested ? (pnl_amount / invested) * 100 : null;
         return { ...h, current_price, market_value, market_value_krw: market_value, pnl_amount, pnl_rate };
       });
       const total_asset = updatedHoldings.reduce(
-        (sum, h) => sum + (h.market_value_krw ?? h.quantity * h.avg_price),
+        (sum, h) => sum + (Number(h.market_value_krw) || Number(h.quantity) * Number(h.avg_price)),
         0
       );
       const total_pnl_amount = total_asset - prev.total_invested;

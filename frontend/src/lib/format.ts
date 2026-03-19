@@ -1,7 +1,9 @@
 /** 금액 포맷 — 천 단위 콤마, 소수점 없음. */
 export function formatKRW(value: number | string | null | undefined): string {
   if (value == null) return "—";
-  return `₩${Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 0 })}`;
+  const n = Number(value);
+  if (isNaN(n)) return "—";
+  return `₩${n.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}`;
 }
 
 /** USD 금액 포맷 — 소수점 둘째자리까지. */

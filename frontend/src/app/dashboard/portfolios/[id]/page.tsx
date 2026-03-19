@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Search, Trash2, PackageOpen, Download } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatKRW, formatNumber } from "@/lib/format";
+import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
@@ -30,6 +30,7 @@ interface Holding {
   market_value: string | null;
   pnl_amount: string | null;
   pnl_rate: string | null;
+  currency?: "KRW" | "USD";
 }
 
 interface AddForm {
@@ -245,8 +246,8 @@ export default function PortfolioDetailPage() {
                         <div className="text-xs text-muted-foreground">{h.ticker}</div>
                       </td>
                       <td className="px-4 py-3 tabular-nums">{formatNumber(h.quantity)}</td>
-                      <td className="px-4 py-3 tabular-nums">{formatKRW(h.avg_price)}</td>
-                      <td className="px-4 py-3 tabular-nums">{h.current_price ? formatKRW(h.current_price) : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-4 py-3 tabular-nums">{formatPrice(h.avg_price, h.currency ?? "KRW")}</td>
+                      <td className="px-4 py-3 tabular-nums">{h.current_price ? formatPrice(h.current_price, h.currency ?? "KRW") : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-4 py-3">{h.pnl_amount != null ? <PnLBadge value={h.pnl_amount} /> : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">

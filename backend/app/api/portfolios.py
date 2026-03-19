@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -27,6 +28,13 @@ from app.schemas.portfolio import (
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 logger = get_logger(__name__)
+
+# 국내 티커: 숫자+영문 혼합 6자리 (일반주 005930, ETF/ETN 0087F0 등)
+_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
+
+
+def _is_domestic(ticker: str) -> bool:
+    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:
@@ -218,6 +226,7 @@ async def list_holdings_with_prices(
         mv = h.quantity * cp if cp is not None else None
         pnl = mv - invested if mv is not None else None
         pnl_rate = (pnl / invested * 100) if pnl is not None and invested else None
+        currency = "KRW" if _is_domestic(h.ticker) else "USD"
         items.append(
             {
                 "id": h.id,
@@ -229,6 +238,7 @@ async def list_holdings_with_prices(
                 "market_value": str(mv) if mv is not None else None,
                 "pnl_amount": str(pnl) if pnl is not None else None,
                 "pnl_rate": str(pnl_rate) if pnl_rate is not None else None,
+                "currency": currency,
             }
         )
     return items
