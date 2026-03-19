@@ -143,6 +143,9 @@ export default function StockDetailPage() {
       </div>
 
       {/* Key stats */}
+      {isUSD && !detail.open && !detail.high && !detail.low && (
+        <p className="text-xs text-muted-foreground">미국 장 마감 — 오늘 장 데이터를 아직 수신하지 못했습니다.</p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">시가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.open ? fmt(detail.open) : "—"}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">고가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#e31f26]">{detail.high ? fmt(detail.high) : "—"}</p></CardContent></Card>
