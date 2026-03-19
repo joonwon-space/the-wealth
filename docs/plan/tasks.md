@@ -70,7 +70,7 @@ Each item should be completable in a single commit.
 PostgreSQL runs on a single server with volume mount only — disk failure = total data loss.
 
 - [x] Daily `pg_dump` script + retention policy (cron in Docker Compose)
-- [ ] Restore procedure docs
+- [x] Restore procedure docs
 - [ ] External storage integration (S3 / GCS / R2) — requires cloud credentials → see manual-tasks.md
 - [ ] Backup failure alerting (email or Telegram) — requires external service → see manual-tasks.md
 
