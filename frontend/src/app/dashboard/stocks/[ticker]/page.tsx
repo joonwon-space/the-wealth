@@ -153,6 +153,13 @@ export default function StockDetailPage() {
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">전일 종가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.prev_close ? fmt(detail.prev_close) : "—"}</p></CardContent></Card>
       </div>
 
+      {/* Overseas chart: not yet supported */}
+      {isUSD && (
+        <section className="flex h-[120px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+          해외주식 차트는 현재 지원되지 않습니다.
+        </section>
+      )}
+
       {/* Candlestick chart (domestic only for now) */}
       {!isUSD && (
         <section className="space-y-3">
