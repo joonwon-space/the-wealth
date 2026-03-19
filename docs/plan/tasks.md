@@ -61,7 +61,7 @@ Each item should be completable in a single commit.
 Alert CRUD exists but no price-triggered notification logic.
 
 - [x] Add `last_triggered_at` column to `alerts` table via Alembic migration
-- [ ] Integrate alert condition check into SSE stream loop — emit `alerts` event when triggered; dedup with 1h cooldown; auto-deactivate after trigger
+- [x] Integrate alert condition check into SSE stream loop — emit `alerts` event when triggered; dedup with 1h cooldown; auto-deactivate after trigger
 - [ ] Add `PATCH /alerts/{id}` endpoint to reactivate/update alert `is_active` and `threshold`
 
 ### Milestone 16-2: Frontend Test Coverage (P1)

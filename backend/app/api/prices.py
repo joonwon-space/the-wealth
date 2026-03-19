@@ -12,9 +12,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.alerts import check_and_dedup_alerts
 from app.api.deps import get_current_user, get_current_user_sse
 from app.core.encryption import decrypt
 from app.db.session import AsyncSessionLocal, get_db
+from app.models.alert import Alert
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
@@ -75,6 +77,41 @@ async def _decrement_connection(user_id: int) -> None:
             _active_connections[user_id] = count - 1
 
 
+async def _check_alerts_and_emit(
+    user_id: int,
+    prices: dict[str, str],
+) -> Optional[str]:
+    """활성 알림을 가격과 비교해 트리거된 알림 SSE 이벤트 문자열 반환.
+
+    - 트리거된 알림은 last_triggered_at 기록 및 is_active=False 처리.
+    - 트리거 없으면 None 반환.
+    """
+    try:
+        decimal_prices: dict[str, Optional[Decimal]] = {
+            ticker: Decimal(price_str) for ticker, price_str in prices.items()
+        }
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Alert).where(
+                    Alert.user_id == user_id,
+                    Alert.is_active.is_(True),
+                )
+            )
+            alerts = list(result.scalars().all())
+
+            if not alerts:
+                return None
+
+            triggered = check_and_dedup_alerts(alerts, decimal_prices)
+
+            if triggered:
+                await db.commit()
+                return f"event: alerts\ndata: {json.dumps(triggered)}\n\n"
+    except Exception as exc:
+        logger.warning("Alert check error for user %s: %s", user_id, exc)
+    return None
+
+
 @router.get("/{ticker}/history")
 async def get_price_history(
     ticker: str,
@@ -126,6 +163,7 @@ async def stream_prices(
     30초 간격으로 가격을 push한다. 시장 미개장 시 상태만 전송.
     15초마다 heartbeat ping을 전송한다.
     최대 연결 시간 2시간. 사용자당 최대 3개 동시 연결.
+    알림 조건 충족 시 `event: alerts` 이벤트를 함께 전송한다.
     """
     allowed = await _increment_connection(current_user.id)
     if not allowed:
@@ -201,6 +239,14 @@ async def stream_prices(
                             if isinstance(price, Decimal) and price > 0
                         }
                         yield f"data: {json.dumps({'market_open': True, 'prices': prices})}\n\n"
+
+                        # Check alerts and emit triggered events
+                        alert_event = await _check_alerts_and_emit(
+                            current_user.id, prices
+                        )
+                        if alert_event:
+                            yield alert_event
+
                 except Exception as e:
                     logger.warning("SSE price fetch error: %s", e)
                     yield f"data: {json.dumps({'error': 'fetch_failed'})}\n\n"
