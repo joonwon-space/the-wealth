@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { BarChart3, Plus, RefreshCw } from "lucide-react";
+import { BarChart3, Plus, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
@@ -140,7 +140,10 @@ export default function DashboardPage() {
     [queryClient]
   );
 
-  usePriceStream({ onPrices: handleStreamPrices, enabled: !isLoading });
+  const { status: streamStatus, reconnect: reconnectStream } = usePriceStream({
+    onPrices: handleStreamPrices,
+    enabled: !isLoading,
+  });
 
   const handleManualRefresh = async () => {
     const result = await api.get<Summary>("/dashboard/summary", { params: { refresh: true } });
@@ -207,6 +210,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">대시보드</h1>
         <div className="flex items-center gap-2">
+          <StreamStatusBadge status={streamStatus} onReconnect={reconnectStream} />
           {lastUpdated && (
             <span className="text-xs text-muted-foreground">
               {isFetching ? "업데이트 중..." : lastUpdated.toLocaleTimeString("ko-KR")}
@@ -341,6 +345,40 @@ interface WidgetErrorFallbackProps {
   title: string;
   error: Error;
   reset: () => void;
+}
+
+interface StreamStatusBadgeProps {
+  status: "connecting" | "connected" | "disconnected";
+  onReconnect: () => void;
+}
+
+function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
+  if (status === "connected") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        <Wifi className="h-3 w-3" />
+        실시간
+      </span>
+    );
+  }
+  if (status === "connecting") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        연결 중
+      </span>
+    );
+  }
+  return (
+    <button
+      onClick={onReconnect}
+      className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80"
+      title="SSE 재연결"
+    >
+      <WifiOff className="h-3 w-3" />
+      연결 끊김 — 재연결
+    </button>
+  );
 }
 
 function WidgetErrorFallback({ title, error, reset }: WidgetErrorFallbackProps) {

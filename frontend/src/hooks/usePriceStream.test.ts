@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/auth";
 // --- EventSource mock ---
 class MockEventSource {
   url: string;
+  onopen: (() => void) | null = null;
   onmessage: ((e: MessageEvent) => void) | null = null;
   onerror: (() => void) | null = null;
   static instances: MockEventSource[] = [];
@@ -16,6 +17,13 @@ class MockEventSource {
   }
 
   close = vi.fn();
+
+  /** Test helper: simulate successful connection open */
+  triggerOpen() {
+    if (this.onopen) {
+      this.onopen();
+    }
+  }
 
   /** Test helper: simulate an incoming message */
   emit(data: unknown) {
@@ -116,13 +124,46 @@ describe("usePriceStream", () => {
     expect(es.close).toHaveBeenCalled();
   });
 
-  it("closes EventSource on error and nulls the ref", () => {
+  it("closes EventSource on error and sets status to disconnected", () => {
     const onPrices = vi.fn();
-    renderHook(() => usePriceStream({ onPrices }));
+    const { result } = renderHook(() => usePriceStream({ onPrices }));
     const es = MockEventSource.instances[0];
     act(() => {
       es.triggerError();
     });
     expect(es.close).toHaveBeenCalled();
+    expect(result.current.status).toBe("disconnected");
+  });
+
+  it("initial status is connecting when enabled with token", () => {
+    const onPrices = vi.fn();
+    const { result } = renderHook(() => usePriceStream({ onPrices }));
+    expect(result.current.status).toBe("connecting");
+  });
+
+  it("status becomes connected after onopen fires", () => {
+    const onPrices = vi.fn();
+    const { result } = renderHook(() => usePriceStream({ onPrices }));
+    const es = MockEventSource.instances[0];
+    act(() => {
+      es.triggerOpen();
+    });
+    expect(result.current.status).toBe("connected");
+  });
+
+  it("initial status is disconnected when not enabled", () => {
+    const onPrices = vi.fn();
+    const { result } = renderHook(() => usePriceStream({ onPrices, enabled: false }));
+    expect(result.current.status).toBe("disconnected");
+  });
+
+  it("reconnect function creates a new EventSource connection", () => {
+    const onPrices = vi.fn();
+    const { result } = renderHook(() => usePriceStream({ onPrices }));
+    expect(MockEventSource.instances).toHaveLength(1);
+    act(() => {
+      result.current.reconnect();
+    });
+    expect(MockEventSource.instances).toHaveLength(2);
   });
 });
