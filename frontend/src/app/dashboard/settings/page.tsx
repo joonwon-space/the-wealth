@@ -389,17 +389,20 @@ export default function SettingsPage() {
           {/* 등록 폼 */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <Input
+              aria-label="티커"
               placeholder="티커 (예: 005930)"
               value={newAlert.ticker}
               onChange={(e) => setNewAlert((p) => ({ ...p, ticker: e.target.value }))}
               className="uppercase"
             />
             <Input
+              aria-label="종목명"
               placeholder="종목명 (선택)"
               value={newAlert.name}
               onChange={(e) => setNewAlert((p) => ({ ...p, name: e.target.value }))}
             />
             <select
+              aria-label="조건"
               value={newAlert.condition}
               onChange={(e) => setNewAlert((p) => ({ ...p, condition: e.target.value as "above" | "below" }))}
               className="rounded-md border bg-background px-3 py-2 text-sm"
@@ -408,6 +411,7 @@ export default function SettingsPage() {
               <option value="below">이하 (≤)</option>
             </select>
             <Input
+              aria-label="목표가"
               type="number"
               placeholder="목표가"
               value={newAlert.threshold}

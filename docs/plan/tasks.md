@@ -119,7 +119,7 @@ Each item should be completable in a single commit.
     - Settings "테스트" 버튼: 65x22px → 높이 44px
   - 수정안: 모바일 뷰포트에서 `min-h-[44px] min-w-[44px]` 적용, 또는 투명 패딩으로 터치 영역 확장
 
-- [ ] **Settings 알림 폼 input label/aria-label 없음**
+- [x] **Settings 알림 폼 input label/aria-label 없음**
   - 현상: 목표가 알림 폼의 티커/종목명/목표가 input 3개 모두 `placeholder`만 있고 `<label>`이나 `aria-label` 없음
   - 파일: `frontend/src/app/dashboard/settings/page.tsx` — 알림 폼 섹션
   - 수정안: 각 input에 `aria-label="티커"`, `aria-label="종목명"`, `aria-label="목표가"` 추가
