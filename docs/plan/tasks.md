@@ -79,4 +79,4 @@ After market close, price cache TTL should extend from 300s to 24h to reduce KIS
 
 ### Milestone 13-5b: Data Integrity Health Checks (P2)
 
-- [ ] Add `GET /health/data-integrity` endpoint — check for `price_snapshots` gaps (missing weekday snapshots in last 7 days) and return summary JSON
+- [x] Add `GET /health/data-integrity` endpoint — check for `price_snapshots` gaps (missing weekday snapshots in last 7 days) and return summary JSON
