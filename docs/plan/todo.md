@@ -10,7 +10,7 @@ Current actionable work is in `tasks.md`.
 ## Completed Milestones
 
 <details>
-<summary>Milestone 1~9, 10, 11 (partial), 12 (partial), 13-1, 14 (partial), 15-4, 16 (partial) -- all completed</summary>
+<summary>Milestone 1~9, 10, 11 (partial), 12 (partial incl. SSE hardening), 13-1, 14 (partial), 15-4, 16 (partial incl. commitlint) -- all completed</summary>
 
 ### Milestone 1-9: Foundation
 - [x] Backend init, DB, Auth, Next.js layout, KIS API, Dashboard, Account sync, UI, Python upgrade, Feature extensions
@@ -27,7 +27,7 @@ Current actionable work is in `tasks.md`.
 
 ### Milestone 12 (completed items)
 - [x] 12-1: Price history & day change (price_snapshots, daily snapshot scheduler)
-- [x] 12-2: SSE real-time prices (30s interval, market hours only)
+- [x] 12-2: SSE real-time prices (30s interval, market hours only, per-user limit, heartbeat, 2h timeout)
 - [x] 12-3: Performance optimization (query optimization, Redis cache)
 - [x] 12-4: Alert system (CRUD)
 - [x] 12-5: API versioning (/api/v1), standardized error responses, openapi-typescript
@@ -82,11 +82,14 @@ Current actionable work is in `tasks.md`.
 - [ ] Onboarding tour (react-joyride)
 - [ ] TanStack Query adoption (replace manual Axios state management)
 
+### 11-6. Next.js 16 Migration
+- [ ] Migrate `middleware.ts` to `proxy` convention (deprecated in Next.js 16)
+
 ---
 
 ## Milestone 12: Backend Enhancement (Remaining)
 
-### 12-2. SSE Connection Hardening
+### 12-2. SSE Connection Hardening (Completed)
 - [x] Per-user max SSE connection limit (e.g., 3)
 - [x] Server heartbeat (15s) + idle connection cleanup
 - [x] Max connection duration (e.g., 2 hours)
@@ -211,7 +214,7 @@ Current actionable work is in `tasks.md`.
 | **P1** | 14-2 (Monitoring) | Production operations essential |
 | **P1** | 11-2 (Analytics enhancement) | Differentiation feature |
 | **P2** | 13 (Data pipeline) | Analytics prerequisite |
-| **P2** | 12-2 (SSE hardening) | Stability for production |
+| ~~**P2**~~ | ~~12-2 (SSE hardening)~~ | Completed: per-user limit, heartbeat, 2h timeout |
 | **P2** | 14-4 (Security) | Production readiness |
 | **P3** | 15 (Extensions) | Long-term roadmap |
 | **P3** | 16 (Dev tools) | DX improvement |

@@ -632,14 +632,16 @@ slowapi 기반 IP별 레이트 리미팅:
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD (푸시 알림 미구현) |
 | 자동 동기화 | 완료 | APScheduler 1시간 주기 + 일일 스냅샷 |
+| SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
 | 에러 처리 | 완료 | 표준 에러 응답, Error Boundary |
+| Commitlint | 완료 | @commitlint/config-conventional + Husky hook |
 | 프로덕션 배포 | 미착수 | Vercel + Railway/Fly.io 예정 |
 | 모니터링 | 미착수 | Sentry + 로그 수집 예정 |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: **71%** (425 tests passed)
+전체: **92%** (506 tests passed)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
@@ -647,7 +649,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | models/ | 100% | ORM 모델 |
 | schemas/ | 100% | Pydantic 스키마 |
 | services/ | 93-100% | kis_price, reconciliation, scheduler 등 |
-| api/ routers | 25-81% | chart(25%), sync(29%), portfolios(36%) 등 보강 필요 |
+| api/ routers | 61-100% | prices(61%), sync(79%), dashboard(85%) 보강 가능 |
 
 ### 6.3 강점
 
@@ -657,11 +659,14 @@ slowapi 기반 IP별 레이트 리미팅:
 - 구조화 로깅 (structlog) + request_id 트레이싱
 - 해외주식 원화 환산 (환율 자동 적용)
 - 보유종목 market_value_krw 기준 내림차순 정렬
+- SSE 연결 하드닝: 사용자별 제한, 하트비트, 유휴 감지, 최대 연결 시간
+- 테스트 커버리지 92% (506 tests) -- ruff lint 오류 0건
+- Commitlint 커밋 메시지 검증 자동화
 
 ### 6.4 약점 및 개선 필요 사항
 
-- API router 테스트 커버리지 낮음 (chart 25%, sync 29%, portfolios 36%)
-- 테스트 파일에 ruff lint 오류 10건 (미사용 import/변수)
+- Next.js 16 middleware 파일 컨벤션 deprecated (proxy로 마이그레이션 필요)
+- prices.py 라우터 테스트 커버리지 61% (SSE 엔드포인트 테스트 어려움)
 - 프로덕션 배포 환경 미구축
 - 모니터링/APM 미도입
 - 알림 전송 채널 미구현 (CRUD만 존재, 실제 푸시/이메일 없음)
@@ -671,6 +676,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 | 리스크 | 심각도 | 설명 |
 |--------|--------|------|
+| Next.js middleware deprecation | 중 | Next.js 16에서 middleware가 deprecated, proxy로 전환 필요 |
 | KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초 제한) |
 | 단일 사용자 환경 | 저 | 현재 다중 사용자 동시 접속 부하 테스트 미실시 |
 | 프로덕션 미배포 | 중 | 실사용 환경에서의 검증 없음 |

@@ -44,19 +44,20 @@ Each item should be completable in a single commit.
 - [x] portfolios.py split - CSV export to portfolio_export.py
 - [x] Fix ruff lint errors in test files (10 errors)
 - [x] Test coverage 71% -> 93% (add router tests + .coveragerc sysmon fix)
+- [x] Milestone 16-3: Commitlint config + Husky hook
+- [x] Milestone 12-2: SSE connection hardening (per-user limit, heartbeat, 2h timeout)
 
 </details>
 
 ---
 
-## Milestone 16-3: Commitlint
+## Current work
 
-- [x] Add `commitlint.config.js` to repo root referencing `@commitlint/config-conventional` (packages already installed in `frontend/`)
+### Next.js middleware deprecation fix
+- [ ] Migrate `frontend/src/middleware.ts` from `middleware` to `proxy` convention — Next.js 16 build warns the `middleware` file convention is deprecated
 
-## Milestone 12-2: SSE Connection Hardening
-
-- [x] Per-user max SSE connection limit (3) — track active connections in a module-level dict; return 429 when exceeded; decrement on disconnect
-- [x] SSE server heartbeat (15s ping comment) + idle detection — send `: ping` comment every 15s when no price data is being sent; detect no-yield for 30s and close
-- [x] SSE max connection duration (2 hours) — replace `_SSE_TIMEOUT = 3600` with `7200`; send `data: {"close": "max_duration"}\n\n` before closing
+### Test coverage gaps (prices.py 61%)
+- [ ] Add SSE endpoint tests for `api/prices.py` to bring coverage from 61% to 80%+
+- [ ] Add missing `api/dashboard.py` tests for uncovered lines (85% -> 90%+)
 
 ---
