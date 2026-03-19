@@ -67,7 +67,7 @@ Each item should be completable in a single commit.
 ### Milestone 11-7: Frontend Quality (P2)
 
 - [x] Add ▲/▼ directional icons to PnLBadge for gain/loss (accessibility non-color indicators)
-- [ ] Wrap each dashboard widget (summary cards, allocation chart, holdings table) in granular ErrorBoundary so one widget failure doesn't crash the whole page
+- [x] Wrap each dashboard widget (summary cards, allocation chart, holdings table) in granular ErrorBoundary so one widget failure doesn't crash the whole page
 - [ ] Add SSE connection status indicator to dashboard — show "실시간" badge when connected, "연결 끊김" + reconnect button when disconnected
 - [ ] Add `@next/bundle-analyzer` script to frontend package.json (`analyze` script using `ANALYZE=true npm run build`)
 
