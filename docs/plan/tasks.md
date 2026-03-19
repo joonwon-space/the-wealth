@@ -64,7 +64,7 @@ Each item should be completable in a single commit.
 ### Milestone 11-5: TanStack Query Adoption (P1)
 Replace manual Axios + useState data fetching with TanStack Query for cache consistency and deduplication.
 
-- [ ] Install `@tanstack/react-query` + `@tanstack/react-query-devtools`; add `QueryClientProvider` to `app/layout.tsx`
+- [x] Install `@tanstack/react-query` + `@tanstack/react-query-devtools`; add `QueryClientProvider` to `app/layout.tsx`
 - [ ] Migrate dashboard page (`/dashboard`) to use `useQuery` with `refetchInterval: 30_000`; keep SSE price update via `queryClient.setQueryData`
 - [ ] Migrate portfolios list page (`/dashboard/portfolios`) to use `useQuery`; use `useMutation` + `invalidateQueries` for create/rename/delete
 - [ ] Migrate portfolio detail page (`/dashboard/portfolios/[id]`) holdings and transactions to `useQuery`/`useMutation`
