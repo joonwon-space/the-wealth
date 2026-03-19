@@ -42,24 +42,21 @@ Each item should be completable in a single commit.
 - [x] Short-term improvements: DB indexes, legacy columns, rate limits, ticker validation, pagination cap, soft delete, HttpOnly cookies, Error Boundary, bundle optimization, Graceful Shutdown
 - [x] Milestone 10: AI browser agent (all items)
 - [x] portfolios.py split - CSV export to portfolio_export.py
+- [x] Fix ruff lint errors in test files (10 errors)
+- [x] Test coverage 71% -> 93% (add router tests + .coveragerc sysmon fix)
 
 </details>
 
 ---
 
-## Lint/Code Quality Fixes
+## Milestone 16-3: Commitlint
 
-- [x] Fix ruff lint errors in test files (10 errors) -- remove unused imports and variables in `tests/test_dashboard.py`, `tests/test_price_snapshot.py`, `tests/test_scheduler.py`
+- [x] Add `commitlint.config.js` to repo root referencing `@commitlint/config-conventional` (packages already installed in `frontend/`)
 
-## Test Coverage Improvement (71% -> 80%)
+## Milestone 12-2: SSE Connection Hardening
 
-- [x] `api/chart.py` router tests -- currently 25% coverage, add tests for daily chart data endpoint with KIS API mocking
-- [x] `api/sync.py` router tests -- currently 29% coverage, add tests for balance sync, portfolio sync, sync logs endpoints
-- [x] `api/portfolios.py` router tests -- currently 36% coverage, add tests for holdings CRUD, transactions CRUD, KIS account linking
-- [x] `api/prices.py` router tests -- currently 38% coverage, add tests for price history and SSE stream endpoints
-- [x] `api/stocks.py` router tests -- currently 38% coverage, add tests for stock search and detail endpoints
-- [x] `api/portfolio_export.py` router tests -- currently 48% coverage, add tests for CSV export with various data scenarios
-- [x] `api/users.py` router tests -- currently 54% coverage, add tests for KIS account CRUD and connection test
-- [x] Add `.coveragerc` with `core = sysmon` to fix Python 3.12 async coroutine coverage tracking (73% -> 93%)
+- [ ] Per-user max SSE connection limit (3) — track active connections in a module-level dict; return 429 when exceeded; decrement on disconnect
+- [ ] SSE server heartbeat (15s ping comment) + idle detection — send `: ping` comment every 15s when no price data is being sent; detect no-yield for 30s and close
+- [ ] SSE max connection duration (2 hours) — replace `_SSE_TIMEOUT = 3600` with `7200`; send `data: {"close": "max_duration"}\n\n` before closing
 
 ---
