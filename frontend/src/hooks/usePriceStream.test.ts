@@ -135,9 +135,13 @@ describe("usePriceStream", () => {
     expect(result.current.status).toBe("disconnected");
   });
 
-  it("initial status is connecting when enabled with token", () => {
+  it("status becomes connecting after microtask when enabled with token", async () => {
     const onPrices = vi.fn();
     const { result } = renderHook(() => usePriceStream({ onPrices }));
+    // setStatus("connecting") is deferred via queueMicrotask — flush it
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(result.current.status).toBe("connecting");
   });
 
