@@ -1,5 +1,13 @@
 import { create } from "zustand";
 
+const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const REFRESH_URL = `${API_HOST}/api/v1/auth/refresh`;
+
+interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+}
+
 interface AuthState {
   isAuthenticated: boolean;
   // Access token kept in memory (not localStorage) for SSE and Authorization headers.
@@ -8,6 +16,8 @@ interface AuthState {
   login: (accessToken: string) => void;
   logout: () => void;
   initialize: () => void;
+  /** Call /auth/refresh to obtain a new access token and store it in memory. */
+  refreshAccessToken: () => Promise<string | null>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -34,5 +44,27 @@ export const useAuthStore = create<AuthState>((set) => ({
       .split(";")
       .some((c) => c.trim().startsWith("auth_status=1"));
     set({ isAuthenticated, accessToken: null });
+  },
+
+  // Silently refresh the access token using the HttpOnly refresh cookie.
+  // Returns the new access token on success, or null on failure.
+  refreshAccessToken: async () => {
+    try {
+      const res = await fetch(REFRESH_URL, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as TokenResponse;
+      const token = data.access_token ?? null;
+      if (token) {
+        set({ isAuthenticated: true, accessToken: token });
+      }
+      return token;
+    } catch {
+      return null;
+    }
   },
 }));

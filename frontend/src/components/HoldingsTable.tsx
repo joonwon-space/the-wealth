@@ -115,6 +115,7 @@ const columns: ColumnDef<HoldingRow>[] = [
     id: "w52_range",
     header: "52주 범위",
     enableSorting: false,
+    meta: { className: "hidden lg:table-cell" },
     cell: ({ row }) => {
       const isUSD = row.original.currency === "USD";
       const high = Number(row.original.w52_high);
@@ -234,7 +235,7 @@ export function HoldingsTable({ holdings }: Props) {
                       header.column.getIsSorted() === "asc" ? "ascending" :
                       header.column.getIsSorted() === "desc" ? "descending" : "none"
                     }
-                    className="cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground"
+                    className={`cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground ${(header.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}
                   >
                     <div className="flex items-center gap-1">
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -259,7 +260,7 @@ export function HoldingsTable({ holdings }: Props) {
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id} className="border-t hover:bg-muted/30 transition-colors">
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-3">
+                  <td key={cell.id} className={`px-4 py-3 ${(cell.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

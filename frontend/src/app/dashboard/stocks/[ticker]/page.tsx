@@ -143,12 +143,22 @@ export default function StockDetailPage() {
       </div>
 
       {/* Key stats */}
+      {isUSD && !detail.open && !detail.high && !detail.low && (
+        <p className="text-xs text-muted-foreground">미국 장 마감 — 오늘 장 데이터를 아직 수신하지 못했습니다.</p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">시가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.open ? fmt(detail.open) : "—"}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">고가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#e31f26]">{detail.high ? fmt(detail.high) : "—"}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">저가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#1a56db]">{detail.low ? fmt(detail.low) : "—"}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">전일 종가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.prev_close ? fmt(detail.prev_close) : "—"}</p></CardContent></Card>
       </div>
+
+      {/* Overseas chart: not yet supported */}
+      {isUSD && (
+        <section className="flex h-[120px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+          해외주식 차트는 현재 지원되지 않습니다.
+        </section>
+      )}
 
       {/* Candlestick chart (domestic only for now) */}
       {!isUSD && (

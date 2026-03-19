@@ -21,6 +21,12 @@ Items requiring user action.
 - [ ] Configure backup container env vars and enable S3 upload in backup script
 - [ ] Test restore from backup on staging environment
 
+## KIS API Research Required
+
+- [ ] **해외주식 52주 범위 API 확인**: KIS `HHDFS00000300` API가 `w52hgpr`/`w52lwpr` 미반환 시 대체 API(`HHDFS76410000` 등) 찾아서 fallback 구현 — KIS API 문서에서 overseas 52w high/low 제공 API TR_ID 확인 필요
+- [ ] **해외주식 캔들차트**: KIS 해외주식 일봉 API TR_ID 확인 후 `/stocks/{ticker}/chart` 엔드포인트에 해외주식 지원 추가
+- [ ] **섹터 배분 ETF 매핑**: ETF 종목(381170 TIGER미국테크, 481190 TIGER미국S&P500 등)에 대한 `sector_map` 확장 — 실제 기초지수 기반으로 분류 결정 필요
+
 ## P0 — Monitoring & APM (Milestone 14-2)
 - [ ] Create Sentry account and get DSN for frontend and backend
 - [ ] Add `SENTRY_DSN` to `backend/.env` and `NEXT_PUBLIC_SENTRY_DSN` to frontend env

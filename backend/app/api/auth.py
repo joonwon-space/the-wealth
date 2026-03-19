@@ -78,10 +78,17 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    """Clear auth cookies on logout."""
-    response.delete_cookie(key="access_token", path="/", domain=_COOKIE_DOMAIN)
-    response.delete_cookie(key="refresh_token", path="/", domain=_COOKIE_DOMAIN)
-    response.delete_cookie(key="auth_status", path="/", domain=_COOKIE_DOMAIN)
+    """Clear auth cookies on logout.
+
+    Deletes cookies both with and without domain to handle domain-mismatch
+    edge cases where the cookie was set without a domain or with a different
+    domain than _COOKIE_DOMAIN.
+    """
+    for cookie_name in ("access_token", "refresh_token", "auth_status"):
+        response.delete_cookie(key=cookie_name, path="/", domain=_COOKIE_DOMAIN)
+        if _COOKIE_DOMAIN is not None:
+            # Also delete without domain in case the cookie was stored without one
+            response.delete_cookie(key=cookie_name, path="/", domain=None)
 
 
 @router.post(

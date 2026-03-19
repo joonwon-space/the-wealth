@@ -6,6 +6,7 @@ import { BarChart3, Plus, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
+import { useAuthStore } from "@/store/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AllocationDonut } from "@/components/DynamicCharts";
@@ -78,6 +79,16 @@ async function fetchSummary(refresh = false): Promise<Summary> {
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refreshAccessToken = useAuthStore((s) => s.refreshAccessToken);
+
+  // On page load after refresh, accessToken is null (not persisted).
+  // Silently call /auth/refresh so the SSE hook gets a token.
+  useEffect(() => {
+    if (!accessToken) {
+      void refreshAccessToken();
+    }
+  }, [accessToken, refreshAccessToken]);
 
   const {
     data: summary,
@@ -221,8 +232,9 @@ export default function DashboardPage() {
           <button
             onClick={handleManualRefresh}
             disabled={isFetching}
-            className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-50"
             title="새로고침"
+            aria-label="새로고침"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           </button>
@@ -379,8 +391,9 @@ function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
   return (
     <button
       onClick={onReconnect}
-      className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80"
+      className="inline-flex min-h-[44px] items-center gap-1 rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground hover:bg-muted/80"
       title="SSE 재연결"
+      aria-label="SSE 재연결"
     >
       <WifiOff className="h-3 w-3" />
       연결 끊김 — 재연결

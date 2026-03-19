@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
       <div className="space-y-8">
         <Skeleton className="h-8 w-24" />
         {/* Summary cards */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-24" /></CardContent></Card>
           ))}
@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
         {/* Metrics cards */}
         <div className="space-y-2">
           <Skeleton className="h-5 w-20" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-20" /></CardContent></Card>
             ))}
@@ -205,7 +205,7 @@ export default function AnalyticsPage() {
       <h1 className="text-2xl font-bold">분석</h1>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">총 자산</p><p className="mt-1 text-lg font-bold tabular-nums">{formatKRW(s.total_asset)}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">투자 원금</p><p className="mt-1 text-lg font-bold tabular-nums">{formatKRW(s.total_invested)}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">총 손익</p><p className="mt-1 text-lg font-bold"><PnLBadge value={s.total_pnl_amount} /></p></CardContent></Card>
@@ -216,11 +216,11 @@ export default function AnalyticsPage() {
       {metrics && (
         <section className="space-y-2">
           <h2 className="text-base font-semibold">성과 지표</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <MetricCard label="총 수익률" value={metrics.total_return_rate} suffix="%" tooltip="전체 투자 기간 동안의 누적 수익률" />
-            <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다." />
-            <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭(MDD): 고점 대비 최대 하락폭입니다. 값이 클수록 손실 위험이 큽니다." />
-            <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="샤프 비율: 위험(변동성) 한 단위당 초과 수익률. 1 이상이면 양호, 2 이상이면 우수합니다." />
+            <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다." nullHint="데이터 30일 이상 필요" />
+            <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭(MDD): 고점 대비 최대 하락폭입니다. 값이 클수록 손실 위험이 큽니다." nullHint="이력 데이터 부족" />
+            <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="샤프 비율: 위험(변동성) 한 단위당 초과 수익률. 1 이상이면 양호, 2 이상이면 우수합니다." nullHint="데이터 30일 이상 필요" />
           </div>
         </section>
       )}
@@ -378,9 +378,10 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {["종목", "수량", "평균단가", "현재가", "평가금액(₩)", "손익(₩)", "수익률", "전일 대비"].map((h) => (
+                  {(["종목", "수량", "평균단가", "현재가", "평가금액(₩)", "손익(₩)", "수익률"] as const).map((h) => (
                     <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                   ))}
+                  <th className="hidden lg:table-cell px-4 py-2 text-left font-medium text-muted-foreground">전일 대비</th>
                 </tr>
               </thead>
               <tbody>
@@ -400,7 +401,7 @@ export default function AnalyticsPage() {
                     <td className="px-4 py-2 tabular-nums">{formatKRW(h.market_value_krw)}</td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_amount ?? 0} /></td>
                     <td className="px-4 py-2"><PnLBadge value={h.pnl_rate ?? 0} suffix="%" /></td>
-                    <td className="px-4 py-2">
+                    <td className="hidden lg:table-cell px-4 py-2">
                       {h.day_change_rate != null
                         ? <PnLBadge value={h.day_change_rate} suffix="%" />
                         : <span className="text-muted-foreground">—</span>}
@@ -427,6 +428,8 @@ interface MetricCardProps {
   value: number | null;
   suffix?: string;
   tooltip?: string;
+  /** Short hint shown below "—" when value is null */
+  nullHint?: string;
 }
 
 function MetricTooltip({ text }: { text: string }) {
@@ -467,7 +470,7 @@ function MetricTooltip({ text }: { text: string }) {
   );
 }
 
-function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
+function MetricCard({ label, value, suffix = "", tooltip, nullHint }: MetricCardProps) {
   const display = value != null ? `${value > 0 && suffix === "%" ? "+" : ""}${value.toFixed(suffix === "%" ? 2 : 3)}${suffix}` : "—";
   const color = value == null ? "" : value > 0 ? "text-[#e31f26]" : value < 0 ? "text-[#1a56db]" : "";
   return (
@@ -478,6 +481,9 @@ function MetricCard({ label, value, suffix = "", tooltip }: MetricCardProps) {
           {tooltip && <MetricTooltip text={tooltip} />}
         </div>
         <p className={`mt-1 text-lg font-bold tabular-nums ${color}`}>{display}</p>
+        {value == null && nullHint && (
+          <p className="mt-0.5 text-[10px] text-muted-foreground/70">{nullHint}</p>
+        )}
       </CardContent>
     </Card>
   );

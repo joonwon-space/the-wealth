@@ -204,7 +204,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-4 p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">KIS 계좌 목록</h2>
-            <Button size="sm" variant="outline" onClick={() => setShowAddAccount(!showAddAccount)} className="gap-1">
+            <Button size="sm" variant="outline" onClick={() => setShowAddAccount(!showAddAccount)} className="min-h-[44px] gap-1">
               <Plus className="h-3.5 w-3.5" />
               {showAddAccount ? "취소" : "계좌 추가"}
             </Button>
@@ -255,7 +255,11 @@ export default function SettingsPage() {
                   ) : (
                     <div className="flex items-center gap-1">
                       <span className="font-medium">{a.label}</span>
-                      <button onClick={() => { setEditingAcctId(a.id); setEditLabel(a.label); }} className="text-muted-foreground/50 hover:text-muted-foreground">
+                      <button
+                        onClick={() => { setEditingAcctId(a.id); setEditLabel(a.label); }}
+                        aria-label={`${a.label} 계좌 별칭 편집`}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground"
+                      >
                         <Pencil className="h-3 w-3" />
                       </button>
                       <span className="ml-1 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
@@ -265,8 +269,9 @@ export default function SettingsPage() {
                     <button
                       onClick={() => handleTestAccount(a.id)}
                       disabled={testingAcctId === a.id}
-                      className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
+                      className="min-h-[44px] rounded border px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
                       title="연결 테스트"
+                      aria-label="KIS 연결 테스트"
                     >
                       {testingAcctId === a.id ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -279,7 +284,11 @@ export default function SettingsPage() {
                       )}
                       테스트
                     </button>
-                    <button onClick={() => handleDeleteAccount(a.id)} className="text-muted-foreground hover:text-destructive">
+                    <button
+                      onClick={() => handleDeleteAccount(a.id)}
+                      aria-label={`${a.label} 계좌 삭제`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -388,17 +397,20 @@ export default function SettingsPage() {
           {/* 등록 폼 */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <Input
+              aria-label="티커"
               placeholder="티커 (예: 005930)"
               value={newAlert.ticker}
               onChange={(e) => setNewAlert((p) => ({ ...p, ticker: e.target.value }))}
               className="uppercase"
             />
             <Input
+              aria-label="종목명"
               placeholder="종목명 (선택)"
               value={newAlert.name}
               onChange={(e) => setNewAlert((p) => ({ ...p, name: e.target.value }))}
             />
             <select
+              aria-label="조건"
               value={newAlert.condition}
               onChange={(e) => setNewAlert((p) => ({ ...p, condition: e.target.value as "above" | "below" }))}
               className="rounded-md border bg-background px-3 py-2 text-sm"
@@ -407,6 +419,7 @@ export default function SettingsPage() {
               <option value="below">이하 (≤)</option>
             </select>
             <Input
+              aria-label="목표가"
               type="number"
               placeholder="목표가"
               value={newAlert.threshold}
@@ -434,7 +447,8 @@ export default function SettingsPage() {
                   </div>
                   <button
                     onClick={() => handleDeleteAlert(a.id)}
-                    className="rounded p-1 text-muted-foreground hover:text-destructive"
+                    aria-label={`${a.name || a.ticker} 알림 삭제`}
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
