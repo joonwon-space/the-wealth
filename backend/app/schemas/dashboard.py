@@ -50,3 +50,4 @@ class DashboardSummary(BaseModel):
     holdings: list[HoldingWithPnL]
     allocation: list[AllocationItem]
     triggered_alerts: list[TriggeredAlert] = []
+    usd_krw_rate: Optional[Decimal] = None  # 해외주식 환산에 사용된 USD/KRW 환율

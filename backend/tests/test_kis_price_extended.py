@@ -314,7 +314,7 @@ class TestFetchUsdKrwRate:
     async def test_fallback_on_api_failure(
         self, mock_aioredis: MagicMock, mock_token: AsyncMock
     ) -> None:
-        """API timeout/error → fallback rate 1350."""
+        """API timeout/error → fallback rate 1450."""
         mock_token.return_value = "fake-token"
 
         mock_redis = AsyncMock()
@@ -327,7 +327,7 @@ class TestFetchUsdKrwRate:
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("t/o"))
 
         result = await fetch_usd_krw_rate("key", "secret", mock_client)
-        assert result == Decimal("1350")
+        assert result == Decimal("1450")
 
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.core.redis_cache.aioredis")
@@ -348,7 +348,7 @@ class TestFetchUsdKrwRate:
         mock_client.get = AsyncMock(return_value=response)
 
         result = await fetch_usd_krw_rate("key", "secret", mock_client)
-        assert result == Decimal("1350")
+        assert result == Decimal("1450")
 
 
 # ---------------------------------------------------------------------------

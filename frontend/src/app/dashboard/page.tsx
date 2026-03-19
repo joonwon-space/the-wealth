@@ -66,6 +66,7 @@ interface Summary {
   holdings: HoldingRow[];
   allocation: AllocationItem[];
   triggered_alerts: TriggeredAlert[];
+  usd_krw_rate: number | null;
 }
 
 async function fetchSummary(refresh = false): Promise<Summary> {
@@ -201,6 +202,7 @@ export default function DashboardPage() {
     holdings: [],
     allocation: [],
     triggered_alerts: [],
+    usd_krw_rate: null,
   };
 
   const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
@@ -256,6 +258,11 @@ export default function DashboardPage() {
                     {s.day_change_amount != null && (
                       <PnLBadge value={s.day_change_amount} />
                     )}
+                  </p>
+                )}
+                {s.usd_krw_rate != null && (
+                  <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                    USD/KRW {formatKRW(s.usd_krw_rate)}
                   </p>
                 )}
               </CardContent>

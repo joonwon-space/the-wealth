@@ -143,7 +143,7 @@ async def get_summary(
     day_change_rates: dict[str, Optional[Decimal]] = {}
     w52_highs: dict[str, Optional[Decimal]] = {}
     w52_lows: dict[str, Optional[Decimal]] = {}
-    exchange_rate: Decimal = Decimal("1350")  # default fallback
+    exchange_rate: Decimal = Decimal("1450")  # default fallback
 
     if kis_acct:
         try:
@@ -380,4 +380,5 @@ async def get_summary(
         holdings=holding_items,
         allocation=allocation,
         triggered_alerts=triggered_alerts,
+        usd_krw_rate=exchange_rate if overseas_tickers else None,
     )

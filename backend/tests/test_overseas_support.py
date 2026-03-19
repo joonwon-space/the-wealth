@@ -234,7 +234,7 @@ class TestFetchUsdKrwRate:
     @patch("app.core.redis_cache.aioredis")
     @patch("app.services.kis_price.get_kis_access_token")
     async def test_fallback_rate_on_exception(self, mock_token, mock_aioredis) -> None:
-        """API 호출 및 캐시 모두 실패하면 fallback 1350 반환."""
+        """API 호출 및 캐시 모두 실패하면 fallback 1450 반환."""
         mock_token.return_value = "test-token"
 
         mock_redis = AsyncMock()
@@ -247,7 +247,7 @@ class TestFetchUsdKrwRate:
         mock_client.get = AsyncMock(side_effect=Exception("network error"))
 
         result = await fetch_usd_krw_rate("key", "secret", mock_client)
-        assert result == Decimal("1350")
+        assert result == Decimal("1450")
 
 
 # ---------------------------------------------------------------------------

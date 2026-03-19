@@ -121,6 +121,7 @@ async def _fetch_balance_raw(
         "tot_evlu_amt": str(combined_total_eval),
         "scts_evlu_amt": str(combined_stock_eval),
         "evlu_pfls_smtl_amt": str(combined_pnl),
+        "usd_krw_rate": exchange_rate if overseas_holdings else None,
     }
 
     return combined_summary, holdings_list
@@ -240,6 +241,7 @@ async def get_account_balance(
                 "total_eval": summary.get("tot_evlu_amt", "0"),
                 "stock_eval": summary.get("scts_evlu_amt", "0"),
                 "pnl": summary.get("evlu_pfls_smtl_amt", "0"),
+                "usd_krw_rate": summary.get("usd_krw_rate"),
                 "synced": counts,
                 "holdings": [
                     {

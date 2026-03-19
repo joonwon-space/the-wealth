@@ -29,7 +29,7 @@ _FX_CACHE_KEY = "fx:USDKRW"
 _FX_STALE_KEY = "fx:USDKRW:stale"
 _FX_CACHE_TTL = 3600        # 1 hour (fresh)
 _FX_STALE_TTL = 604800      # 7 days (stale fallback)
-_FX_FALLBACK_RATE = Decimal("1350")
+_FX_FALLBACK_RATE = Decimal("1450")
 
 # KST market hours constants (reused from prices.py logic)
 _KST = timezone(timedelta(hours=9))
