@@ -73,7 +73,7 @@ Each item should be completable in a single commit.
 
 ### Milestone 13-5a: Operational Stability — Scheduler Alerting (P2)
 
-- [ ] Track consecutive scheduler failures in `sync_logs` — add `consecutive_failures` counter and log CRITICAL when `kis_sync` or `daily_close_snapshot` fails 3+ times in a row
+- [x] Track consecutive scheduler failures in `sync_logs` — add `consecutive_failures` counter and log CRITICAL when `kis_sync` or `daily_close_snapshot` fails 3+ times in a row
 
 ### Milestone 13-5b: Data Integrity — Orphan Cleanup (P2)
 
