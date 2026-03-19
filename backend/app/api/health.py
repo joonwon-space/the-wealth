@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
+from app.models.sync_log import SyncLog
 from app.models.transaction import Transaction
 from app.models.user import User
 
@@ -164,4 +165,75 @@ async def holdings_reconciliation(
         "status": status,
         "checked_holdings": len(holdings),
         "mismatches": mismatches,
+    }
+
+
+@router.get("/orphan-records")
+async def orphan_records_check(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """고아 레코드(orphan records) 감지 헬스체크.
+
+    현재 사용자의 보유 종목, 거래 내역, 동기화 로그 중
+    존재하지 않는 portfolio_id를 참조하는 레코드 수를 반환한다.
+
+    CASCADE DELETE가 올바르게 작동한다면 항상 0이어야 한다.
+    비정상적인 데이터 마이그레이션이나 직접 INSERT 이후 감지용으로 사용한다.
+
+    응답 예시:
+    {
+      "status": "ok" | "degraded",
+      "orphan_holdings": 0,
+      "orphan_transactions": 0,
+      "orphan_sync_logs": 0
+    }
+    """
+    # 현재 사용자의 유효한 포트폴리오 ID 목록
+    portfolio_result = await db.execute(
+        select(Portfolio.id).where(Portfolio.user_id == current_user.id)
+    )
+    valid_portfolio_ids = {row[0] for row in portfolio_result.all()}
+
+    if not valid_portfolio_ids:
+        return {
+            "status": "ok",
+            "orphan_holdings": 0,
+            "orphan_transactions": 0,
+            "orphan_sync_logs": 0,
+        }
+
+    # 고아 보유 종목: 사용자 소유이나 유효하지 않은 portfolio_id 참조
+    orphan_holdings_result = await db.execute(
+        select(func.count()).select_from(Holding).where(
+            Holding.portfolio_id.notin_(valid_portfolio_ids),
+        )
+    )
+    orphan_holdings = orphan_holdings_result.scalar() or 0
+
+    # 고아 거래 내역
+    orphan_txn_result = await db.execute(
+        select(func.count()).select_from(Transaction).where(
+            Transaction.portfolio_id.notin_(valid_portfolio_ids),
+        )
+    )
+    orphan_transactions = orphan_txn_result.scalar() or 0
+
+    # 고아 동기화 로그
+    orphan_sync_result = await db.execute(
+        select(func.count()).select_from(SyncLog).where(
+            SyncLog.user_id == current_user.id,
+            SyncLog.portfolio_id.notin_(valid_portfolio_ids),
+        )
+    )
+    orphan_sync_logs = orphan_sync_result.scalar() or 0
+
+    total_orphans = orphan_holdings + orphan_transactions + orphan_sync_logs
+    status = "ok" if total_orphans == 0 else "degraded"
+
+    return {
+        "status": status,
+        "orphan_holdings": orphan_holdings,
+        "orphan_transactions": orphan_transactions,
+        "orphan_sync_logs": orphan_sync_logs,
     }

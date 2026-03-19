@@ -367,6 +367,93 @@ class TestSnapshotDailyClose:
 
 
 # ---------------------------------------------------------------------------
+# Consecutive failure tracking
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestConsecutiveFailureTracking:
+    def setup_method(self) -> None:
+        """Reset failure counters before each test."""
+        import app.services.scheduler as sched_mod
+
+        sched_mod._consecutive_failures["kis_sync"] = 0
+        sched_mod._consecutive_failures["daily_close_snapshot"] = 0
+
+    def test_record_job_success_resets_counter(self) -> None:
+        import app.services.scheduler as sched_mod
+
+        sched_mod._consecutive_failures["kis_sync"] = 5
+        sched_mod._record_job_success("kis_sync")
+        assert sched_mod._consecutive_failures["kis_sync"] == 0
+
+    def test_record_job_failure_increments_counter(self) -> None:
+        import app.services.scheduler as sched_mod
+
+        sched_mod._record_job_failure("kis_sync", RuntimeError("oops"))
+        assert sched_mod._consecutive_failures["kis_sync"] == 1
+
+        sched_mod._record_job_failure("kis_sync", RuntimeError("oops again"))
+        assert sched_mod._consecutive_failures["kis_sync"] == 2
+
+    def test_record_job_failure_logs_critical_at_threshold(self) -> None:
+        import app.services.scheduler as sched_mod
+
+        threshold = sched_mod.CONSECUTIVE_FAILURE_THRESHOLD
+
+        with patch.object(sched_mod.logger, "critical") as mock_critical:
+            for _ in range(threshold):
+                sched_mod._record_job_failure("kis_sync", RuntimeError("persistent error"))
+
+        mock_critical.assert_called_once()
+        call_args = mock_critical.call_args[0]
+        assert "kis_sync" in call_args[1]
+
+    def test_record_job_failure_no_critical_below_threshold(self) -> None:
+        import app.services.scheduler as sched_mod
+
+        threshold = sched_mod.CONSECUTIVE_FAILURE_THRESHOLD
+
+        with patch.object(sched_mod.logger, "critical") as mock_critical:
+            for _ in range(threshold - 1):
+                sched_mod._record_job_failure("kis_sync", RuntimeError("error"))
+
+        mock_critical.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_sync_all_accounts_db_error_records_failure(self) -> None:
+        import app.services.scheduler as sched_mod
+
+        broken_ctx = MagicMock()
+        broken_ctx.__aenter__ = AsyncMock(side_effect=RuntimeError("DB down"))
+        broken_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        with patch(
+            "app.services.scheduler.AsyncSessionLocal",
+            return_value=broken_ctx,
+        ):
+            await sched_mod._sync_all_accounts()
+
+        assert sched_mod._consecutive_failures["kis_sync"] == 1
+
+    @pytest.mark.asyncio
+    async def test_sync_all_accounts_success_resets_counter(self) -> None:
+        import app.services.scheduler as sched_mod
+
+        # Pre-set a failure count
+        sched_mod._consecutive_failures["kis_sync"] = 2
+
+        db = _make_db_session(kis_accounts=[])
+        with patch(
+            "app.services.scheduler.AsyncSessionLocal",
+            return_value=_make_async_ctx(db),
+        ):
+            await sched_mod._sync_all_accounts()
+
+        assert sched_mod._consecutive_failures["kis_sync"] == 0
+
+
+# ---------------------------------------------------------------------------
 # start_scheduler / stop_scheduler
 # ---------------------------------------------------------------------------
 

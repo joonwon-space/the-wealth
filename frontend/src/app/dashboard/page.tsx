@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { BarChart3, Plus, RefreshCw } from "lucide-react";
+import { BarChart3, Plus, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
@@ -15,6 +15,7 @@ import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatRate } from "@/lib/format";
 import { WatchlistSection } from "@/components/WatchlistSection";
 import { PageError } from "@/components/PageError";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -139,7 +140,10 @@ export default function DashboardPage() {
     [queryClient]
   );
 
-  usePriceStream({ onPrices: handleStreamPrices, enabled: !isLoading });
+  const { status: streamStatus, reconnect: reconnectStream } = usePriceStream({
+    onPrices: handleStreamPrices,
+    enabled: !isLoading,
+  });
 
   const handleManualRefresh = async () => {
     const result = await api.get<Summary>("/dashboard/summary", { params: { refresh: true } });
@@ -206,6 +210,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">대시보드</h1>
         <div className="flex items-center gap-2">
+          <StreamStatusBadge status={streamStatus} onReconnect={reconnectStream} />
           {lastUpdated && (
             <span className="text-xs text-muted-foreground">
               {isFetching ? "업데이트 중..." : lastUpdated.toLocaleTimeString("ko-KR")}
@@ -271,42 +276,54 @@ export default function DashboardPage() {
 
           {/* 자산 배분 도넛 차트 */}
           {s.allocation.length > 0 && (
-            <section className="space-y-2">
-              <h2 className="text-base font-semibold">자산 배분</h2>
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
-                <div className="flex flex-wrap gap-2">
-                  {s.allocation.map((item, i) => (
-                    <div key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 text-xs">
-                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                      <span>{item.name}</span>
-                      <span className="text-muted-foreground">{formatRate(item.ratio)}%</span>
-                    </div>
-                  ))}
+            <ErrorBoundary fallback={(err, reset) => (
+              <WidgetErrorFallback title="자산 배분" error={err} reset={reset} />
+            )}>
+              <section className="space-y-2">
+                <h2 className="text-base font-semibold">자산 배분</h2>
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+                  <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
+                  <div className="flex flex-wrap gap-2">
+                    {s.allocation.map((item, i) => (
+                      <div key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 text-xs">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                        <span>{item.name}</span>
+                        <span className="text-muted-foreground">{formatRate(item.ratio)}%</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            </ErrorBoundary>
           )}
 
           {/* 관심 종목 */}
-          <WatchlistSection />
+          <ErrorBoundary fallback={(err, reset) => (
+            <WidgetErrorFallback title="관심 종목" error={err} reset={reset} />
+          )}>
+            <WatchlistSection />
+          </ErrorBoundary>
 
           {/* 보유 종목 테이블 */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">보유 종목</h2>
-              {s.holdings.length === 0 && (
-                <Link
-                  href="/dashboard/portfolios"
-                  className="flex items-center gap-1 text-sm text-primary hover:underline"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  종목 추가하기
-                </Link>
-              )}
-            </div>
-            <HoldingsTable holdings={s.holdings} />
-          </section>
+          <ErrorBoundary fallback={(err, reset) => (
+            <WidgetErrorFallback title="보유 종목" error={err} reset={reset} />
+          )}>
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold">보유 종목</h2>
+                {s.holdings.length === 0 && (
+                  <Link
+                    href="/dashboard/portfolios"
+                    className="flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    종목 추가하기
+                  </Link>
+                )}
+              </div>
+              <HoldingsTable holdings={s.holdings} />
+            </section>
+          </ErrorBoundary>
         </>
       )}
     </div>
@@ -321,5 +338,70 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
         <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+interface WidgetErrorFallbackProps {
+  title: string;
+  error: Error;
+  reset: () => void;
+}
+
+interface StreamStatusBadgeProps {
+  status: "connecting" | "connected" | "disconnected";
+  onReconnect: () => void;
+}
+
+function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
+  if (status === "connected") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        <Wifi className="h-3 w-3" />
+        실시간
+      </span>
+    );
+  }
+  if (status === "connecting") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        연결 중
+      </span>
+    );
+  }
+  return (
+    <button
+      onClick={onReconnect}
+      className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80"
+      title="SSE 재연결"
+    >
+      <WifiOff className="h-3 w-3" />
+      연결 끊김 — 재연결
+    </button>
+  );
+}
+
+function WidgetErrorFallback({ title, error, reset }: WidgetErrorFallbackProps) {
+  return (
+    <section className="space-y-2">
+      <h2 className="text-base font-semibold">{title}</h2>
+      <div
+        role="alert"
+        className="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3"
+      >
+        <p className="text-sm text-destructive">
+          {title} 위젯을 불러오는 중 오류가 발생했습니다.
+          {process.env.NODE_ENV !== "production" && (
+            <span className="ml-1 text-muted-foreground">{error.message}</span>
+          )}
+        </p>
+        <button
+          onClick={reset}
+          className="ml-4 shrink-0 rounded px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
+        >
+          다시 시도
+        </button>
+      </div>
+    </section>
   );
 }
