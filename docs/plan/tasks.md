@@ -68,7 +68,7 @@ Alert CRUD exists but no price-triggered notification logic.
 Backend coverage 93% vs frontend minimal.
 
 - [x] Add `lib/format.ts` unit tests (formatKRW, formatUSD, formatPrice, formatNumber, formatRate, formatPnL)
-- [ ] Add `store/auth.ts` Zustand store tests (login, logout, initialize with cookie mock)
+- [x] Add `store/auth.ts` Zustand store tests (login, logout, initialize with cookie mock)
 - [ ] Add `hooks/usePriceStream.ts` tests (connect, skip when disabled, skip when no token, close on unmount)
 
 ### Milestone 13-5c: Adaptive Cache TTL (P2)
