@@ -26,7 +26,9 @@ _PRICE_CACHE_PREFIX = "price:"
 _PRICE_CACHE_TTL_MARKET_OPEN = 300     # 5 min during market hours
 _PRICE_CACHE_TTL_MARKET_CLOSED = 86400  # 24 h after market close
 _FX_CACHE_KEY = "fx:USDKRW"
-_FX_CACHE_TTL = 3600  # 1 hour
+_FX_STALE_KEY = "fx:USDKRW:stale"
+_FX_CACHE_TTL = 3600        # 1 hour (fresh)
+_FX_STALE_TTL = 604800      # 7 days (stale fallback)
 _FX_FALLBACK_RATE = Decimal("1350")
 
 # KST market hours constants (reused from prices.py logic)
@@ -244,7 +246,7 @@ async def fetch_usd_krw_rate(
     app_secret: str,
     client: httpx.AsyncClient,
 ) -> Decimal:
-    """USD/KRW 환율 조회. Redis(or in-memory fallback) 1시간 캐싱, 실패 시 fallback 1350.
+    """USD/KRW 환율 조회. 1h 캐시 → KIS API → 7일 stale 캐시 → 하드코딩 1350 순으로 fallback.
 
     KIS 해외주식 현재가 API의 base_exchange_rate 필드를 활용.
     직접 FX API가 없으므로 AAPL 현재가 응답의 환율 필드 사용.
@@ -275,11 +277,17 @@ async def fetch_usd_krw_rate(
             # rate(전일대비율) 필드 오염 방지 (e.g. -1.50 → 잘못된 환율)
             if rate > 100:
                 await _cache.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, str(rate))
+                await _cache.setex(_FX_STALE_KEY, _FX_STALE_TTL, str(rate))
                 return rate
     except Exception as e:
         logger.warning("Failed to fetch USD/KRW rate via KIS API: %s", e)
 
-    logger.info("Using fallback USD/KRW rate: %s", _FX_FALLBACK_RATE)
+    stale = await _cache.get(_FX_STALE_KEY)
+    if stale:
+        logger.info("Using stale cached USD/KRW rate: %s", stale)
+        return Decimal(stale)
+
+    logger.warning("Using hardcoded fallback USD/KRW rate: %s", _FX_FALLBACK_RATE)
     return _FX_FALLBACK_RATE
 
 
