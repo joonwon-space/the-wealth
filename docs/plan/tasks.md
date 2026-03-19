@@ -124,7 +124,7 @@ Each item should be completable in a single commit.
   - 파일: `frontend/src/app/dashboard/settings/page.tsx` — 알림 폼 섹션
   - 수정안: 각 input에 `aria-label="티커"`, `aria-label="종목명"`, `aria-label="목표가"` 추가
 
-- [ ] **네비게이션 링크 `aria-current="page"` 부재**
+- [x] **네비게이션 링크 `aria-current="page"` 부재**
   - 현상: 활성 페이지의 사이드바/하단 네비 링크에 시각적 하이라이트는 있으나 `aria-current="page"` 없음 → 스크린 리더 사용자가 현재 위치 파악 불가
   - 파일: `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx` (또는 해당 레이아웃 컴포넌트)
   - 수정안: 현재 경로와 일치하는 링크에 `aria-current="page"` 속성 추가
