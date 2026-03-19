@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
       <div className="space-y-8">
         <Skeleton className="h-8 w-24" />
         {/* Summary cards */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-24" /></CardContent></Card>
           ))}
@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
         {/* Metrics cards */}
         <div className="space-y-2">
           <Skeleton className="h-5 w-20" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-20" /></CardContent></Card>
             ))}
@@ -205,7 +205,7 @@ export default function AnalyticsPage() {
       <h1 className="text-2xl font-bold">분석</h1>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">총 자산</p><p className="mt-1 text-lg font-bold tabular-nums">{formatKRW(s.total_asset)}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">투자 원금</p><p className="mt-1 text-lg font-bold tabular-nums">{formatKRW(s.total_invested)}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">총 손익</p><p className="mt-1 text-lg font-bold"><PnLBadge value={s.total_pnl_amount} /></p></CardContent></Card>
@@ -216,7 +216,7 @@ export default function AnalyticsPage() {
       {metrics && (
         <section className="space-y-2">
           <h2 className="text-base font-semibold">성과 지표</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <MetricCard label="총 수익률" value={metrics.total_return_rate} suffix="%" tooltip="전체 투자 기간 동안의 누적 수익률" />
             <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다." />
             <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭(MDD): 고점 대비 최대 하락폭입니다. 값이 클수록 손실 위험이 큽니다." />

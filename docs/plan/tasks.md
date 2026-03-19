@@ -86,7 +86,7 @@ Each item should be completable in a single commit.
   - 파일: `backend/app/api/auth.py:80-84` (`_clear_auth_cookies`), `frontend/src/proxy.ts:23-25`
   - 수정안: (A) `_clear_auth_cookies`에서 `domain=None`으로 한 번 더 삭제 시도, 또는 (B) `proxy.ts`에서 토큰 쿠키 존재 여부뿐 아니라 유효성(만료 시간)도 검증
 
-- [ ] **Analytics 태블릿(768px) 요약 카드 금액 잘림**
+- [x] **Analytics 태블릿(768px) 요약 카드 금액 잘림**
   - 현상: `sm:grid-cols-4` 레이아웃에서 768px일 때 4열 활성화 → 카드당 108px → 금액 텍스트(scrollWidth 110px)가 clientWidth(76px) 초과하여 잘림
   - 영향 카드: 총 자산 `₩103,634,739`, 투자 원금 `₩97,530,886`, 총 손익 `+6,103,852`
   - 파일: `frontend/src/app/dashboard/analytics/page.tsx` — 요약 카드 grid 클래스
