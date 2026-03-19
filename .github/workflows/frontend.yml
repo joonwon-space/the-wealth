@@ -37,3 +37,14 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Bundle size budget check
+        run: |
+          # Warn if total client JS chunks exceed 1MB (uncompressed)
+          BUDGET_BYTES=1048576
+          TOTAL=$(find .next/static/chunks -name "*.js" -type f | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
+          echo "Total client JS size: ${TOTAL} bytes (budget: ${BUDGET_BYTES} bytes)"
+          if [ "${TOTAL:-0}" -gt "$BUDGET_BYTES" ]; then
+            echo "WARNING: Bundle size ${TOTAL} bytes exceeds budget ${BUDGET_BYTES} bytes"
+            echo "Run 'npm run analyze' locally to identify large chunks."
+          fi
