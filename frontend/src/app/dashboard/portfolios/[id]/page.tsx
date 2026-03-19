@@ -8,10 +8,11 @@ import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
 import { TransactionChart } from "@/components/DynamicCharts";
+import { PageError } from "@/components/PageError";
+import { TableSkeleton } from "@/components/TableSkeleton";
 
 interface TxnRow {
   id: number;
@@ -66,7 +67,7 @@ export default function PortfolioDetailPage() {
   const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "", traded_at: "" });
   const [deleteTxnId, setDeleteTxnId] = useState<number | null>(null);
 
-  const { data: holdings = [], isLoading } = useQuery<Holding[]>({
+  const { data: holdings = [], isLoading, isError, error, refetch } = useQuery<Holding[]>({
     queryKey: holdingsKey(portfolioId),
     queryFn: async () => {
       const { data } = await api.get<Holding[]>(`/portfolios/${portfolioId}/holdings/with-prices`);
@@ -214,11 +215,12 @@ export default function PortfolioDetailPage() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
+        <TableSkeleton rows={4} columns={6} />
+      ) : isError ? (
+        <PageError
+          message={error instanceof Error ? error.message : "보유 종목을 불러올 수 없습니다"}
+          onRetry={() => refetch()}
+        />
       ) : holdings.length === 0 && !addForm ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <PackageOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />

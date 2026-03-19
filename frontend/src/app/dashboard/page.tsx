@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, Plus, RefreshCw } from "lucide-react";
+import { BarChart3, Plus, RefreshCw } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
@@ -14,6 +14,7 @@ import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatRate } from "@/lib/format";
 import { WatchlistSection } from "@/components/WatchlistSection";
+import { PageError } from "@/components/PageError";
 import { toast } from "sonner";
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -180,18 +181,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-8">
         <h1 className="text-2xl font-bold">대시보드</h1>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-16 text-center">
-          <AlertTriangle className="mb-3 h-10 w-10 text-destructive/60" />
-          <p className="text-lg font-semibold">데이터를 불러올 수 없습니다</p>
-          <p className="mt-1 text-sm text-muted-foreground">{message}</p>
-          <button
-            onClick={() => refetch()}
-            className="mt-5 flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            <RefreshCw className="h-4 w-4" />
-            다시 시도
-          </button>
-        </div>
+        <PageError message={message} onRetry={() => refetch()} />
       </div>
     );
   }

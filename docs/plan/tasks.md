@@ -68,7 +68,7 @@ Replace manual Axios + useState data fetching with TanStack Query for cache cons
 - [x] Migrate dashboard page (`/dashboard`) to use `useQuery` with `refetchInterval: 30_000`; keep SSE price update via `queryClient.setQueryData`
 - [x] Migrate portfolios list page (`/dashboard/portfolios`) to use `useQuery`; use `useMutation` + `invalidateQueries` for create/rename/delete
 - [x] Migrate portfolio detail page (`/dashboard/portfolios/[id]`) holdings and transactions to `useQuery`/`useMutation`
-- [ ] Add unified skeleton loading states and standardized error UI components using TanStack Query `isLoading`/`isError` states
+- [x] Add unified skeleton loading states and standardized error UI components using TanStack Query `isLoading`/`isError` states
 
 ### Milestone 13-5b: Data Integrity (P2)
 - [ ] Add holdings quantity reconciliation endpoint `GET /health/holdings-reconciliation` — detect mismatch between transaction sum and current holdings quantity
