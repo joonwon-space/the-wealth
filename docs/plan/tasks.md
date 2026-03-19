@@ -61,3 +61,29 @@ Each item should be completable in a single commit.
 - [x] Add missing `api/dashboard.py` tests for uncovered lines (85% -> 90%+)
 
 ---
+
+## P0 — Critical (Service Stability)
+
+> Source: [the-wealth-action-plan_20260319.md](../reviews/the-wealth-action-plan_20260319.md)
+
+### Automated DB Backup
+PostgreSQL runs on a single server with volume mount only — disk failure = total data loss.
+
+- [x] Daily `pg_dump` script + retention policy (cron in Docker Compose)
+- [x] Restore procedure docs
+- [ ] External storage integration (S3 / GCS / R2) — requires cloud credentials → see manual-tasks.md
+- [ ] Backup failure alerting (email or Telegram) — requires external service → see manual-tasks.md
+
+### Monitoring & APM
+No monitoring means scheduler failures and API outages go completely silent.
+
+- [ ] Sentry integration — frontend `@sentry/nextjs` + backend `sentry-sdk[fastapi]` — requires Sentry DSN → see manual-tasks.md
+- [ ] Uptime monitoring / alert channels / metrics dashboard — requires external service → see manual-tasks.md
+
+### Single Server Resilience
+All services on one server — server down = full outage.
+
+- [x] Add `restart: unless-stopped` to all services in docker-compose.yml
+- [x] Document managed DB / serverless Redis evaluation (Supabase, Neon, Upstash)
+
+---

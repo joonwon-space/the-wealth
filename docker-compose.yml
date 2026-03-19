@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -31,6 +33,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     env_file:
       - ./backend/.env
     environment:
@@ -65,7 +68,37 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
+
+  # Runs once per day at 02:00 via supercronic.
+  # Backups are written to the postgres_backups volume.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-the_wealth}
+      BACKUP_DIR: /backups
+      KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-3}
+    volumes:
+      - postgres_backups:/backups
+      - ./scripts/backup-postgres.sh:/usr/local/bin/backup-postgres.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Use Alpine's built-in crond.  The tab runs daily at 02:00 server time.
+    command: >
+      sh -c "
+        chmod +x /usr/local/bin/backup-postgres.sh &&
+        echo '0 2 * * * /usr/local/bin/backup-postgres.sh >> /backups/backup.log 2>&1' > /etc/crontabs/root &&
+        crond -f -l 8
+      "
 
 volumes:
   postgres_data:
   redis_data:
+  postgres_backups:
