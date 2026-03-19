@@ -46,7 +46,7 @@ Current actionable work is in `tasks.md`.
 - [x] CSV export (holdings + transactions)
 
 ### Milestone 16 (completed items)
-- [x] Test coverage 71% (425 tests)
+- [x] Test coverage 73% (480+ tests) — lint fixes and new router tests added
 - [x] Playwright E2E setup
 - [x] openapi-typescript type generation
 - [x] Short-term improvements (DB indexes, legacy columns, rate limits, ticker validation, pagination cap, soft delete, HttpOnly cookies, Graceful Shutdown)
