@@ -92,7 +92,7 @@ Each item should be completable in a single commit.
   - 파일: `frontend/src/app/dashboard/analytics/page.tsx` — 요약 카드 grid 클래스
   - 수정안: `sm:grid-cols-4` → `md:grid-cols-4`로 변경 (768px에서 2열 유지, 1024px부터 4열)
 
-- [ ] **포트폴리오 카드 아이콘 버튼 접근 불가**
+- [x] **포트폴리오 카드 아이콘 버튼 접근 불가**
   - 현상: 포트폴리오 카드 내 12x12px 아이콘 버튼에 텍스트/aria-label/title 없음 → 스크린 리더 완전 무접근, 터치 타겟도 44px 미달
   - 파일: `frontend/src/app/dashboard/portfolios/page.tsx` 또는 포트폴리오 카드 컴포넌트
   - 수정안: `aria-label="포트폴리오 메뉴"` 추가 + `min-w-[44px] min-h-[44px]` 터치 영역 확보

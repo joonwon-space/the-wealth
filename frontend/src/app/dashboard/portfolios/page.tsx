@@ -125,7 +125,11 @@ export default function PortfoliosPage() {
                       ) : (
                         <div className="flex items-center gap-1">
                           <p className="font-semibold">{p.name}</p>
-                          <button onClick={(e) => { e.preventDefault(); setEditingId(p.id); setEditName(p.name); }} className="text-muted-foreground/40 hover:text-muted-foreground">
+                          <button
+                            onClick={(e) => { e.preventDefault(); setEditingId(p.id); setEditName(p.name); }}
+                            className="text-muted-foreground/40 hover:text-muted-foreground min-w-[44px] min-h-[44px] flex items-center justify-center"
+                            aria-label={`${p.name} 이름 편집`}
+                          >
                             <Pencil className="h-3 w-3" />
                           </button>
                         </div>
@@ -141,7 +145,8 @@ export default function PortfoliosPage() {
                 <button
                   onClick={() => handleDelete(p.id)}
                   disabled={deleteMutation.isPending}
-                  className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-50"
+                  aria-label={`${p.name} 포트폴리오 삭제`}
+                  className="absolute right-3 top-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-50"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
