@@ -88,7 +88,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- npm 의존성 보안/업데이트
 
-- [ ] **chore: flatted Prototype Pollution 취약점 해결** (`npm audit fix`)
+- [x] **chore: flatted Prototype Pollution 취약점 해결** (`npm audit fix`)
   - eslint -> file-entry-cache -> flat-cache -> flatted 3.4.1 (high severity)
   - `npm audit fix` 또는 eslint 버전 업데이트로 해결
 
