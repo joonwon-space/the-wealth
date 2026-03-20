@@ -82,7 +82,7 @@ Each item should be completable in a single commit.
   - `POST /internal/backup-status` 성공/실패 시나리오 테스트
   - 파일: `backend/tests/test_internal.py`
 
-- [ ] **test: backup_health.py service 테스트 추가** (69% -> 90%+)
+- [x] **test: backup_health.py service 테스트 추가** (69% -> 90%+)
   - 백업 디렉토리 존재/부재, 파일 mtime 조회 로직 테스트
   - 파일: `backend/tests/test_backup_health.py`
 
