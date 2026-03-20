@@ -152,7 +152,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 46개 엔드포인트 (모두 `/api/v1` prefix):
+총 49개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -246,4 +246,9 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/health` | 서버 상태 확인 (루트) |
-| GET | `/api/v1/health` | 서버 상태 확인 (버전) |
+| GET | `/api/v1/health` | 서버 상태 확인 (버전) — DB, Redis, KIS API 상태 + last_backup_at |
+
+### 내부 API (1)
+| Method | Path | 설명 |
+|--------|------|------|
+| POST | `/internal/backup-status` | DB 백업 결과 기록 (backup script에서 호출) |

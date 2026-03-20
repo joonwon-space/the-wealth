@@ -92,6 +92,9 @@ frontend/src/
 │   ├── ThemeProvider.tsx         # next-themes 테마 프로바이더
 │   ├── TransactionChart.tsx      # 거래내역 차트 (월별 매수/매도)
 │   ├── WatchlistSection.tsx      # 관심종목 섹션
+│   ├── QueryProvider.tsx        # TanStack Query 프로바이더
+│   ├── PageError.tsx            # 페이지 에러 표시 컴포넌트
+│   ├── TableSkeleton.tsx        # 테이블 로딩 스켈레톤
 │   └── ui/                       # shadcn/ui 컴포넌트
 ├── hooks/
 │   └── usePriceStream.ts         # SSE 실시간 가격 스트리밍 훅
@@ -257,7 +260,9 @@ backend/app/
 │   ├── users.py               # KIS 계좌 관리
 │   ├── chart.py               # 차트 데이터
 │   ├── prices.py              # 가격 히스토리, SSE 스트림
-│   └── watchlist.py           # 관심종목
+│   ├── watchlist.py           # 관심종목
+│   ├── health.py              # 헬스체크 (DB, Redis, KIS, backup 상태)
+│   └── internal.py            # 내부 API (백업 상태 기록)
 ├── core/
 │   ├── config.py              # Pydantic Settings (환경변수)
 │   ├── security.py            # JWT 생성/검증, bcrypt, refresh token rotation
@@ -291,7 +296,8 @@ backend/app/
 │   ├── reconciliation.py      # 보유종목 동기화 로직
 │   ├── price_snapshot.py      # 일일 종가 스냅샷 저장
 │   ├── scheduler.py           # APScheduler 설정
-│   └── stock_search.py        # KRX 종목 검색
+│   ├── stock_search.py        # KRX 종목 검색
+│   └── backup_health.py       # 백업 파일 상태 조회
 └── data/
     └── sector_map.py          # 종목별 섹터 매핑
 ```
@@ -620,7 +626,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-03-19)
+## 6. 프로젝트 현황 분석 (2026-03-20)
 
 ### 6.1 완성도
 
@@ -633,7 +639,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리 |
 | 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
 | 관심종목 | 완료 | 마켓별 구분 |
-| 알림 | 완료 | 가격 알림 CRUD (푸시 알림 미구현) |
+| 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 (푸시 알림 미구현) |
 | 자동 동기화 | 완료 | APScheduler 1시간 주기 + 일일 스냅샷 |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
@@ -641,21 +647,23 @@ slowapi 기반 IP별 레이트 리미팅:
 | Commitlint | 완료 | @commitlint/config-conventional + Husky hook |
 | Docker + CI/CD | 완료 | 멀티 스테이지 빌드, GitHub Actions 7개 워크플로우, self-hosted 배포 |
 | 프로덕션 배포 | 운영 중 | joonwon.dev (self-hosted Docker Compose) |
+| DB 백업 | 완료 | 일일 pg_dump + 보존 정책 (7일/4주/3월), health endpoint 노출 |
+| 접근성 (a11y) | 완료 | aria-label, aria-current, 터치 타겟 44px, CSP 수정 |
 | 모니터링 | 미착수 | Sentry + 로그 수집 예정 |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: **94%** (517 tests passed)
+전체: **90%** (537 tests passed)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
 | core/ (security, encryption, middleware, limiter) | 95-100% | 우수 |
 | models/ | 100% | ORM 모델 |
 | schemas/ | 100% | Pydantic 스키마 |
-| services/ | 93-100% | kis_price, reconciliation, scheduler 등 |
-| api/ routers | 83-100% | prices(83%), dashboard(97%) 등 대폭 개선 |
+| services/ | 69-100% | backup_health(69%) 커버리지 부족 |
+| api/ routers | 47-100% | health(47%), internal(58%) 커버리지 부족 |
 | db/ | 75-100% | session.py 75% |
-| main.py | 84% | lifespan, 예외 핸들러 |
+| main.py | 85% | lifespan, 예외 핸들러 |
 
 ### 6.3 강점
 
@@ -666,27 +674,31 @@ slowapi 기반 IP별 레이트 리미팅:
 - 해외주식 USD 가격 표시 및 원화 환산 (환율 자동 적용)
 - 보유종목 market_value_krw 기준 내림차순 정렬
 - SSE 연결 하드닝: 사용자별 제한, 하트비트, 유휴 감지, 최대 연결 시간
-- 테스트 커버리지 94% (517 tests) -- ruff lint 오류 0건
+- 테스트 커버리지 90% (537 tests) -- ruff lint 오류 0건
 - Commitlint 커밋 메시지 검증 자동화
 - 표준화된 에러 응답 envelope (error.code, error.message, request_id)
 - Graceful shutdown (SSE 연결 종료 시그널, 스케줄러 정지)
 - Next.js proxy 컨벤션 마이그레이션 완료
+- DB 백업 자동화 + health endpoint 통합
+- TanStack Query 도입으로 캐시 일관성 확보
+- 접근성 개선 (aria-label, touch targets, navigation aria-current)
 
 ### 6.4 약점 및 개선 필요 사항
 
 - 모니터링/APM 미도입 (structlog만 운용)
-- 알림 전송 채널 미구현 (CRUD만 존재, 실제 푸시/이메일 없음)
-- TanStack Query 미도입 (수동 Axios state 관리)
-- DB 자동 백업 미구성
+- 알림 전송 채널 미구현 (SSE 조건 체크만 존재, 실제 푸시/이메일 없음)
+- health.py(47%), internal.py(58%), backup_health.py(69%) 테스트 커버리지 부족으로 전체 90%로 하락
+- 프론트엔드 npm 의존성 업데이트 필요 (Next.js 16.2.0, tailwindcss 4.2.2 등)
+- flatted 3.4.1 dev 의존성 고위험 취약점 (eslint 경유, Prototype Pollution)
 
 ### 6.5 리스크
 
 | 리스크 | 심각도 | 설명 |
 |--------|--------|------|
-| KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초 제한) |
+| KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초 제한, 장 마감 후 24h) |
 | 단일 서버 | 중 | self-hosted 단일 서버, 서버 장애 시 전체 서비스 중단 |
 | 단일 사용자 환경 | 저 | 현재 다중 사용자 동시 접속 부하 테스트 미실시 |
-| DB 백업 미구성 | 중 | 프로덕션 데이터 손실 위험 |
+| 테스트 커버리지 하락 | 중 | 최근 추가된 health/internal/backup 모듈 테스트 미비 (90% -> 목표 93%+) |
 
 ---
 
