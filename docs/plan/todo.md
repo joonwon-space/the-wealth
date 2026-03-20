@@ -96,7 +96,7 @@ Current actionable work is in `tasks.md`.
 - [ ] Unified skeleton UI loading states
 
 ### 11-6. Next.js 16 Migration
-- [ ] Migrate `middleware.ts` to `proxy` convention (deprecated in Next.js 16)
+- [x] Migrate `middleware.ts` to `proxy` convention (deprecated in Next.js 16)
 
 ---
 
@@ -154,11 +154,11 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [ ] Trading pattern analysis
 
 ### 13-4. DB Stability
-- [ ] Automated daily pg_dump backup script
-- [ ] External storage integration (S3/GCS/R2)
-- [ ] Retention policy (7 daily + 4 weekly + 3 monthly)
-- [ ] Recovery procedure documentation + periodic restore test
-- [ ] Backup failure alerting (email or Telegram)
+- [x] Automated daily pg_dump backup script (`scripts/backup-postgres.sh` + docker-compose cron)
+- [x] Retention policy (7 daily + 4 weekly + 3 monthly)
+- [x] Recovery procedure documentation (`docs/runbooks/restore.md`)
+- [x] Backup failure alerting — `backup-postgres.sh` 실패 시 `sync_logs` 기록 + health endpoint 노출
+- [x] Backup 상태 헬스체크 — `/api/v1/health`에 `last_backup_at` 포함 (볼륨 최신 dump mtime 기반)
 
 ---
 
@@ -184,29 +184,16 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
-## Milestone 14: Infrastructure & Deployment (Remaining)
+## Milestone 14: Infrastructure & Observability (Remaining)
 
-### 14-1. Production Deployment
-- [ ] Vercel deployment (frontend) with preview deploys
-- [ ] Railway or Fly.io deployment (backend) with auto-scaling
-- [ ] Production PostgreSQL (Supabase or Neon)
-- [ ] Production Redis (Upstash)
-- [ ] Production environment variable management
+> **배포 전략**: 외부 클라우드 서비스 없이 로컬 `docker compose` 운영 기준.
+> Vercel, Railway, Fly.io, Supabase, Upstash 등 외부 플랫폼은 로드맵에서 제외.
 
 ### 14-2. Monitoring & Observability
-- [ ] APM (Sentry) -- frontend `@sentry/nextjs` + backend `sentry-sdk[fastapi]`
-- [ ] Log collection (Grafana + Loki or Betterstack)
-- [ ] Uptime monitoring (UptimeRobot or Betterstack)
+- [ ] APM (Sentry) — frontend `@sentry/nextjs` + backend `sentry-sdk[fastapi]` (무료 플랜)
 - [ ] Metrics dashboard (API response time, error rate, KIS API calls, Redis hit rate)
 
-### 14-3. CI/CD Pipeline Enhancement
-- [ ] GitHub Actions: preview deployment (Vercel preview per PR)
-- [ ] Container Registry push (production builds, tag to GHCR/DockerHub for rollback)
-- [ ] Release automation (semantic-release, auto CHANGELOG)
-- [ ] Blue-Green or rolling deploy (current `docker compose up -d` may cause downtime)
-
 ### 14-4. Security Enhancement
-- [ ] CORS production domain configuration
 - [ ] API key rotation automation
 - [ ] Security audit log (login attempts, settings changes, data access)
 - [ ] 2FA (TOTP, Google Authenticator compatible)
@@ -265,18 +252,16 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 | Priority | Milestone | Reason |
 |----------|-----------|--------|
-| **P0** | 13-4 (DB Backup) | Disk failure = total data loss |
 | **P0** | 14-2 (Monitoring & APM) | Silent failures in production |
-| **P0** | 14-1 (Server resilience) | Single point of failure |
-| ~~**P0**~~ | ~~Test coverage 80%+~~ | Completed: 93% coverage with sysmon fix |
-| **P1** | 12-4 (Alert notification logic) | CRUD exists but no actual dispatch |
-| **P1** | 11-5 (TanStack Query) | Cache inconsistency & code duplication |
-| **P1** | 16-2 (Frontend test coverage) | Backend 94% vs frontend minimal |
+| ~~**P0**~~ | ~~13-4 (DB Backup)~~ | Completed: daily backup + retention + restore docs + health endpoint |
+| ~~**P0**~~ | ~~14-1 (Server resilience)~~ | Completed: restart policies + runbooks |
+| ~~**P0**~~ | ~~Test coverage 80%+~~ | Completed: 90% (537 tests), health/internal modules need catch-up |
+| **P1** | 16-2 (Frontend test coverage) | Backend 90% vs frontend minimal |
 | **P1** | 11-2 (Analytics enhancement) | Differentiation feature |
-| **P2** | 13-5 (Operational stability & data integrity) | Production reliability |
+| **P1** | 12-4 (Alert notification -- in-app/email) | SSE condition check done, no user-visible notification |
+| ~~**P1**~~ | ~~11-5 (TanStack Query)~~ | Completed: QueryClientProvider, dashboard/portfolio migration |
 | **P2** | 13 (Data pipeline) | Analytics prerequisite |
 | **P2** | 14-4 (Security) | Production readiness |
-| **P2** | 11-7 (Frontend quality) | Error boundaries, bundle budget |
-| ~~**P2**~~ | ~~12-2 (SSE hardening)~~ | Completed: per-user limit, heartbeat, 2h timeout |
+| **P2** | 13-5 (Operational stability remaining) | Docker volume monitoring, TLS cert check |
 | **P3** | 15 (Extensions) | Long-term roadmap |
 | **P3** | 16 (Dev tools) | DX improvement |
