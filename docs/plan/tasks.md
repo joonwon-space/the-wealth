@@ -92,7 +92,7 @@ Each item should be completable in a single commit.
   - eslint -> file-entry-cache -> flat-cache -> flatted 3.4.1 (high severity)
   - `npm audit fix` 또는 eslint 버전 업데이트로 해결
 
-- [ ] **chore: frontend 의존성 마이너 업데이트**
+- [x] **chore: frontend 의존성 마이너 업데이트**
   - Next.js 16.1.7 -> 16.2.0, tailwindcss 4.2.1 -> 4.2.2, shadcn 4.0.8 -> 4.1.0
   - `npm update` 후 빌드 확인
 
