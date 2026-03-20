@@ -193,7 +193,7 @@ Each item should be completable in a single commit.
   - 백엔드에서 `sync_logs` 테이블에 `sync_type='db_backup'`으로 기록
   - 실패(exit != 0) 시 scheduler alerting과 동일한 연속 실패 카운터 증가
 
-- [ ] **feat: `/api/v1/health`에 `last_backup_at` 추가**
+- [x] **feat: `/api/v1/health`에 `last_backup_at` 추가**
   - `postgres_backups` 볼륨의 `daily/` 디렉터리에서 가장 최신 `.dump` 파일 mtime 읽기
   - `{"last_backup_at": "2026-03-20T02:00:00", "backup_age_hours": 10}` 형태로 health 응답에 포함
   - 백업 볼륨 접근 불가 시 `null` 반환 (에러 아님)

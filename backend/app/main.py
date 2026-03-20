@@ -1,7 +1,8 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,6 +16,8 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import configure_logging, generate_request_id, get_logger, get_request_id, set_request_id
 from app.core.middleware import SecurityHeadersMiddleware
+from app.db.session import get_db
+from app.services.backup_health import get_last_backup_info
 from app.services.kis_health import check_kis_api_health
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.services.stock_search import _load_stock_list
@@ -83,9 +86,21 @@ v1_router.include_router(internal.router)
 
 
 @v1_router.get("/health")
-async def health_check_v1() -> dict:
-    """Health check under /api/v1/health for tests using versioned base URL."""
-    return {"status": "ok"}
+async def health_check_v1(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Health check under /api/v1/health.
+
+    Returns service status and last DB backup information.
+    Response shape:
+    {
+      "status": "ok",
+      "last_backup_at": "2026-03-20T02:00:00+00:00",  # ISO-8601 or null
+      "backup_age_hours": 7.5                          # float or null
+    }
+    """
+    backup_info = await get_last_backup_info(db)
+    return {"status": "ok", **backup_info}
 
 
 app.include_router(v1_router)
