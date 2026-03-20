@@ -11,6 +11,8 @@
 #   KEEP_DAILY        — number of daily backups to keep (default: 7)
 #   KEEP_WEEKLY       — number of weekly backups to keep (default: 4)
 #   KEEP_MONTHLY      — number of monthly backups to keep (default: 3)
+#   BACKEND_URL       — backend base URL for status reporting (default: http://backend:8000)
+#   INTERNAL_SECRET   — shared secret for /internal/backup-status endpoint
 #
 # Backup naming convention:
 #   daily/YYYY-MM-DD.dump
@@ -27,6 +29,8 @@ BACKUP_DIR="${BACKUP_DIR:-/backups}"
 KEEP_DAILY="${KEEP_DAILY:-7}"
 KEEP_WEEKLY="${KEEP_WEEKLY:-4}"
 KEEP_MONTHLY="${KEEP_MONTHLY:-3}"
+BACKEND_URL="${BACKEND_URL:-http://backend:8000}"
+INTERNAL_SECRET="${INTERNAL_SECRET:-}"
 
 TODAY=$(date +%Y-%m-%d)
 DAY_OF_WEEK=$(date +%u)   # 1=Monday … 7=Sunday
@@ -37,6 +41,47 @@ YEAR_MONTH=$(date +%Y-%m)
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
+
+# Send backup status to the backend /internal/backup-status endpoint.
+# No-ops silently if INTERNAL_SECRET is empty or curl is unavailable.
+report_backup_status() {
+    local backup_status="$1"
+    local message="$2"
+
+    if [ -z "${INTERNAL_SECRET}" ]; then
+        log "INTERNAL_SECRET not set — skipping status report"
+        return 0
+    fi
+
+    if ! command -v curl >/dev/null 2>&1; then
+        log "curl not available — skipping status report"
+        return 0
+    fi
+
+    local payload
+    payload=$(printf '{"status":"%s","message":"%s"}' \
+        "${backup_status}" \
+        "$(echo "${message}" | sed 's/"/\\"/g')")
+
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -H "X-Internal-Secret: ${INTERNAL_SECRET}" \
+        --data "${payload}" \
+        --max-time 10 \
+        "${BACKEND_URL}/api/v1/internal/backup-status" 2>/dev/null || echo "000")
+
+    if [ "${http_code}" = "204" ]; then
+        log "Backup status reported: ${backup_status}"
+    else
+        log "Warning: status report returned HTTP ${http_code} (non-fatal)"
+    fi
+}
+
+# On unexpected exit (non-zero), report failure before the script terminates.
+_EXIT_MESSAGE=""
+trap '_exit_code=$?; if [ $_exit_code -ne 0 ]; then report_backup_status "error" "Script exited with code $_exit_code. $_EXIT_MESSAGE"; fi' EXIT
 
 dump_database() {
     local dest="$1"
@@ -115,3 +160,4 @@ if [ "$DAY_OF_MONTH" -eq 1 ]; then
 fi
 
 log "Backup run complete."
+report_backup_status "success" "Daily backup completed for ${TODAY}"

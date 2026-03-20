@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # Cookie domain for cross-subdomain auth (e.g. ".joonwon.dev" for prod).
     # Leave empty for localhost dev (domain not set on cookie).
     COOKIE_DOMAIN: str = ""
+    # Shared secret used by internal system scripts (e.g. backup-postgres.sh)
+    # to authenticate to internal-only API endpoints.
+    # Set to a strong random value in production; leave empty to disable the endpoints.
+    INTERNAL_SECRET: str = ""
 
     @model_validator(mode="after")
     def reject_placeholder_secrets(self) -> "Settings":

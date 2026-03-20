@@ -188,7 +188,7 @@ Each item should be completable in a single commit.
   - 백업 파일 목록 확인 → DB 컨테이너 중지 → restore → 재시작 체크리스트 포함
   - 문서 작성만 (코드 변경 없음)
 
-- [ ] **feat: 백업 실패 시 sync_logs 기록** (`scripts/backup-postgres.sh` + `app/services/sync.py`)
+- [x] **feat: 백업 실패 시 sync_logs 기록** (`scripts/backup-postgres.sh` + `app/services/sync.py`)
   - `backup-postgres.sh` 마지막에 성공/실패 결과를 `POST /internal/backup-status` 엔드포인트로 전송
   - 백엔드에서 `sync_logs` 테이블에 `sync_type='db_backup'`으로 기록
   - 실패(exit != 0) 시 scheduler alerting과 동일한 연속 실패 카운터 증가
