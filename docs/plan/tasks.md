@@ -175,3 +175,25 @@ Each item should be completable in a single commit.
 - [x] 섹터 배분 USD→KRW 환산 반영 확인 (IT 비중 0% → 정상값)
 - [x] 해외주식 52주 범위 데이터 확인 (— → 실제 범위 표시)
 - [x] CAGR이 30일 이상 데이터 쌓이면 정상 계산되는지 확인
+
+---
+
+## DB 백업 완성 (Milestone 13-4)
+
+> `scripts/backup-postgres.sh` + docker-compose cron(매일 02:00)은 이미 구현됨.
+> 아래 3개 태스크로 백업 사이클을 완성한다.
+
+- [x] **docs: DB 복구 절차 문서화** (`docs/runbooks/restore.md`)
+  - `docker exec`로 `postgres_backups` 볼륨에서 `pg_restore` 하는 단계별 명령어 문서화
+  - 백업 파일 목록 확인 → DB 컨테이너 중지 → restore → 재시작 체크리스트 포함
+  - 문서 작성만 (코드 변경 없음)
+
+- [ ] **feat: 백업 실패 시 sync_logs 기록** (`scripts/backup-postgres.sh` + `app/services/sync.py`)
+  - `backup-postgres.sh` 마지막에 성공/실패 결과를 `POST /internal/backup-status` 엔드포인트로 전송
+  - 백엔드에서 `sync_logs` 테이블에 `sync_type='db_backup'`으로 기록
+  - 실패(exit != 0) 시 scheduler alerting과 동일한 연속 실패 카운터 증가
+
+- [ ] **feat: `/api/v1/health`에 `last_backup_at` 추가**
+  - `postgres_backups` 볼륨의 `daily/` 디렉터리에서 가장 최신 `.dump` 파일 mtime 읽기
+  - `{"last_backup_at": "2026-03-20T02:00:00", "backup_age_hours": 10}` 형태로 health 응답에 포함
+  - 백업 볼륨 접근 불가 시 `null` 반환 (에러 아님)
