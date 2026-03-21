@@ -4,12 +4,6 @@ Items requiring user action.
 
 ---
 
-## AI 브라우저 에이전트 (Milestone 10)
-- [x] Playwright MCP 서버 추가 -- `.mcp.json` 으로 자동 인식됨
-- [x] `.mcp.json` 파일에 Playwright MCP 설정 추가
-- [ ] Claude Preview vs Playwright MCP 비교 테스트 및 문서화
-- [ ] Vercel agent-browser CLI 설치 (선택)
-
 ## KIS API Research Required
 
 - [x] **해외주식 52주 범위 API**: `HHDFS76200200` (price-detail) fallback 구현 완료
