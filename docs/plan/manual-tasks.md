@@ -24,7 +24,7 @@ Items requiring user action.
 - [ ] Verify Sentry is receiving errors after deployment
 
 ## P0 -- DB Backup External Storage (Milestone 13-4)
-- [ ] Choose cloud storage provider (S3 / GCS / R2) and create bucket
-- [ ] Add `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BACKUP_S3_BUCKET` (or equivalent) to `backend/.env`
-- [ ] Configure backup container env vars and enable S3 upload in backup script
+- [x] Choose cloud storage provider (S3 / GCS / R2) and create bucket — Cloudflare R2 선택
+- [x] Add `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` to `backend/.env`
+- [x] Configure backup container env vars and enable R2 upload in backup script
 - [ ] Test restore from backup on staging environment

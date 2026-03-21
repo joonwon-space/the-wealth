@@ -84,6 +84,10 @@ services:
       KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
       KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
       KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-3}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_BUCKET: ${R2_BUCKET:-the-wealth-backup}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
     volumes:
       - postgres_backups:/backups
       - ./scripts/backup-postgres.sh:/usr/local/bin/backup-postgres.sh:ro
@@ -91,8 +95,10 @@ services:
       postgres:
         condition: service_healthy
     # Use Alpine's built-in crond.  The tab runs daily at 02:00 server time.
+    # aws-cli is installed at container start for R2 uploads.
     command: >
       sh -c "
+        apk add --no-cache aws-cli --quiet &&
         echo '0 2 * * * /usr/local/bin/backup-postgres.sh >> /backups/backup.log 2>&1' > /etc/crontabs/root &&
         crond -f -l 8
       "

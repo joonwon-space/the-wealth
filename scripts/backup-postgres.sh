@@ -2,17 +2,21 @@
 # Daily PostgreSQL backup script with retention policy.
 #
 # Environment variables (set in docker-compose or .env):
-#   POSTGRES_HOST     — default: postgres
-#   POSTGRES_PORT     — default: 5432
-#   POSTGRES_USER     — default: postgres
-#   POSTGRES_PASSWORD — required
-#   POSTGRES_DB       — default: the_wealth
-#   BACKUP_DIR        — default: /backups
-#   KEEP_DAILY        — number of daily backups to keep (default: 7)
-#   KEEP_WEEKLY       — number of weekly backups to keep (default: 4)
-#   KEEP_MONTHLY      — number of monthly backups to keep (default: 3)
-#   BACKEND_URL       — backend base URL for status reporting (default: http://backend:8000)
-#   INTERNAL_SECRET   — shared secret for /internal/backup-status endpoint
+#   POSTGRES_HOST         — default: postgres
+#   POSTGRES_PORT         — default: 5432
+#   POSTGRES_USER         — default: postgres
+#   POSTGRES_PASSWORD     — required
+#   POSTGRES_DB           — default: the_wealth
+#   BACKUP_DIR            — default: /backups
+#   KEEP_DAILY            — number of daily backups to keep (default: 7)
+#   KEEP_WEEKLY           — number of weekly backups to keep (default: 4)
+#   KEEP_MONTHLY          — number of monthly backups to keep (default: 3)
+#   BACKEND_URL           — backend base URL for status reporting (default: http://backend:8000)
+#   INTERNAL_SECRET       — shared secret for /internal/backup-status endpoint
+#   R2_ENDPOINT           — Cloudflare R2 endpoint URL (leave empty to skip upload)
+#   R2_BUCKET             — R2 bucket name (default: the-wealth-backup)
+#   R2_ACCESS_KEY_ID      — R2 API token access key
+#   R2_SECRET_ACCESS_KEY  — R2 API token secret key
 #
 # Backup naming convention:
 #   daily/YYYY-MM-DD.dump
@@ -31,6 +35,10 @@ KEEP_WEEKLY="${KEEP_WEEKLY:-4}"
 KEEP_MONTHLY="${KEEP_MONTHLY:-3}"
 BACKEND_URL="${BACKEND_URL:-http://backend:8000}"
 INTERNAL_SECRET="${INTERNAL_SECRET:-}"
+R2_ENDPOINT="${R2_ENDPOINT:-}"
+R2_BUCKET="${R2_BUCKET:-the-wealth-backup}"
+R2_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID:-}"
+R2_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY:-}"
 
 TODAY=$(date +%Y-%m-%d)
 DAY_OF_WEEK=$(date +%u)   # 1=Monday … 7=Sunday
@@ -77,6 +85,33 @@ report_backup_status() {
     else
         log "Warning: status report returned HTTP ${http_code} (non-fatal)"
     fi
+}
+
+# Upload a backup file to Cloudflare R2.
+# No-ops silently if R2_ENDPOINT or credentials are not set.
+upload_to_r2() {
+    local src="$1"          # local file path
+    local dest_key="$2"     # e.g. daily/2026-03-21.dump
+
+    if [ -z "${R2_ENDPOINT}" ] || [ -z "${R2_ACCESS_KEY_ID}" ] || [ -z "${R2_SECRET_ACCESS_KEY}" ]; then
+        return 0
+    fi
+
+    if ! command -v aws >/dev/null 2>&1; then
+        log "aws CLI not available — skipping R2 upload"
+        return 0
+    fi
+
+    log "Uploading $dest_key to R2 bucket ${R2_BUCKET}..."
+    AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}" \
+    AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}" \
+    aws s3 cp "$src" "s3://${R2_BUCKET}/${dest_key}" \
+        --endpoint-url "${R2_ENDPOINT}" \
+        --region auto \
+        --no-progress \
+        --quiet \
+    && log "R2 upload complete: ${dest_key}" \
+    || log "Warning: R2 upload failed for ${dest_key} (non-fatal)"
 }
 
 # On unexpected exit (non-zero), report failure before the script terminates.
@@ -132,6 +167,7 @@ if [ -f "$DAILY_FILE" ]; then
 else
     log "Starting daily backup for $TODAY"
     dump_database "$DAILY_FILE"
+    upload_to_r2 "$DAILY_FILE" "daily/$TODAY.dump"
 fi
 prune_old_backups "$BACKUP_DIR/daily" "$KEEP_DAILY" "daily"
 
@@ -143,6 +179,7 @@ if [ "$DAY_OF_WEEK" -eq 7 ]; then
     else
         log "Starting weekly backup for week $YEAR_WEEK"
         dump_database "$WEEKLY_FILE"
+        upload_to_r2 "$WEEKLY_FILE" "weekly/$YEAR_WEEK.dump"
     fi
     prune_old_backups "$BACKUP_DIR/weekly" "$KEEP_WEEKLY" "weekly"
 fi
@@ -155,6 +192,7 @@ if [ "$DAY_OF_MONTH" -eq 1 ]; then
     else
         log "Starting monthly backup for $YEAR_MONTH"
         dump_database "$MONTHLY_FILE"
+        upload_to_r2 "$MONTHLY_FILE" "monthly/$YEAR_MONTH.dump"
     fi
     prune_old_backups "$BACKUP_DIR/monthly" "$KEEP_MONTHLY" "monthly"
 fi
