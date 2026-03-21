@@ -74,25 +74,25 @@ Each item should be completable in a single commit.
 
 ### P0 -- Test coverage recovery (90% -> 93%+)
 
-- [ ] **test: health.py router 테스트 추가** (47% -> 85%+)
+- [x] **test: health.py router 테스트 추가** (47% -> 85%+)
   - `/api/v1/health` 엔드포인트의 DB/Redis/KIS/backup 상태 응답 테스트
   - 파일: `backend/tests/test_health.py`
 
-- [ ] **test: internal.py router 테스트 추가** (58% -> 90%+)
+- [x] **test: internal.py router 테스트 추가** (58% -> 90%+)
   - `POST /internal/backup-status` 성공/실패 시나리오 테스트
   - 파일: `backend/tests/test_internal.py`
 
-- [ ] **test: backup_health.py service 테스트 추가** (69% -> 90%+)
+- [x] **test: backup_health.py service 테스트 추가** (69% -> 90%+)
   - 백업 디렉토리 존재/부재, 파일 mtime 조회 로직 테스트
   - 파일: `backend/tests/test_backup_health.py`
 
 ### P1 -- npm 의존성 보안/업데이트
 
-- [ ] **chore: flatted Prototype Pollution 취약점 해결** (`npm audit fix`)
+- [x] **chore: flatted Prototype Pollution 취약점 해결** (`npm audit fix`)
   - eslint -> file-entry-cache -> flat-cache -> flatted 3.4.1 (high severity)
   - `npm audit fix` 또는 eslint 버전 업데이트로 해결
 
-- [ ] **chore: frontend 의존성 마이너 업데이트**
+- [x] **chore: frontend 의존성 마이너 업데이트**
   - Next.js 16.1.7 -> 16.2.0, tailwindcss 4.2.1 -> 4.2.2, shadcn 4.0.8 -> 4.1.0
   - `npm update` 후 빌드 확인
 

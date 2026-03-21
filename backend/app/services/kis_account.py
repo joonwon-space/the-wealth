@@ -74,7 +74,7 @@ async def fetch_account_holdings(
                 rt_cd,
                 msg,
             )
-            return []
+            raise RuntimeError(f"KIS API 오류 (rt_cd={rt_cd}): {msg}")
 
         output1: list = data.get("output1", [])
         result = []
@@ -91,6 +91,8 @@ async def fetch_account_holdings(
                 )
             )
         return result
+    except RuntimeError:
+        raise
     except Exception as e:
         logger.warning(
             "Failed to fetch KIS account holdings for %s-%s: %s",
@@ -98,7 +100,9 @@ async def fetch_account_holdings(
             account_product_code,
             e,
         )
-        return []
+        raise RuntimeError(
+            f"KIS 국내 잔고 조회 실패 ({account_no}-{account_product_code}): {e}"
+        ) from e
 
 
 async def fetch_overseas_account_holdings(
@@ -156,7 +160,7 @@ async def fetch_overseas_account_holdings(
                 rt_cd,
                 msg,
             )
-            return [], {}
+            raise RuntimeError(f"KIS 해외 API 오류 (rt_cd={rt_cd}): {msg}")
 
         output1: list = data.get("output1", [])
         result = []
@@ -174,6 +178,8 @@ async def fetch_overseas_account_holdings(
                 )
             )
         return result, data.get("output2") or {}
+    except RuntimeError:
+        raise
     except Exception as e:
         logger.warning(
             "Failed to fetch KIS overseas account holdings for %s-%s: %s",
@@ -181,4 +187,6 @@ async def fetch_overseas_account_holdings(
             account_product_code,
             e,
         )
-        return [], {}
+        raise RuntimeError(
+            f"KIS 해외 잔고 조회 실패 ({account_no}-{account_product_code}): {e}"
+        ) from e

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { BarChart3, Plus, RefreshCw, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { BarChart3, Plus, RefreshCw, Wifi, WifiOff, Loader2, TriangleAlert } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
@@ -68,6 +68,7 @@ interface Summary {
   allocation: AllocationItem[];
   triggered_alerts: TriggeredAlert[];
   usd_krw_rate: number | null;
+  kis_status: "ok" | "degraded";
 }
 
 async function fetchSummary(refresh = false): Promise<Summary> {
@@ -214,6 +215,7 @@ export default function DashboardPage() {
     allocation: [],
     triggered_alerts: [],
     usd_krw_rate: null,
+    kis_status: "ok",
   };
 
   const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
@@ -240,6 +242,19 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* KIS API 일시 오류 배너 */}
+      {s.kis_status === "degraded" && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <span className="font-medium">KIS API 일시 오류</span>
+            <span className="ml-1 text-amber-700 dark:text-amber-400">
+              — 가격 정보가 최신이 아닐 수 있습니다. 30초마다 자동으로 재시도합니다.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* 포트폴리오/종목이 없을 때 빈 상태 */}
       {hasNoPortfolio ? (

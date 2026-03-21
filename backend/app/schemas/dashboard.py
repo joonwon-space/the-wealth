@@ -51,3 +51,4 @@ class DashboardSummary(BaseModel):
     allocation: list[AllocationItem]
     triggered_alerts: list[TriggeredAlert] = []
     usd_krw_rate: Optional[Decimal] = None  # 해외주식 환산에 사용된 USD/KRW 환율
+    kis_status: str = "ok"  # "ok" | "degraded" — KIS 가격 조회 실패 시 "degraded"

@@ -143,10 +143,10 @@ class TestFetchAccountHoldings:
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
-    async def test_non_zero_rt_cd_returns_empty(
+    async def test_non_zero_rt_cd_raises(
         self, mock_client_cls: MagicMock, mock_token: AsyncMock
     ) -> None:
-        """rt_cd != '0' means API-level error → empty list."""
+        """rt_cd != '0' means API-level error → raises RuntimeError (not empty list)."""
         mock_token.return_value = "fake-token"
         response = _make_resp(200, {"rt_cd": "1", "msg1": "Invalid account"})
         mock_client = AsyncMock()
@@ -155,8 +155,8 @@ class TestFetchAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_account_holdings("key", "secret", "12345678")
-        assert result == []
+        with pytest.raises(RuntimeError, match="KIS API 오류"):
+            await fetch_account_holdings("key", "secret", "12345678")
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
@@ -176,9 +176,10 @@ class TestFetchAccountHoldings:
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
-    async def test_http_401_returns_empty(
+    async def test_http_401_raises(
         self, mock_client_cls: MagicMock, mock_token: AsyncMock
     ) -> None:
+        """HTTP 4xx raises RuntimeError to prevent reconciliation from deleting holdings."""
         mock_token.return_value = "fake-token"
         response = _make_resp(401, {})
         mock_client = AsyncMock()
@@ -187,14 +188,15 @@ class TestFetchAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_account_holdings("key", "secret", "12345678")
-        assert result == []
+        with pytest.raises(RuntimeError):
+            await fetch_account_holdings("key", "secret", "12345678")
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
-    async def test_timeout_returns_empty(
+    async def test_timeout_raises(
         self, mock_client_cls: MagicMock, mock_token: AsyncMock
     ) -> None:
+        """Network timeout raises RuntimeError to prevent reconciliation from deleting holdings."""
         mock_token.return_value = "fake-token"
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("t/o"))
@@ -202,8 +204,8 @@ class TestFetchAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        result = await fetch_account_holdings("key", "secret", "12345678")
-        assert result == []
+        with pytest.raises(RuntimeError, match="KIS 국내 잔고 조회 실패"):
+            await fetch_account_holdings("key", "secret", "12345678")
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
@@ -335,9 +337,10 @@ class TestFetchOverseasAccountHoldings:
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
-    async def test_non_zero_rt_cd_returns_empty(
+    async def test_non_zero_rt_cd_raises(
         self, mock_client_cls: MagicMock, mock_token: AsyncMock
     ) -> None:
+        """rt_cd != '0' raises RuntimeError to prevent reconciliation from deleting holdings."""
         mock_token.return_value = "fake-token"
         response = _make_resp(200, {"rt_cd": "E", "msg1": "Invalid"})
         mock_client = AsyncMock()
@@ -346,15 +349,15 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert holdings == []
-        assert summary == {}
+        with pytest.raises(RuntimeError, match="KIS 해외 API 오류"):
+            await fetch_overseas_account_holdings("key", "secret", "12345678")
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
-    async def test_http_429_returns_empty(
+    async def test_http_429_raises(
         self, mock_client_cls: MagicMock, mock_token: AsyncMock
     ) -> None:
+        """HTTP error raises RuntimeError to prevent reconciliation from deleting holdings."""
         mock_token.return_value = "fake-token"
         response = _make_resp(429, {})
         mock_client = AsyncMock()
@@ -363,15 +366,15 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert holdings == []
-        assert summary == {}
+        with pytest.raises(RuntimeError):
+            await fetch_overseas_account_holdings("key", "secret", "12345678")
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")
-    async def test_timeout_returns_empty(
+    async def test_timeout_raises(
         self, mock_client_cls: MagicMock, mock_token: AsyncMock
     ) -> None:
+        """Network timeout raises RuntimeError to prevent reconciliation from deleting holdings."""
         mock_token.return_value = "fake-token"
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("t/o"))
@@ -379,9 +382,8 @@ class TestFetchOverseasAccountHoldings:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client_cls.return_value = mock_client
 
-        holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678")
-        assert holdings == []
-        assert summary == {}
+        with pytest.raises(RuntimeError, match="KIS 해외 잔고 조회 실패"):
+            await fetch_overseas_account_holdings("key", "secret", "12345678")
 
     @patch("app.services.kis_account.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.services.kis_account.httpx.AsyncClient")

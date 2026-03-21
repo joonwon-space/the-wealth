@@ -144,6 +144,7 @@ async def get_summary(
     w52_highs: dict[str, Optional[Decimal]] = {}
     w52_lows: dict[str, Optional[Decimal]] = {}
     exchange_rate: Decimal = Decimal("1450")  # default fallback
+    kis_status: str = "ok"
 
     if kis_acct:
         try:
@@ -178,6 +179,7 @@ async def get_summary(
                     return_exceptions=True,
                 )
 
+            fetched_count = 0
             # 국내주식 결과 처리
             for ticker, detail in zip(domestic_tickers, all_results[: len(domestic_tickers)]):
                 if detail and not isinstance(detail, Exception):
@@ -186,6 +188,7 @@ async def get_summary(
                     w52_highs[ticker] = detail.w52_high
                     w52_lows[ticker] = detail.w52_low
                     await _cache_price(ticker, detail.current)
+                    fetched_count += 1
                 else:
                     cached = await _get_cached_price(ticker)
                     if cached is not None:
@@ -201,14 +204,21 @@ async def get_summary(
                     w52_highs[ticker] = detail.w52_high
                     w52_lows[ticker] = detail.w52_low
                     await _cache_price(ticker, detail.current)
+                    fetched_count += 1
                 else:
                     cached = await _get_cached_price(ticker)
                     if cached is not None:
                         prices[ticker] = cached
                         logger.info("Using cached price for %s: %s", ticker, cached)
 
+            # 조회 성공 종목이 하나도 없으면 degraded
+            if tickers and fetched_count == 0:
+                kis_status = "degraded"
+                logger.warning("All price fetches failed — returning degraded dashboard")
+
         except Exception as e:
-            logger.warning("Failed to fetch prices: %s", e)
+            kis_status = "degraded"
+            logger.warning("Failed to fetch prices from KIS API: %s", e)
 
     # 수익 계산
     holding_items: list[HoldingWithPnL] = []
@@ -380,4 +390,5 @@ async def get_summary(
         allocation=allocation,
         triggered_alerts=triggered_alerts,
         usd_krw_rate=exchange_rate if overseas_tickers else None,
+        kis_status=kis_status,
     )
