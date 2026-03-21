@@ -19,8 +19,8 @@ Items requiring user action.
 ## P0 -- Monitoring & APM (Milestone 14-2)
 - [x] Create Sentry account and get DSN for frontend and backend
 - [x] Add `SENTRY_DSN` to `backend/.env` and `NEXT_PUBLIC_SENTRY_DSN` to frontend env
-- [ ] Set up UptimeRobot or Betterstack monitors for the API health endpoint
-- [ ] Configure alert channels (email / Slack / Telegram) in chosen monitoring tool
+- [x] Set up UptimeRobot or Betterstack monitors for the API health endpoint
+- [x] Configure alert channels (email / Slack / Telegram) in chosen monitoring tool
 - [ ] Verify Sentry is receiving errors after deployment
 
 ## P0 -- DB Backup External Storage (Milestone 13-4)
