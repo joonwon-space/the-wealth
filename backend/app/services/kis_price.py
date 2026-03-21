@@ -117,8 +117,10 @@ async def fetch_overseas_price(
         )
         resp.raise_for_status()
         data = resp.json()
-        price_str: str = data.get("output", {}).get("last", "0")
-        return Decimal(price_str) if price_str else None
+        price_str: str = data.get("output", {}).get("last", "0") or "0"
+        if not price_str or price_str == "0":
+            return None
+        return Decimal(price_str)
     except Exception as e:
         logger.warning(
             "Failed to fetch overseas price for %s/%s: %s", ticker, market, e
@@ -230,11 +232,11 @@ async def fetch_prices_parallel(
         results = await asyncio.gather(*tasks)
 
     for ticker, price in zip(tickers, results):
-        if price is not None:
+        if isinstance(price, Decimal) and price > 0:
             price_map[ticker] = price
             await _cache_price(ticker, price)
         else:
-            # KIS API 실패 시 캐시에서 폴백
+            # KIS API 실패 또는 0 반환 시 캐시에서 폴백
             cached = await _get_cached_price(ticker)
             if cached is not None:
                 logger.info("Using cached price for %s: %s", ticker, cached)

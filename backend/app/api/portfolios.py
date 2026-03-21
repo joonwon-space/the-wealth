@@ -204,7 +204,7 @@ async def list_holdings_with_prices(
     if not holdings:
         return []
 
-    # Fetch prices via linked KIS account
+    # Fetch prices via linked KIS account (국내주식만 — 해외주식은 dashboard API 사용)
     prices: dict[str, Decimal | None] = {}
     if portfolio.kis_account_id:
         acct = await db.get(KisAccount, portfolio.kis_account_id)
@@ -212,8 +212,9 @@ async def list_holdings_with_prices(
             try:
                 app_key = decrypt(acct.app_key_enc)
                 app_secret = decrypt(acct.app_secret_enc)
-                tickers = list({h.ticker for h in holdings})
-                prices = await fetch_prices_parallel(tickers, app_key, app_secret)
+                domestic_tickers = list({h.ticker for h in holdings if _is_domestic(h.ticker)})
+                if domestic_tickers:
+                    prices = await fetch_prices_parallel(domestic_tickers, app_key, app_secret)
             except Exception as e:
                 logger.warning(
                     "Failed to fetch prices for portfolio %d: %s", portfolio_id, e
