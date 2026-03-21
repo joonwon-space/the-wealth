@@ -434,14 +434,14 @@ class TestConsecutiveFailureTracking:
         ):
             await sched_mod._sync_all_accounts()
 
-        assert sched_mod._consecutive_failures["kis_sync"] == 1
+        assert sched_mod._consecutive_failures["kis_sync_kr"] == 1
 
     @pytest.mark.asyncio
     async def test_sync_all_accounts_success_resets_counter(self) -> None:
         import app.services.scheduler as sched_mod
 
         # Pre-set a failure count
-        sched_mod._consecutive_failures["kis_sync"] = 2
+        sched_mod._consecutive_failures["kis_sync_kr"] = 2
 
         db = _make_db_session(kis_accounts=[])
         with patch(
@@ -450,7 +450,7 @@ class TestConsecutiveFailureTracking:
         ):
             await sched_mod._sync_all_accounts()
 
-        assert sched_mod._consecutive_failures["kis_sync"] == 0
+        assert sched_mod._consecutive_failures["kis_sync_kr"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -467,11 +467,12 @@ class TestSchedulerLifecycle:
         with patch("app.services.scheduler.scheduler", mock_scheduler):
             start_scheduler()
 
-        assert mock_scheduler.add_job.call_count == 2
-        job_ids = []
-        for c in mock_scheduler.add_job.call_args_list:
-            job_ids.append(c.kwargs.get("id") or c[0][1] if len(c[0]) > 1 else None)
-        # Verify two distinct jobs are registered
+        assert mock_scheduler.add_job.call_count == 3
+        job_ids = [c.kwargs.get("id") for c in mock_scheduler.add_job.call_args_list]
+        # Verify three distinct jobs are registered
+        assert "kis_sync_kr" in job_ids
+        assert "kis_sync_us" in job_ids
+        assert "daily_close_snapshot" in job_ids
         assert mock_scheduler.start.called
 
     def test_stop_scheduler_calls_shutdown(self) -> None:
