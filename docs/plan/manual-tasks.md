@@ -21,7 +21,7 @@ Items requiring user action.
 - [x] Add `SENTRY_DSN` to `backend/.env` and `NEXT_PUBLIC_SENTRY_DSN` to frontend env
 - [x] Set up UptimeRobot or Betterstack monitors for the API health endpoint
 - [x] Configure alert channels (email / Slack / Telegram) in chosen monitoring tool
-- [ ] Verify Sentry is receiving errors after deployment
+- [x] Verify Sentry is receiving errors after deployment — 백엔드/프론트엔드 모두 수신 확인 (2026-03-21)
 
 ## P0 -- DB Backup External Storage (Milestone 13-4)
 - [x] Choose cloud storage provider (S3 / GCS / R2) and create bucket — Cloudflare R2 선택
