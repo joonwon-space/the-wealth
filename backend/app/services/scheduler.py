@@ -33,7 +33,8 @@ CONSECUTIVE_FAILURE_THRESHOLD = 3
 
 # In-memory consecutive failure counters, keyed by job id
 _consecutive_failures: dict[str, int] = {
-    "kis_sync": 0,
+    "kis_sync_kr": 0,
+    "kis_sync_us": 0,
     "daily_close_snapshot": 0,
 }
 
@@ -63,9 +64,8 @@ def _record_job_failure(job_id: str, exc: Exception) -> None:
         )
 
 
-async def _sync_all_accounts() -> None:
+async def _sync_all_accounts(job_id: str = "kis_sync_kr") -> None:
     """KIS 계좌가 등록된 모든 포트폴리오를 순차 동기화."""
-    job_id = "kis_sync"
     logger.info("[Scheduler] Starting periodic KIS account sync")
 
     try:
@@ -209,11 +209,28 @@ async def _snapshot_daily_close() -> None:
 
 
 def start_scheduler() -> None:
+    # 국내 장 마감 후 동기화: KST 16:00 = UTC 07:00
     scheduler.add_job(
         _sync_all_accounts,
-        trigger="interval",
-        hours=1,
-        id="kis_sync",
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour=7,
+        minute=0,
+        timezone="UTC",
+        id="kis_sync_kr",
+        kwargs={"job_id": "kis_sync_kr"},
+        replace_existing=True,
+    )
+    # 미국 장 마감 후 동기화: EST 16:00 ≈ UTC 21:00 (= KST 06:00)
+    scheduler.add_job(
+        _sync_all_accounts,
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour=21,
+        minute=30,
+        timezone="UTC",
+        id="kis_sync_us",
+        kwargs={"job_id": "kis_sync_us"},
         replace_existing=True,
     )
     scheduler.add_job(
@@ -227,7 +244,10 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("[Scheduler] APScheduler started — KIS sync every 1 hour, daily close snapshot at KST 16:10")
+    logger.info(
+        "[Scheduler] APScheduler started — KIS sync at KST 16:00 (KR close) & 06:30 (US close), "
+        "daily close snapshot at KST 16:10"
+    )
 
 
 def stop_scheduler() -> None:

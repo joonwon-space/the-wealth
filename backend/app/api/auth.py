@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.logging import get_logger
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -17,7 +18,7 @@ from app.core.security import (
     verify_password,
 )
 from app.api.deps import get_current_user
-from app.db.session import get_db
+from app.db.session import AsyncSessionLocal, get_db
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
@@ -28,6 +29,57 @@ from app.schemas.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = get_logger(__name__)
+
+
+async def _bg_sync_user(user_id: int) -> None:
+    """로그인 후 백그라운드에서 KIS 계좌 자동 동기화.
+
+    로그인 응답 반환 후 비동기로 실행되므로 로그인 지연 없음.
+    """
+    # Lazy imports to avoid circular dependency
+    from app.api.sync import _ensure_portfolio_for_account, _fetch_balance_raw  # noqa: PLC0415
+    from app.models.kis_account import KisAccount  # noqa: PLC0415
+    from app.models.sync_log import SyncLog  # noqa: PLC0415
+    from app.services.reconciliation import reconcile_holdings  # noqa: PLC0415
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(KisAccount).where(KisAccount.user_id == user_id)
+            )
+            accounts = list(result.scalars().all())
+            if not accounts:
+                return
+
+            for acct in accounts:
+                try:
+                    _, kis_holdings = await _fetch_balance_raw(acct)
+                    portfolio = await _ensure_portfolio_for_account(db, user_id, acct)
+                    counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
+                    log = SyncLog(
+                        user_id=user_id,
+                        portfolio_id=portfolio.id,
+                        status="success",
+                        inserted=counts["inserted"],
+                        updated=counts["updated"],
+                        deleted=counts["deleted"],
+                        message="login-sync",
+                    )
+                    db.add(log)
+                    await db.commit()
+                    logger.info(
+                        "Login sync user=%d %s: +%d ~%d -%d",
+                        user_id,
+                        acct.label,
+                        counts["inserted"],
+                        counts["updated"],
+                        counts["deleted"],
+                    )
+                except Exception as exc:
+                    logger.warning("Login sync failed user=%d acct=%s: %s", user_id, acct.label, exc)
+    except Exception as exc:
+        logger.warning("Login sync DB error user=%d: %s", user_id, exc)
 
 # Cookie settings
 _ACCESS_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -115,6 +167,7 @@ async def login(
     request: Request,
     body: LoginRequest,
     response: Response,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     result = await db.execute(select(User).where(User.email == body.email))
@@ -129,6 +182,9 @@ async def login(
     await store_refresh_jti(jti, user.id)
 
     _set_auth_cookies(response, access_token, refresh_token)
+
+    # 로그인 후 백그라운드에서 KIS 계좌 자동 동기화 (응답 지연 없음)
+    background_tasks.add_task(_bg_sync_user, user.id)
 
     return TokenResponse(
         access_token=access_token,

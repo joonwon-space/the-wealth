@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     # Sentry DSN for error tracking. Leave empty to disable.
     SENTRY_DSN: str = ""
 
+    # Cloudflare R2 (S3-compatible) for DB backups. Leave empty to disable.
+    R2_ENDPOINT: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET: str = ""
+
     @model_validator(mode="after")
     def reject_placeholder_secrets(self) -> "Settings":
         if self.JWT_SECRET_KEY in _PLACEHOLDER_SECRETS:
