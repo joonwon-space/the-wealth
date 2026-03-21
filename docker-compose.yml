@@ -93,7 +93,6 @@ services:
     # Use Alpine's built-in crond.  The tab runs daily at 02:00 server time.
     command: >
       sh -c "
-        chmod +x /usr/local/bin/backup-postgres.sh &&
         echo '0 2 * * * /usr/local/bin/backup-postgres.sh >> /backups/backup.log 2>&1' > /etc/crontabs/root &&
         crond -f -l 8
       "
