@@ -24,7 +24,7 @@ from app.services.stock_search import search_stocks as _search
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 logger = get_logger(__name__)
 
-_DOMESTIC_TICKER_RE = re.compile(r"^\d{6}$")
+_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
 
 
 def _is_domestic(ticker: str) -> bool:

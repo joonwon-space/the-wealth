@@ -74,7 +74,6 @@ export default function StockDetailPage() {
 
   useEffect(() => {
     if (!ticker) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setChartLoading(true);
     api
       .get<{ candles: Candle[] }>("/chart/daily", {
@@ -83,7 +82,7 @@ export default function StockDetailPage() {
       .then((r) => setCandles(r.data.candles))
       .catch(() => setCandles([]))
       .finally(() => setChartLoading(false));
-  }, [ticker, period]);
+  }, [ticker, period, detail?.market]);
 
   if (loading) {
     return (
@@ -155,39 +154,30 @@ export default function StockDetailPage() {
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">전일 종가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.prev_close ? fmt(detail.prev_close) : "—"}</p></CardContent></Card>
       </div>
 
-      {/* Overseas chart: not yet supported */}
-      {isUSD && (
-        <section className="flex h-[120px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-          해외주식 차트는 현재 지원되지 않습니다.
-        </section>
-      )}
-
-      {/* Candlestick chart (domestic only for now) */}
-      {!isUSD && (
-        <section className="space-y-3">
-          <div className="flex gap-1">
-            {PERIODS.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                  period === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-          {chartLoading ? (
-            <Skeleton className="h-[400px] w-full" />
-          ) : (
-            <CandlestickChart
-              candles={candles}
-              avgPrice={detail.my_holding?.avg_price}
-            />
-          )}
-        </section>
-      )}
+      {/* Candlestick chart */}
+      <section className="space-y-3">
+        <div className="flex gap-1">
+          {PERIODS.map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                period === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+        {chartLoading ? (
+          <Skeleton className="h-[400px] w-full" />
+        ) : (
+          <CandlestickChart
+            candles={candles}
+            avgPrice={detail.my_holding?.avg_price}
+          />
+        )}
+      </section>
 
       {/* Fundamental & 52-week */}
       <div className="grid gap-4 sm:grid-cols-2">

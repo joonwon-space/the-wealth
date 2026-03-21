@@ -26,7 +26,7 @@ from app.services.price_snapshot import fetch_domestic_price_detail
 from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
 
-_DOMESTIC_TICKER_RE = re.compile(r"^\d{6}$")
+_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
 
 
 def _is_domestic(ticker: str) -> bool:

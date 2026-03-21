@@ -21,7 +21,7 @@ from app.services.kis_token import get_kis_access_token
 router = APIRouter(prefix="/chart", tags=["chart"])
 logger = get_logger(__name__)
 
-_DOMESTIC_TICKER_RE = re.compile(r"^\d{6}$")
+_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
 
 
 def _is_domestic(ticker: str) -> bool:
