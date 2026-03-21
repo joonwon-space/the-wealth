@@ -77,7 +77,9 @@ export default function StockDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setChartLoading(true);
     api
-      .get<{ candles: Candle[] }>("/chart/daily", { params: { ticker, period } })
+      .get<{ candles: Candle[] }>("/chart/daily", {
+        params: { ticker, period, ...(detail?.market ? { market: detail.market } : {}) },
+      })
       .then((r) => setCandles(r.data.candles))
       .catch(() => setCandles([]))
       .finally(() => setChartLoading(false));

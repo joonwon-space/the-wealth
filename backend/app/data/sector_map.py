@@ -137,6 +137,30 @@ SECTOR_MAP: dict[str, str] = {
     "SCHD": "ETF",
     "JEPI": "ETF",
     "TQQQ": "ETF",
+
+    # ── 국내 ETF (해외지수 추종) ──────────────────────────────
+    "381170": "ETF",   # TIGER 미국테크TOP10 INDXX
+    "481190": "ETF",   # TIGER 미국S&P500
+    "360750": "ETF",   # TIGER 미국S&P500
+    "133690": "ETF",   # TIGER 미국나스닥100
+    "143850": "ETF",   # TIGER 미국나스닥100
+    "453810": "ETF",   # TIGER 미국배당다우존스
+    "448290": "ETF",   # TIGER 미국배당+7%프리미엄
+    "459580": "ETF",   # TIGER 미국AI빅테크10
+    "411060": "ETF",   # ACE 미국S&P500
+    "426410": "ETF",   # ACE 미국나스닥100
+    "278530": "ETF",   # KODEX 미국S&P500TR
+    "379800": "ETF",   # KODEX 미국S&P500
+    "304940": "ETF",   # KODEX 미국나스닥100TR
+    "261240": "ETF",   # KODEX 미국나스닥100
+    "114800": "ETF",   # KODEX 인버스
+    "252670": "ETF",   # KODEX 200선물인버스2X
+    "102110": "ETF",   # TIGER 200
+    "069500": "ETF",   # KODEX 200
+    "229200": "ETF",   # KODEX 코스닥150
+    "233740": "ETF",   # KODEX 코스닥150레버리지
+    "kodex레버리지": "ETF",  # placeholder
+    "122630": "ETF",   # KODEX 레버리지
 }
 
 

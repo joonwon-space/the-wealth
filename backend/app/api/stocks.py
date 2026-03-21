@@ -175,23 +175,51 @@ async def _fetch_overseas_detail(
 ) -> dict:
     try:
         token = await get_kis_access_token(app_key, app_secret)
-        headers = {
+        base_headers = {
             "authorization": f"Bearer {token}",
             "appkey": app_key,
             "appsecret": app_secret,
-            "tr_id": "HHDFS00000300",
             "Content-Type": "application/json; charset=utf-8",
         }
         params = {"AUTH": "", "EXCD": market, "SYMB": ticker}
+
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # 기본 현재가 조회
             resp = await client.get(
                 f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
-                headers=headers,
+                headers={**base_headers, "tr_id": "HHDFS00000300"},
                 params=params,
             )
             resp.raise_for_status()
             output = resp.json().get("output", {})
             usd_krw_rate = await fetch_usd_krw_rate(app_key, app_secret, client)
+
+            # 52주 고가/저가가 없으면 price-detail API로 fallback
+            w52_high_raw = output.get("w52hgpr", "")
+            w52_low_raw = output.get("w52lwpr", "")
+            if not w52_high_raw or w52_high_raw == "0":
+                try:
+                    detail_resp = await client.get(
+                        f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
+                        headers={**base_headers, "tr_id": "HHDFS76200200"},
+                        params=params,
+                    )
+                    detail_resp.raise_for_status()
+                    detail_out = detail_resp.json().get("output", {})
+                    # price-detail 응답에서 52주 필드 시도
+                    w52_high_raw = (
+                        detail_out.get("w52hgpr")
+                        or detail_out.get("h52p")
+                        or w52_high_raw
+                    )
+                    w52_low_raw = (
+                        detail_out.get("w52lwpr")
+                        or detail_out.get("l52p")
+                        or w52_low_raw
+                    )
+                except Exception as e:
+                    logger.warning("52w fallback failed for %s: %s", ticker, e)
+
     except Exception as e:
         logger.warning("Failed to fetch overseas stock detail for %s: %s", ticker, e)
         return {"ticker": ticker, "error": "가격 정보를 가져올 수 없습니다"}
@@ -200,6 +228,12 @@ async def _fetch_overseas_detail(
         v = output.get(key, "")
         try:
             return float(v) if v and v != "0" else None
+        except ValueError:
+            return None
+
+    def _dec_raw(raw: str) -> Optional[float]:
+        try:
+            return float(raw) if raw and raw != "0" else None
         except ValueError:
             return None
 
@@ -223,7 +257,7 @@ async def _fetch_overseas_detail(
         "pbr": _dec("pbrx"),
         "eps": _dec("epsx"),
         "bps": None,
-        "w52_high": _dec("w52hgpr"),
-        "w52_low": _dec("w52lwpr"),
+        "w52_high": _dec_raw(w52_high_raw),
+        "w52_low": _dec_raw(w52_low_raw),
         "my_holding": my_holding,
     }
