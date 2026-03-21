@@ -117,9 +117,10 @@ After all `[ ]` items are done:
    gh pr merge --squash --delete-branch
    ```
 
-5. **Switch back to main**
+5. **Switch back to main and delete local branch**
    ```bash
    git checkout main && git pull origin main
+   git branch -d "$BRANCH"
    ```
 
 ## Stop conditions
