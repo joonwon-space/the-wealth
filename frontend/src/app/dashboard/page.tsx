@@ -126,12 +126,20 @@ export default function DashboardPage() {
     (prices: Record<string, string>) => {
       queryClient.setQueryData<Summary>(DASHBOARD_QUERY_KEY, (prev) => {
         if (!prev) return prev;
+        const usdKrwRate = Number(prev.usd_krw_rate) || 1450;
         const updatedHoldings = prev.holdings.map((h) => {
           const newPrice = prices[h.ticker];
           if (!newPrice) return h;
           const current_price = Number(newPrice);
           if (h.currency === "USD") {
-            return { ...h, current_price };
+            const qty = Number(h.quantity);
+            const avg = Number(h.avg_price);
+            const market_value = qty * current_price;
+            const market_value_krw = market_value * usdKrwRate;
+            const invested_krw = qty * avg * usdKrwRate;
+            const pnl_amount = market_value_krw - invested_krw;
+            const pnl_rate = invested_krw ? (pnl_amount / invested_krw) * 100 : null;
+            return { ...h, current_price, market_value, market_value_krw, pnl_amount, pnl_rate };
           }
           const qty = Number(h.quantity);
           const avg = Number(h.avg_price);

@@ -60,11 +60,11 @@ export function AllocationDonut({ data, totalAsset }: Props) {
             <Cell key={index} fill={COLORS[index % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 10 }} />
       </PieChart>
 
-      {/* 중앙 텍스트 오버레이 */}
-      <div className="pointer-events-none absolute flex flex-col items-center justify-center">
+      {/* 중앙 텍스트 오버레이 — tooltip 아래에 위치 */}
+      <div className="pointer-events-none absolute flex flex-col items-center justify-center" style={{ zIndex: 0 }}>
         <span className="text-xs text-muted-foreground">총 자산</span>
         <span className="text-lg font-bold tabular-nums">
           {formatKRW(totalAsset)}

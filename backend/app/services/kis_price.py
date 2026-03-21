@@ -300,12 +300,13 @@ async def fetch_overseas_price_detail(
     app_secret: str,
     client: httpx.AsyncClient,
 ) -> Optional[OverseasPriceDetail]:
-    """해외주식 현재가 + 전일 대비 조회 (HHDFS00000300).
+    """해외주식 현재가 + 전일 대비 + 52주 고/저 조회.
 
-    Returns OverseasPriceDetail with current USD price and day_change_rate.
+    1차: HHDFS00000300 (현재가, 52주 고/저 포함)
+    2차: last == "0" 시 base(전일 종가) fallback
+    3차: 52주 고/저 없으면 HHDFS76200200 (price-detail) fallback
     """
     headers = await _get_headers(app_key, app_secret)
-    headers["tr_id"] = "HHDFS00000300"
     params = {
         "AUTH": "",
         "EXCD": market,
@@ -314,21 +315,50 @@ async def fetch_overseas_price_detail(
     try:
         resp = await client.get(
             f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
-            headers=headers,
+            headers={**headers, "tr_id": "HHDFS00000300"},
             params=params,
         )
         resp.raise_for_status()
         output = resp.json().get("output", {})
-        price_str = output.get("last", "0")
+
+        price_str = output.get("last", "") or ""
+        prev_close_str = output.get("base", "") or ""
+        # last가 없거나 0이면 전일 종가(base)로 대체
+        if not price_str or price_str == "0":
+            price_str = prev_close_str
         if not price_str or price_str == "0":
             return None
+
         rate_str = output.get("rate", "0") or "0"
-        prev_close_str = output.get("base", "0") or "0"
         w52_high_str = output.get("w52hgpr", "") or ""
         w52_low_str = output.get("w52lwpr", "") or ""
+
+        # 52주 고/저 없으면 HHDFS76200200 fallback
+        if not w52_high_str or w52_high_str == "0":
+            try:
+                detail_resp = await client.get(
+                    f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
+                    headers={**headers, "tr_id": "HHDFS76200200"},
+                    params=params,
+                )
+                detail_resp.raise_for_status()
+                detail_out = detail_resp.json().get("output", {})
+                w52_high_str = (
+                    detail_out.get("w52hgpr")
+                    or detail_out.get("h52p")
+                    or w52_high_str
+                )
+                w52_low_str = (
+                    detail_out.get("w52lwpr")
+                    or detail_out.get("l52p")
+                    or w52_low_str
+                )
+            except Exception as e:
+                logger.warning("52w fallback failed for %s/%s: %s", ticker, market, e)
+
         return OverseasPriceDetail(
             current=Decimal(price_str),
-            prev_close=Decimal(prev_close_str) if prev_close_str != "0" else None,
+            prev_close=Decimal(prev_close_str) if prev_close_str and prev_close_str != "0" else None,
             day_change_rate=Decimal(rate_str),
             w52_high=Decimal(w52_high_str) if w52_high_str and w52_high_str != "0" else None,
             w52_low=Decimal(w52_low_str) if w52_low_str and w52_low_str != "0" else None,
