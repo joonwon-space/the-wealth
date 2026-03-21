@@ -63,7 +63,6 @@ export default function StockDetailPage() {
   const [loading, setLoading] = useState(true);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("3M");
-  const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
     if (!ticker) return;
@@ -74,14 +73,12 @@ export default function StockDetailPage() {
 
   useEffect(() => {
     if (!ticker) return;
-    setChartLoading(true);
     api
       .get<{ candles: Candle[] }>("/chart/daily", {
         params: { ticker, period, ...(detail?.market ? { market: detail.market } : {}) },
       })
       .then((r) => setCandles(r.data.candles))
-      .catch(() => setCandles([]))
-      .finally(() => setChartLoading(false));
+      .catch(() => setCandles([]));
   }, [ticker, period, detail?.market]);
 
   if (loading) {
@@ -169,14 +166,10 @@ export default function StockDetailPage() {
             </button>
           ))}
         </div>
-        {chartLoading ? (
-          <Skeleton className="h-[400px] w-full" />
-        ) : (
-          <CandlestickChart
-            candles={candles}
-            avgPrice={detail.my_holding?.avg_price}
-          />
-        )}
+        <CandlestickChart
+          candles={candles}
+          avgPrice={detail.my_holding?.avg_price}
+        />
       </section>
 
       {/* Fundamental & 52-week */}
