@@ -78,7 +78,7 @@ Each item should be completable in a single commit.
   - `/api/v1/health` 엔드포인트의 DB/Redis/KIS/backup 상태 응답 테스트
   - 파일: `backend/tests/test_health.py`
 
-- [ ] **test: internal.py router 테스트 추가** (58% -> 90%+)
+- [x] **test: internal.py router 테스트 추가** (58% -> 90%+)
   - `POST /internal/backup-status` 성공/실패 시나리오 테스트
   - 파일: `backend/tests/test_internal.py`
 
