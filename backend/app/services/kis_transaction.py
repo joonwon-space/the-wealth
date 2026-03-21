@@ -92,19 +92,19 @@ async def fetch_domestic_transactions(
     return results
 
 
-async def fetch_overseas_transactions(
+_OVERSEAS_EXCHANGES = ["NASD", "NYSE", "AMEX", "SEHK", "TKSE", "SHAA", "SZAA", "HASE", "VNSE"]
+
+
+async def _fetch_overseas_transactions_by_exchange(
     app_key: str,
     app_secret: str,
     account_no: str,
     acnt_prdt_cd: str,
     from_date: str,
     to_date: str,
+    exchange: str,
     client: httpx.AsyncClient,
 ) -> list[dict]:
-    """해외주식 체결 내역 조회 (TTTS3035R).
-
-    from_date, to_date: YYYYMMDD 형식
-    """
     headers = await _get_headers(app_key, app_secret, "TTTS3035R")
     params = {
         "CANO": account_no,
@@ -113,8 +113,8 @@ async def fetch_overseas_transactions(
         "ORD_STRT_DT": from_date,
         "ORD_END_DT": to_date,
         "SLL_BUY_DVSN_CD": "00",
-        "CCLD_NCCS_DVSN": "00",
-        "OVRS_EXCG_CD": "",
+        "CCLD_NCCS_DVSN": "01",  # 체결만
+        "OVRS_EXCG_CD": exchange,
         "SORT_SQN": "DS",
         "CTX_AREA_NK200": "",
         "CTX_AREA_FK200": "",
@@ -128,7 +128,9 @@ async def fetch_overseas_transactions(
         )
         resp.raise_for_status()
         data = resp.json()
-        for row in data.get("output", []):
+        rows = data.get("output") or []
+        logger.debug("Overseas tx [%s] rt_cd=%s rows=%d", exchange, data.get("rt_cd"), len(rows))
+        for row in rows:
             qty_str = row.get("ft_ccld_qty", "0") or "0"
             price_str = row.get("ft_ccld_unpr3", "0") or "0"
             if not qty_str or qty_str == "0":
@@ -149,8 +151,38 @@ async def fetch_overseas_transactions(
                 "price": price_str,
                 "total_amount": str(total),
                 "traded_at": traded_at,
-                "market": row.get("ovrs_excg_cd", "overseas"),
+                "market": row.get("ovrs_excg_cd", exchange),
             })
     except Exception as e:
-        logger.warning("Failed to fetch overseas transactions: %s", e)
+        logger.warning("Failed to fetch overseas transactions [%s]: %s", exchange, e)
     return results
+
+
+async def fetch_overseas_transactions(
+    app_key: str,
+    app_secret: str,
+    account_no: str,
+    acnt_prdt_cd: str,
+    from_date: str,
+    to_date: str,
+    client: httpx.AsyncClient,
+) -> list[dict]:
+    """해외주식 체결 내역 조회 (TTTS3035R) — 거래소별 병렬 조회.
+
+    from_date, to_date: YYYYMMDD 형식
+    """
+    import asyncio as _asyncio
+
+    tasks = [
+        _fetch_overseas_transactions_by_exchange(
+            app_key, app_secret, account_no, acnt_prdt_cd,
+            from_date, to_date, exch, client,
+        )
+        for exch in _OVERSEAS_EXCHANGES
+    ]
+    results_per_exchange = await _asyncio.gather(*tasks, return_exceptions=True)
+    combined: list[dict] = []
+    for res in results_per_exchange:
+        if isinstance(res, list):
+            combined.extend(res)
+    return combined

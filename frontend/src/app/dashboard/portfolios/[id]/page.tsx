@@ -286,13 +286,15 @@ export default function PortfolioDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {["종목", "수량", "평균단가", "현재가", "손익 (KRW)", ""].map((h) => (
+                {["종목", "수량", "평균단가", "현재가", "손익 (KRW)", "평가금액 (KRW)", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {holdings.map((h) => {
+              {[...holdings]
+                .sort((a, b) => Number(b.market_value_krw ?? 0) - Number(a.market_value_krw ?? 0))
+                .map((h) => {
                 const isUSD = h.currency === "USD";
                 return (
                   <tr key={h.id} className="border-t hover:bg-muted/20">
@@ -360,6 +362,18 @@ export default function PortfolioDetailPage() {
                                 <div className="text-xs text-muted-foreground">
                                   {Number(h.pnl_rate) >= 0 ? "+" : ""}{Number(h.pnl_rate).toFixed(2)}%
                                 </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {h.market_value_krw != null ? (
+                            <div>
+                              <span>{formatKRW(h.market_value_krw)}</span>
+                              {isUSD && h.market_value != null && (
+                                <div className="text-xs text-muted-foreground">{formatUSD(h.market_value)}</div>
                               )}
                             </div>
                           ) : (
