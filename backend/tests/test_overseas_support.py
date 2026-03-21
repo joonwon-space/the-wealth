@@ -112,7 +112,7 @@ class TestFetchOverseasAccountHoldings:
 
     @patch("app.services.kis_account.get_kis_access_token")
     async def test_returns_empty_on_api_error(self, mock_token) -> None:
-        """API rt_cd != '0' 이면 빈 리스트 반환."""
+        """API rt_cd != '0' 이면 RuntimeError raise (reconciliation 오삭제 방지)."""
         mock_token.return_value = "test-token"
 
         mock_resp = MagicMock()
@@ -125,14 +125,12 @@ class TestFetchOverseasAccountHoldings:
         with patch("app.services.kis_account.httpx.AsyncClient") as mock_ctx:
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-            holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
-
-        assert holdings == []
-        assert summary == {}
+            with pytest.raises(RuntimeError, match="KIS 해외 API 오류"):
+                await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
 
     @patch("app.services.kis_account.get_kis_access_token")
     async def test_returns_empty_on_exception(self, mock_token) -> None:
-        """예외 발생 시 빈 리스트 반환."""
+        """예외 발생 시 RuntimeError raise (reconciliation 오삭제 방지)."""
         mock_token.return_value = "test-token"
 
         mock_client = AsyncMock()
@@ -141,10 +139,8 @@ class TestFetchOverseasAccountHoldings:
         with patch("app.services.kis_account.httpx.AsyncClient") as mock_ctx:
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-            holdings, summary = await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
-
-        assert holdings == []
-        assert summary == {}
+            with pytest.raises(RuntimeError, match="KIS 해외 잔고 조회 실패"):
+                await fetch_overseas_account_holdings("key", "secret", "12345678", "01")
 
 
 # ---------------------------------------------------------------------------
