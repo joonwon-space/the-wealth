@@ -591,6 +591,15 @@ export default function PortfolioDetailPage() {
 
         {showKisHistory && (
           <>
+            {holdings.some((h) => h.currency === "USD") && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                <span className="mt-0.5 shrink-0">⚠️</span>
+                <span>
+                  <strong>해외주식 체결 내역은 KIS OpenAPI로 주문한 건만 조회됩니다.</strong>
+                  {" "}한투 앱/HTS로 거래한 내역은 표시되지 않습니다. 아래 &quot;거래 이력&quot; 섹션에서 직접 입력해주세요.
+                </span>
+              </div>
+            )}
             <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">시작일</label>
