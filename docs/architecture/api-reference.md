@@ -149,9 +149,12 @@ Rate-limited endpoints for brute force protection.
 ### GET /dashboard/summary
 - **Auth**: Required
 - **Rate limit**: 120/min
-- **Query params**: `refresh?: boolean`
+- **Query params**: `refresh?: boolean` (clears price cache when true)
 - **Response** (200): `DashboardSummary` -- aggregated portfolio data with live prices
-- **Notes**: Fetches current prices from KIS API via `asyncio.gather()`; computes P&L dynamically
+  - `kis_status`: `"ok"` | `"degraded"` -- indicates KIS API availability
+  - `usd_krw_rate`: USD/KRW exchange rate used (when overseas holdings present)
+  - `triggered_alerts`: list of alerts whose conditions are currently met
+- **Notes**: Fetches current prices from KIS API via `asyncio.gather()`; computes P&L dynamically. When all price fetches fail, returns `kis_status: "degraded"` and frontend shows a warning banner.
 
 ---
 
@@ -303,5 +306,34 @@ Rate-limited endpoints for brute force protection.
 
 ### GET /api/v1/health
 - **Auth**: None
-- **Response** (200): `{ "status": "ok" }`
-- **Notes**: Versioned health check for clients using `/api/v1` base URL
+- **Response** (200): `{ "status": "ok", "last_backup_at": "ISO-8601 | null", "backup_age_hours": float | null }`
+- **Notes**: Versioned health check with last DB backup information (filesystem mtime or sync_logs fallback)
+
+---
+
+## Data Integrity (`/health`)
+
+### GET /health/data-integrity
+- **Auth**: Required
+- **Response** (200): `{ "status": "ok"|"degraded", "checked_weekdays": 7, "missing_snapshots": [...], "present_snapshots": [...] }`
+- **Notes**: Checks for missing `price_snapshots` entries over the last 7 weekdays
+
+### GET /health/holdings-reconciliation
+- **Auth**: Required
+- **Response** (200): `{ "status": "ok"|"degraded", "checked_holdings": int, "mismatches": [...] }`
+- **Notes**: Compares `holdings.quantity` against transaction history (BUY - SELL) sum; excludes soft-deleted transactions
+
+### GET /health/orphan-records
+- **Auth**: Required
+- **Response** (200): `{ "status": "ok"|"degraded", "orphan_holdings": int, "orphan_transactions": int, "orphan_sync_logs": int }`
+- **Notes**: Detects records referencing non-existent portfolio IDs (should be 0 if CASCADE DELETE works correctly)
+
+---
+
+## Internal API (`/internal`)
+
+### POST /internal/backup-status
+- **Auth**: `X-Internal-Secret` header (not JWT)
+- **Request body**: `{ "status": "success"|"error", "message"?: string }`
+- **Response** (204): No content
+- **Notes**: Called by `backup-postgres.sh` to record backup results to `sync_logs` (sync_type='db_backup'). Returns 503 if `INTERNAL_SECRET` env var is not configured.

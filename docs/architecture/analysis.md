@@ -7,6 +7,7 @@
 │                        Client (Browser)                      │
 │   Next.js 16 App Router + React 19 + Tailwind v4 + shadcn   │
 │   ├── SSR (Server Components)                                │
+│   ├── TanStack Query (server state, cache, refetch)          │
 │   ├── Zustand (auth store)                                   │
 │   ├── Axios (JWT interceptor + auto refresh)                 │
 │   └── SSE (usePriceStream hook)                              │
@@ -14,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 46 API endpoints (12 routers)                          │
+│   ├── 52 API endpoints (14 routers)                          │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (60/min)                          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -41,16 +42,17 @@
 
 | 라이브러리 | 버전 | 용도 |
 |-----------|------|------|
-| Next.js | 16.1.7 | App Router, SSR, 미들웨어 |
+| Next.js | 16.2.0 | App Router, SSR, 미들웨어 |
 | React | 19.2.4 | UI 렌더링 |
 | TypeScript | 5 | 타입 안전성 |
-| Tailwind CSS | v4 | 유틸리티 기반 스타일링 |
-| shadcn/ui | 4.0.8 | UI 컴포넌트 (base-nova/neutral) |
+| Tailwind CSS | 4.2.2 | 유틸리티 기반 스타일링 |
+| shadcn/ui | 4.1.0 | UI 컴포넌트 (base-nova/neutral) |
 | TanStack Table | 8.21.3 | 보유종목 데이터 테이블 |
+| TanStack Query | 5.91.0 | 서버 상태 관리 (캐시, refetchInterval) |
 | Recharts | 3.8.0 | 도넛 차트, 히트맵 |
 | lightweight-charts | 5.1.0 | 캔들스틱 차트 |
 | Axios | 1.13.6 | HTTP 클라이언트 |
-| Zustand | 5.0.12 | 클라이언트 상태 관리 |
+| Zustand | 5.0.12 | 클라이언트 상태 관리 (인증) |
 | next-themes | 0.4.6 | 다크/라이트 테마 |
 | Vitest | 4.1.0 | 단위 테스트 |
 | Playwright | 1.58.2 | E2E 테스트 |
@@ -92,9 +94,9 @@ frontend/src/
 │   ├── ThemeProvider.tsx         # next-themes 테마 프로바이더
 │   ├── TransactionChart.tsx      # 거래내역 차트 (월별 매수/매도)
 │   ├── WatchlistSection.tsx      # 관심종목 섹션
-│   ├── QueryProvider.tsx        # TanStack Query 프로바이더
-│   ├── PageError.tsx            # 페이지 에러 표시 컴포넌트
-│   ├── TableSkeleton.tsx        # 테이블 로딩 스켈레톤
+│   ├── QueryProvider.tsx         # TanStack Query 프로바이더 (QueryClientProvider)
+│   ├── PageError.tsx             # 페이지 에러 표시 컴포넌트
+│   ├── TableSkeleton.tsx         # 테이블 로딩 스켈레톤
 │   └── ui/                       # shadcn/ui 컴포넌트
 ├── hooks/
 │   └── usePriceStream.ts         # SSE 실시간 가격 스트리밍 훅
@@ -247,7 +249,7 @@ frontend/src/
 ```
 backend/app/
 ├── main.py                    # FastAPI app, CORS, 미들웨어, 라우터 등록
-├── api/                       # 12개 API 라우터 + 공통 의존성
+├── api/                       # 14개 API 라우터 + 공통 의존성
 │   ├── deps.py                # get_current_user, get_current_user_sse 인증 의존성
 │   ├── auth.py                # 인증 (register, login, refresh, change-password, logout)
 │   ├── portfolios.py          # 포트폴리오/보유종목/거래내역 CRUD
@@ -297,7 +299,8 @@ backend/app/
 │   ├── price_snapshot.py      # 일일 종가 스냅샷 저장
 │   ├── scheduler.py           # APScheduler 설정
 │   ├── stock_search.py        # KRX 종목 검색
-│   └── backup_health.py       # 백업 파일 상태 조회
+│   ├── backup_health.py       # 백업 파일 상태 조회
+│   └── kis_health.py          # KIS API 가용성 헬스체크 (시작 시 연결 테스트)
 └── data/
     └── sector_map.py          # 종목별 섹터 매핑
 ```
@@ -626,7 +629,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-03-20)
+## 6. 프로젝트 현황 분석 (2026-03-21)
 
 ### 6.1 완성도
 
@@ -634,8 +637,8 @@ slowapi 기반 IP별 레이트 리미팅:
 |------|------|------|
 | 인증 (JWT + HttpOnly Cookie) | 완료 | Refresh token rotation, IDOR 방지, 로그아웃 |
 | 포트폴리오 CRUD | 완료 | CSV export (보유종목 + 거래내역), 거래내역 soft delete 포함 |
-| 대시보드 | 완료 | SSE 실시간, 30초 폴링, 자산 배분 도넛, 해외주식 USD 가격 표시 |
-| KIS API 연동 | 완료 | 국내/해외 현재가, OHLCV, 잔고 동기화 |
+| 대시보드 | 완료 | SSE 실시간, 30초 폴링, 자산 배분 도넛, 해외주식 USD 가격 표시, KIS 장애 감지 배너 |
+| KIS API 연동 | 완료 | 국내/해외 현재가, OHLCV, 잔고 동기화, 장애 감지 (kis_status: degraded) |
 | 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리 |
 | 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
 | 관심종목 | 완료 | 마켓별 구분 |
@@ -644,61 +647,68 @@ slowapi 기반 IP별 레이트 리미팅:
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
 | 에러 처리 | 완료 | 표준 에러 응답 (envelope), Error Boundary, 전역 예외 핸들러 |
+| 데이터 무결성 | 완료 | price_snapshots 갭 감지, holdings 수량 정합성, 고아 레코드 감지 |
 | Commitlint | 완료 | @commitlint/config-conventional + Husky hook |
 | Docker + CI/CD | 완료 | 멀티 스테이지 빌드, GitHub Actions 7개 워크플로우, self-hosted 배포 |
 | 프로덕션 배포 | 운영 중 | joonwon.dev (self-hosted Docker Compose) |
 | DB 백업 | 완료 | 일일 pg_dump + 보존 정책 (7일/4주/3월), health endpoint 노출 |
 | 접근성 (a11y) | 완료 | aria-label, aria-current, 터치 타겟 44px, CSP 수정 |
+| TanStack Query | 완료 | 대시보드/포트폴리오 캐시, refetchInterval, SSE queryClient 연동 |
 | 모니터링 | 미착수 | Sentry + 로그 수집 예정 |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: **90%** (537 tests passed)
+전체: **92%** (577 tests passed, 2 failed)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
 | core/ (security, encryption, middleware, limiter) | 95-100% | 우수 |
 | models/ | 100% | ORM 모델 |
 | schemas/ | 100% | Pydantic 스키마 |
-| services/ | 69-100% | backup_health(69%) 커버리지 부족 |
-| api/ routers | 47-100% | health(47%), internal(58%) 커버리지 부족 |
+| services/ | 93-100% | backup_health(100%), kis_health(100%), kis_price(94%) |
+| api/ routers | 83-100% | 대부분 90%+ |
 | db/ | 75-100% | session.py 75% |
 | main.py | 85% | lifespan, 예외 핸들러 |
+
+참고: 2개 테스트 실패 (`test_overseas_support.py`) -- `kis_account.py`가 빈 배열 대신 `RuntimeError`를 raise하도록 변경됨에 따른 기대값 불일치
 
 ### 6.3 강점
 
 - KIS API 비동기 병렬 호출 + Redis 캐시 폴백으로 안정적 가격 조회
+- KIS API 장애 감지: 전체 가격 조회 실패 시 `kis_status: "degraded"` 반환 + 프론트엔드 배너 표시
+- KIS 잔고 조회 실패 시 `RuntimeError` raise로 명확한 에러 전파 (silent fail 방지)
 - HttpOnly Cookie 인증으로 XSS 토큰 탈취 방지
 - AES-256-GCM으로 KIS 자격증명 안전하게 저장
 - 구조화 로깅 (structlog) + request_id 트레이싱
 - 해외주식 USD 가격 표시 및 원화 환산 (환율 자동 적용)
 - 보유종목 market_value_krw 기준 내림차순 정렬
 - SSE 연결 하드닝: 사용자별 제한, 하트비트, 유휴 감지, 최대 연결 시간
-- 테스트 커버리지 90% (537 tests) -- ruff lint 오류 0건
+- 테스트 커버리지 92% (577 tests) -- ruff lint 오류 0건
 - Commitlint 커밋 메시지 검증 자동화
 - 표준화된 에러 응답 envelope (error.code, error.message, request_id)
 - Graceful shutdown (SSE 연결 종료 시그널, 스케줄러 정지)
 - Next.js proxy 컨벤션 마이그레이션 완료
 - DB 백업 자동화 + health endpoint 통합
-- TanStack Query 도입으로 캐시 일관성 확보
+- TanStack Query 도입으로 캐시 일관성 확보 (대시보드 30s refetch, SSE queryClient 연동)
 - 접근성 개선 (aria-label, touch targets, navigation aria-current)
+- 데이터 무결성 헬스체크: price_snapshots 갭 감지, holdings 정합성, 고아 레코드 감지
+- KIS API 시작 시 연결 테스트 (비가용 시 캐시 전용 모드)
 
 ### 6.4 약점 및 개선 필요 사항
 
 - 모니터링/APM 미도입 (structlog만 운용)
 - 알림 전송 채널 미구현 (SSE 조건 체크만 존재, 실제 푸시/이메일 없음)
-- health.py(47%), internal.py(58%), backup_health.py(69%) 테스트 커버리지 부족으로 전체 90%로 하락
-- 프론트엔드 npm 의존성 업데이트 필요 (Next.js 16.2.0, tailwindcss 4.2.2 등)
-- flatted 3.4.1 dev 의존성 고위험 취약점 (eslint 경유, Prototype Pollution)
+- 2개 테스트 실패: `test_overseas_support.py`에서 `kis_account.py` RuntimeError 변경 미반영
+- 프론트엔드 테스트 커버리지 최소 (백엔드 92% 대비)
 
 ### 6.5 리스크
 
 | 리스크 | 심각도 | 설명 |
 |--------|--------|------|
-| KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초 제한, 장 마감 후 24h) |
+| KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초, 장 마감 후 24h). degraded 배너로 사용자에게 알림 |
 | 단일 서버 | 중 | self-hosted 단일 서버, 서버 장애 시 전체 서비스 중단 |
 | 단일 사용자 환경 | 저 | 현재 다중 사용자 동시 접속 부하 테스트 미실시 |
-| 테스트 커버리지 하락 | 중 | 최근 추가된 health/internal/backup 모듈 테스트 미비 (90% -> 목표 93%+) |
+| 테스트 실패 | 저 | `test_overseas_support.py` 2건 실패 (RuntimeError 변경 미반영) |
 
 ---
 

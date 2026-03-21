@@ -152,7 +152,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 49개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 52개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -185,7 +185,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 ### 대시보드 (1)
 | Method | Path | 설명 |
 |--------|------|------|
-| GET | `/dashboard/summary` | 대시보드 요약 |
+| GET | `/dashboard/summary` | 대시보드 요약 (kis_status: "ok" / "degraded" 포함) |
 
 ### 분석 (4)
 | Method | Path | 설명 |
@@ -242,11 +242,14 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/watchlist` | 관심종목 추가 |
 | DELETE | `/watchlist/{id}` | 관심종목 삭제 |
 
-### 헬스체크 (2)
+### 헬스체크 & 데이터 무결성 (5)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/health` | 서버 상태 확인 (루트) |
-| GET | `/api/v1/health` | 서버 상태 확인 (버전) — DB, Redis, KIS API 상태 + last_backup_at |
+| GET | `/api/v1/health` | 서버 상태 확인 (버전) — last_backup_at 포함 |
+| GET | `/health/data-integrity` | price_snapshots 갭 감지 (최근 7 평일) |
+| GET | `/health/holdings-reconciliation` | 보유 수량 정합성 검사 (거래내역 vs holdings) |
+| GET | `/health/orphan-records` | 고아 레코드 감지 (삭제된 포트폴리오 잔여 데이터) |
 
 ### 내부 API (1)
 | Method | Path | 설명 |

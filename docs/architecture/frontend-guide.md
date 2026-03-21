@@ -4,12 +4,13 @@
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| Next.js | 16.1.7 | App Router, SSR, middleware/proxy |
+| Next.js | 16.2.0 | App Router, SSR, middleware/proxy |
 | React | 19.2.4 | UI rendering |
 | TypeScript | 5 | Type safety |
-| Tailwind CSS | v4 | Utility-first styling |
-| shadcn/ui | 4.0.8 | UI components (base-nova / neutral) |
+| Tailwind CSS | 4.2.2 | Utility-first styling |
+| shadcn/ui | 4.1.0 | UI components (base-nova / neutral) |
 | TanStack Table | 8.21.3 | Holdings data table |
+| TanStack Query | 5.91.0 | Server state management (cache, refetch, SSE integration) |
 | Recharts | 3.8.0 | Donut chart, heatmap, line charts |
 | lightweight-charts | 5.1.0 | Candlestick chart |
 | Axios | 1.13.6 | HTTP client (JWT interceptor) |
@@ -80,7 +81,10 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 ### Infrastructure
 | Component | Description |
 |-----------|-------------|
+| `QueryProvider.tsx` | TanStack Query provider (wraps app with QueryClientProvider) |
 | `ErrorBoundary.tsx` | React Error Boundary with fallback UI |
+| `PageError.tsx` | Page-level error display component |
+| `TableSkeleton.tsx` | Table loading skeleton |
 | `ThemeProvider.tsx` | next-themes provider (system/manual theme) |
 | `ui/` | shadcn/ui primitives (Button, Card, Table, Dialog, etc.) |
 
@@ -105,9 +109,13 @@ Actions:
   refreshToken() -> rotates token pair
 ```
 
-### No Global Data Store
+### TanStack Query (`QueryProvider.tsx`)
 
-Portfolio data, dashboard summaries, and prices are fetched per-page via Axios calls. There is no global data cache (TanStack Query adoption is planned).
+Server state management via `@tanstack/react-query`:
+- Dashboard data cached with `refetchInterval: 30_000` (30-second polling)
+- Portfolio/holdings lists use query keys for automatic cache invalidation
+- SSE price updates integrated via `queryClient.setQueryData()` for instant UI refresh
+- Loading, error, and empty states standardized across pages
 
 ---
 

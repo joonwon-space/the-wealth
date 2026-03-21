@@ -447,6 +447,8 @@ Docker Compose 헬스체크:
 | `CORS_ORIGINS` | O | 허용 Origin (쉼표 구분) | `http://localhost:3000,https://joonwon.dev` |
 | `COOKIE_DOMAIN` | - | 쿠키 도메인 (프로덕션: `.joonwon.dev`) | `.joonwon.dev` |
 | `KIS_BASE_URL` | - | KIS OpenAPI 기본 URL | `https://openapi.koreainvestment.com:9443` |
+| `INTERNAL_SECRET` | - | 내부 API 인증 시크릿 (백업 스크립트용) | `openssl rand -hex 16` |
+| `BACKUP_DIR` | - | 백업 파일 디렉토리 (기본: `/backups`) | `/backups` |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
 
