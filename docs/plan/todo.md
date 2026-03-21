@@ -46,27 +46,40 @@ Current actionable work is in `tasks.md`.
 - [x] CSV export (holdings + transactions)
 
 ### Milestone 16 (completed items)
-- [x] Test coverage 93% (501 tests) — added `.coveragerc` with `core = sysmon` to fix Python 3.12 async coverage tracking; previously reported as 73% due to sys.settrace limitation with asyncio tasks
+- [x] Test coverage 93% (577 tests)
 - [x] Playwright E2E setup
 - [x] openapi-typescript type generation
 - [x] Short-term improvements (DB indexes, legacy columns, rate limits, ticker validation, pagination cap, soft delete, HttpOnly cookies, Graceful Shutdown)
 
+### KIS Resilience (2026-03-21)
+- [x] KIS API 장애 시 `RuntimeError` raise (빈 배열 반환 → reconciliation 오삭제 방지)
+- [x] Dashboard `kis_status: "ok" | "degraded"` 필드 + 프론트 배너 표시
+
 </details>
+
+---
+
+## P0 — DB 정리
+
+### 0-2. users 테이블 레거시 KIS 컬럼 제거
+`kis_accounts` 테이블로 이관 완료된 컬럼들이 `users`에 잔존.
+- [ ] Alembic migration: `kis_app_key_enc`, `kis_app_secret_enc`, `kis_account_no`, `kis_acnt_prdt_cd` drop
+- [ ] migration 실행 전 데이터 존재 여부 확인 (`backend/app/models/user.py` 정리)
 
 ---
 
 ## Milestone 11: Frontend Enhancement (Remaining)
 
 ### 11-2. Analytics Page Enhancement
-- [ ] Portfolio performance time-series chart (daily/weekly/monthly)
+- [ ] Portfolio performance period filter (1w / 1m / 3m / 6m / 1y / all 탭)
 - [ ] KOSPI200 / S&P500 benchmark overlay (KIS index API `FHKUP03500100`)
 - [ ] Dividend income tracking (calendar + yield chart)
-- [ ] Investment performance metrics: Sharpe ratio, MDD, CAGR
+- [ ] Investment performance metrics: Sharpe ratio, MDD, CAGR (`backend/app/services/metrics.py`)
 - [ ] Monthly/annual return heatmap (GitHub contribution chart style)
 
 ### 11-3. Dashboard Enhancement
-- [ ] Day-change badge on dashboard summary cards
 - [ ] 52-week high/low position bar in holdings table
+- [ ] Target asset progress widget — `portfolios.target_value` + 달성률 프로그레스 바 (`PATCH /portfolios/{id}`)
 - [ ] Drag-and-drop widget layout (react-grid-layout)
 
 ### 11-4. Stock Detail Page Enhancement
@@ -74,124 +87,96 @@ Current actionable work is in `tasks.md`.
 - [ ] Moving averages overlay (5/20/60/120 day)
 - [ ] Volume analysis chart
 - [ ] News/disclosure feed (KIS news API or Naver Finance)
-- [ ] My holdings overlay (average purchase price line)
+- [ ] My holdings overlay (average purchase price horizontal line on candlestick chart)
 
 ### 11-5. UX Convenience
-- [ ] i18n (next-intl, Korean/English)
-- [ ] In-app notification center (price alerts, sync results, errors)
-- [ ] Onboarding tour (react-joyride)
-- [x] TanStack Query adoption (replace manual Axios state management)
-  - [x] Install + QueryClientProvider setup
-  - [x] Migrate dashboard fetching (`refetchInterval: 30_000`)
-  - [x] Migrate portfolio/holdings lists
-  - [x] Integrate SSE via `queryClient.setQueryData()`
-  - [x] Standardize loading/error/empty state UI
-  - [ ] Optimistic updates for add/delete (partial — mutations use setQueryData for immediate cache update)
+- [ ] In-app notification center (price alerts → toast + notification list)
+- [ ] Trade memo & investment journal — `transactions.memo` 컬럼 + 인라인 편집
 
 ### 11-7. Frontend Quality
 - [x] Bundle size budget — `@next/bundle-analyzer` + CI warning on budget exceed
-- [x] Granular error boundaries — per-widget isolation (chart error shouldn't crash entire dashboard)
+- [x] Granular error boundaries — per-widget isolation
 - [x] SSE reconnection UI — connection status indicator + manual reconnect button
 - [x] Non-color indicators — ▲/▼ icons for gain/loss (accessibility)
 - [ ] Unified skeleton UI loading states
-
-### 11-6. Next.js 16 Migration
-- [x] Migrate `middleware.ts` to `proxy` convention (deprecated in Next.js 16)
 
 ---
 
 ## Milestone 12: Backend Enhancement (Remaining)
 
-### 12-2. SSE Connection Hardening (Completed)
-- [x] Per-user max SSE connection limit (e.g., 3)
-- [x] Server heartbeat (15s) + idle connection cleanup
-- [x] Max connection duration (e.g., 2 hours)
-
-### 12-3. Performance Optimization
-- [ ] Stock search trie structure or Redis ZRANGEBYLEX indexing
-- [ ] KIS batch price API exploration
-- [ ] ETag/If-None-Match header support for dashboard caching
-- [ ] Multi-worker uvicorn (`--workers 2` or gunicorn + uvicorn worker class)
-- [ ] APScheduler dedup in multi-worker (Redis distributed lock or scheduler separation)
-- [ ] SSE connection management in multi-worker
+### 12-3. Performance & Caching
+- [ ] ETag / `If-None-Match` support for dashboard endpoint (변경 없으면 304)
+- [ ] Stock search trie structure or Redis `ZRANGEBYLEX` indexing
+- [ ] KIS batch price API exploration (단일 호출로 여러 종목 조회)
 
 ### 12-4. Alert System — Notification Logic
 Alert CRUD exists but no logic to actually notify users when price conditions are met.
 
 - [x] Price condition check in SSE streaming loop
-- [ ] In-app notification center (toast + notification list)
-- [ ] Email alerts (SendGrid / Resend)
-- [ ] Telegram bot alerts
 - [x] Dedup — `last_triggered_at` column + cooldown
 - [x] Auto-deactivate triggered alerts
+- [ ] In-app notification center: `notifications` 테이블 + `GET/PATCH /notifications` API
+- [ ] Frontend notification bell + unread badge + dropdown panel
+- [ ] Email alerts (SendGrid / Resend)
 
 ### 12-5. API Extension
-- [ ] GraphQL layer (Strawberry)
-- [ ] Webhook support (Slack, Discord, Zapier)
 - [ ] Cursor-based pagination for transactions, sync_logs
-- [ ] Bulk operations API (POST /portfolios/{id}/holdings/bulk)
+- [ ] Bulk operations API (`POST /portfolios/{id}/holdings/bulk`)
 
 ---
 
 ## Milestone 13: Data Pipeline & Analysis
 
 ### 13-1. External Data Collection
-- [ ] KOSPI200 / S&P500 daily index data collection
+- [ ] KOSPI200 / S&P500 daily index data collection (benchmark 전제 조건)
 - [ ] Stock metadata table (sector, industry, market_cap)
 - [ ] Dividend data collection (KIS or KRX)
-- [ ] Exchange rate data collection (USD/KRW) via Bank of Korea ECOS API
 
 ### 13-2. Portfolio Analysis Engine
-- [ ] Daily portfolio value snapshot (total + per-stock)
 - [ ] TWR (time-weighted return) / MWR (money-weighted return) calculation
 - [ ] Risk metrics: volatility, Sharpe ratio, MDD, beta
 - [ ] Portfolio correlation analysis
 - [ ] Rebalancing suggestions (target vs current allocation)
 
-### 13-3. AI Insights (Future)
-- [ ] Claude API integration for portfolio analysis summaries
+### 13-3. AI Insights
+- [ ] Claude API integration — portfolio analysis natural language summary
 - [ ] News summarization (RSS + Claude)
-- [ ] Trading pattern analysis
 
 ### 13-4. DB Stability
-- [x] Automated daily pg_dump backup script (`scripts/backup-postgres.sh` + docker-compose cron)
+- [x] Automated daily pg_dump backup
 - [x] Retention policy (7 daily + 4 weekly + 3 monthly)
-- [x] Recovery procedure documentation (`docs/runbooks/restore.md`)
-- [x] Backup failure alerting — `backup-postgres.sh` 실패 시 `sync_logs` 기록 + health endpoint 노출
-- [x] Backup 상태 헬스체크 — `/api/v1/health`에 `last_backup_at` 포함 (볼륨 최신 dump mtime 기반)
+- [x] Recovery procedure documentation
+- [x] Backup failure alerting + health endpoint `last_backup_at`
 
 ---
 
 ## Milestone 13-5: Operational Stability & Data Integrity
 
-> Newly identified from cross-document analysis ([action plan 2026-03-19](../reviews/the-wealth-action-plan_20260319.md))
-
 ### 13-5a. Operational Stability
-- [x] Redis failure fallback — in-memory fallback or graceful degradation when Redis is down
-- [x] Scheduler failure alerting — alert on consecutive `kis_sync` / `daily_close_snapshot` failures (currently only logged to `sync_logs`)
-- [ ] Docker volume monitoring — track `pg_data`, `redis_data` disk usage with threshold alerts
+- [x] Redis failure fallback
+- [x] Scheduler failure alerting (consecutive failure tracking)
+- [ ] Docker volume disk monitoring — `pg_data`, `redis_data` 사용량 임계값(80%) 경고 + health endpoint `disk_usage` 필드
 - [ ] TLS certificate renewal check — HTTPS cert expiry monitoring
+- [ ] Price fetch failure rate tracking — threshold(30%) 초과 시 alert
 
 ### 13-5b. Data Integrity
-- [x] `price_snapshots` gap detection — health check for missing weekday snapshots
-- [x] Holdings quantity reconciliation — detect mismatch between transaction sum and current holdings
-- [x] Orphan record cleanup — periodic scan for residual data from deleted portfolios
+- [x] `price_snapshots` gap detection
+- [x] Holdings quantity reconciliation
+- [x] Orphan record cleanup
 
 ### 13-5c. KIS API Dependency Reduction
-- [x] Adaptive cache TTL — after market close, extend price cache TTL from 300s to 24h
-- [x] KIS API health check on startup — auto-switch to cache-only mode on failure
-- [ ] Price fetch failure rate tracking — alert when threshold exceeded (e.g., 30%)
+- [x] Adaptive cache TTL (after-market 24h extension)
+- [x] KIS API health check on startup + degraded mode
+- [ ] Price fetch failure rate tracking (13-5a와 연계)
 
 ---
 
 ## Milestone 14: Infrastructure & Observability (Remaining)
 
-> **배포 전략**: 외부 클라우드 서비스 없이 로컬 `docker compose` 운영 기준.
-> Vercel, Railway, Fly.io, Supabase, Upstash 등 외부 플랫폼은 로드맵에서 제외.
-
 ### 14-2. Monitoring & Observability
-- [ ] APM (Sentry) — frontend `@sentry/nextjs` + backend `sentry-sdk[fastapi]` (무료 플랜)
-- [ ] Metrics dashboard (API response time, error rate, KIS API calls, Redis hit rate)
+- [ ] Sentry 백엔드 통합 — `sentry-sdk[fastapi]` + `SENTRY_DSN` env (DSN은 사용자 수동 설정)
+- [ ] Sentry 프론트엔드 통합 — `@sentry/nextjs` + Error Boundary `captureException` 연동
+- [ ] API 응답시간 미들웨어 — `MetricsMiddleware`: `process_time` structlog 기록 + `X-Process-Time` 헤더
 
 ### 14-4. Security Enhancement
 - [ ] API key rotation automation
@@ -202,66 +187,50 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ## Milestone 15: User Experience & Extension
 
-### 15-1. Multi-broker Support
-- [ ] BrokerProvider interface abstraction
-- [ ] Connectors for other brokers (Mirae Asset, Kiwoom, NH)
-
-### 15-2. Social & Sharing
+### 15-2. Portfolio Tools
+- [ ] Breakeven visualization — HoldingsTable 미니 게이지 바 (52주 범위 내 현재가 + 평균 매입가 마커)
 - [ ] Portfolio performance sharing (anonymous link, stock name masking)
 - [ ] Screenshot sharing (html2canvas or satori)
-- [ ] Investment journal (trade reasons, memos)
-
-### 15-3. Mobile App
-- [ ] React Native or Capacitor native wrapper
-- [ ] Push notifications (FCM)
-- [ ] Biometric authentication (Face ID / fingerprint)
-- [ ] Widgets (iOS/Android) -- total assets, daily return
 
 ### 15-4. Data Export & Tax
-- [ ] Excel export (xlsx with formatting)
-- [ ] Tax calculator (domestic/overseas capital gains)
+- [ ] Excel export (xlsx with formatting, `openpyxl`)
+- [ ] Tax calculator (국내 대주주 양도세, 해외 250만원 공제 후 22%)
 - [ ] PDF report generation
 
 ---
 
 ## Milestone 16: Dev Tools & DX (Remaining)
 
-### 16-1. Claude Code Agent Extension
-- [ ] `visual-qa` agent
-- [ ] `perf-analyzer` agent (Lighthouse CI + bundle size)
-- [ ] `migration-reviewer` agent (Alembic safety check)
-
 ### 16-2. Test Infrastructure
+- [ ] MSW (Mock Service Worker) 설정 — 프론트엔드 테스트 API 모킹 인프라
+- [ ] Dashboard page component tests (TanStack Query mock + MSW)
+- [ ] Portfolio list/detail page tests
+- [ ] HoldingsTable unit tests (sort, PnLBadge color rules, overseas USD display)
 - [ ] SSE connection tests (connect/reconnect, off-hours deactivation)
-- [ ] Frontend test coverage expansion
-  - [x] `usePriceStream` hook tests (connect/reconnect/off-hours)
-  - [ ] Key page component tests (dashboard, portfolio list)
-  - [x] `lib/format.ts` utility tests
-  - [x] `store/auth.ts` Zustand store tests
 - [ ] Visual regression testing (Chromatic or Percy)
 - [ ] Load testing (Locust or k6)
 
 ### 16-3. Code Quality Tools
-- [ ] Storybook -- component catalog
-- [ ] Turborepo or Nx -- monorepo build caching
-- [x] Commitlint -- commit message format validation
+- [ ] Storybook 8 — component catalog (`PnLBadge`, `DayChangeBadge`, `AllocationDonut`, `HoldingsTable`)
+- [x] Commitlint — commit message format validation
 
 ---
 
 ## Priority Guide
 
-| Priority | Milestone | Reason |
-|----------|-----------|--------|
-| **P0** | 14-2 (Monitoring & APM) | Silent failures in production |
-| ~~**P0**~~ | ~~13-4 (DB Backup)~~ | Completed: daily backup + retention + restore docs + health endpoint |
-| ~~**P0**~~ | ~~14-1 (Server resilience)~~ | Completed: restart policies + runbooks |
-| ~~**P0**~~ | ~~Test coverage 80%+~~ | Completed: 90% (537 tests), health/internal modules need catch-up |
-| **P1** | 16-2 (Frontend test coverage) | Backend 90% vs frontend minimal |
-| **P1** | 11-2 (Analytics enhancement) | Differentiation feature |
-| **P1** | 12-4 (Alert notification -- in-app/email) | SSE condition check done, no user-visible notification |
-| ~~**P1**~~ | ~~11-5 (TanStack Query)~~ | Completed: QueryClientProvider, dashboard/portfolio migration |
-| **P2** | 13 (Data pipeline) | Analytics prerequisite |
-| **P2** | 14-4 (Security) | Production readiness |
-| **P2** | 13-5 (Operational stability remaining) | Docker volume monitoring, TLS cert check |
-| **P3** | 15 (Extensions) | Long-term roadmap |
-| **P3** | 16 (Dev tools) | DX improvement |
+| Priority | Item | Reason |
+|----------|------|--------|
+| **P0** | 0-2 (users 레거시 컬럼 제거) | DB 스키마 정리, 안전한 migration |
+| **P0** | 14-2 (Sentry APM) | 프로덕션 silent failure 감지 없음 |
+| **P1** | 16-2 (Frontend 테스트 MSW + 컴포넌트 테스트) | 백엔드 93% 대비 프론트 거의 0% |
+| **P1** | 12-4 (알림 센터) | SSE 조건 체크는 됨, 사용자 알림 없음 |
+| **P1** | 11-2 (Analytics: 기간 필터 + 지표) | 핵심 차별화 기능 |
+| **P1** | 13-5a (Disk monitoring) | 운영 안정성 |
+| **P2** | 11-2 (Benchmark overlay) | 13-1 외부 데이터 수집 선행 필요 |
+| **P2** | 11-3 (Target asset widget) | 사용자 가치 높음, 구현 간단 |
+| **P2** | 11-5 (Trade memo) | DB 컬럼 1개 + UI |
+| **P2** | 13-2 (분석 엔진: TWR/MWR, 리스크 지표) | price_snapshots 데이터 누적 전제 |
+| **P2** | 15-4 (Excel export) | CSV 이미 있음, xlsx는 추가 가치 |
+| **P3** | 13-3 (Claude API 인사이트) | 재미있지만 API 비용 발생 |
+| **P3** | 16-3 (Storybook) | DX 개선 |
+| **P3** | 15-4 (세금 계산기) | 세법 복잡도 높음 |
