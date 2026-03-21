@@ -27,4 +27,4 @@ Items requiring user action.
 - [x] Choose cloud storage provider (S3 / GCS / R2) and create bucket — Cloudflare R2 선택
 - [x] Add `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` to `backend/.env`
 - [x] Configure backup container env vars and enable R2 upload in backup script
-- [ ] Test restore from backup on staging environment
+- [x] Test restore from backup on staging environment — 2026-03-21 검증 완료 (users 2, portfolios 6, sync_logs 408)

@@ -75,6 +75,8 @@ services:
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -84,10 +86,8 @@ services:
       KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
       KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
       KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-3}
-      R2_ENDPOINT: ${R2_ENDPOINT:-}
-      R2_BUCKET: ${R2_BUCKET:-the-wealth-backup}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      # R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+      # are loaded from env_file (backend/.env) — do not override here
     volumes:
       - postgres_backups:/backups
       - ./scripts/backup-postgres.sh:/usr/local/bin/backup-postgres.sh:ro
