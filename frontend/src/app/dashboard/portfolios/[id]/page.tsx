@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Search, Trash2, PackageOpen, Download } from "lucide-react";
+import { Plus, Search, Trash2, PackageOpen, Download, History } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
@@ -23,6 +23,17 @@ interface TxnRow {
   traded_at: string;
 }
 
+interface KisTxnRow {
+  ticker: string;
+  name: string;
+  type: string;
+  quantity: string;
+  price: string;
+  total_amount: string;
+  traded_at: string;
+  market: string;
+}
+
 interface Holding {
   id: number;
   ticker: string;
@@ -31,8 +42,10 @@ interface Holding {
   avg_price: string;
   current_price: string | null;
   market_value: string | null;
+  market_value_krw: string | null;
   pnl_amount: string | null;
   pnl_rate: string | null;
+  exchange_rate: string | null;
   currency?: "KRW" | "USD";
 }
 
@@ -53,6 +66,21 @@ function transactionsKey(portfolioId: number) {
   return ["portfolios", portfolioId, "transactions"] as const;
 }
 
+function kisTransactionsKey(portfolioId: number, fromDate: string, toDate: string) {
+  return ["portfolios", portfolioId, "kis-transactions", fromDate, toDate] as const;
+}
+
+function toYYYYMMDD(date: Date): string {
+  return date.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+function formatUSD(value: string | number | null | undefined): string {
+  if (value == null) return "—";
+  const num = Number(value);
+  if (isNaN(num)) return "—";
+  return `$${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function PortfolioDetailPage() {
   const { id } = useParams<{ id: string }>();
   const portfolioId = Number(id);
@@ -66,6 +94,14 @@ export default function PortfolioDetailPage() {
   const [showTxnForm, setShowTxnForm] = useState(false);
   const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "", traded_at: "" });
   const [deleteTxnId, setDeleteTxnId] = useState<number | null>(null);
+
+  // KIS 거래 이력 날짜 범위 (기본: 최근 1개월)
+  const today = new Date();
+  const oneMonthAgo = new Date(today);
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const [kisFromDate, setKisFromDate] = useState(oneMonthAgo.toISOString().slice(0, 10));
+  const [kisToDate, setKisToDate] = useState(today.toISOString().slice(0, 10));
+  const [showKisHistory, setShowKisHistory] = useState(false);
 
   const { data: holdings = [], isLoading, isError, error, refetch } = useQuery<Holding[]>({
     queryKey: holdingsKey(portfolioId),
@@ -85,6 +121,20 @@ export default function PortfolioDetailPage() {
         return [];
       }
     },
+  });
+
+  const { data: kisTransactions, isLoading: kisLoading, refetch: kisRefetch } = useQuery<KisTxnRow[]>({
+    queryKey: kisTransactionsKey(portfolioId, kisFromDate, kisToDate),
+    queryFn: async () => {
+      const { data } = await api.get<KisTxnRow[]>(`/portfolios/${portfolioId}/kis-transactions`, {
+        params: {
+          from_date: toYYYYMMDD(new Date(kisFromDate)),
+          to_date: toYYYYMMDD(new Date(kisToDate)),
+        },
+      });
+      return data;
+    },
+    enabled: showKisHistory,
   });
 
   const addHoldingMutation = useMutation({
@@ -236,73 +286,107 @@ export default function PortfolioDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {["종목", "수량", "평균단가", "현재가", "손익", ""].map((h) => (
+                {["종목", "수량", "평균단가", "현재가", "손익 (KRW)", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {holdings.map((h) => (
-                <tr key={h.id} className="border-t hover:bg-muted/20">
-                  {editId === h.id ? (
-                    <>
-                      <td className="px-4 py-2">
-                        <div className="font-medium">{h.name}</div>
-                        <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                      </td>
-                      <td className="px-4 py-2">
-                        <Input
-                          type="number"
-                          value={editForm.quantity}
-                          onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
-                          className="w-24 h-8"
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <Input
-                          type="number"
-                          value={editForm.avg_price}
-                          onChange={(e) => setEditForm((f) => ({ ...f, avg_price: e.target.value }))}
-                          className="w-28 h-8"
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={editHoldingMutation.isPending}>저장</Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditId(null)}>취소</Button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{h.name}</div>
-                        <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">{formatNumber(h.quantity)}</td>
-                      <td className="px-4 py-3 tabular-nums">{formatPrice(h.avg_price, h.currency ?? "KRW")}</td>
-                      <td className="px-4 py-3 tabular-nums">{h.current_price ? formatPrice(h.current_price, h.currency ?? "KRW") : <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-4 py-3">{h.pnl_amount != null ? <PnLBadge value={h.pnl_amount} /> : <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => { setEditId(h.id); setEditForm({ quantity: h.quantity, avg_price: h.avg_price }); }}
-                            className="rounded border px-3 py-1 text-xs hover:bg-muted"
-                          >
-                            수정
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(h.id)}
-                            className="rounded border px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
+              {holdings.map((h) => {
+                const isUSD = h.currency === "USD";
+                return (
+                  <tr key={h.id} className="border-t hover:bg-muted/20">
+                    {editId === h.id ? (
+                      <>
+                        <td className="px-4 py-2">
+                          <div className="font-medium">{h.name}</div>
+                          <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                        </td>
+                        <td className="px-4 py-2">
+                          <Input
+                            type="number"
+                            value={editForm.quantity}
+                            onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
+                            className="w-24 h-8"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <Input
+                            type="number"
+                            value={editForm.avg_price}
+                            onChange={(e) => setEditForm((f) => ({ ...f, avg_price: e.target.value }))}
+                            className="w-28 h-8"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={editHoldingMutation.isPending}>저장</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditId(null)}>취소</Button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{h.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {h.ticker}
+                            {isUSD && <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700 dark:bg-blue-900 dark:text-blue-300">USD</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">{formatNumber(h.quantity)}</td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {isUSD ? formatUSD(h.avg_price) : formatPrice(h.avg_price, "KRW")}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {h.current_price ? (
+                            <div>
+                              <span>{isUSD ? formatUSD(h.current_price) : formatPrice(h.current_price, "KRW")}</span>
+                              {isUSD && h.exchange_rate && (
+                                <div className="text-xs text-muted-foreground">
+                                  ≈ {formatKRW(String(Number(h.current_price) * Number(h.exchange_rate)))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {h.pnl_amount != null ? (
+                            <div>
+                              <PnLBadge value={h.pnl_amount} />
+                              {h.pnl_rate != null && (
+                                <div className="text-xs text-muted-foreground">
+                                  {Number(h.pnl_rate) >= 0 ? "+" : ""}{Number(h.pnl_rate).toFixed(2)}%
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setEditId(h.id); setEditForm({ quantity: h.quantity, avg_price: h.avg_price }); }}
+                              className="rounded border px-3 py-1 text-xs hover:bg-muted"
+                            >
+                              수정
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(h.id)}
+                              className="rounded border px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
 
               {/* 종목 추가 폼 행 */}
               {addForm && (
@@ -390,7 +474,7 @@ export default function PortfolioDetailPage() {
         </div>
       )}
 
-      {/* Transaction History */}
+      {/* 수동 거래 이력 (DB) */}
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">거래 이력</h2>
@@ -434,45 +518,138 @@ export default function PortfolioDetailPage() {
           </div>
         )}
 
-      {transactions.length > 0 && (
-        <>
-          <TransactionChart transactions={transactions} />
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  {["일시", "유형", "종목", "수량", "단가", ""].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((t) => (
-                  <tr key={t.id} className="border-t">
-                    <td className="px-4 py-2 text-xs text-muted-foreground">{new Date(t.traded_at).toLocaleString("ko-KR")}</td>
-                    <td className="px-4 py-2">
-                      <span className={`text-xs font-semibold ${t.type === "BUY" ? "text-[#e31f26]" : "text-[#1a56db]"}`}>
-                        {t.type === "BUY" ? "매수" : "매도"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs">{t.ticker}</td>
-                    <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
-                    <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
-                    <td className="px-4 py-2">
-                      <button
-                        onClick={() => setDeleteTxnId(t.id)}
-                        className="rounded border px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </td>
+        {transactions.length > 0 && (
+          <>
+            <TransactionChart transactions={transactions} />
+            <div className="overflow-x-auto rounded-xl border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    {["일시", "유형", "종목", "수량", "단가", ""].map((h) => (
+                      <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {transactions.map((t) => (
+                    <tr key={t.id} className="border-t">
+                      <td className="px-4 py-2 text-xs text-muted-foreground">{new Date(t.traded_at).toLocaleString("ko-KR")}</td>
+                      <td className="px-4 py-2">
+                        <span className={`text-xs font-semibold ${t.type === "BUY" ? "text-[#e31f26]" : "text-[#1a56db]"}`}>
+                          {t.type === "BUY" ? "매수" : "매도"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs">{t.ticker}</td>
+                      <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
+                      <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => setDeleteTxnId(t.id)}
+                          className="rounded border px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* KIS API 체결 내역 */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-base font-semibold">KIS 체결 내역</h2>
           </div>
-        </>
-      )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowKisHistory((v) => !v)}
+          >
+            {showKisHistory ? "접기" : "불러오기"}
+          </Button>
+        </div>
+
+        {showKisHistory && (
+          <>
+            <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">시작일</label>
+                <Input
+                  type="date"
+                  value={kisFromDate}
+                  onChange={(e) => setKisFromDate(e.target.value)}
+                  className="h-8 w-36"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">종료일</label>
+                <Input
+                  type="date"
+                  value={kisToDate}
+                  onChange={(e) => setKisToDate(e.target.value)}
+                  className="h-8 w-36"
+                />
+              </div>
+              <Button size="sm" onClick={() => kisRefetch()} disabled={kisLoading}>
+                {kisLoading ? "조회 중..." : "조회"}
+              </Button>
+            </div>
+
+            {kisLoading ? (
+              <TableSkeleton rows={3} columns={6} />
+            ) : !kisTransactions || kisTransactions.length === 0 ? (
+              <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
+                해당 기간에 체결 내역이 없습니다.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {["일시", "유형", "종목", "수량", "단가", "거래금액"].map((h) => (
+                        <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kisTransactions.map((t, i) => {
+                      const isOverseas = !["domestic"].includes(t.market) && t.market !== "";
+                      return (
+                        <tr key={i} className="border-t hover:bg-muted/20">
+                          <td className="px-4 py-2 text-xs text-muted-foreground">
+                            {new Date(t.traded_at).toLocaleString("ko-KR")}
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className={`text-xs font-semibold ${t.type === "BUY" ? "text-[#e31f26]" : "text-[#1a56db]"}`}>
+                              {t.type === "BUY" ? "매수" : "매도"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="font-mono text-xs">{t.ticker}</div>
+                            {t.name && <div className="text-xs text-muted-foreground">{t.name}</div>}
+                          </td>
+                          <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
+                          <td className="px-4 py-2 tabular-nums">
+                            {isOverseas ? formatUSD(t.price) : formatKRW(t.price)}
+                          </td>
+                          <td className="px-4 py-2 tabular-nums">
+                            {isOverseas ? formatUSD(t.total_amount) : formatKRW(t.total_amount)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <StockSearchDialog

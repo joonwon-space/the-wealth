@@ -61,10 +61,10 @@ Current actionable work is in `tasks.md`.
 
 ## P0 — DB 정리
 
-### 0-2. users 테이블 레거시 KIS 컬럼 제거
+### 0-2. users 테이블 레거시 KIS 컬럼 제거 ✅
 `kis_accounts` 테이블로 이관 완료된 컬럼들이 `users`에 잔존.
-- [ ] Alembic migration: `kis_app_key_enc`, `kis_app_secret_enc`, `kis_account_no`, `kis_acnt_prdt_cd` drop
-- [ ] migration 실행 전 데이터 존재 여부 확인 (`backend/app/models/user.py` 정리)
+- [x] Alembic migration: `kis_app_key_enc`, `kis_app_secret_enc`, `kis_account_no`, `kis_acnt_prdt_cd` drop (`c3d4e5f6a7b8_drop_legacy_user_kis_columns.py`)
+- [x] `backend/app/models/user.py` 정리 완료 (레거시 컬럼 없음)
 
 ---
 
@@ -174,8 +174,8 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ## Milestone 14: Infrastructure & Observability (Remaining)
 
 ### 14-2. Monitoring & Observability
-- [ ] Sentry 백엔드 통합 — `sentry-sdk[fastapi]` + `SENTRY_DSN` env (DSN은 사용자 수동 설정)
-- [ ] Sentry 프론트엔드 통합 — `@sentry/nextjs` + Error Boundary `captureException` 연동
+- [x] Sentry 백엔드 통합 — `sentry-sdk[fastapi]` + `SENTRY_DSN` env (완료, 수신 확인됨)
+- [x] Sentry 프론트엔드 통합 — `@sentry/nextjs` + Error Boundary `captureException` 연동 (완료)
 - [ ] API 응답시간 미들웨어 — `MetricsMiddleware`: `process_time` structlog 기록 + `X-Process-Time` 헤더
 
 ### 14-4. Security Enhancement
@@ -220,8 +220,8 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 | Priority | Item | Reason |
 |----------|------|--------|
-| **P0** | 0-2 (users 레거시 컬럼 제거) | DB 스키마 정리, 안전한 migration |
-| **P0** | 14-2 (Sentry APM) | 프로덕션 silent failure 감지 없음 |
+| ~~**P0**~~ | ~~0-2 (users 레거시 컬럼 제거)~~ | ✅ 완료 |
+| ~~**P0**~~ | ~~14-2 (Sentry APM)~~ | ✅ 완료 (백엔드+프론트 모두) |
 | **P1** | 16-2 (Frontend 테스트 MSW + 컴포넌트 테스트) | 백엔드 93% 대비 프론트 거의 0% |
 | **P1** | 12-4 (알림 센터) | SSE 조건 체크는 됨, 사용자 알림 없음 |
 | **P1** | 11-2 (Analytics: 기간 필터 + 지표) | 핵심 차별화 기능 |

@@ -26,6 +26,15 @@ class PortfolioCreate(BaseModel):
     currency: str = "KRW"
 
 
+class ReorderItem(BaseModel):
+    id: int
+    display_order: int
+
+
+class ReorderRequest(BaseModel):
+    items: list[ReorderItem] = Field(min_length=1)
+
+
 class PortfolioResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -33,6 +42,7 @@ class PortfolioResponse(BaseModel):
     user_id: int
     name: str
     currency: str
+    display_order: int = 0
     created_at: datetime
     holdings_count: int = 0
     total_invested: Decimal = Decimal("0")

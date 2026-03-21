@@ -2,13 +2,27 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Plus, Trash2, Wallet } from "lucide-react";
+import { GripVertical, Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/api";
 import { formatKRW } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -21,6 +35,7 @@ interface Portfolio {
   id: number;
   name: string;
   currency: string;
+  display_order: number;
   created_at: string;
   holdings_count: number;
   total_invested: string;
@@ -31,6 +46,128 @@ const PORTFOLIOS_QUERY_KEY = ["portfolios"] as const;
 async function fetchPortfolios(): Promise<Portfolio[]> {
   const { data } = await api.get<Portfolio[]>("/portfolios");
   return data;
+}
+
+function SortablePortfolioRow({
+  portfolio,
+  editingId,
+  editName,
+  onEditStart,
+  onEditChange,
+  onEditSave,
+  onEditCancel,
+  onDelete,
+  renamePending,
+}: {
+  portfolio: Portfolio;
+  editingId: number | null;
+  editName: string;
+  onEditStart: (id: number, name: string) => void;
+  onEditChange: (name: string) => void;
+  onEditSave: (id: number) => void;
+  onEditCancel: () => void;
+  onDelete: (id: number) => void;
+  renamePending: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: portfolio.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const isEditing = editingId === portfolio.id;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:bg-muted/30 transition-colors"
+    >
+      {/* 드래그 핸들 */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"
+        aria-label="순서 변경"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      {/* 아이콘 */}
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+        <Wallet className="h-4 w-4 text-primary" />
+      </div>
+
+      {/* 이름 + 통화 */}
+      <div className="flex-1 min-w-0">
+        {isEditing ? (
+          <div className="flex items-center gap-1">
+            <Input
+              value={editName}
+              onChange={(e) => onEditChange(e.target.value)}
+              className="h-7 w-40 text-sm"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onEditSave(portfolio.id);
+                if (e.key === "Escape") onEditCancel();
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={() => onEditSave(portfolio.id)}
+              className="h-7 px-2 text-xs"
+              disabled={renamePending}
+            >
+              OK
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onEditCancel}
+              className="h-7 px-2 text-xs"
+            >
+              취소
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/dashboard/portfolios/${portfolio.id}`}
+              className="font-semibold truncate hover:underline"
+            >
+              {portfolio.name}
+            </Link>
+            <button
+              onClick={() => onEditStart(portfolio.id, portfolio.name)}
+              className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground p-1"
+              aria-label={`${portfolio.name} 이름 편집`}
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">{portfolio.currency}</p>
+      </div>
+
+      {/* 통계 */}
+      <div className="hidden sm:flex flex-col items-end text-xs text-muted-foreground tabular-nums shrink-0">
+        <span>{portfolio.holdings_count}개 종목</span>
+        <span>{formatKRW(portfolio.total_invested)}</span>
+      </div>
+
+      {/* 삭제 */}
+      <button
+        onClick={() => onDelete(portfolio.id)}
+        aria-label={`${portfolio.name} 삭제`}
+        className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
 }
 
 export default function PortfoliosPage() {
@@ -64,9 +201,30 @@ export default function PortfoliosPage() {
     },
   });
 
-  const handleRename = (id: number) => {
-    if (!editName.trim()) return;
-    renameMutation.mutate({ id, name: editName });
+  const reorderMutation = useMutation({
+    mutationFn: (items: { id: number; display_order: number }[]) =>
+      api.patch("/portfolios/reorder", { items }),
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = portfolios.findIndex((p) => p.id === active.id);
+    const newIndex = portfolios.findIndex((p) => p.id === over.id);
+    const reordered = arrayMove(portfolios, oldIndex, newIndex);
+
+    // Optimistic update
+    queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, reordered);
+
+    // Persist to backend
+    reorderMutation.mutate(
+      reordered.map((p, i) => ({ id: p.id, display_order: i }))
+    );
   };
 
   const handleDelete = (id: number) => {
@@ -85,12 +243,16 @@ export default function PortfoliosPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-xl border p-5 space-y-3">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-32" />
+            <div key={i} className="flex items-center gap-3 rounded-xl border px-4 py-3">
+              <Skeleton className="h-4 w-4" />
+              <Skeleton className="h-9 w-9 rounded-lg" />
+              <div className="flex-1 space-y-1">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-12" />
+              </div>
+              <Skeleton className="h-4 w-20" />
             </div>
           ))}
         </div>
@@ -98,62 +260,48 @@ export default function PortfoliosPage() {
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <Wallet className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="font-medium">포트폴리오가 없습니다</p>
-          <p className="mt-1 text-sm text-muted-foreground">새 포트폴리오를 만들어 종목을 추가하세요.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            새 포트폴리오를 만들어 종목을 추가하세요.
+          </p>
           <Button onClick={() => setShowModal(true)} className="mt-4 gap-2">
             <Plus className="h-4 w-4" />
             새 포트폴리오
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {portfolios.map((p) => (
-            <Card key={p.id} className="group relative hover:shadow-md transition-shadow">
-              <CardContent className="p-5">
-                <Link href={`/dashboard/portfolios/${p.id}`} className="block">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Wallet className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      {editingId === p.id ? (
-                        <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-6 w-28 text-sm" autoFocus
-                            onKeyDown={(e) => { if (e.key === "Enter") handleRename(p.id); if (e.key === "Escape") setEditingId(null); }}
-                          />
-                          <Button size="sm" onClick={() => handleRename(p.id)} className="h-6 px-2 text-xs" disabled={renameMutation.isPending}>OK</Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <p className="font-semibold">{p.name}</p>
-                          <button
-                            onClick={(e) => { e.preventDefault(); setEditingId(p.id); setEditName(p.name); }}
-                            className="text-muted-foreground/40 hover:text-muted-foreground min-w-[44px] min-h-[44px] flex items-center justify-center"
-                            aria-label={`${p.name} 이름 편집`}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground">{p.currency}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{p.holdings_count}개 종목</span>
-                    <span className="tabular-nums">{formatKRW(p.total_invested)}</span>
-                  </div>
-                </Link>
-                <button
-                  onClick={() => handleDelete(p.id)}
-                  disabled={deleteMutation.isPending}
-                  aria-label={`${p.name} 포트폴리오 삭제`}
-                  className="absolute right-3 top-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={portfolios.map((p) => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {portfolios.map((p) => (
+                <SortablePortfolioRow
+                  key={p.id}
+                  portfolio={p}
+                  editingId={editingId}
+                  editName={editName}
+                  onEditStart={(id, name) => {
+                    setEditingId(id);
+                    setEditName(name);
+                  }}
+                  onEditChange={setEditName}
+                  onEditSave={(id) => {
+                    if (!editName.trim()) return;
+                    renameMutation.mutate({ id, name: editName });
+                  }}
+                  onEditCancel={() => setEditingId(null)}
+                  onDelete={handleDelete}
+                  renamePending={renameMutation.isPending}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <CreatePortfolioDialog

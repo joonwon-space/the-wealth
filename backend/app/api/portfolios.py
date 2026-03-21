@@ -15,13 +15,20 @@ from app.models.portfolio import Portfolio
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.core.logging import get_logger
-from app.services.kis_price import fetch_prices_parallel
+import asyncio
+import httpx
+from app.services.kis_price import (
+    fetch_prices_parallel,
+    fetch_overseas_price_detail,
+    fetch_usd_krw_rate,
+)
 from app.schemas.portfolio import (
     HoldingCreate,
     HoldingResponse,
     HoldingUpdate,
     PortfolioCreate,
     PortfolioResponse,
+    ReorderRequest,
     TransactionCreate,
     TransactionResponse,
 )
@@ -71,6 +78,7 @@ async def list_portfolios(
         .outerjoin(Holding, Holding.portfolio_id == Portfolio.id)
         .where(Portfolio.user_id == current_user.id)
         .group_by(Portfolio.id, KisAccount.label)
+        .order_by(Portfolio.display_order.asc(), Portfolio.created_at.asc())
     )
     result = await db.execute(stmt)
     rows = result.all()
@@ -81,6 +89,7 @@ async def list_portfolios(
             "user_id": p.user_id,
             "name": kis_label if kis_label else p.name,
             "currency": p.currency,
+            "display_order": p.display_order,
             "created_at": p.created_at,
             "holdings_count": count,
             "total_invested": invested,
@@ -95,13 +104,44 @@ async def create_portfolio(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Portfolio:
+    # 기존 포트폴리오 최대 display_order + 1 로 새 포트폴리오 순서 설정
+    max_order_result = await db.execute(
+        select(func.max(Portfolio.display_order)).where(Portfolio.user_id == current_user.id)
+    )
+    max_order = max_order_result.scalar() or -1
     portfolio = Portfolio(
-        user_id=current_user.id, name=body.name, currency=body.currency
+        user_id=current_user.id,
+        name=body.name,
+        currency=body.currency,
+        display_order=max_order + 1,
     )
     db.add(portfolio)
     await db.commit()
     await db.refresh(portfolio)
     return portfolio
+
+
+@router.patch("/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_portfolios(
+    body: ReorderRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """포트폴리오 순서 일괄 업데이트. IDOR 방지: 본인 포트폴리오만 허용."""
+    ids = [item.id for item in body.items]
+    result = await db.execute(
+        select(Portfolio).where(Portfolio.id.in_(ids), Portfolio.user_id == current_user.id)
+    )
+    owned = {p.id for p in result.scalars().all()}
+    if owned != set(ids):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    for item in body.items:
+        await db.execute(
+            Portfolio.__table__.update()
+            .where(Portfolio.id == item.id)
+            .values(display_order=item.display_order)
+        )
+    await db.commit()
 
 
 @router.patch("/{portfolio_id}", response_model=PortfolioResponse)
@@ -204,17 +244,57 @@ async def list_holdings_with_prices(
     if not holdings:
         return []
 
-    # Fetch prices via linked KIS account (국내주식만 — 해외주식은 dashboard API 사용)
+    # ticker → market code 매핑 (해외주식만)
+    _MARKET_MAP = {
+        "NASD": "NAS", "NYSE": "NYS", "AMEX": "AMS",
+        "SEHK": "HKS", "TKSE": "TSE", "SHAA": "SHS",
+        "SZAA": "SZS", "HASE": "HNX", "VNSE": "HSX",
+    }
+    overseas_holdings = [h for h in holdings if not _is_domestic(h.ticker)]
+    ticker_to_market = {
+        h.ticker: _MARKET_MAP.get(h.market or "", h.market or "NAS")
+        for h in overseas_holdings
+    }
+
     prices: dict[str, Decimal | None] = {}
+    exchange_rate = Decimal("1450")
+
     if portfolio.kis_account_id:
         acct = await db.get(KisAccount, portfolio.kis_account_id)
         if acct:
             try:
                 app_key = decrypt(acct.app_key_enc)
                 app_secret = decrypt(acct.app_secret_enc)
-                domestic_tickers = list({h.ticker for h in holdings if _is_domestic(h.ticker)})
-                if domestic_tickers:
-                    prices = await fetch_prices_parallel(domestic_tickers, app_key, app_secret)
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    # 국내주식 현재가
+                    domestic_tickers = list({h.ticker for h in holdings if _is_domestic(h.ticker)})
+                    domestic_task = (
+                        fetch_prices_parallel(domestic_tickers, app_key, app_secret)
+                        if domestic_tickers else asyncio.sleep(0, result={})
+                    )
+                    # 해외주식 현재가 (ticker별 market 코드 적용)
+                    overseas_tasks = [
+                        fetch_overseas_price_detail(t, ticker_to_market[t], app_key, app_secret, client)
+                        for t in {h.ticker for h in overseas_holdings}
+                    ]
+                    overseas_tickers = list({h.ticker for h in overseas_holdings})
+                    fx_task = (
+                        fetch_usd_krw_rate(app_key, app_secret, client)
+                        if overseas_holdings else asyncio.sleep(0, result=Decimal("1450"))
+                    )
+                    domestic_prices, *overseas_results, fx = await asyncio.gather(
+                        domestic_task, *overseas_tasks, fx_task, return_exceptions=True
+                    )
+
+                if isinstance(domestic_prices, dict):
+                    prices.update(domestic_prices)
+                if isinstance(fx, Decimal):
+                    exchange_rate = fx
+
+                for ticker, detail in zip(overseas_tickers, overseas_results):
+                    if detail and not isinstance(detail, Exception):
+                        prices[ticker] = detail.current
+
             except Exception as e:
                 logger.warning(
                     "Failed to fetch prices for portfolio %d: %s", portfolio_id, e
@@ -222,14 +302,35 @@ async def list_holdings_with_prices(
 
     items = []
     for h in holdings:
+        is_overseas = not _is_domestic(h.ticker)
         cp = prices.get(h.ticker)
         invested = h.quantity * h.avg_price
-        mv = h.quantity * cp if cp is not None else None
-        pnl = mv - invested if mv is not None else None
-        pnl_rate = (pnl / invested * 100) if pnl is not None and invested else None
-        currency = "KRW" if _is_domestic(h.ticker) else "USD"
-        items.append(
-            {
+
+        if is_overseas:
+            invested_krw = invested * exchange_rate
+            mv_usd = h.quantity * cp if cp is not None else None
+            mv_krw = mv_usd * exchange_rate if mv_usd is not None else None
+            pnl_krw = mv_krw - invested_krw if mv_krw is not None else None
+            pnl_rate = (pnl_krw / invested_krw * 100) if pnl_krw is not None and invested_krw else None
+            items.append({
+                "id": h.id,
+                "ticker": h.ticker,
+                "name": h.name,
+                "quantity": str(h.quantity),
+                "avg_price": str(h.avg_price),
+                "current_price": str(cp) if cp is not None else None,
+                "market_value": str(mv_usd) if mv_usd is not None else None,
+                "market_value_krw": str(mv_krw) if mv_krw is not None else None,
+                "pnl_amount": str(pnl_krw) if pnl_krw is not None else None,
+                "pnl_rate": str(pnl_rate) if pnl_rate is not None else None,
+                "exchange_rate": str(exchange_rate),
+                "currency": "USD",
+            })
+        else:
+            mv = h.quantity * cp if cp is not None else None
+            pnl = mv - invested if mv is not None else None
+            pnl_rate = (pnl / invested * 100) if pnl is not None and invested else None
+            items.append({
                 "id": h.id,
                 "ticker": h.ticker,
                 "name": h.name,
@@ -237,11 +338,12 @@ async def list_holdings_with_prices(
                 "avg_price": str(h.avg_price),
                 "current_price": str(cp) if cp is not None else None,
                 "market_value": str(mv) if mv is not None else None,
+                "market_value_krw": str(mv) if mv is not None else None,
                 "pnl_amount": str(pnl) if pnl is not None else None,
                 "pnl_rate": str(pnl_rate) if pnl_rate is not None else None,
-                "currency": currency,
-            }
-        )
+                "exchange_rate": None,
+                "currency": "KRW",
+            })
     return items
 
 
@@ -409,4 +511,53 @@ async def delete_transaction(
     txn.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
+
+@router.get("/{portfolio_id}/kis-transactions")
+async def list_kis_transactions(
+    portfolio_id: int,
+    from_date: str = Query(..., pattern=r"^\d{8}$", description="YYYYMMDD"),
+    to_date: str = Query(..., pattern=r"^\d{8}$", description="YYYYMMDD"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """KIS API에서 체결 내역 조회 (국내 + 해외). KIS 계정 연결 필요."""
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+    _assert_portfolio_owner(portfolio, current_user)
+
+    if not portfolio.kis_account_id:
+        return []
+
+    acct = await db.get(KisAccount, portfolio.kis_account_id)
+    if not acct:
+        return []
+
+    from app.services.kis_transaction import fetch_domestic_transactions, fetch_overseas_transactions
+
+    try:
+        app_key = decrypt(acct.app_key_enc)
+        app_secret = decrypt(acct.app_secret_enc)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            domestic, overseas = await asyncio.gather(
+                fetch_domestic_transactions(
+                    app_key, app_secret, acct.account_no, acct.acnt_prdt_cd,
+                    from_date, to_date, client,
+                ),
+                fetch_overseas_transactions(
+                    app_key, app_secret, acct.account_no, acct.acnt_prdt_cd,
+                    from_date, to_date, client,
+                ),
+                return_exceptions=True,
+            )
+        results: list[dict] = []
+        if isinstance(domestic, list):
+            results.extend(domestic)
+        if isinstance(overseas, list):
+            results.extend(overseas)
+        results.sort(key=lambda x: x.get("traded_at", ""), reverse=True)
+        return results
+    except Exception as e:
+        logger.warning("KIS transaction fetch failed for portfolio %d: %s", portfolio_id, e)
+        return []
 
