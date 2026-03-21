@@ -74,7 +74,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- Test coverage recovery (90% -> 93%+)
 
-- [ ] **test: health.py router 테스트 추가** (47% -> 85%+)
+- [x] **test: health.py router 테스트 추가** (47% -> 85%+)
   - `/api/v1/health` 엔드포인트의 DB/Redis/KIS/backup 상태 응답 테스트
   - 파일: `backend/tests/test_health.py`
 
