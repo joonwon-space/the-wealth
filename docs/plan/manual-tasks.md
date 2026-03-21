@@ -17,8 +17,8 @@ Items requiring user action.
 - [ ] **섹터 배분 ETF 매핑**: ETF 종목(381170 TIGER미국테크, 481190 TIGER미국S&P500 등)에 대한 `sector_map` 확장 -- 실제 기초지수 기반으로 분류 결정 필요
 
 ## P0 -- Monitoring & APM (Milestone 14-2)
-- [ ] Create Sentry account and get DSN for frontend and backend
-- [ ] Add `SENTRY_DSN` to `backend/.env` and `NEXT_PUBLIC_SENTRY_DSN` to frontend env
+- [x] Create Sentry account and get DSN for frontend and backend
+- [x] Add `SENTRY_DSN` to `backend/.env` and `NEXT_PUBLIC_SENTRY_DSN` to frontend env
 - [ ] Set up UptimeRobot or Betterstack monitors for the API health endpoint
 - [ ] Configure alert channels (email / Slack / Telegram) in chosen monitoring tool
 - [ ] Verify Sentry is receiving errors after deployment

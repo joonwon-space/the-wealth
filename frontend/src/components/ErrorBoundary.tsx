@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, ErrorInfo, ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -31,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // Log to console in development; in production plug in an error reporter
+    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
     if (process.env.NODE_ENV !== "production") {
       console.error("[ErrorBoundary] Caught error:", error, info.componentStack);
     }

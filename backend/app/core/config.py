@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Set to a strong random value in production; leave empty to disable the endpoints.
     INTERNAL_SECRET: str = ""
 
+    # Sentry DSN for error tracking. Leave empty to disable.
+    SENTRY_DSN: str = ""
+
     @model_validator(mode="after")
     def reject_placeholder_secrets(self) -> "Settings":
         if self.JWT_SECRET_KEY in _PLACEHOLDER_SECRETS:
