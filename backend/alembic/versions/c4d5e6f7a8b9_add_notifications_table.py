@@ -1,6 +1,6 @@
 """add notifications table
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: c4d5e6f7a8b9
 Revises: f1a2b3c4d5e6
 Create Date: 2026-03-22 00:00:00.000000
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1b2c3d4e5f6"
+revision: str = "c4d5e6f7a8b9"
 down_revision: str = "f1a2b3c4d5e6"
 branch_labels: Sequence[str] | None = None
 depends_on: Sequence[str] | None = None
