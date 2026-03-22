@@ -100,7 +100,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 16-2: Frontend 테스트 인프라 (MSW + 컴포넌트 테스트)
 
-- [ ] **test: MSW 2.x 설치 + 핸들러 설정**
+- [x] **test: MSW 2.x 설치 + 핸들러 설정**
   - `npm install msw --save-dev` (frontend)
   - `src/test/handlers.ts` — dashboard/summary, analytics/metrics 핸들러
   - `src/test/server.ts` — setupServer + setupWorker
