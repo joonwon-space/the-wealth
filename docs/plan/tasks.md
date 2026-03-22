@@ -131,7 +131,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 14-2: MetricsMiddleware
 
-- [ ] **feat: API 응답시간 미들웨어**
+- [x] **feat: API 응답시간 미들웨어**
   - `backend/app/middleware/metrics.py` — `MetricsMiddleware`: process_time 계산, structlog 기록, `X-Process-Time` 헤더 추가
   - `backend/app/main.py` — 미들웨어 등록
   - 테스트: `backend/tests/test_metrics_middleware.py`

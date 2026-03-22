@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import configure_logging, generate_request_id, get_logger, get_request_id, set_request_id
 from app.core.middleware import SecurityHeadersMiddleware
+from app.middleware.metrics import MetricsMiddleware
 from app.db.session import get_db
 from app.services.backup_health import get_last_backup_info
 from app.services.kis_health import check_kis_api_health
@@ -65,6 +66,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(MetricsMiddleware)
 
 
 @app.middleware("http")
