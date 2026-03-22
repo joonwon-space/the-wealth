@@ -11,12 +11,13 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import alerts, analytics, auth, chart, dashboard, health, internal, portfolio_export, portfolios, prices, stocks, sync, users, watchlist
+from app.api import alerts, analytics, auth, chart, dashboard, health, internal, notifications, portfolio_export, portfolios, prices, stocks, sync, users, watchlist
 from app.api.prices import signal_sse_shutdown
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import configure_logging, generate_request_id, get_logger, get_request_id, set_request_id
 from app.core.middleware import SecurityHeadersMiddleware
+from app.middleware.metrics import MetricsMiddleware
 from app.db.session import get_db
 from app.services.backup_health import get_last_backup_info
 from app.services.kis_health import check_kis_api_health
@@ -65,6 +66,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(MetricsMiddleware)
 
 
 @app.middleware("http")
@@ -90,6 +92,7 @@ v1_router.include_router(chart.router)
 v1_router.include_router(prices.router)
 v1_router.include_router(analytics.router)
 v1_router.include_router(watchlist.router)
+v1_router.include_router(notifications.router)
 v1_router.include_router(health.router)
 v1_router.include_router(internal.router)
 
