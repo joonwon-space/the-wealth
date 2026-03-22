@@ -96,3 +96,57 @@ Each item should be completable in a single commit.
   - Next.js 16.1.7 -> 16.2.0, tailwindcss 4.2.1 -> 4.2.2, shadcn 4.0.8 -> 4.1.0
   - `npm update` 후 빌드 확인
 
+---
+
+### P1 -- 16-2: Frontend 테스트 인프라 (MSW + 컴포넌트 테스트)
+
+- [ ] **test: MSW 2.x 설치 + 핸들러 설정**
+  - `npm install msw --save-dev` (frontend)
+  - `src/test/handlers.ts` — dashboard/summary, analytics/metrics 핸들러
+  - `src/test/server.ts` — setupServer + setupWorker
+  - `src/test/setup.ts` — beforeAll/afterEach/afterAll 훅 추가
+  - vitest.config.ts에 MSW server setup 연동
+
+- [ ] **test: HoldingsTable 유닛 테스트**
+  - `src/components/HoldingsTable.test.tsx`
+  - 정렬 동작 (다중 컬럼), PnL 색상 규칙 (양수=빨간색, 음수=파란색), 해외 USD 표시 테스트
+  - MSW로 API 모킹
+
+### P1 -- 12-4: 알림 센터
+
+- [ ] **feat: notifications 테이블 + API**
+  - `backend/app/models/notification.py` — id, user_id, type, title, body, is_read, created_at
+  - Alembic migration: `add_notifications_table`
+  - `backend/app/api/notifications.py` — `GET /notifications` (unread 먼저), `PATCH /notifications/{id}/read`, `POST /notifications/read-all`
+  - `backend/app/schemas/notification.py` — Pydantic schemas
+  - `backend/app/main.py` — router 등록
+  - 기존 alert SSE 트리거 시 notification 레코드 생성 연동 (`backend/app/services/price_stream.py`)
+  - 테스트: `backend/tests/test_notifications.py`
+
+- [ ] **feat: 알림 센터 프론트엔드 (벨 + 배지 + 드롭다운)**
+  - `frontend/src/components/NotificationBell.tsx` — 벨 아이콘, 미읽 배지, 드롭다운 패널
+  - `frontend/src/hooks/useNotifications.ts` — TanStack Query로 GET/PATCH
+  - `frontend/src/app/dashboard/layout.tsx` 헤더에 NotificationBell 추가
+  - 읽음 처리, 전체 읽음 처리
+
+### P2 -- 14-2: MetricsMiddleware
+
+- [ ] **feat: API 응답시간 미들웨어**
+  - `backend/app/middleware/metrics.py` — `MetricsMiddleware`: process_time 계산, structlog 기록, `X-Process-Time` 헤더 추가
+  - `backend/app/main.py` — 미들웨어 등록
+  - 테스트: `backend/tests/test_metrics_middleware.py`
+
+### P2 -- 11-5: 거래 메모 (Trade Memo)
+
+- [ ] **feat: transactions.memo 컬럼 + PATCH API**
+  - `backend/app/models/transaction.py` — `memo: Mapped[Optional[str]]` 컬럼 추가 (String(500))
+  - Alembic migration: `add_transaction_memo_column`
+  - `backend/app/api/portfolios.py` — `PATCH /portfolios/{pid}/transactions/{tid}` 메모 업데이트
+  - `backend/app/schemas/transaction.py` — memo 필드 추가
+  - 테스트: memo CRUD 케이스 추가
+
+- [ ] **feat: 거래 내역 메모 인라인 편집 UI**
+  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 거래 내역 테이블에 메모 컬럼 추가
+  - 인라인 편집 (클릭 → input, blur → PATCH 호출)
+  - TanStack Query mutation + optimistic update
+
