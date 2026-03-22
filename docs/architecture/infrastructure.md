@@ -418,6 +418,19 @@ slowapi 기반 IP별 레이트 리미팅:
 - 로그에 request_id 포함으로 요청 추적 가능
 - 응답 헤더에 `X-Request-ID` 반환
 
+### MetricsMiddleware
+
+- 모든 HTTP 요청에 `X-Process-Time` 응답 헤더 추가 (ms 단위)
+- structlog에 `process_time_ms` 필드로 기록
+- 엔드포인트별 응답 시간 추적 가능
+
+### Sentry APM
+
+- **백엔드**: `sentry-sdk[fastapi]` -- 글로벌 예외 핸들러 연동, `SENTRY_DSN` 환경변수
+- **프론트엔드**: `@sentry/nextjs` -- Error Boundary `captureException` 연동, `NEXT_PUBLIC_SENTRY_DSN` 환경변수
+- 프로덕션 환경에서만 활성화
+- tracesSampleRate: 0.2, replaysOnErrorSampleRate: 1.0
+
 ### 헬스체크
 
 ```
@@ -448,6 +461,7 @@ Docker Compose 헬스체크:
 | `COOKIE_DOMAIN` | - | 쿠키 도메인 (프로덕션: `.joonwon.dev`) | `.joonwon.dev` |
 | `KIS_BASE_URL` | - | KIS OpenAPI 기본 URL | `https://openapi.koreainvestment.com:9443` |
 | `INTERNAL_SECRET` | - | 내부 API 인증 시크릿 (백업 스크립트용) | `openssl rand -hex 16` |
+| `SENTRY_DSN` | - | Sentry 에러 트래킹 DSN (백엔드) | `https://xxx@sentry.io/xxx` |
 | `BACKUP_DIR` | - | 백업 파일 디렉토리 (기본: `/backups`) | `/backups` |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.

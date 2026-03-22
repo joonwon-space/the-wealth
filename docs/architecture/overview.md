@@ -39,8 +39,11 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 포트폴리오 CRUD | 생성, 조회, 수정, 삭제 |
 | 보유종목 관리 | 종목 추가/수정/삭제, 수량/평균 매입가 관리 |
 | 거래내역 기록 | BUY/SELL 거래 기록, 자동 보유종목 수량 반영 |
+| 거래 메모 | 거래별 투자 메모 기록 (인라인 편집) |
 | CSV 내보내기 | 포트폴리오 보유종목 및 거래내역 CSV 다운로드 |
 | KIS 계좌 연결 | 포트폴리오에 KIS 계좌를 1:1 매핑 |
+| 포트폴리오 순서 변경 | 드래그 앤 드롭으로 포트폴리오 표시 순서 변경 |
+| KIS 체결내역 조회 | KIS API 국내/해외 체결 내역 조회 |
 
 ### 2.3 대시보드
 
@@ -76,7 +79,9 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 기능 | 설명 |
 |------|------|
 | 가격 알림 설정 | 특정 종목의 목표가 상한/하한 알림 등록 |
-| 알림 관리 | 활성/비활성 토글, 삭제 |
+| 알림 관리 | 활성/비활성 토글, 임계값 변경, 삭제 |
+| SSE 조건 체크 | 실시간 가격 스트림에서 알림 조건 감지 + 쿨다운(1h) + 자동 비활성화 |
+| 인앱 알림 센터 | 알림 벨 아이콘 + 미읽음 배지 + 드롭다운 패널, 단건/전체 읽음 처리 |
 
 ### 2.7 자동 동기화
 
@@ -152,7 +157,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 52개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 60개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -163,11 +168,12 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/auth/change-password` | 비밀번호 변경 |
 | POST | `/auth/logout` | 로그아웃 |
 
-### 포트폴리오 (16)
+### 포트폴리오 (19)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/portfolios` | 포트폴리오 목록 |
 | POST | `/portfolios` | 포트폴리오 생성 |
+| PATCH | `/portfolios/reorder` | 포트폴리오 순서 변경 |
 | PATCH | `/portfolios/{id}` | 포트폴리오 수정 |
 | DELETE | `/portfolios/{id}` | 포트폴리오 삭제 |
 | GET | `/portfolios/{id}/holdings` | 보유종목 목록 |
@@ -178,9 +184,11 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/portfolios/{id}/transactions` | 거래내역 목록 |
 | POST | `/portfolios/{id}/transactions` | 거래 기록 |
 | DELETE | `/portfolios/transactions/{tid}` | 거래 삭제 |
+| PATCH | `/portfolios/{id}/transactions/{tid}` | 거래 메모 수정 |
 | GET | `/portfolios/{id}/export/csv` | 보유종목 CSV 내보내기 |
 | GET | `/portfolios/{id}/transactions/export/csv` | 거래내역 CSV 내보내기 |
 | PATCH | `/portfolios/{id}/kis-account` | KIS 계좌 연결 |
+| GET | `/portfolios/{id}/kis-transactions` | KIS 체결내역 조회 (국내+해외) |
 
 ### 대시보드 (1)
 | Method | Path | 설명 |
@@ -195,12 +203,20 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/analytics/portfolio-history` | 포트폴리오 히스토리 |
 | GET | `/analytics/sector-allocation` | 섹터별 배분 |
 
-### 알림 (3)
+### 알림 (4)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/alerts` | 알림 목록 |
 | POST | `/alerts` | 알림 생성 |
+| PATCH | `/alerts/{id}` | 알림 수정 (활성화/비활성화, 임계값 변경) |
 | DELETE | `/alerts/{id}` | 알림 삭제 |
+
+### 알림 센터 (3)
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/notifications` | 알림 센터 목록 (미읽음 우선, 최대 100건) |
+| PATCH | `/notifications/{id}/read` | 단건 읽음 처리 |
+| POST | `/notifications/read-all` | 전체 읽음 처리 |
 
 ### 종목 (2)
 | Method | Path | 설명 |
@@ -246,7 +262,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/health` | 서버 상태 확인 (루트) |
-| GET | `/api/v1/health` | 서버 상태 확인 (버전) — last_backup_at 포함 |
+| GET | `/api/v1/health` | 서버 상태 확인 (버전) -- last_backup_at 포함 |
 | GET | `/health/data-integrity` | price_snapshots 갭 감지 (최근 7 평일) |
 | GET | `/health/holdings-reconciliation` | 보유 수량 정합성 검사 (거래내역 vs holdings) |
 | GET | `/health/orphan-records` | 고아 레코드 감지 (삭제된 포트폴리오 잔여 데이터) |

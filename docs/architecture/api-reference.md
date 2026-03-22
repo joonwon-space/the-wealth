@@ -74,6 +74,12 @@ Rate-limited endpoints for brute force protection.
 - **Request body**: `{ "name"?: string, "currency"?: string }`
 - **Response** (200): `PortfolioResponse`
 
+### PATCH /portfolios/reorder
+- **Auth**: Required
+- **Request body**: `{ "portfolio_ids": int[] }` (ordered list)
+- **Response** (204): No content
+- **Notes**: Updates `display_order` for all portfolios in the list
+
 ### DELETE /portfolios/{portfolio_id}
 - **Auth**: Required (ownership verified)
 - **Response** (204): No content
@@ -127,6 +133,18 @@ Rate-limited endpoints for brute force protection.
 ### DELETE /portfolios/transactions/{transaction_id}
 - **Auth**: Required (ownership verified)
 - **Response** (204): No content
+
+### PATCH /portfolios/{portfolio_id}/transactions/{transaction_id}
+- **Auth**: Required (ownership verified)
+- **Request body**: `{ "memo": string | null }`
+- **Response** (200): `TransactionResponse`
+- **Notes**: Updates transaction memo (inline edit for investment journal)
+
+### GET /portfolios/{portfolio_id}/kis-transactions
+- **Auth**: Required (ownership verified)
+- **Query params**: `from_date: string (YYYYMMDD)`, `to_date: string (YYYYMMDD)`
+- **Response** (200): List of KIS settlement records (domestic + overseas)
+- **Notes**: Requires linked KIS account. Fetches from KIS API `TTTC8001R` (domestic) and `TTTS3035R` (overseas by exchange)
 
 ---
 
@@ -189,9 +207,32 @@ Rate-limited endpoints for brute force protection.
 - **Request body**: `{ "ticker": string, "name": string, "condition": "above"|"below", "threshold": decimal }`
 - **Response** (201): `AlertOut`
 
+### PATCH /alerts/{alert_id}
+- **Auth**: Required (ownership verified)
+- **Request body**: `{ "is_active"?: boolean, "threshold"?: decimal }`
+- **Response** (200): `AlertOut`
+- **Notes**: Toggle active/inactive or update threshold value
+
 ### DELETE /alerts/{alert_id}
 - **Auth**: Required (ownership verified)
 - **Response** (204): No content
+
+---
+
+## Notifications (`/notifications`)
+
+### GET /notifications
+- **Auth**: Required
+- **Response** (200): `NotificationOut[]` (max 100, unread first, then newest)
+
+### PATCH /notifications/{notification_id}/read
+- **Auth**: Required (ownership verified)
+- **Response** (200): `NotificationOut`
+
+### POST /notifications/read-all
+- **Auth**: Required
+- **Response** (204): No content
+- **Notes**: Marks all unread notifications as read for the authenticated user
 
 ---
 
