@@ -21,6 +21,7 @@ interface TxnRow {
   quantity: string;
   price: string;
   traded_at: string;
+  memo: string | null;
 }
 
 interface KisTxnRow {
@@ -94,6 +95,8 @@ export default function PortfolioDetailPage() {
   const [showTxnForm, setShowTxnForm] = useState(false);
   const [txnForm, setTxnForm] = useState({ ticker: "", type: "BUY" as "BUY" | "SELL", quantity: "", price: "", traded_at: "" });
   const [deleteTxnId, setDeleteTxnId] = useState<number | null>(null);
+  const [editMemoId, setEditMemoId] = useState<number | null>(null);
+  const [editMemoValue, setEditMemoValue] = useState<string>("");
 
   // KIS 거래 이력 날짜 범위 (기본: 최근 1개월)
   const today = new Date();
@@ -197,6 +200,28 @@ export default function PortfolioDetailPage() {
         prev ? prev.filter((t) => t.id !== txnId) : []
       );
       setDeleteTxnId(null);
+    },
+  });
+
+  const updateMemoMutation = useMutation({
+    mutationFn: ({ txnId, memo }: { txnId: number; memo: string | null }) =>
+      api.patch<TxnRow>(`/portfolios/${portfolioId}/transactions/${txnId}`, { memo }).then((r) => r.data),
+    onMutate: async ({ txnId, memo }) => {
+      await queryClient.cancelQueries({ queryKey: transactionsKey(portfolioId) });
+      const previous = queryClient.getQueryData<TxnRow[]>(transactionsKey(portfolioId));
+      // Optimistic update
+      queryClient.setQueryData<TxnRow[]>(transactionsKey(portfolioId), (prev) =>
+        prev ? prev.map((t) => (t.id === txnId ? { ...t, memo } : t)) : []
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(transactionsKey(portfolioId), context.previous);
+      }
+    },
+    onSettled: () => {
+      setEditMemoId(null);
     },
   });
 
@@ -539,7 +564,7 @@ export default function PortfolioDetailPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    {["일시", "유형", "종목", "수량", "단가", ""].map((h) => (
+                    {["일시", "유형", "종목", "수량", "단가", "메모", ""].map((h) => (
                       <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                     ))}
                   </tr>
@@ -556,6 +581,44 @@ export default function PortfolioDetailPage() {
                       <td className="px-4 py-2 font-mono text-xs">{t.ticker}</td>
                       <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
                       <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
+                      <td className="px-4 py-2 min-w-[140px]">
+                        {editMemoId === t.id ? (
+                          <input
+                            type="text"
+                            autoFocus
+                            value={editMemoValue}
+                            maxLength={500}
+                            onChange={(e) => setEditMemoValue(e.target.value)}
+                            onBlur={() => {
+                              const trimmed = editMemoValue.trim() || null;
+                              updateMemoMutation.mutate({ txnId: t.id, memo: trimmed });
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const trimmed = editMemoValue.trim() || null;
+                                updateMemoMutation.mutate({ txnId: t.id, memo: trimmed });
+                              }
+                              if (e.key === "Escape") {
+                                setEditMemoId(null);
+                              }
+                            }}
+                            className="w-full rounded border bg-background px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                            aria-label="메모 편집"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="w-full text-left text-xs text-muted-foreground hover:text-foreground hover:underline"
+                            onClick={() => {
+                              setEditMemoId(t.id);
+                              setEditMemoValue(t.memo ?? "");
+                            }}
+                            aria-label={t.memo ? `메모: ${t.memo}. 클릭하여 편집` : "메모 추가 (클릭하여 편집)"}
+                          >
+                            {t.memo ?? <span className="opacity-40">메모 추가...</span>}
+                          </button>
+                        )}
+                      </td>
                       <td className="px-4 py-2">
                         <button
                           onClick={() => setDeleteTxnId(t.id)}

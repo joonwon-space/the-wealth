@@ -145,7 +145,7 @@ Each item should be completable in a single commit.
   - `backend/app/schemas/transaction.py` — memo 필드 추가
   - 테스트: memo CRUD 케이스 추가
 
-- [ ] **feat: 거래 내역 메모 인라인 편집 UI**
+- [x] **feat: 거래 내역 메모 인라인 편집 UI**
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 거래 내역 테이블에 메모 컬럼 추가
   - 인라인 편집 (클릭 → input, blur → PATCH 호출)
   - TanStack Query mutation + optimistic update
