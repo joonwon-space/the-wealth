@@ -107,7 +107,7 @@ Each item should be completable in a single commit.
   - `src/test/setup.ts` — beforeAll/afterEach/afterAll 훅 추가
   - vitest.config.ts에 MSW server setup 연동
 
-- [ ] **test: HoldingsTable 유닛 테스트**
+- [x] **test: HoldingsTable 유닛 테스트**
   - `src/components/HoldingsTable.test.tsx`
   - 정렬 동작 (다중 컬럼), PnL 색상 규칙 (양수=빨간색, 음수=파란색), 해외 USD 표시 테스트
   - MSW로 API 모킹
