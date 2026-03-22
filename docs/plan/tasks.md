@@ -138,7 +138,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 11-5: 거래 메모 (Trade Memo)
 
-- [ ] **feat: transactions.memo 컬럼 + PATCH API**
+- [x] **feat: transactions.memo 컬럼 + PATCH API**
   - `backend/app/models/transaction.py` — `memo: Mapped[Optional[str]]` 컬럼 추가 (String(500))
   - Alembic migration: `add_transaction_memo_column`
   - `backend/app/api/portfolios.py` — `PATCH /portfolios/{pid}/transactions/{tid}` 메모 업데이트
