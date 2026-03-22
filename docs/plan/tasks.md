@@ -114,7 +114,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 12-4: 알림 센터
 
-- [ ] **feat: notifications 테이블 + API**
+- [x] **feat: notifications 테이블 + API**
   - `backend/app/models/notification.py` — id, user_id, type, title, body, is_read, created_at
   - Alembic migration: `add_notifications_table`
   - `backend/app/api/notifications.py` — `GET /notifications` (unread 먼저), `PATCH /notifications/{id}/read`, `POST /notifications/read-all`

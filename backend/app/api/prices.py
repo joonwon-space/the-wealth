@@ -19,6 +19,7 @@ from app.db.session import AsyncSessionLocal, get_db
 from app.models.alert import Alert
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
+from app.models.notification import Notification
 from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
@@ -105,6 +106,19 @@ async def _check_alerts_and_emit(
             triggered = check_and_dedup_alerts(alerts, decimal_prices)
 
             if triggered:
+                # Create notification records for each triggered alert
+                for alert_data in triggered:
+                    condition_kr = "이상" if alert_data["condition"] == "above" else "이하"
+                    notification = Notification(
+                        user_id=user_id,
+                        type="alert_triggered",
+                        title=f"{alert_data['name'] or alert_data['ticker']} 목표가 도달",
+                        body=(
+                            f"{alert_data['ticker']} 현재가 {alert_data['current_price']:,.0f}이 "
+                            f"목표가 {alert_data['threshold']:,.0f}{condition_kr}에 도달했습니다."
+                        ),
+                    )
+                    db.add(notification)
                 await db.commit()
                 return f"event: alerts\ndata: {json.dumps(triggered)}\n\n"
     except Exception as exc:
