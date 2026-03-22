@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 52 API endpoints (14 routers)                          │
+│   ├── 60 API endpoints (16 routers)                          │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (60/min)                          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -27,7 +27,7 @@
 ┌──────┐    ┌──────────┐    ┌──────────────────┐
 │ PG16 │    │ Redis 7  │    │ KIS OpenAPI      │
 │      │    │          │    │ (한국투자증권)     │
-│ 9 TB │    │ JWT JTI  │    │ ├─ oauth2/tokenP │
+│10 TB │    │ JWT JTI  │    │ ├─ oauth2/tokenP │
 │      │    │ KIS Token│    │ ├─ 현재가 조회    │
 │      │    │ Price $  │    │ ├─ 일별 OHLCV    │
 │      │    │ Stock DB │    │ └─ 잔고 조회      │
@@ -97,9 +97,12 @@ frontend/src/
 │   ├── QueryProvider.tsx         # TanStack Query 프로바이더 (QueryClientProvider)
 │   ├── PageError.tsx             # 페이지 에러 표시 컴포넌트
 │   ├── TableSkeleton.tsx         # 테이블 로딩 스켈레톤
+│   ├── NotificationBell.tsx     # 알림 벨 아이콘 + 미읽음 배지 + 드롭다운
+│   ├── SentryInit.tsx           # Sentry 초기화 (프로덕션 전용)
 │   └── ui/                       # shadcn/ui 컴포넌트
 ├── hooks/
-│   └── usePriceStream.ts         # SSE 실시간 가격 스트리밍 훅
+│   ├── usePriceStream.ts         # SSE 실시간 가격 스트리밍 훅
+│   └── useNotifications.ts      # 알림 센터 TanStack Query 훅 (목록, 읽음, 전체 읽음)
 ├── lib/
 │   ├── api.ts                    # Axios 인스턴스 (JWT interceptor)
 │   ├── format.ts                 # 숫자/날짜 포맷팅 유틸리티
@@ -249,14 +252,15 @@ frontend/src/
 ```
 backend/app/
 ├── main.py                    # FastAPI app, CORS, 미들웨어, 라우터 등록
-├── api/                       # 14개 API 라우터 + 공통 의존성
+├── api/                       # 16개 API 라우터 + 공통 의존성
 │   ├── deps.py                # get_current_user, get_current_user_sse 인증 의존성
 │   ├── auth.py                # 인증 (register, login, refresh, change-password, logout)
-│   ├── portfolios.py          # 포트폴리오/보유종목/거래내역 CRUD
+│   ├── portfolios.py          # 포트폴리오/보유종목/거래내역 CRUD + KIS 체결내역
 │   ├── portfolio_export.py    # CSV 내보내기 (보유종목 + 거래내역)
 │   ├── dashboard.py           # 대시보드 요약
 │   ├── analytics.py           # 수익률 분석, 월별 수익률, 섹터 배분
-│   ├── alerts.py              # 가격 알림
+│   ├── alerts.py              # 가격 알림 CRUD + 활성화/비활성화
+│   ├── notifications.py       # 인앱 알림 센터 (목록, 읽음 처리)
 │   ├── stocks.py              # 종목 검색/상세
 │   ├── sync.py                # KIS 계좌 동기화
 │   ├── users.py               # KIS 계좌 관리
@@ -271,17 +275,21 @@ backend/app/
 │   ├── encryption.py          # AES-256-GCM 암호화/복호화
 │   ├── limiter.py             # slowapi 레이트 리미터 인스턴스
 │   ├── middleware.py          # SecurityHeadersMiddleware
+│   ├── redis_cache.py         # Redis 캐시 래퍼 (Redis 장애 시 in-memory 폴백)
 │   └── logging.py             # structlog 설정, request_id
+├── middleware/
+│   └── metrics.py             # MetricsMiddleware (X-Process-Time 헤더 + structlog process_time_ms)
 ├── db/
 │   ├── base.py                # SQLAlchemy Base
 │   └── session.py             # AsyncSession 팩토리
-├── models/                    # SQLAlchemy ORM 모델 (9 테이블)
+├── models/                    # SQLAlchemy ORM 모델 (10 테이블)
 │   ├── user.py
 │   ├── portfolio.py
 │   ├── holding.py
 │   ├── transaction.py
 │   ├── kis_account.py
 │   ├── alert.py
+│   ├── notification.py
 │   ├── watchlist.py
 │   ├── price_snapshot.py
 │   └── sync_log.py
@@ -290,11 +298,13 @@ backend/app/
 │   ├── portfolio.py
 │   ├── dashboard.py
 │   ├── analytics.py
+│   ├── notification.py
 │   └── user.py
 ├── services/                  # 비즈니스 로직
 │   ├── kis_token.py           # KIS OAuth2 토큰 관리
 │   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬)
 │   ├── kis_account.py         # KIS 잔고 조회
+│   ├── kis_transaction.py     # KIS 체결내역 조회 (국내 TTTC8001R + 해외 TTTS3035R)
 │   ├── reconciliation.py      # 보유종목 동기화 로직
 │   ├── price_snapshot.py      # 일일 종가 스냅샷 저장
 │   ├── scheduler.py           # APScheduler 설정
@@ -397,6 +407,9 @@ Request
   ▼ Request ID Middleware
   │   X-Request-ID: uuid4 (structlog 연동)
   │
+  ▼ MetricsMiddleware
+  │   X-Process-Time 헤더 + structlog process_time_ms
+  │
   ▼ Rate Limiter (slowapi)
   │   default: 60/minute per IP
   │
@@ -405,7 +418,7 @@ Request
 
 ---
 
-## 4. 데이터베이스 스키마 (9 테이블)
+## 4. 데이터베이스 스키마 (10 테이블)
 
 ### 4.1 ERD 다이어그램
 
@@ -416,12 +429,12 @@ Request
 │ id (PK)     │◄──┐ │ id (PK)      │◄──┐ │ id (PK)      │
 │ email (UQ)  │   │ │ user_id (FK) │   │ │ portfolio_id │
 │ hashed_pwd  │   │ │ name         │   │ │ ticker       │
-│ kis_app_key │   │ │ currency     │   │ │ name         │
-│ kis_app_sec │   │ │ kis_account  │   │ │ quantity     │
-│ kis_acct_no │   │ │  _id (FK,UQ) │   │ │ avg_price    │
-│ kis_prdt_cd │   │ │ created_at   │   │ │ created_at   │
-│ created_at  │   │ └──────────────┘   │ └──────────────┘
-└─────────────┘   │         │          │
+│ created_at  │   │ │ currency     │   │ │ name         │
+│             │   │ │ kis_account  │   │ │ quantity     │
+│             │   │ │  _id (FK,UQ) │   │ │ avg_price    │
+│             │   │ │ display_order│   │ │ created_at   │
+│             │   │ │ created_at   │   │ └──────────────┘
+└─────────────┘   │ └──────────────┘   │
       │           │         │          │
       │     ┌─────┘   ┌─────┘    ┌──────────────┐
       │     │         │          │ transactions │
@@ -433,6 +446,8 @@ Request
       │     │                    │ quantity     │
       │     │                    │ price        │
       │     │                    │ traded_at    │
+      │     │                    │ deleted_at   │
+      │     │                    │ memo         │
       │     │                    └──────────────┘
       │     │
       │  ┌──┴───────────┐    ┌──────────────┐
@@ -445,10 +460,22 @@ Request
       │  │ acnt_prdt_cd │    │ condition    │
       │  │ app_key_enc  │    │ threshold    │
       │  │ app_secret   │    │ is_active    │
-      │  │  _enc        │    │ created_at   │
-      │  │ created_at   │    └──────────────┘
-      │  │ UQ(user,acct,│
-      │  │    prdt)     │
+      │  │  _enc        │    │ last_trigger │
+      │  │ created_at   │    │  _at         │
+      │  │ UQ(user,acct,│    │ created_at   │
+      │  │    prdt)     │    └──────────────┘
+      │  └──────────────┘
+      │
+      │  ┌──────────────┐
+      │  │notifications │
+      │  ├──────────────┤
+      ├─►│ id (PK)      │
+      │  │ user_id (FK) │
+      │  │ type         │
+      │  │ title        │
+      │  │ body         │
+      │  │ is_read      │
+      │  │ created_at   │
       │  └──────────────┘
       │
       │  ┌──────────────┐    ┌────────────────┐
@@ -487,10 +514,6 @@ Request
 | id | Integer | PK, auto | 사용자 ID |
 | email | String | UNIQUE, NOT NULL | 이메일 (로그인 ID) |
 | hashed_password | String | NOT NULL | bcrypt 해시 비밀번호 |
-| kis_app_key_enc | String | nullable | KIS App Key (AES-256 암호화) |
-| kis_app_secret_enc | String | nullable | KIS App Secret (AES-256 암호화) |
-| kis_account_no | String | nullable | KIS 계좌번호 |
-| kis_acnt_prdt_cd | String | nullable | KIS 계좌 상품코드 |
 | created_at | DateTime | default=now | 생성일시 |
 
 #### portfolios
@@ -501,6 +524,7 @@ Request
 | name | String | NOT NULL | 포트폴리오 이름 |
 | currency | String | default="KRW" | 통화 |
 | kis_account_id | Integer | FK→kis_accounts SET NULL, UNIQUE | 연결된 KIS 계좌 |
+| display_order | Integer | NOT NULL, default=0 | 표시 순서 |
 | created_at | DateTime | default=now | 생성일시 |
 
 #### holdings
@@ -524,6 +548,8 @@ Request
 | quantity | Numeric | NOT NULL | 거래 수량 |
 | price | Numeric | NOT NULL | 거래 가격 |
 | traded_at | DateTime | NOT NULL | 거래일시 |
+| deleted_at | DateTime | nullable | 소프트 삭제 일시 |
+| memo | String(500) | nullable | 거래 메모 (투자 일지) |
 
 #### kis_accounts
 | 컬럼 | 타입 | 제약조건 | 설명 |
@@ -548,6 +574,18 @@ Request
 | condition | String | NOT NULL | 조건 ("above" / "below") |
 | threshold | Numeric | NOT NULL | 목표가 |
 | is_active | Boolean | default=True | 활성 여부 |
+| last_triggered_at | DateTime | nullable | 마지막 트리거 시간 (쿨다운 1h) |
+| created_at | DateTime | default=now | 생성일시 |
+
+#### notifications
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|---------|------|
+| id | Integer | PK, auto | 알림 ID |
+| user_id | Integer | FK→users CASCADE, NOT NULL | 소유자 |
+| type | String(50) | NOT NULL, default="system" | 유형 (alert_triggered, system 등) |
+| title | String(200) | NOT NULL | 알림 제목 |
+| body | Text | nullable | 알림 본문 |
+| is_read | Boolean | NOT NULL, default=False | 읽음 여부 |
 | created_at | DateTime | default=now | 생성일시 |
 
 #### watchlist
@@ -629,7 +667,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-03-21)
+## 6. 프로젝트 현황 분석 (2026-03-23)
 
 ### 6.1 완성도
 
@@ -642,7 +680,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리 |
 | 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
 | 관심종목 | 완료 | 마켓별 구분 |
-| 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 (푸시 알림 미구현) |
+| 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
 | 자동 동기화 | 완료 | APScheduler 1시간 주기 + 일일 스냅샷 |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
@@ -654,23 +692,24 @@ slowapi 기반 IP별 레이트 리미팅:
 | DB 백업 | 완료 | 일일 pg_dump + 보존 정책 (7일/4주/3월), health endpoint 노출 |
 | 접근성 (a11y) | 완료 | aria-label, aria-current, 터치 타겟 44px, CSP 수정 |
 | TanStack Query | 완료 | 대시보드/포트폴리오 캐시, refetchInterval, SSE queryClient 연동 |
-| 모니터링 | 미착수 | Sentry + 로그 수집 예정 |
+| 모니터링 | 완료 | Sentry (백엔드+프론트), MetricsMiddleware (X-Process-Time) |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: **92%** (577 tests passed, 2 failed)
+전체: **87%** (609 tests passed, 0 failed)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
-| core/ (security, encryption, middleware, limiter) | 95-100% | 우수 |
+| core/ (security, encryption, middleware, limiter, redis_cache) | 95-100% | 우수 |
 | models/ | 100% | ORM 모델 |
 | schemas/ | 100% | Pydantic 스키마 |
-| services/ | 93-100% | backup_health(100%), kis_health(100%), kis_price(94%) |
+| services/ | 93-100% | backup_health(100%), kis_health(100%), kis_price(94%), scheduler(98%) |
+| services/kis_transaction.py | 0% | 신규 추가 -- 테스트 미작성 |
 | api/ routers | 83-100% | 대부분 90%+ |
 | db/ | 75-100% | session.py 75% |
 | main.py | 85% | lifespan, 예외 핸들러 |
 
-참고: 2개 테스트 실패 (`test_overseas_support.py`) -- `kis_account.py`가 빈 배열 대신 `RuntimeError`를 raise하도록 변경됨에 따른 기대값 불일치
+참고: 전체 커버리지가 92%에서 87%로 감소한 주요 원인은 `kis_transaction.py`(0% 커버리지, 70 stmts)가 추가되었고, 코드베이스 전체 규모가 증가한 것에 기인함. 테스트 실패 0건.
 
 ### 6.3 강점
 
@@ -683,7 +722,7 @@ slowapi 기반 IP별 레이트 리미팅:
 - 해외주식 USD 가격 표시 및 원화 환산 (환율 자동 적용)
 - 보유종목 market_value_krw 기준 내림차순 정렬
 - SSE 연결 하드닝: 사용자별 제한, 하트비트, 유휴 감지, 최대 연결 시간
-- 테스트 커버리지 92% (577 tests) -- ruff lint 오류 0건
+- 테스트 커버리지 87% (609 tests) -- ruff lint 오류 0건, 테스트 실패 0건
 - Commitlint 커밋 메시지 검증 자동화
 - 표준화된 에러 응답 envelope (error.code, error.message, request_id)
 - Graceful shutdown (SSE 연결 종료 시그널, 스케줄러 정지)
@@ -693,13 +732,20 @@ slowapi 기반 IP별 레이트 리미팅:
 - 접근성 개선 (aria-label, touch targets, navigation aria-current)
 - 데이터 무결성 헬스체크: price_snapshots 갭 감지, holdings 정합성, 고아 레코드 감지
 - KIS API 시작 시 연결 테스트 (비가용 시 캐시 전용 모드)
+- Sentry APM 통합 (백엔드 sentry-sdk + 프론트 @sentry/nextjs)
+- MetricsMiddleware: 모든 요청에 X-Process-Time 헤더 + structlog process_time_ms 기록
+- 인앱 알림 센터: notifications 테이블 + 벨 아이콘 + 미읽음 배지 + 읽음 처리
+- 거래 메모 기능: transactions.memo 컬럼 + 인라인 편집 UI
+- 포트폴리오 순서 변경: display_order + 드래그 앤 드롭 (@dnd-kit)
+- KIS 체결내역 조회: 국내(TTTC8001R) + 해외(TTTS3035R) 체결 내역 API
+- Redis 장애 폴백: RedisCache 래퍼가 in-memory dict으로 자동 전환
 
 ### 6.4 약점 및 개선 필요 사항
 
-- 모니터링/APM 미도입 (structlog만 운용)
-- 알림 전송 채널 미구현 (SSE 조건 체크만 존재, 실제 푸시/이메일 없음)
-- 2개 테스트 실패: `test_overseas_support.py`에서 `kis_account.py` RuntimeError 변경 미반영
-- 프론트엔드 테스트 커버리지 최소 (백엔드 92% 대비)
+- 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
+- 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
+- `kis_transaction.py` 서비스 테스트 커버리지 0% (신규 추가)
+- 분석 페이지 기간 필터/벤치마크/고급 지표 미구현
 
 ### 6.5 리스크
 
@@ -708,7 +754,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초, 장 마감 후 24h). degraded 배너로 사용자에게 알림 |
 | 단일 서버 | 중 | self-hosted 단일 서버, 서버 장애 시 전체 서비스 중단 |
 | 단일 사용자 환경 | 저 | 현재 다중 사용자 동시 접속 부하 테스트 미실시 |
-| 테스트 실패 | 저 | `test_overseas_support.py` 2건 실패 (RuntimeError 변경 미반영) |
+| 테스트 커버리지 하락 | 저 | 87%로 하락 (kis_transaction.py 0% 기여), 80% 최소 기준은 충족 |
 
 ---
 

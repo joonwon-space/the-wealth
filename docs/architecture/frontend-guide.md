@@ -13,6 +13,8 @@
 | TanStack Query | 5.91.0 | Server state management (cache, refetch, SSE integration) |
 | Recharts | 3.8.0 | Donut chart, heatmap, line charts |
 | lightweight-charts | 5.1.0 | Candlestick chart |
+| @dnd-kit | 6.3.1+ | Drag-and-drop (portfolio reorder) |
+| @sentry/nextjs | 10.45.0 | Error tracking and performance monitoring |
 | Axios | 1.13.6 | HTTP client (JWT interceptor) |
 | Zustand | 5.0.12 | Client-side auth state |
 | next-themes | 0.4.6 | Dark/light theme |
@@ -78,14 +80,20 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `TransactionChart.tsx` | Monthly buy/sell transaction chart |
 | `DynamicCharts.tsx` | Dynamic import wrapper for bundle optimization |
 
+### Notifications
+| Component | Description |
+|-----------|-------------|
+| `NotificationBell.tsx` | Bell icon with unread badge, dropdown panel, mark-read actions |
+
 ### Infrastructure
 | Component | Description |
 |-----------|-------------|
 | `QueryProvider.tsx` | TanStack Query provider (wraps app with QueryClientProvider) |
-| `ErrorBoundary.tsx` | React Error Boundary with fallback UI |
+| `ErrorBoundary.tsx` | React Error Boundary with fallback UI + Sentry captureException |
 | `PageError.tsx` | Page-level error display component |
 | `TableSkeleton.tsx` | Table loading skeleton |
 | `ThemeProvider.tsx` | next-themes provider (system/manual theme) |
+| `SentryInit.tsx` | Sentry SDK initialization (production only) |
 | `ui/` | shadcn/ui primitives (Button, Card, Table, Dialog, etc.) |
 
 ---
@@ -133,6 +141,7 @@ Axios instance configured with:
 | Hook | File | Description |
 |------|------|-------------|
 | `usePriceStream` | `hooks/usePriceStream.ts` | SSE real-time price streaming. Connects to `GET /prices/stream?token={jwt}`. Updates prices every 30s during KST 09:00-15:30. Auto-reconnects on disconnect. |
+| `useNotifications` | `hooks/useNotifications.ts` | TanStack Query hook for notification center. Provides `notifications` list, `markRead`, `markAllRead` mutations with optimistic updates. |
 
 ---
 
