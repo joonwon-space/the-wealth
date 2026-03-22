@@ -30,6 +30,7 @@ from app.schemas.portfolio import (
     PortfolioResponse,
     ReorderRequest,
     TransactionCreate,
+    TransactionMemoUpdate,
     TransactionResponse,
 )
 
@@ -510,6 +511,37 @@ async def delete_transaction(
     # Soft delete: set deleted_at instead of hard delete
     txn.deleted_at = datetime.now(timezone.utc)
     await db.commit()
+
+
+@router.patch(
+    "/{portfolio_id}/transactions/{transaction_id}",
+    response_model=TransactionResponse,
+)
+async def update_transaction_memo(
+    portfolio_id: int,
+    transaction_id: int,
+    body: TransactionMemoUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Transaction:
+    """거래 메모 업데이트 (인라인 편집)."""
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
+    _assert_portfolio_owner(portfolio, current_user)
+
+    txn = await db.get(Transaction, transaction_id)
+    if not txn or txn.deleted_at is not None or txn.portfolio_id != portfolio_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+        )
+
+    txn.memo = body.memo
+    await db.commit()
+    await db.refresh(txn)
+    return txn
 
 
 @router.get("/{portfolio_id}/kis-transactions")

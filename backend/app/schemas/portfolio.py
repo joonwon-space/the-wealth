@@ -92,6 +92,10 @@ class TransactionCreate(BaseModel):
         return validate_ticker(v)
 
 
+class TransactionMemoUpdate(BaseModel):
+    memo: Optional[str] = Field(None, max_length=500)
+
+
 class TransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -102,3 +106,4 @@ class TransactionResponse(BaseModel):
     quantity: Decimal
     price: Decimal
     traded_at: datetime
+    memo: Optional[str] = None

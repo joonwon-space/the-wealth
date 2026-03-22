@@ -90,8 +90,8 @@ Current actionable work is in `tasks.md`.
 - [ ] My holdings overlay (average purchase price horizontal line on candlestick chart)
 
 ### 11-5. UX Convenience
-- [ ] In-app notification center (price alerts → toast + notification list)
-- [ ] Trade memo & investment journal — `transactions.memo` 컬럼 + 인라인 편집
+- [x] In-app notification center (price alerts → toast + notification list)
+- [x] Trade memo & investment journal — `transactions.memo` 컬럼 + 인라인 편집
 
 ### 11-7. Frontend Quality
 - [x] Bundle size budget — `@next/bundle-analyzer` + CI warning on budget exceed
@@ -115,8 +115,8 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [x] Price condition check in SSE streaming loop
 - [x] Dedup — `last_triggered_at` column + cooldown
 - [x] Auto-deactivate triggered alerts
-- [ ] In-app notification center: `notifications` 테이블 + `GET/PATCH /notifications` API
-- [ ] Frontend notification bell + unread badge + dropdown panel
+- [x] In-app notification center: `notifications` 테이블 + `GET/PATCH /notifications` API
+- [x] Frontend notification bell + unread badge + dropdown panel
 - [ ] Email alerts (SendGrid / Resend)
 
 ### 12-5. API Extension

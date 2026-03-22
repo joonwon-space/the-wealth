@@ -28,5 +28,6 @@ class Transaction(Base):
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+    memo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, default=None)
 
     portfolio: Mapped["Portfolio"] = relationship(back_populates="transactions")
