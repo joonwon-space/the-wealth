@@ -123,7 +123,7 @@ Each item should be completable in a single commit.
   - 기존 alert SSE 트리거 시 notification 레코드 생성 연동 (`backend/app/services/price_stream.py`)
   - 테스트: `backend/tests/test_notifications.py`
 
-- [ ] **feat: 알림 센터 프론트엔드 (벨 + 배지 + 드롭다운)**
+- [x] **feat: 알림 센터 프론트엔드 (벨 + 배지 + 드롭다운)**
   - `frontend/src/components/NotificationBell.tsx` — 벨 아이콘, 미읽 배지, 드롭다운 패널
   - `frontend/src/hooks/useNotifications.ts` — TanStack Query로 GET/PATCH
   - `frontend/src/app/dashboard/layout.tsx` 헤더에 NotificationBell 추가

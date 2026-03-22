@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { BottomNav } from "@/components/BottomNav";
+import { NotificationBell } from "@/components/NotificationBell";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 
@@ -29,6 +30,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
+      {/* Notification bell — fixed top-right on mobile, top-right of content area on desktop */}
+      <div className="fixed right-4 top-3 z-40 md:right-6">
+        <NotificationBell />
+      </div>
       <main className="flex-1 overflow-y-auto p-4 pt-14 pb-20 md:pt-6 md:pb-6 md:p-6">{children}</main>
       <BottomNav />
       <StockSearchDialog
