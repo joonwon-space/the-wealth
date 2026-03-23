@@ -250,10 +250,10 @@ async def fetch_usd_krw_rate(
     app_secret: str,
     client: httpx.AsyncClient,
 ) -> Decimal:
-    """USD/KRW 환율 조회. 1h 캐시 → KIS API → 7일 stale 캐시 → 하드코딩 1350 순으로 fallback.
+    """USD/KRW 환율 조회. 1h 캐시 → KIS API(보조) → 7일 stale 캐시 → 하드코딩 1450 순으로 fallback.
 
-    KIS 해외주식 현재가 API의 base_exchange_rate 필드를 활용.
-    직접 FX API가 없으므로 AAPL 현재가 응답의 환율 필드 사용.
+    실제 환율은 sync 과정에서 TTTS3012R output2.wcrc_exrt로 캐싱된다(cache_fx_rate 참고).
+    캐시가 없는 경우 HHDFS00000300(AAPL) 응답의 fxrt 필드를 보조 소스로 시도한다.
     """
     cached = await _cache.get(_FX_CACHE_KEY)
     if cached:
@@ -371,6 +371,19 @@ async def fetch_overseas_price_detail(
             "Failed to fetch overseas price detail for %s/%s: %s", ticker, market, e
         )
         return None
+
+
+async def cache_fx_rate(rate: float) -> None:
+    """외부 소스(TTTS3012R 잔고 API 등)에서 구한 환율을 Redis 캐시에 저장.
+
+    sync 과정에서 wcrc_exrt 필드로 실제 환율을 얻었을 때 호출.
+    """
+    if rate <= 100:
+        return  # 유효하지 않은 값
+    rate_str = str(rate)
+    await _cache.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, rate_str)
+    await _cache.setex(_FX_STALE_KEY, _FX_STALE_TTL, rate_str)
+    logger.info("Cached USD/KRW rate from balance API: %s", rate_str)
 
 
 async def get_cached_fx_rate() -> float:

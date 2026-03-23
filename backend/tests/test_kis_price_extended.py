@@ -281,7 +281,7 @@ class TestFetchUsdKrwRate:
         mock_aioredis.from_url.return_value = mock_redis
 
         response = _make_response(
-            200, {"output": {"last": "185.50", "base_exchange_rate": "1330.50"}}
+            200, {"output": {"last": "185.50", "fxrt": "1330.50"}}
         )
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
@@ -541,7 +541,7 @@ class TestFetchUsdKrwRateCacheWriteError:
         mock_aioredis.from_url.side_effect = _from_url_factory
 
         response = _make_response(
-            200, {"output": {"last": "185.0", "base_exchange_rate": "1325.0"}}
+            200, {"output": {"last": "185.0", "fxrt": "1325.0"}}
         )
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
@@ -567,7 +567,7 @@ class TestFetchUsdKrwRateCacheWriteError:
         mock_aioredis.from_url.return_value = mock_redis
 
         response = _make_response(
-            200, {"output": {"last": "185.0", "base_exchange_rate": "1310.0"}}
+            200, {"output": {"last": "185.0", "fxrt": "1310.0"}}
         )
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
