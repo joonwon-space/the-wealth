@@ -186,7 +186,7 @@ Each item should be completable in a single commit.
 
 ### Step 3 — 백엔드 API 계층
 
-- [ ] **feat: 주문 API 라우터 (`api/orders.py`)**
+- [x] **feat: 주문 API 라우터 (`api/orders.py`)**
   - `backend/app/api/orders.py` 신규 생성
   - `POST /portfolios/{id}/orders`: 매수/매도 주문 실행 → KIS API 호출 → transactions/holdings/orders 테이블 자동 업데이트
   - `GET /portfolios/{id}/orders/orderable`: 주문 가능 수량/금액 조회 (`ticker`, `price`, `order_type` query params)
@@ -195,7 +195,7 @@ Each item should be completable in a single commit.
   - `GET /portfolios/{id}/cash-balance`: 예수금 및 총 평가금액 (Redis 캐시 TTL 30초)
   - `backend/app/main.py`에 라우터 등록
 
-- [ ] **feat: 대시보드 API에 예수금 필드 추가**
+- [x] **feat: 대시보드 API에 예수금 필드 추가**
   - `backend/app/api/dashboard.py` 수정
   - `GET /dashboard/summary` 응답에 `total_cash`, `total_assets` 필드 추가
 
