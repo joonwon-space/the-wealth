@@ -198,6 +198,7 @@ async def place_order(
             db=db,
             portfolio_id=portfolio_id,
             ticker=body.ticker,
+            name=body.name or body.ticker,
             order_type=body.order_type,
             quantity=Decimal(body.quantity),
             price=body.price or Decimal("0"),
@@ -216,6 +217,7 @@ async def _update_holdings(
     db: AsyncSession,
     portfolio_id: int,
     ticker: str,
+    name: str,
     order_type: str,
     quantity: Decimal,
     price: Decimal,
@@ -234,6 +236,7 @@ async def _update_holdings(
             holding = Holding(
                 portfolio_id=portfolio_id,
                 ticker=ticker,
+                name=name,
                 quantity=quantity,
                 avg_price=price,
             )

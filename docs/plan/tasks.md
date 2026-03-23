@@ -201,7 +201,7 @@ Each item should be completable in a single commit.
 
 ### Step 4 — 백엔드 테스트
 
-- [ ] **test: 주문 API 테스트 (`tests/test_orders.py`)**
+- [x] **test: 주문 API 테스트 (`tests/test_orders.py`)**
   - KIS API mock으로 매수/매도 주문 플로우 테스트
   - 이중 주문 방지 (Redis 락) 테스트
   - 계좌 유형별 TR_ID 분기 테스트 (일반/ISA/연금/IRP/해외)
