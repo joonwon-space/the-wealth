@@ -46,11 +46,26 @@ export default function SettingsPage() {
   const [balanceAccounts, setBalanceAccounts] = useState<AccountBalance[] | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
-  const [kisAccounts, setKisAccounts] = useState<{ id: number; label: string; account_no: string; acnt_prdt_cd: string }[]>([]);
+  const [kisAccounts, setKisAccounts] = useState<{
+    id: number;
+    label: string;
+    account_no: string;
+    acnt_prdt_cd: string;
+    is_paper_trading: boolean;
+    account_type: string | null;
+  }[]>([]);
   const [editingAcctId, setEditingAcctId] = useState<number | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [showAddAccount, setShowAddAccount] = useState(false);
-  const [newAcct, setNewAcct] = useState({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
+  const [newAcct, setNewAcct] = useState({
+    label: "",
+    account_no: "",
+    acnt_prdt_cd: "01",
+    app_key: "",
+    app_secret: "",
+    is_paper_trading: false,
+    account_type: "일반",
+  });
   const [addingAcct, setAddingAcct] = useState(false);
   const [testingAcctId, setTestingAcctId] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, boolean | null>>({});
@@ -128,7 +143,7 @@ export default function SettingsPage() {
     setAddingAcct(true);
     try {
       await api.post("/users/kis-accounts", newAcct);
-      setNewAcct({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "" });
+      setNewAcct({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "", is_paper_trading: false, account_type: "일반" });
       setShowAddAccount(false);
       fetchKisAccounts();
       toast.success("KIS 계좌가 등록되었습니다");
@@ -225,6 +240,30 @@ export default function SettingsPage() {
                   <label className="text-xs text-muted-foreground">상품코드</label>
                   <Input value={newAcct.acnt_prdt_cd} onChange={(e) => setNewAcct((f) => ({ ...f, acnt_prdt_cd: e.target.value }))} placeholder="01" className="h-8 font-mono w-16" />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">계좌 유형</label>
+                  <select
+                    value={newAcct.account_type}
+                    onChange={(e) => setNewAcct((f) => ({ ...f, account_type: e.target.value }))}
+                    className="h-8 w-full rounded border bg-background px-2 text-sm"
+                  >
+                    {["일반", "ISA", "연금저축", "IRP", "해외주식"].map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="paper-trading-new"
+                  type="checkbox"
+                  checked={newAcct.is_paper_trading}
+                  onChange={(e) => setNewAcct((f) => ({ ...f, is_paper_trading: e.target.checked }))}
+                  className="h-4 w-4 rounded border"
+                />
+                <label htmlFor="paper-trading-new" className="text-sm">
+                  모의투자 계좌
+                </label>
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">App Key</label>
@@ -263,6 +302,12 @@ export default function SettingsPage() {
                         <Pencil className="h-3 w-3" />
                       </button>
                       <span className="ml-1 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
+                      {a.account_type && (
+                        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">{a.account_type}</span>
+                      )}
+                      {a.is_paper_trading && (
+                        <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-300">모의</span>
+                      )}
                     </div>
                   )}
                   <div className="flex items-center gap-1.5">

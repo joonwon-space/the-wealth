@@ -1,5 +1,7 @@
 """User API — KIS credentials and account management."""
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -22,6 +24,8 @@ class KisAccountCreate(BaseModel):
     acnt_prdt_cd: str = "01"
     app_key: str
     app_secret: str
+    is_paper_trading: bool = False
+    account_type: str = "일반"  # 일반, ISA, 연금저축, IRP, 해외주식
 
 
 @router.post("/kis-accounts", status_code=201)
@@ -51,6 +55,8 @@ async def add_kis_account(
         acnt_prdt_cd=body.acnt_prdt_cd,
         app_key_enc=encrypt(body.app_key),
         app_secret_enc=encrypt(body.app_secret),
+        is_paper_trading=body.is_paper_trading,
+        account_type=body.account_type or None,
     )
     db.add(acct)
     await db.commit()
@@ -60,6 +66,8 @@ async def add_kis_account(
         "label": acct.label,
         "account_no": acct.account_no,
         "acnt_prdt_cd": acct.acnt_prdt_cd,
+        "is_paper_trading": acct.is_paper_trading,
+        "account_type": acct.account_type,
     }
 
 
@@ -78,13 +86,17 @@ async def list_kis_accounts(
             "label": a.label,
             "account_no": a.account_no,
             "acnt_prdt_cd": a.acnt_prdt_cd,
+            "is_paper_trading": a.is_paper_trading,
+            "account_type": a.account_type,
         }
         for a in result.scalars().all()
     ]
 
 
 class KisAccountUpdate(BaseModel):
-    label: str
+    label: Optional[str] = None
+    is_paper_trading: Optional[bool] = None
+    account_type: Optional[str] = None
 
 
 @router.patch("/kis-accounts/{account_id}")
@@ -100,15 +112,21 @@ async def update_kis_account(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found"
         )
-    acct.label = body.label
+    if body.label is not None:
+        acct.label = body.label
+        # Also update linked portfolio name
+        port_result = await db.execute(
+            select(Portfolio).where(Portfolio.kis_account_id == acct.id)
+        )
+        portfolio = port_result.scalar_one_or_none()
+        if portfolio:
+            portfolio.name = body.label
 
-    # Also update linked portfolio name
-    port_result = await db.execute(
-        select(Portfolio).where(Portfolio.kis_account_id == acct.id)
-    )
-    portfolio = port_result.scalar_one_or_none()
-    if portfolio:
-        portfolio.name = body.label
+    if body.is_paper_trading is not None:
+        acct.is_paper_trading = body.is_paper_trading
+
+    if body.account_type is not None:
+        acct.account_type = body.account_type or None
 
     await db.commit()
     return {
@@ -116,6 +134,8 @@ async def update_kis_account(
         "label": acct.label,
         "account_no": acct.account_no,
         "acnt_prdt_cd": acct.acnt_prdt_cd,
+        "is_paper_trading": acct.is_paper_trading,
+        "account_type": acct.account_type,
     }
 
 
