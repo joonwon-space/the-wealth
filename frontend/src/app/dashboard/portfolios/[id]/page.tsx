@@ -300,7 +300,7 @@ export default function PortfolioDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">보유 종목</h1>
-        <div className="flex gap-2 flex-wrap justify-end pr-10 md:pr-0">
+        <div className="flex gap-2 flex-wrap justify-end">
           {isKisConnected && (
             <Button
               variant="outline"
