@@ -164,7 +164,7 @@ Each item should be completable in a single commit.
 
 ### Step 2 — 백엔드 서비스 계층
 
-- [ ] **feat: KIS 주문 서비스 (`kis_order.py`)**
+- [x] **feat: KIS 주문 서비스 (`kis_order.py`)**
   - `backend/app/services/kis_order.py` 신규 생성
   - `place_domestic_order()`: 국내주식 매수/매도, 계좌 유형별 TR_ID 분기 (일반/ISA: `TTTC0802U`/`TTTC0801U`, 연금/IRP: `TTTC0852U`/`TTTC0851U`)
   - `place_overseas_order()`: 해외주식 매수/매도, 거래소별 TR_ID 분기 (`JTTT1002U`/`JTTT1006U`)
@@ -175,12 +175,12 @@ Each item should be completable in a single commit.
   - 장 운영시간 체크 (국내 09:00~15:30), 장외 주문 시 안내 메시지
   - 레이트 리밋 5회/분, 모든 주문 시도를 `orders` 테이블에 기록
 
-- [ ] **feat: 예수금 조회 서비스 확장 (`kis_balance.py`)**
+- [x] **feat: 예수금 조회 서비스 확장 (`kis_balance.py`)**
   - `backend/app/services/kis_balance.py` 신규 또는 `kis_account.py` 확장
   - `get_cash_balance()`: 국내 예수금 (`TTTC8434R`), 해외 체결기준잔고 (`TTTS3012R`)
   - 반환: `total_cash`, `available_cash`, `total_evaluation`, `total_profit_loss`, `profit_loss_rate`, `currency`, `foreign_cash`, `usd_krw_rate`
 
-- [ ] **feat: 주문 Pydantic 스키마 (`schemas/order.py`)**
+- [x] **feat: 주문 Pydantic 스키마 (`schemas/order.py`)**
   - `backend/app/schemas/order.py` 신규 생성
   - `OrderRequest`, `OrderResult`, `OrderableInfoResponse`, `CashBalanceResponse`, `PendingOrderResponse`
 
