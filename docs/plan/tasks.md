@@ -251,7 +251,7 @@ Each item should be completable in a single commit.
 
 ### Step 7 — 설정 페이지 확장
 
-- [ ] **feat: KIS 계좌 설정에 계좌 유형·모의투자 옵션 추가**
+- [x] **feat: KIS 계좌 설정에 계좌 유형·모의투자 옵션 추가**
   - `frontend/src/app/dashboard/settings/page.tsx` 수정
   - 계좌 유형 선택 드롭다운 (일반/ISA/연금저축/IRP/해외주식)
   - 모의투자/실전투자 토글 (`is_paper_trading`)
@@ -259,7 +259,7 @@ Each item should be completable in a single commit.
 
 ### Step 8 — E2E 테스트
 
-- [ ] **test: 주문 플로우 E2E (Playwright)**
+- [x] **test: 주문 플로우 E2E (Playwright)**
   - 정상 매수/매도 플로우
   - 에러 케이스: 예수금 부족, 장외 시간
   - 미체결 주문 취소 플로우
