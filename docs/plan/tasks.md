@@ -211,7 +211,7 @@ Each item should be completable in a single commit.
 
 ### Step 5 — 프론트엔드 훅 & 타입
 
-- [ ] **feat: 주문 TanStack Query 훅 (`hooks/useOrders.ts`)**
+- [x] **feat: 주문 TanStack Query 훅 (`hooks/useOrders.ts`)**
   - `frontend/src/hooks/useOrders.ts` 신규 생성
   - `useCashBalance(portfolioId)`: 예수금 + 총평가 조회, 30초 폴링
   - `useOrderableQuantity(portfolioId, ticker, price, orderType)`
