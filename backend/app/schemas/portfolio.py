@@ -46,6 +46,7 @@ class PortfolioResponse(BaseModel):
     created_at: datetime
     holdings_count: int = 0
     total_invested: Decimal = Decimal("0")
+    kis_account_id: Optional[int] = None
 
 
 class HoldingCreate(BaseModel):

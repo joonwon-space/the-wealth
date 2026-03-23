@@ -29,5 +29,9 @@ class Transaction(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
     memo: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, default=None)
+    order_no: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default=None)
+    order_source: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="manual", server_default="manual"
+    )  # manual | kis
 
     portfolio: Mapped["Portfolio"] = relationship(back_populates="transactions")

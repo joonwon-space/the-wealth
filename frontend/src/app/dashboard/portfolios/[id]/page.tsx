@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Search, Trash2, PackageOpen, Download, History } from "lucide-react";
+import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
@@ -13,6 +13,16 @@ import { PnLBadge } from "@/components/PnLBadge";
 import { TransactionChart } from "@/components/DynamicCharts";
 import { PageError } from "@/components/PageError";
 import { TableSkeleton } from "@/components/TableSkeleton";
+import { OrderDialog } from "@/components/OrderDialog";
+import { PendingOrdersPanel } from "@/components/PendingOrdersPanel";
+import { useCashBalance, usePendingOrders } from "@/hooks/useOrders";
+
+interface PortfolioInfo {
+  id: number;
+  name: string;
+  currency: string;
+  kis_account_id: number | null;
+}
 
 interface TxnRow {
   id: number;
@@ -89,6 +99,11 @@ export default function PortfolioDetailPage() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [addForm, setAddForm] = useState<AddForm | null>(null);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [orderTicker, setOrderTicker] = useState("");
+  const [orderName, setOrderName] = useState("");
+  const [orderCurrentPrice, setOrderCurrentPrice] = useState<number | undefined>();
+  const [showPendingOrders, setShowPendingOrders] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{ quantity: string; avg_price: string }>({ quantity: "", avg_price: "" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -105,6 +120,19 @@ export default function PortfolioDetailPage() {
   const [kisFromDate, setKisFromDate] = useState(oneMonthAgo.toISOString().slice(0, 10));
   const [kisToDate, setKisToDate] = useState(today.toISOString().slice(0, 10));
   const [showKisHistory, setShowKisHistory] = useState(false);
+
+  const { data: portfolioInfo } = useQuery<PortfolioInfo>({
+    queryKey: ["portfolio", portfolioId],
+    queryFn: async () => {
+      const { data } = await api.get<PortfolioInfo[]>("/portfolios");
+      return data.find((p) => p.id === portfolioId) ?? { id: portfolioId, name: "", currency: "KRW", kis_account_id: null };
+    },
+    staleTime: 60_000,
+  });
+
+  const isKisConnected = Boolean(portfolioInfo?.kis_account_id);
+  const { data: cashBalance } = useCashBalance(isKisConnected ? portfolioId : 0);
+  const { data: pendingOrders = [] } = usePendingOrders(isKisConnected ? portfolioId : 0);
 
   const { data: holdings = [], isLoading, isError, error, refetch } = useQuery<Holding[]>({
     queryKey: holdingsKey(portfolioId),
@@ -232,7 +260,16 @@ export default function PortfolioDetailPage() {
   };
 
   const handleStockSelect = (ticker: string, name: string) => {
-    setAddForm({ ...EMPTY_FORM, ticker, name });
+    if (isKisConnected) {
+      // KIS 연결 시: OrderDialog로 실시간 주문
+      setOrderTicker(ticker);
+      setOrderName(name);
+      setOrderCurrentPrice(undefined);
+      setOrderDialogOpen(true);
+    } else {
+      // KIS 미연결 시: 수동 종목 추가 폼
+      setAddForm({ ...EMPTY_FORM, ticker, name });
+    }
   };
 
   const handleAdd = (e: React.FormEvent) => {
@@ -263,7 +300,22 @@ export default function PortfolioDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">보유 종목</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
+          {isKisConnected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPendingOrders((v) => !v)}
+              className="gap-2"
+            >
+              미체결 주문
+              {pendingOrders.length > 0 && (
+                <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] text-white">
+                  {pendingOrders.length}
+                </span>
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -284,10 +336,60 @@ export default function PortfolioDetailPage() {
           </Button>
           <Button onClick={() => setSearchOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            종목 추가
+            {isKisConnected ? "신규 매수" : "종목 추가"}
           </Button>
         </div>
       </div>
+
+      {/* KIS 연결 포트폴리오: 예수금 요약 */}
+      {isKisConnected && cashBalance && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <Wallet className="h-3.5 w-3.5" />
+              예수금
+            </div>
+            <div className="font-semibold text-sm">{formatKRW(cashBalance.total_cash)}</div>
+            <div className="text-xs text-muted-foreground">사용가능: {formatKRW(cashBalance.available_cash)}</div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <TrendingUp className="h-3.5 w-3.5" />
+              총 평가금액
+            </div>
+            <div className="font-semibold text-sm">{formatKRW(cashBalance.total_evaluation)}</div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              {Number(cashBalance.total_profit_loss) >= 0 ? (
+                <TrendingUp className="h-3.5 w-3.5 text-red-500" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5 text-blue-500" />
+              )}
+              평가손익
+            </div>
+            <div className={`font-semibold text-sm ${Number(cashBalance.total_profit_loss) >= 0 ? "text-red-600" : "text-blue-600"}`}>
+              {Number(cashBalance.total_profit_loss) >= 0 ? "+" : ""}{formatKRW(cashBalance.total_profit_loss)}
+            </div>
+            <div className={`text-xs ${Number(cashBalance.profit_loss_rate) >= 0 ? "text-red-500" : "text-blue-500"}`}>
+              {Number(cashBalance.profit_loss_rate) >= 0 ? "+" : ""}{Number(cashBalance.profit_loss_rate).toFixed(2)}%
+            </div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground mb-1">총 자산</div>
+            <div className="font-semibold text-sm">
+              {formatKRW(String(Number(cashBalance.total_cash) + Number(cashBalance.total_evaluation)))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 미체결 주문 패널 */}
+      {isKisConnected && showPendingOrders && (
+        <div className="rounded-lg border p-4">
+          <PendingOrdersPanel portfolioId={portfolioId} />
+        </div>
+      )}
 
       {isLoading ? (
         <TableSkeleton rows={4} columns={6} />
@@ -406,7 +508,33 @@ export default function PortfolioDetailPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 flex-wrap">
+                            {isKisConnected && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setOrderTicker(h.ticker);
+                                    setOrderName(h.name);
+                                    setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
+                                    setOrderDialogOpen(true);
+                                  }}
+                                  className="rounded border px-2 py-0.5 text-xs font-medium text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  매수
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setOrderTicker(h.ticker);
+                                    setOrderName(h.name);
+                                    setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
+                                    setOrderDialogOpen(true);
+                                  }}
+                                  className="rounded border px-2 py-0.5 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
+                                >
+                                  매도
+                                </button>
+                              </>
+                            )}
                             <button
                               onClick={() => { setEditId(h.id); setEditForm({ quantity: h.quantity, avg_price: h.avg_price }); }}
                               className="rounded border px-3 py-1 text-xs hover:bg-muted"
@@ -743,6 +871,18 @@ export default function PortfolioDetailPage() {
         onClose={() => setSearchOpen(false)}
         onSelect={handleStockSelect}
       />
+
+      {/* KIS 주문 다이얼로그 */}
+      {isKisConnected && (
+        <OrderDialog
+          open={orderDialogOpen}
+          onOpenChange={setOrderDialogOpen}
+          portfolioId={portfolioId}
+          ticker={orderTicker}
+          stockName={orderName}
+          currentPrice={orderCurrentPrice}
+        />
+      )}
     </div>
   );
 }

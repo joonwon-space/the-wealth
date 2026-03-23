@@ -150,3 +150,116 @@ Each item should be completable in a single commit.
   - 인라인 편집 (클릭 → input, blur → PATCH 호출)
   - TanStack Query mutation + optimistic update
 
+---
+
+## Trading Feature — 실제 주식 매매 기능
+
+### Step 1 — DB 마이그레이션
+
+- [x] **chore: trading 지원 Alembic 마이그레이션**
+  - `kis_accounts` 테이블: `is_paper_trading` (Boolean, default: false), `account_type` (String(20)) 컬럼 추가
+  - `transactions` 테이블: `order_no` (String(50)), `order_source` (String(10), default: "manual") 컬럼 추가
+  - `orders` 테이블 신규 생성: `id`, `portfolio_id`, `kis_account_id`, `ticker`, `name`, `order_type`, `order_class`, `quantity`, `price`, `order_no`, `status`, `filled_quantity`, `filled_price`, `memo`, `created_at`, `updated_at`
+  - `alembic revision --autogenerate -m "add_trading_support"`
+
+### Step 2 — 백엔드 서비스 계층
+
+- [x] **feat: KIS 주문 서비스 (`kis_order.py`)**
+  - `backend/app/services/kis_order.py` 신규 생성
+  - `place_domestic_order()`: 국내주식 매수/매도, 계좌 유형별 TR_ID 분기 (일반/ISA: `TTTC0802U`/`TTTC0801U`, 연금/IRP: `TTTC0852U`/`TTTC0851U`)
+  - `place_overseas_order()`: 해외주식 매수/매도, 거래소별 TR_ID 분기 (`JTTT1002U`/`JTTT1006U`)
+  - `get_orderable_quantity()`: 매수가능조회 (`TTTC8908R`), 해외 매수가능금액 (`TTTS3007R`)
+  - `get_pending_orders()`: 미체결 주문 조회 (국내 `TTTC8036R`, 해외 `JTTT3018R`)
+  - `cancel_order()`: 주문 취소 (국내 `TTTC0803U`, 해외 `JTTT1004U`)
+  - Redis 기반 이중 주문 방지 락 (`order_lock:{portfolio_id}:{ticker}`, TTL: 10초)
+  - 장 운영시간 체크 (국내 09:00~15:30), 장외 주문 시 안내 메시지
+  - 레이트 리밋 5회/분, 모든 주문 시도를 `orders` 테이블에 기록
+
+- [x] **feat: 예수금 조회 서비스 확장 (`kis_balance.py`)**
+  - `backend/app/services/kis_balance.py` 신규 또는 `kis_account.py` 확장
+  - `get_cash_balance()`: 국내 예수금 (`TTTC8434R`), 해외 체결기준잔고 (`TTTS3012R`)
+  - 반환: `total_cash`, `available_cash`, `total_evaluation`, `total_profit_loss`, `profit_loss_rate`, `currency`, `foreign_cash`, `usd_krw_rate`
+
+- [x] **feat: 주문 Pydantic 스키마 (`schemas/order.py`)**
+  - `backend/app/schemas/order.py` 신규 생성
+  - `OrderRequest`, `OrderResult`, `OrderableInfoResponse`, `CashBalanceResponse`, `PendingOrderResponse`
+
+### Step 3 — 백엔드 API 계층
+
+- [x] **feat: 주문 API 라우터 (`api/orders.py`)**
+  - `backend/app/api/orders.py` 신규 생성
+  - `POST /portfolios/{id}/orders`: 매수/매도 주문 실행 → KIS API 호출 → transactions/holdings/orders 테이블 자동 업데이트
+  - `GET /portfolios/{id}/orders/orderable`: 주문 가능 수량/금액 조회 (`ticker`, `price`, `order_type` query params)
+  - `GET /portfolios/{id}/orders/pending`: 미체결 주문 목록
+  - `DELETE /portfolios/{id}/orders/{order_no}`: 주문 취소
+  - `GET /portfolios/{id}/cash-balance`: 예수금 및 총 평가금액 (Redis 캐시 TTL 30초)
+  - `backend/app/main.py`에 라우터 등록
+
+- [x] **feat: 대시보드 API에 예수금 필드 추가**
+  - `backend/app/api/dashboard.py` 수정
+  - `GET /dashboard/summary` 응답에 `total_cash`, `total_assets` 필드 추가
+
+### Step 4 — 백엔드 테스트
+
+- [x] **test: 주문 API 테스트 (`tests/test_orders.py`)**
+  - KIS API mock으로 매수/매도 주문 플로우 테스트
+  - 이중 주문 방지 (Redis 락) 테스트
+  - 계좌 유형별 TR_ID 분기 테스트 (일반/ISA/연금/IRP/해외)
+  - 에러 케이스: 예수금 부족, 장외 시간, 종목 정지
+  - 주문 취소 플로우 테스트
+  - `kis_transaction.py` 0% 커버리지 해소도 함께
+
+### Step 5 — 프론트엔드 훅 & 타입
+
+- [x] **feat: 주문 TanStack Query 훅 (`hooks/useOrders.ts`)**
+  - `frontend/src/hooks/useOrders.ts` 신규 생성
+  - `useCashBalance(portfolioId)`: 예수금 + 총평가 조회, 30초 폴링
+  - `useOrderableQuantity(portfolioId, ticker, price, orderType)`
+  - `usePlaceOrder(portfolioId)`: 주문 실행 mutation, 성공 시 캐시 무효화
+  - `usePendingOrders(portfolioId)`: 미체결 주문 조회, 30초 폴링
+  - `useCancelOrder(portfolioId)`: 주문 취소 mutation
+  - Order 관련 TypeScript 타입 추가
+
+### Step 6 — 프론트엔드 UI
+
+- [x] **feat: 주문 다이얼로그 컴포넌트 (`OrderDialog.tsx`)**
+  - `frontend/src/components/OrderDialog.tsx` 신규 생성
+  - shadcn/ui `Dialog` + `Tabs` 기반 (매수/매도 탭)
+  - 지정가/시장가 선택, 수량 퀵 버튼 (10%/25%/50%/100%)
+  - 주문금액·예수금·수수료 실시간 표시
+  - 메모 필드 (transactions.memo 연계)
+  - 주문 버튼 클릭 → 확인 다이얼로그 → 최종 실행
+  - 매수=빨간색, 매도=파란색 (한국 컬러 컨벤션)
+
+- [x] **feat: 미체결 주문 패널 (`PendingOrdersPanel.tsx`)**
+  - `frontend/src/components/PendingOrdersPanel.tsx` 신규 생성
+  - 30초 폴링으로 자동 갱신
+  - 체결 완료 시 sonner toast 알림
+  - 주문 취소 버튼
+
+- [x] **feat: 포트폴리오 상세 페이지 개편**
+  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 수정
+  - 상단 요약 영역: 총 평가금액 + 예수금(현금) + 총 수익률 표시
+  - [신규 종목 매수] [전체 동기화] [미체결 주문 (N)] 버튼 추가
+  - KIS 연결 안 된 포트폴리오는 예수금 영역 숨기고 기존 UI 유지
+  - `HoldingsTable`에 [매수][매도] 버튼 추가 (KIS 연결 포트폴리오에서만 표시)
+  - 신규 종목 매수: StockSearch → OrderDialog 자동 열림 플로우
+
+- [x] **feat: 대시보드 및 포트폴리오 목록에 예수금 표시**
+  - `frontend/src/app/dashboard/page.tsx`: 총 자산(평가+예수금) 표시
+  - `frontend/src/app/dashboard/portfolios/page.tsx`: 포트폴리오 카드에 예수금 필드 추가
+
+### Step 7 — 설정 페이지 확장
+
+- [x] **feat: KIS 계좌 설정에 계좌 유형·모의투자 옵션 추가**
+  - `frontend/src/app/dashboard/settings/page.tsx` 수정
+  - 계좌 유형 선택 드롭다운 (일반/ISA/연금저축/IRP/해외주식)
+  - 모의투자/실전투자 토글 (`is_paper_trading`)
+  - 1회 주문 금액 상한 설정 입력 필드
+
+### Step 8 — E2E 테스트
+
+- [x] **test: 주문 플로우 E2E (Playwright)**
+  - 정상 매수/매도 플로우
+  - 에러 케이스: 예수금 부족, 장외 시간
+  - 미체결 주문 취소 플로우

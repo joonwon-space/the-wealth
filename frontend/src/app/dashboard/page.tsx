@@ -69,6 +69,8 @@ interface Summary {
   triggered_alerts: TriggeredAlert[];
   usd_krw_rate: number | null;
   kis_status: "ok" | "degraded";
+  total_cash: number | null;
+  total_assets: number | null;
 }
 
 async function fetchSummary(refresh = false): Promise<Summary> {
@@ -224,6 +226,8 @@ export default function DashboardPage() {
     triggered_alerts: [],
     usd_krw_rate: null,
     kis_status: "ok",
+    total_cash: null,
+    total_assets: null,
   };
 
   const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
@@ -281,10 +285,10 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* 요약 카드 */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className={`grid grid-cols-1 gap-4 ${s.total_cash != null ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">총 자산</p>
+                <p className="text-xs text-muted-foreground">총 자산 (평가금액)</p>
                 <p className="mt-1 text-xl font-bold tabular-nums">{formatKRW(s.total_asset)}</p>
                 {(s.day_change_pct != null || s.total_day_change_rate != null) && (
                   <p className="mt-0.5 text-xs flex items-center gap-1">
@@ -303,6 +307,9 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
             <SummaryCard label="투자 원금" value={formatKRW(s.total_invested)} />
+            {s.total_cash != null && (
+              <SummaryCard label="예수금 합계" value={formatKRW(s.total_cash)} />
+            )}
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">총 손익</p>
