@@ -274,7 +274,8 @@ async def fetch_usd_krw_rate(
         )
         resp.raise_for_status()
         output = resp.json().get("output", {})
-        rate_str = output.get("base_exchange_rate", "")
+        # KIS HHDFS00000300 응답의 기준환율 필드는 'fxrt'
+        rate_str = output.get("fxrt", "") or ""
         if rate_str and rate_str != "0":
             rate = Decimal(rate_str)
             # sanity check: USD/KRW 환율은 100 이상이어야 함

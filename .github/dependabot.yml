@@ -11,6 +11,12 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    ignore:
+      # pytest 9.x and pytest-asyncio 1.x have breaking changes — defer migration
+      - dependency-name: "pytest"
+        versions: [">=9"]
+      - dependency-name: "pytest-asyncio"
+        versions: [">=1"]
     groups:
       python-deps:
         patterns:

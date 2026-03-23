@@ -1,6 +1,7 @@
 """투자 성과 지표 API."""
 
 import asyncio
+import json
 import math
 import re
 from datetime import date as date_type
@@ -13,6 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.redis_cache import RedisCache
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
@@ -27,10 +30,23 @@ from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
 
 _DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
+_analytics_cache = RedisCache(settings.REDIS_URL)
+_ANALYTICS_CACHE_TTL = 3600  # 1시간; sync 시 무효화
 
 
 def _is_domestic(ticker: str) -> bool:
     return bool(_DOMESTIC_TICKER_RE.match(ticker))
+
+
+def _analytics_key(user_id: int, endpoint: str) -> str:
+    return f"analytics:{user_id}:{endpoint}"
+
+
+async def invalidate_analytics_cache(user_id: int) -> None:
+    """sync 성공 후 호출 — 해당 유저의 분석 캐시 전체 삭제."""
+    for endpoint in ("metrics", "monthly-returns", "portfolio-history", "sector-allocation"):
+        await _analytics_cache.delete(_analytics_key(user_id, endpoint))
+
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = get_logger(__name__)
@@ -84,6 +100,11 @@ async def get_metrics(
 
     Returns: total_return_rate, cagr, mdd, sharpe_ratio
     """
+    cache_key = _analytics_key(current_user.id, "metrics")
+    cached = await _analytics_cache.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
     # 보유 종목 조회
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
@@ -190,12 +211,14 @@ async def get_metrics(
     mdd = _calc_mdd(portfolio_values + [total_current]) if portfolio_values else 0.0
     sharpe = _calc_sharpe(daily_returns)
 
-    return {
+    result = {
         "total_return_rate": round(total_return_rate, 2),
         "cagr": round(cagr, 2) if cagr is not None else None,
         "mdd": round(mdd, 2),
         "sharpe_ratio": round(sharpe, 3) if sharpe is not None else None,
     }
+    await _analytics_cache.setex(cache_key, _ANALYTICS_CACHE_TTL, json.dumps(result))
+    return result
 
 
 @router.get("/monthly-returns", response_model=list[MonthlyReturn])
@@ -208,6 +231,11 @@ async def get_monthly_returns(
     price_snapshots에서 각 월의 마지막 거래일 종가를 취합하여
     전월 대비 수익률을 반환한다.
     """
+    cache_key = _analytics_key(current_user.id, "monthly-returns")
+    cached = await _analytics_cache.get(cache_key)
+    if cached:
+        return [MonthlyReturn(**item) for item in json.loads(cached)]
+
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
@@ -273,6 +301,10 @@ async def get_monthly_returns(
                 MonthlyReturn(year=year, month=month, return_rate=round(return_rate, 2))
             )
 
+    await _analytics_cache.setex(
+        cache_key, _ANALYTICS_CACHE_TTL,
+        json.dumps([r.model_dump() for r in monthly_returns])
+    )
     return monthly_returns
 
 
@@ -286,6 +318,11 @@ async def get_portfolio_history(
     price_snapshots에서 보유 종목의 날짜별 종가를 집계하여
     일별 포트폴리오 가치를 계산한다.
     """
+    cache_key = _analytics_key(current_user.id, "portfolio-history")
+    cached = await _analytics_cache.get(cache_key)
+    if cached:
+        return [PortfolioHistoryPoint(**item) for item in json.loads(cached)]
+
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
@@ -331,6 +368,10 @@ async def get_portfolio_history(
         if value > 0:
             history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
 
+    await _analytics_cache.setex(
+        cache_key, _ANALYTICS_CACHE_TTL,
+        json.dumps([h.model_dump() for h in history])
+    )
     return history
 
 
@@ -344,6 +385,11 @@ async def get_sector_allocation(
     평균 매입가 기준으로 섹터별 투자 금액 비중을 계산한다.
     현재가 조회 없이 빠르게 응답한다.
     """
+    cache_key = _analytics_key(current_user.id, "sector-allocation")
+    cached = await _analytics_cache.get(cache_key)
+    if cached:
+        return [SectorAllocation(**item) for item in json.loads(cached)]
+
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
@@ -373,7 +419,7 @@ async def get_sector_allocation(
     if total <= 0:
         return []
 
-    return [
+    result = [
         SectorAllocation(
             sector=sector,
             value=round(value, 0),
@@ -381,3 +427,8 @@ async def get_sector_allocation(
         )
         for sector, value in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
     ]
+    await _analytics_cache.setex(
+        cache_key, _ANALYTICS_CACHE_TTL,
+        json.dumps([r.model_dump() for r in result])
+    )
+    return result
