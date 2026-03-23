@@ -102,13 +102,12 @@ async def _get_domestic_balance(
         output2: dict = (data.get("output2") or [{}])[0] if data.get("output2") else {}
         total_eval = Decimal(str(output2.get("tot_evlu_amt", "0")))
         dnca_tot_amt = Decimal(str(output2.get("dnca_tot_amt", "0")))  # 예수금 총금액
-        nass_amt = Decimal(str(output2.get("nass_amt", "0")))          # 순자산금액
         evlu_pfls_smtl_amt = Decimal(str(output2.get("evlu_pfls_smtl_amt", "0")))
         evlu_erng_rt = Decimal(str(output2.get("evlu_erng_rt", "0")))
 
         return CashBalance(
             total_cash=dnca_tot_amt,
-            available_cash=nass_amt,
+            available_cash=dnca_tot_amt,  # 주문 가능 예수금 = 예수금 총금액 (nass_amt는 주식 평가금액 포함한 순자산)
             total_evaluation=total_eval,
             total_profit_loss=evlu_pfls_smtl_amt,
             profit_loss_rate=evlu_erng_rt,
