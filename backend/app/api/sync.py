@@ -22,7 +22,7 @@ from app.services.kis_account import (
     fetch_account_holdings,
     fetch_overseas_account_holdings,
 )
-from app.services.kis_price import cache_fx_rate, get_exchange_rate
+from app.services.kis_price import get_exchange_rate
 from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 from app.services.reconciliation import reconcile_holdings
 from app.api.analytics import invalidate_analytics_cache
@@ -105,18 +105,7 @@ async def _fetch_balance_raw(
     holdings_list = domestic_holdings + overseas_holdings
 
     # 해외주식 평가금액/손익을 원화로 환산해서 합계에 반영
-    # TTTS3012R output2에 wcrc_exrt(원화환율) 포함 — 있으면 캐시에 저장 후 사용
-    wcrc_exrt_str = overseas_summary.get("wcrc_exrt") or ""
-    try:
-        wcrc_exrt = float(wcrc_exrt_str) if wcrc_exrt_str else 0.0
-    except ValueError:
-        wcrc_exrt = 0.0
-
-    if wcrc_exrt > 100:
-        await cache_fx_rate(wcrc_exrt)
-        exchange_rate = wcrc_exrt
-    else:
-        exchange_rate = await get_exchange_rate(app_key, app_secret)
+    exchange_rate = await get_exchange_rate(app_key, app_secret)
     ovrs_eval_usd = float(overseas_summary.get("frcr_evlu_pfls_amt", 0) or 0)
     ovrs_pnl_usd = float(overseas_summary.get("ovrs_tot_pfls", 0) or 0)
 

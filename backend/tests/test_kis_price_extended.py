@@ -266,13 +266,8 @@ class TestFetchDomesticDailyOhlcv:
 
 @pytest.mark.unit
 class TestFetchUsdKrwRate:
-    @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.core.redis_cache.aioredis")
-    async def test_success_with_cache_miss(
-        self, mock_aioredis: MagicMock, mock_token: AsyncMock
-    ) -> None:
-        mock_token.return_value = "fake-token"
-
+    async def test_success_with_cache_miss(self, mock_aioredis: MagicMock) -> None:
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)  # cache miss
         mock_redis.setex = AsyncMock()
@@ -280,22 +275,16 @@ class TestFetchUsdKrwRate:
         mock_redis.__aexit__ = AsyncMock(return_value=None)
         mock_aioredis.from_url.return_value = mock_redis
 
-        response = _make_response(
-            200, {"output": {"last": "185.50", "fxrt": "1330.50"}}
-        )
+        # frankfurter.app 응답 형식
+        response = _make_response(200, {"rates": {"KRW": 1330.50}})
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
 
         result = await fetch_usd_krw_rate("key", "secret", mock_client)
-        assert result == Decimal("1330.50")
+        assert result == Decimal("1330.5")
 
-    @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.core.redis_cache.aioredis")
-    async def test_cache_hit_returns_cached(
-        self, mock_aioredis: MagicMock, mock_token: AsyncMock
-    ) -> None:
-        mock_token.return_value = "fake-token"
-
+    async def test_cache_hit_returns_cached(self, mock_aioredis: MagicMock) -> None:
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value="1340.00")  # cache hit
         mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
@@ -309,14 +298,9 @@ class TestFetchUsdKrwRate:
         # Client should NOT be called since cache was hit
         mock_client.get.assert_not_called()
 
-    @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.core.redis_cache.aioredis")
-    async def test_fallback_on_api_failure(
-        self, mock_aioredis: MagicMock, mock_token: AsyncMock
-    ) -> None:
+    async def test_fallback_on_api_failure(self, mock_aioredis: MagicMock) -> None:
         """API timeout/error → fallback rate 1450."""
-        mock_token.return_value = "fake-token"
-
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)  # cache miss
         mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
@@ -329,21 +313,16 @@ class TestFetchUsdKrwRate:
         result = await fetch_usd_krw_rate("key", "secret", mock_client)
         assert result == Decimal("1450")
 
-    @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
     @patch("app.core.redis_cache.aioredis")
-    async def test_zero_rate_uses_fallback(
-        self, mock_aioredis: MagicMock, mock_token: AsyncMock
-    ) -> None:
+    async def test_zero_rate_uses_fallback(self, mock_aioredis: MagicMock) -> None:
         """Zero/empty exchange rate in response → fallback."""
-        mock_token.return_value = "fake-token"
-
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)
         mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
         mock_redis.__aexit__ = AsyncMock(return_value=None)
         mock_aioredis.from_url.return_value = mock_redis
 
-        response = _make_response(200, {"output": {"last": "185.0", "base_exchange_rate": "0"}})
+        response = _make_response(200, {"rates": {"KRW": 0}})
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
 
@@ -540,9 +519,7 @@ class TestFetchUsdKrwRateCacheWriteError:
 
         mock_aioredis.from_url.side_effect = _from_url_factory
 
-        response = _make_response(
-            200, {"output": {"last": "185.0", "fxrt": "1325.0"}}
-        )
+        response = _make_response(200, {"rates": {"KRW": 1325.0}})
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
 
@@ -566,9 +543,7 @@ class TestFetchUsdKrwRateCacheWriteError:
         mock_redis.__aexit__ = AsyncMock(return_value=None)
         mock_aioredis.from_url.return_value = mock_redis
 
-        response = _make_response(
-            200, {"output": {"last": "185.0", "fxrt": "1310.0"}}
-        )
+        response = _make_response(200, {"rates": {"KRW": 1310.0}})
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
 

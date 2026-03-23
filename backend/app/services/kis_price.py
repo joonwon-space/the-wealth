@@ -250,42 +250,33 @@ async def fetch_usd_krw_rate(
     app_secret: str,
     client: httpx.AsyncClient,
 ) -> Decimal:
-    """USD/KRW 환율 조회. 1h 캐시 → KIS API(보조) → 7일 stale 캐시 → 하드코딩 1450 순으로 fallback.
+    """USD/KRW 환율 조회. 1h 캐시 → frankfurter.app → 7일 stale 캐시 → 하드코딩 1450 순으로 fallback.
 
-    실제 환율은 sync 과정에서 TTTS3012R output2.wcrc_exrt로 캐싱된다(cache_fx_rate 참고).
-    캐시가 없는 경우 HHDFS00000300(AAPL) 응답의 fxrt 필드를 보조 소스로 시도한다.
+    KIS API에는 전용 환율 엔드포인트가 없으므로 ECB 기반 공개 FX API를 사용한다.
+    API key 불필요, 무료, rate limit 없음.
     """
     cached = await _cache.get(_FX_CACHE_KEY)
     if cached:
         return Decimal(cached)
 
     try:
-        headers = await _get_headers(app_key, app_secret)
-        headers["tr_id"] = "HHDFS00000300"
-        params = {
-            "AUTH": "",
-            "EXCD": "NAS",
-            "SYMB": "AAPL",
-        }
         resp = await client.get(
-            f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
-            headers=headers,
-            params=params,
+            "https://api.frankfurter.app/latest",
+            params={"from": "USD", "to": "KRW"},
+            timeout=5.0,
         )
         resp.raise_for_status()
-        output = resp.json().get("output", {})
-        # KIS HHDFS00000300 응답의 기준환율 필드는 'fxrt'
-        rate_str = output.get("fxrt", "") or ""
+        data = resp.json()
+        rate_str = str(data.get("rates", {}).get("KRW", "0"))
         if rate_str and rate_str != "0":
             rate = Decimal(rate_str)
-            # sanity check: USD/KRW 환율은 100 이상이어야 함
-            # rate(전일대비율) 필드 오염 방지 (e.g. -1.50 → 잘못된 환율)
             if rate > 100:
                 await _cache.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, str(rate))
                 await _cache.setex(_FX_STALE_KEY, _FX_STALE_TTL, str(rate))
+                logger.info("Fetched USD/KRW rate from frankfurter.app: %s", rate)
                 return rate
     except Exception as e:
-        logger.warning("Failed to fetch USD/KRW rate via KIS API: %s", e)
+        logger.warning("Failed to fetch USD/KRW rate via frankfurter.app: %s", e)
 
     stale = await _cache.get(_FX_STALE_KEY)
     if stale:
