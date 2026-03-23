@@ -4,14 +4,15 @@ X-Internal-Secret 헤더 검증, 성공/실패 페이로드 처리,
 SyncLog 기록 등을 검증한다.
 """
 
+import os
 from typing import AsyncGenerator
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-import os
 
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
@@ -21,18 +22,17 @@ TEST_DB_URL = os.environ.get(
 _VALID_SECRET = "test-internal-secret-xyz"
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def internal_client() -> AsyncGenerator[AsyncClient, None]:
     """Provide an async HTTP client with INTERNAL_SECRET configured."""
-    from app.db.base import Base
     from app.db.session import get_db
     from app.main import app
+    from tests.conftest import _clean_all_data
 
-    engine = create_async_engine(TEST_DB_URL, echo=False)
+    await _clean_all_data()
+
+    engine = create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
     async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
         async with factory() as session:
@@ -47,8 +47,6 @@ async def internal_client() -> AsyncGenerator[AsyncClient, None]:
             yield ac
 
     app.dependency_overrides.clear()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 

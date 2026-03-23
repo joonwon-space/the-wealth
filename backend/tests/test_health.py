@@ -8,7 +8,9 @@ from typing import AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import os
@@ -19,18 +21,17 @@ TEST_DB_URL = os.environ.get(
 )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def health_client() -> AsyncGenerator[AsyncClient, None]:
     """Provide an async HTTP client bound to /api/v1 base URL."""
-    from app.db.base import Base
     from app.db.session import get_db
     from app.main import app
+    from tests.conftest import _clean_all_data
 
-    engine = create_async_engine(TEST_DB_URL, echo=False)
+    await _clean_all_data()
+
+    engine = create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
     async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
         async with factory() as session:
@@ -43,8 +44,6 @@ async def health_client() -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
     app.dependency_overrides.clear()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 

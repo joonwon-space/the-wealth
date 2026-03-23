@@ -4,53 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-import os
-
-TEST_DB_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://joonwon@localhost:5432/the_wealth_test",
-)
-
-# ---------------------------------------------------------------------------
-# Shared fixture
-# ---------------------------------------------------------------------------
-
-
-@pytest_asyncio.fixture
-async def client() -> AsyncClient:
-    from app.core.limiter import limiter
-    from app.db.base import Base
-    from app.db.session import get_db
-    from app.main import app
-
-    try:
-        limiter._storage.reset()  # type: ignore[attr-defined]
-    except Exception:
-        pass
-
-    engine = create_async_engine(TEST_DB_URL, echo=False)
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async def _override_get_db():
-        async with factory() as session:
-            yield session
-
-    app.dependency_overrides[get_db] = _override_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test/api/v1/") as ac:
-        yield ac
-
-    app.dependency_overrides.clear()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
+from httpx import AsyncClient
 
 
 # ---------------------------------------------------------------------------

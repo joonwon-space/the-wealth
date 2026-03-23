@@ -3,13 +3,11 @@ get_prev_close, and fetch_domestic_price_detail."""
 
 from datetime import date
 from decimal import Decimal
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.price_snapshot import (
     OhlcvData,
@@ -18,31 +16,6 @@ from app.services.price_snapshot import (
     save_ohlcv_snapshots,
     save_snapshots,
 )
-
-import os
-
-TEST_DB_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://joonwon@localhost:5432/the_wealth_test",
-)
-
-
-@pytest_asyncio.fixture
-async def db() -> AsyncGenerator[AsyncSession, None]:
-    from app.db.base import Base
-
-    engine = create_async_engine(TEST_DB_URL, echo=False)
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async with factory() as session:
-        yield session
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
 
 
 @pytest.mark.integration

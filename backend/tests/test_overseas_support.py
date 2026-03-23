@@ -4,9 +4,8 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import Base
 from app.models.holding import Holding
 from app.models.portfolio import Portfolio
 from app.models.user import User
@@ -17,7 +16,6 @@ from app.services.kis_price import (
     fetch_usd_krw_rate,
 )
 from app.services.reconciliation import reconcile_holdings
-from tests.conftest import TEST_DB_URL
 
 
 # ---------------------------------------------------------------------------
@@ -253,105 +251,81 @@ class TestFetchUsdKrwRate:
 
 @pytest.mark.unit
 class TestReconcileHoldingsWithMarket:
-    async def test_insert_overseas_holding_with_market(self) -> None:
+    async def test_insert_overseas_holding_with_market(self, db: AsyncSession) -> None:
         """해외주식 INSERT 시 market 컬럼이 저장돼야 한다."""
-        engine = create_async_engine(TEST_DB_URL, echo=False)
-        factory = async_sessionmaker(
-            engine, class_=AsyncSession, expire_on_commit=False
+        user = User(
+            email="overseas_recon@test.com",
+            hashed_password=hash_password("test"),
         )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
 
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-            await conn.run_sync(Base.metadata.create_all)
+        portfolio = Portfolio(user_id=user.id, name="test")
+        db.add(portfolio)
+        await db.commit()
+        await db.refresh(portfolio)
 
-        async with factory() as db:
-            user = User(
-                email="overseas_recon@test.com",
-                hashed_password=hash_password("test"),
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-
-            portfolio = Portfolio(user_id=user.id, name="test")
-            db.add(portfolio)
-            await db.commit()
-            await db.refresh(portfolio)
-
-            kis_holdings = [
-                KisHolding(
-                    ticker="AAPL",
-                    name="Apple Inc.",
-                    quantity=Decimal("5"),
-                    avg_price=Decimal("183.42"),
-                    market="NAS",
-                ),
-            ]
-            counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
-            assert counts["inserted"] == 1
-
-            from sqlalchemy import select
-
-            result = await db.execute(
-                select(Holding).where(Holding.portfolio_id == portfolio.id)
-            )
-            holding = result.scalar_one()
-            assert holding.ticker == "AAPL"
-            assert holding.market == "NAS"
-
-        await engine.dispose()
-
-    async def test_update_holding_market_on_change(self) -> None:
-        """market 코드가 변경되면 UPDATE 카운트에 포함돼야 한다."""
-        engine = create_async_engine(TEST_DB_URL, echo=False)
-        factory = async_sessionmaker(
-            engine, class_=AsyncSession, expire_on_commit=False
-        )
-
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-            await conn.run_sync(Base.metadata.create_all)
-
-        async with factory() as db:
-            user = User(
-                email="overseas_recon2@test.com",
-                hashed_password=hash_password("test"),
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-
-            portfolio = Portfolio(user_id=user.id, name="test")
-            db.add(portfolio)
-            await db.commit()
-            await db.refresh(portfolio)
-
-            # 기존 holding — market=None
-            holding = Holding(
-                portfolio_id=portfolio.id,
+        kis_holdings = [
+            KisHolding(
                 ticker="AAPL",
                 name="Apple Inc.",
                 quantity=Decimal("5"),
                 avg_price=Decimal("183.42"),
-                market=None,
-            )
-            db.add(holding)
-            await db.commit()
+                market="NAS",
+            ),
+        ]
+        counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
+        assert counts["inserted"] == 1
 
-            # KIS에서 market=NAS로 업데이트
-            kis_holdings = [
-                KisHolding(
-                    ticker="AAPL",
-                    name="Apple Inc.",
-                    quantity=Decimal("5"),
-                    avg_price=Decimal("183.42"),
-                    market="NAS",
-                ),
-            ]
-            counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
-            assert counts["updated"] == 1
+        from sqlalchemy import select
 
-        await engine.dispose()
+        result = await db.execute(
+            select(Holding).where(Holding.portfolio_id == portfolio.id)
+        )
+        holding = result.scalar_one()
+        assert holding.ticker == "AAPL"
+        assert holding.market == "NAS"
+
+    async def test_update_holding_market_on_change(self, db: AsyncSession) -> None:
+        """market 코드가 변경되면 UPDATE 카운트에 포함돼야 한다."""
+        user = User(
+            email="overseas_recon2@test.com",
+            hashed_password=hash_password("test"),
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+        portfolio = Portfolio(user_id=user.id, name="test")
+        db.add(portfolio)
+        await db.commit()
+        await db.refresh(portfolio)
+
+        # 기존 holding — market=None
+        holding = Holding(
+            portfolio_id=portfolio.id,
+            ticker="AAPL",
+            name="Apple Inc.",
+            quantity=Decimal("5"),
+            avg_price=Decimal("183.42"),
+            market=None,
+        )
+        db.add(holding)
+        await db.commit()
+
+        # KIS에서 market=NAS로 업데이트
+        kis_holdings = [
+            KisHolding(
+                ticker="AAPL",
+                name="Apple Inc.",
+                quantity=Decimal("5"),
+                avg_price=Decimal("183.42"),
+                market="NAS",
+            ),
+        ]
+        counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
+        assert counts["updated"] == 1
 
 
 # ---------------------------------------------------------------------------
