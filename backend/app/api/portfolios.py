@@ -94,6 +94,7 @@ async def list_portfolios(
             "created_at": p.created_at,
             "holdings_count": count,
             "total_invested": invested,
+            "kis_account_id": p.kis_account_id,
         }
         for p, kis_label, count, invested in rows
     ]

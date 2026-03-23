@@ -222,7 +222,7 @@ Each item should be completable in a single commit.
 
 ### Step 6 — 프론트엔드 UI
 
-- [ ] **feat: 주문 다이얼로그 컴포넌트 (`OrderDialog.tsx`)**
+- [x] **feat: 주문 다이얼로그 컴포넌트 (`OrderDialog.tsx`)**
   - `frontend/src/components/OrderDialog.tsx` 신규 생성
   - shadcn/ui `Dialog` + `Tabs` 기반 (매수/매도 탭)
   - 지정가/시장가 선택, 수량 퀵 버튼 (10%/25%/50%/100%)
@@ -231,13 +231,13 @@ Each item should be completable in a single commit.
   - 주문 버튼 클릭 → 확인 다이얼로그 → 최종 실행
   - 매수=빨간색, 매도=파란색 (한국 컬러 컨벤션)
 
-- [ ] **feat: 미체결 주문 패널 (`PendingOrdersPanel.tsx`)**
+- [x] **feat: 미체결 주문 패널 (`PendingOrdersPanel.tsx`)**
   - `frontend/src/components/PendingOrdersPanel.tsx` 신규 생성
   - 30초 폴링으로 자동 갱신
   - 체결 완료 시 sonner toast 알림
   - 주문 취소 버튼
 
-- [ ] **feat: 포트폴리오 상세 페이지 개편**
+- [x] **feat: 포트폴리오 상세 페이지 개편**
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 수정
   - 상단 요약 영역: 총 평가금액 + 예수금(현금) + 총 수익률 표시
   - [신규 종목 매수] [전체 동기화] [미체결 주문 (N)] 버튼 추가
@@ -245,7 +245,7 @@ Each item should be completable in a single commit.
   - `HoldingsTable`에 [매수][매도] 버튼 추가 (KIS 연결 포트폴리오에서만 표시)
   - 신규 종목 매수: StockSearch → OrderDialog 자동 열림 플로우
 
-- [ ] **feat: 대시보드 및 포트폴리오 목록에 예수금 표시**
+- [x] **feat: 대시보드 및 포트폴리오 목록에 예수금 표시**
   - `frontend/src/app/dashboard/page.tsx`: 총 자산(평가+예수금) 표시
   - `frontend/src/app/dashboard/portfolios/page.tsx`: 포트폴리오 카드에 예수금 필드 추가
 
