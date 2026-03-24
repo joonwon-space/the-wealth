@@ -117,7 +117,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [x] Auto-deactivate triggered alerts
 - [x] In-app notification center: `notifications` 테이블 + `GET/PATCH /notifications` API
 - [x] Frontend notification bell + unread badge + dropdown panel
-- [ ] Email alerts (SendGrid / Resend)
+- [ ] Email alerts (SendGrid / Resend) → 19-1로 통합
 
 ### 12-5. API Extension
 - [ ] Cursor-based pagination for transactions, sync_logs
@@ -155,9 +155,9 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ### 13-5a. Operational Stability
 - [x] Redis failure fallback
 - [x] Scheduler failure alerting (consecutive failure tracking)
-- [ ] Docker volume disk monitoring — `pg_data`, `redis_data` 사용량 임계값(80%) 경고 + health endpoint `disk_usage` 필드
-- [ ] TLS certificate renewal check — HTTPS cert expiry monitoring
-- [ ] Price fetch failure rate tracking — threshold(30%) 초과 시 alert
+- [ ] Docker volume disk monitoring → 18-3으로 통합
+- [ ] TLS certificate renewal check → 18-3으로 통합
+- [ ] Price fetch failure rate tracking → 18-3으로 통합
 
 ### 13-5b. Data Integrity
 - [x] `price_snapshots` gap detection
@@ -167,7 +167,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ### 13-5c. KIS API Dependency Reduction
 - [x] Adaptive cache TTL (after-market 24h extension)
 - [x] KIS API health check on startup + degraded mode
-- [ ] Price fetch failure rate tracking (13-5a와 연계)
+- [ ] Price fetch failure rate tracking → 18-3으로 통합
 
 ---
 
@@ -176,7 +176,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ### 14-2. Monitoring & Observability
 - [x] Sentry 백엔드 통합 — `sentry-sdk[fastapi]` + `SENTRY_DSN` env (완료, 수신 확인됨)
 - [x] Sentry 프론트엔드 통합 — `@sentry/nextjs` + Error Boundary `captureException` 연동 (완료)
-- [ ] API 응답시간 미들웨어 — `MetricsMiddleware`: `process_time` structlog 기록 + `X-Process-Time` 헤더
+- [x] API 응답시간 미들웨어 — `MetricsMiddleware`: `process_time` structlog 기록 + `X-Process-Time` 헤더
 
 ### 14-4. Security Enhancement
 - [ ] API key rotation automation
@@ -189,24 +189,24 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ### 15-2. Portfolio Tools
 - [ ] Breakeven visualization — HoldingsTable 미니 게이지 바 (52주 범위 내 현재가 + 평균 매입가 마커)
-- [ ] Portfolio performance sharing (anonymous link, stock name masking)
-- [ ] Screenshot sharing (html2canvas or satori)
+- [ ] Portfolio performance sharing → 19-2로 통합
+- [ ] Screenshot sharing → 19-2로 통합
 
 ### 15-4. Data Export & Tax
-- [ ] Excel export (xlsx with formatting, `openpyxl`)
-- [ ] Tax calculator (국내 대주주 양도세, 해외 250만원 공제 후 22%)
-- [ ] PDF report generation
+- [ ] Excel export → 19-3으로 통합
+- [ ] Tax calculator → 19-3으로 통합
+- [ ] PDF report generation → 19-3으로 통합
 
 ---
 
 ## Milestone 16: Dev Tools & DX (Remaining)
 
 ### 16-2. Test Infrastructure
-- [ ] MSW (Mock Service Worker) 설정 — 프론트엔드 테스트 API 모킹 인프라
-- [ ] Dashboard page component tests (TanStack Query mock + MSW)
-- [ ] Portfolio list/detail page tests
-- [ ] HoldingsTable unit tests (sort, PnLBadge color rules, overseas USD display)
-- [ ] SSE connection tests (connect/reconnect, off-hours deactivation)
+- [x] MSW (Mock Service Worker) 설정 — 프론트엔드 테스트 API 모킹 인프라
+- [x] Dashboard page component tests (TanStack Query mock + MSW)
+- [x] Portfolio list/detail page tests
+- [x] HoldingsTable unit tests (sort, PnLBadge color rules, overseas USD display)
+- [x] SSE connection tests (connect/reconnect, off-hours deactivation)
 - [ ] Visual regression testing (Chromatic or Percy)
 - [ ] Load testing (Locust or k6)
 
@@ -216,21 +216,92 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
-## Priority Guide
+## Milestone 17: 투자 분석 고도화 (신규)
+
+### 17-1. 포트폴리오 비교 대시보드
+- [ ] 포트폴리오 간 수익률 비교 차트 (overlay line chart)
+- [ ] 기간별 필터 (1w / 1m / 3m / 6m / 1y / all) + date range picker
+- [ ] 포트폴리오별 섹터 비중 비교 (side-by-side donut)
+
+### 17-2. 환율 관리 및 해외투자 분석
+- [ ] USD/KRW 환율 히스토리 저장 (daily snapshot)
+- [ ] 해외주식 환차익/환차손 분리 표시 (주가 수익 vs 환율 수익)
+- [ ] 원화 환산 총 자산 추이 차트 (환율 변동 반영)
+- [ ] 환율 알림 (목표 환율 도달 시 알림)
+
+### 17-3. 투자 일지 대시보드
+- [ ] 거래 메모 기반 투자 일기장 뷰 (타임라인 UI)
+- [ ] 거래별 태그 시스템 (#실적발표, #배당투자, #단기매매 등)
+- [ ] 월별/종목별 투자 일지 필터링 및 검색
+- [ ] 투자 결정 회고 — 매수 시점 가격 vs 현재가 비교 위젯
+
+---
+
+## Milestone 18: 운영 안정성 강화 (신규)
+
+### 18-1. 운영 대시보드
+- [ ] `/dashboard/admin` 내부 관리 페이지 (관리자 전용)
+- [ ] 동기화 상태 모니터링 (sync_logs 시각화, 성공/실패 추이)
+- [ ] KIS API 응답시간 추이 차트 (MetricsMiddleware 데이터 활용)
+- [ ] Redis 키 현황 모니터링 (토큰/캐시/락 상태)
+
+### 18-2. 매니지드 인프라 전환
+- [ ] Neon (PostgreSQL) 프로젝트 생성 및 데이터 마이그레이션
+- [ ] Upstash (Redis) 인스턴스 생성 및 연결
+- [ ] 프로덕션 `.env` 업데이트 + 스테이징 검증
+- [ ] Docker Compose 로컬 개발용으로만 유지
+
+### 18-3. 인프라 모니터링 확장
+- [ ] Docker 볼륨 디스크 사용량 모니터링 (80% 임계값 경고)
+- [ ] TLS 인증서 만료 체크 자동화
+- [ ] KIS API 가격 조회 실패율 추적 (30% 초과 시 alert)
+- [ ] 백업 성공률 대시보드 (최근 30일 히스토리)
+
+---
+
+## Milestone 19: 사용자 경험 확장 (신규)
+
+### 19-1. 이메일/푸시 알림
+- [ ] SendGrid 또는 Resend 연동 — 가격 알림 이메일 발송
+- [ ] 알림 채널 설정 UI (인앱 / 이메일 / 둘 다)
+- [ ] 일일 포트폴리오 요약 이메일 (장 마감 후 자동 발송)
+- [ ] PWA Web Push 알림 (모바일 브라우저 지원)
+
+### 19-2. 소셜/공유 기능
+- [ ] 포트폴리오 성과 익명 공유 링크 (종목명 마스킹 옵션)
+- [ ] 성과 스크린샷 공유 (html2canvas 기반 이미지 생성)
+- [ ] 공유 페이지 — 인증 없이 열람 가능한 읽기 전용 대시보드
+
+### 19-3. 데이터 내보내기 확장
+- [ ] Excel 내보내기 (openpyxl 기반, 서식 포함 xlsx)
+- [ ] PDF 리포트 생성 (월간/연간 투자 성과 보고서)
+- [ ] 세금 계산기 (국내 대주주 양도세, 해외 250만원 공제 후 22%)
+
+---
+
+## Priority Guide (2026-03-24 갱신)
 
 | Priority | Item | Reason |
 |----------|------|--------|
 | ~~**P0**~~ | ~~0-2 (users 레거시 컬럼 제거)~~ | ✅ 완료 |
-| ~~**P0**~~ | ~~14-2 (Sentry APM)~~ | ✅ 완료 (백엔드+프론트 모두) |
-| **P1** | 16-2 (Frontend 테스트 MSW + 컴포넌트 테스트) | 백엔드 93% 대비 프론트 거의 0% |
-| **P1** | 12-4 (알림 센터) | SSE 조건 체크는 됨, 사용자 알림 없음 |
-| **P1** | 11-2 (Analytics: 기간 필터 + 지표) | 핵심 차별화 기능 |
-| **P1** | 13-5a (Disk monitoring) | 운영 안정성 |
+| ~~**P0**~~ | ~~14-2 (Sentry APM)~~ | ✅ 완료 |
+| ~~**P1**~~ | ~~16-2 (Frontend 테스트 MSW + 컴포넌트 테스트)~~ | ✅ 완료 |
+| ~~**P1**~~ | ~~12-4 (알림 센터)~~ | ✅ 완료 |
+| ~~**P2**~~ | ~~11-5 (Trade memo)~~ | ✅ 완료 |
+| ~~**P2**~~ | ~~14-2c (MetricsMiddleware)~~ | ✅ 완료 |
+| **P1** | 11-2 (Analytics: 기간 필터 + 지표) | 핵심 차별화 기능, 사용자 가치 최상위 |
+| **P1** | 17-2 (환율 관리 및 해외투자 분석) | 해외주식 환차익 분리 — 사용자 요청 빈번 |
+| **P1** | 13-5a (Disk monitoring) | 운영 안정성, 장애 예방 |
+| **P1** | 18-2 (매니지드 인프라 전환) | 단일 서버 리스크 해소 |
+| **P2** | 17-1 (포트폴리오 비교 대시보드) | 다중 포트폴리오 사용자의 핵심 니즈 |
 | **P2** | 11-2 (Benchmark overlay) | 13-1 외부 데이터 수집 선행 필요 |
 | **P2** | 11-3 (Target asset widget) | 사용자 가치 높음, 구현 간단 |
-| **P2** | 11-5 (Trade memo) | DB 컬럼 1개 + UI |
 | **P2** | 13-2 (분석 엔진: TWR/MWR, 리스크 지표) | price_snapshots 데이터 누적 전제 |
+| **P2** | 17-3 (투자 일지 대시보드) | 거래 메모 활용, 투자 학습 지원 |
 | **P2** | 15-4 (Excel export) | CSV 이미 있음, xlsx는 추가 가치 |
+| **P2** | 19-1 (이메일/푸시 알림) | 인앱 알림만으로는 실시간 대응 불가 |
+| **P3** | 18-1 (운영 대시보드) | 관리 편의성, 규모 커지면 필수 |
 | **P3** | 13-3 (Claude API 인사이트) | 재미있지만 API 비용 발생 |
 | **P3** | 16-3 (Storybook) | DX 개선 |
+| **P3** | 19-2 (소셜/공유 기능) | 바이럴 마케팅 가능성 |
 | **P3** | 15-4 (세금 계산기) | 세법 복잡도 높음 |
