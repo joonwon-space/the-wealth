@@ -177,7 +177,12 @@ async def fetch_overseas_account_holdings(
                     market=item.get("ovrs_excg_cd") or None,
                 )
             )
-        return result, data.get("output2") or {}
+        output2_raw = data.get("output2")
+        if isinstance(output2_raw, list):
+            output2_dict = output2_raw[0] if output2_raw else {}
+        else:
+            output2_dict = output2_raw or {}
+        return result, output2_dict
     except RuntimeError:
         raise
     except Exception as e:

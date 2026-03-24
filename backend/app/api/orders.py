@@ -34,7 +34,9 @@ from app.schemas.order import (
     OrderableInfoResponse,
     PendingOrderResponse,
 )
-from app.services.kis_balance import get_cash_balance
+from app.services.kis_account import fetch_overseas_account_holdings
+from app.services.kis_balance import CashBalance, get_cash_balance
+from app.services.kis_price import get_exchange_rate
 from app.services.kis_order import (
     cancel_order,
     get_orderable_quantity,
@@ -385,11 +387,10 @@ async def cancel_order_endpoint(
 @router.get("/portfolios/{portfolio_id}/cash-balance", response_model=CashBalanceResponse)
 async def get_portfolio_cash_balance(
     portfolio_id: int,
-    is_overseas: bool = Query(False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> CashBalanceResponse:
-    """예수금 및 총 평가금액 조회. Redis 캐시 TTL 30초."""
+    """예수금 및 총 평가금액 조회 (국내 + 해외 합산). Redis 캐시 TTL 30초."""
     cache_key = _CASH_BALANCE_CACHE_PREFIX.format(portfolio_id=portfolio_id)
     cached = await _cache.get(cache_key)
     if cached:
@@ -402,14 +403,40 @@ async def get_portfolio_cash_balance(
     )
 
     try:
-        balance = await get_cash_balance(
+        domestic = await get_cash_balance(
             app_key=app_key,
             app_secret=app_secret,
             account_no=acct.account_no,
             account_product_code=acct.acnt_prdt_cd,
-            is_overseas=is_overseas,
+            is_overseas=False,
             is_paper_trading=acct.is_paper_trading,
         )
+        overseas_holdings, overseas_summary = await fetch_overseas_account_holdings(
+            app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
+        )
+        if overseas_holdings:
+            exchange_rate = await get_exchange_rate(app_key, app_secret)
+            rate = Decimal(str(exchange_rate))
+            ovrs_eval_usd = Decimal(str(overseas_summary.get("frcr_evlu_pfls_amt", 0) or 0))
+            if ovrs_eval_usd == 0:
+                ovrs_eval_usd = sum(h.quantity * h.avg_price for h in overseas_holdings)
+            ovrs_pnl_usd = Decimal(str(overseas_summary.get("ovrs_tot_pfls", 0) or 0))
+            ovrs_eval_krw = Decimal(int(ovrs_eval_usd * rate))
+            ovrs_pnl_krw = Decimal(int(ovrs_pnl_usd * rate))
+            # domestic.total_evaluation = deposit + domestic_stock_eval
+            dom_stock_eval = domestic.total_evaluation - domestic.total_cash
+            combined_stock_eval = dom_stock_eval + ovrs_eval_krw
+            balance = CashBalance(
+                total_cash=domestic.total_cash,
+                available_cash=domestic.available_cash,
+                total_evaluation=domestic.total_cash + combined_stock_eval,
+                total_profit_loss=domestic.total_profit_loss + ovrs_pnl_krw,
+                profit_loss_rate=domestic.profit_loss_rate,
+                currency="KRW",
+                usd_krw_rate=rate,
+            )
+        else:
+            balance = domestic
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
 

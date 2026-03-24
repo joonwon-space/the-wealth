@@ -402,24 +402,38 @@ export default function SettingsPage() {
                       <table className="w-full text-sm">
                         <thead className="bg-muted/50">
                           <tr>
-                            {["종목", "수량", "평균단가"].map((h) => (
+                            {["종목", "수량", "평균단가", "총 금액"].map((h) => (
                               <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {acct.holdings.map((h) => (
-                            <tr key={h.ticker} className="border-t">
-                              <td className="px-4 py-2">
-                                <div className="font-medium">{h.name}</div>
-                                <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                              </td>
-                              <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
-                              <td className="px-4 py-2 tabular-nums">
-                                {h.currency === "USD" ? formatUSD(Number(h.avg_price)) : formatKRW(h.avg_price)}
-                              </td>
-                            </tr>
-                          ))}
+                          {[...acct.holdings]
+                            .sort((a, b) => {
+                              const rateA = a.currency === "USD" ? (acct.usd_krw_rate ?? 1350) : 1;
+                              const rateB = b.currency === "USD" ? (acct.usd_krw_rate ?? 1350) : 1;
+                              const totalA = Number(a.quantity) * Number(a.avg_price) * rateA;
+                              const totalB = Number(b.quantity) * Number(b.avg_price) * rateB;
+                              return totalB - totalA;
+                            })
+                            .map((h) => {
+                              const totalAmount = Number(h.quantity) * Number(h.avg_price);
+                              return (
+                                <tr key={h.ticker} className="border-t">
+                                  <td className="px-4 py-2">
+                                    <div className="font-medium">{h.name}</div>
+                                    <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                                  </td>
+                                  <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
+                                  <td className="px-4 py-2 tabular-nums">
+                                    {h.currency === "USD" ? formatUSD(Number(h.avg_price)) : formatKRW(h.avg_price)}
+                                  </td>
+                                  <td className="px-4 py-2 tabular-nums">
+                                    {h.currency === "USD" ? formatUSD(totalAmount) : formatKRW(totalAmount)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>

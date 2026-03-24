@@ -107,6 +107,9 @@ async def _fetch_balance_raw(
     # 해외주식 평가금액/손익을 원화로 환산해서 합계에 반영
     exchange_rate = await get_exchange_rate(app_key, app_secret)
     ovrs_eval_usd = float(overseas_summary.get("frcr_evlu_pfls_amt", 0) or 0)
+    if ovrs_eval_usd == 0 and overseas_holdings:
+        # API 필드가 없는 경우 매입금액 기준으로 fallback
+        ovrs_eval_usd = float(sum(h.quantity * h.avg_price for h in overseas_holdings))
     ovrs_pnl_usd = float(overseas_summary.get("ovrs_tot_pfls", 0) or 0)
 
     dom_stock_eval = int(domestic_summary.get("scts_evlu_amt", 0) or 0)
