@@ -65,6 +65,10 @@ Each item should be completable in a single commit.
 - [x] Fix: MetricCard 툴팁 fixed 포지션
 - [x] Visual QA bug fixes: accessibility, tablet layout, SSE, CSP
 - [x] DB 백업 완성: restore 문서, sync_logs 기록, health last_backup_at
+- [x] Fix: 알림 벨 버튼 가리는 문제 (데스크탑 md:pr-6 → md:pr-16)
+- [x] Fix: 포트폴리오 총 평가금액에 해외주식 미포함 (`cash-balance` 국내+해외 합산)
+- [x] Fix: 설정 실계좌 조회 총 평가·주식 평가에 해외주식 미반영 (output2 방어 처리 + fallback)
+- [x] Fix: 설정 실계좌 조회 종목 테이블에 "총 금액" 컬럼 추가 및 내림차순 정렬
 
 </details>
 
