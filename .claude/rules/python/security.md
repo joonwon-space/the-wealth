@@ -1,7 +1,7 @@
 ---
-paths:
-  - "**/*.py"
-  - "**/*.pyi"
+description: "Python security: bandit scanning, SQL injection, secrets detection"
+globs: ["**/*.py", "**/*.pyi"]
+alwaysApply: false
 ---
 # Python Security
 

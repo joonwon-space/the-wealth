@@ -1,3 +1,7 @@
+---
+description: "Agent orchestration: available agents, parallel execution, multi-perspective analysis"
+alwaysApply: true
+---
 # Agent Orchestration
 
 ## Available Agents

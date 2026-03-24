@@ -1,3 +1,7 @@
+---
+description: "80%+ test coverage, TDD workflow (RED/GREEN/REFACTOR), test types"
+alwaysApply: true
+---
 # Testing Requirements
 
 ## Minimum Test Coverage: 80%

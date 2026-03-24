@@ -1,9 +1,7 @@
 ---
-paths:
-  - "**/*.ts"
-  - "**/*.tsx"
-  - "**/*.js"
-  - "**/*.jsx"
+description: "TypeScript security: XSS prevention, env secrets, dependency audit"
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+alwaysApply: false
 ---
 # TypeScript/JavaScript Security
 

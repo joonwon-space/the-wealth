@@ -1,3 +1,7 @@
+---
+description: "Design patterns: repository pattern, API response envelope, skeleton projects"
+alwaysApply: true
+---
 # Common Patterns
 
 ## Skeleton Projects

@@ -1,3 +1,7 @@
+---
+description: "Feature development pipeline: research, planning, TDD, code review, commit"
+alwaysApply: true
+---
 # Development Workflow
 
 > This file extends [common/git-workflow.md](./git-workflow.md) with the full feature development process that happens before git operations.

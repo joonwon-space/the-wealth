@@ -1,3 +1,7 @@
+---
+description: "Conventional commits format, PR workflow, branch strategy"
+alwaysApply: true
+---
 # Git Workflow
 
 ## Commit Message Format

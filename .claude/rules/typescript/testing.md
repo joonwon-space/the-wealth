@@ -1,9 +1,7 @@
 ---
-paths:
-  - "**/*.ts"
-  - "**/*.tsx"
-  - "**/*.js"
-  - "**/*.jsx"
+description: "TypeScript testing: Vitest, MSW, Playwright E2E, React Testing Library"
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+alwaysApply: false
 ---
 # TypeScript/JavaScript Testing
 

@@ -1,3 +1,7 @@
+---
+description: "Security checklist, secret management, OWASP prevention, security response protocol"
+alwaysApply: true
+---
 # Security Guidelines
 
 ## Mandatory Security Checks

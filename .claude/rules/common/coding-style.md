@@ -1,3 +1,7 @@
+---
+description: "Immutability, file organization, error handling, input validation"
+alwaysApply: true
+---
 # Coding Style
 
 ## Immutability (CRITICAL)

@@ -1,3 +1,7 @@
+---
+description: E2E Check
+---
+
 # E2E Check
 
 핵심 사용자 플로우를 Playwright MCP로 자동 검증하고 성공/실패 리포트를 생성한다.

@@ -1,7 +1,7 @@
 ---
-paths:
-  - "**/*.py"
-  - "**/*.pyi"
+description: "Python hooks: ruff lint, print() warning on file edit"
+globs: ["**/*.py", "**/*.pyi"]
+alwaysApply: false
 ---
 # Python Hooks
 

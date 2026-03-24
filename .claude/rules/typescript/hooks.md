@@ -1,9 +1,7 @@
 ---
-paths:
-  - "**/*.ts"
-  - "**/*.tsx"
-  - "**/*.js"
-  - "**/*.jsx"
+description: "TypeScript hooks: tsc --noEmit check, console.log warning on file edit"
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+alwaysApply: false
 ---
 # TypeScript/JavaScript Hooks
 

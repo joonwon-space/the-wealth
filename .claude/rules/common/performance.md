@@ -1,3 +1,7 @@
+---
+description: "Model selection strategy, context window management, extended thinking"
+alwaysApply: true
+---
 # Performance Optimization
 
 ## Model Selection Strategy

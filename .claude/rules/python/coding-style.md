@@ -1,7 +1,7 @@
 ---
-paths:
-  - "**/*.py"
-  - "**/*.pyi"
+description: "Python coding style: PEP 8, type annotations, immutable dataclasses, black/ruff/mypy"
+globs: ["**/*.py", "**/*.pyi"]
+alwaysApply: false
 ---
 # Python Coding Style
 

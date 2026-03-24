@@ -1,3 +1,7 @@
+---
+description: Visual QA
+---
+
 # Visual QA
 
 AI가 직접 사이트에 접속해 UI 이슈를 탐지하고 수정 제안을 생성한다.

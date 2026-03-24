@@ -100,10 +100,11 @@ Automatically run on tool use — configured in `.claude/settings.json`:
 
 | Hook | Trigger | Action |
 |------|---------|--------|
+| `pre-bash-block-no-verify.sh` | Bash `--no-verify` | Block git hook bypass |
+| `pre-bash-git-push-reminder.sh` | `git push` | Checklist reminder |
 | `post-edit-ts-check.sh` | Edit/Write `.ts`/`.tsx` | `tsc --noEmit` in `frontend/` |
 | `post-edit-py-format.sh` | Edit/Write `.py` | `ruff check` + `print()` warning |
 | `post-edit-console-warn.sh` | Edit/Write `.ts`/`.tsx`/`.js` | Warn on `console.log` |
-| `pre-bash-git-push-reminder.sh` | `git push` | Checklist reminder |
 
 ## Rules (`.claude/rules/`)
 

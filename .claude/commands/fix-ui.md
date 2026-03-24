@@ -1,3 +1,7 @@
+---
+description: Fix UI
+---
+
 # Fix UI
 
 사용자가 지정한 UI 문제를 스크린샷 → DOM 분석 → 코드 수정 → 재검증 순서로 해결한다.

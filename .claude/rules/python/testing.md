@@ -1,7 +1,7 @@
 ---
-paths:
-  - "**/*.py"
-  - "**/*.pyi"
+description: "Python testing: pytest markers, fixtures, async test patterns"
+globs: ["**/*.py", "**/*.pyi"]
+alwaysApply: false
 ---
 # Python Testing
 

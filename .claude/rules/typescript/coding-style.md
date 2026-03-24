@@ -1,9 +1,7 @@
 ---
-paths:
-  - "**/*.ts"
-  - "**/*.tsx"
-  - "**/*.js"
-  - "**/*.jsx"
+description: "TypeScript coding style: explicit types, interface vs type, Zod validation, no any"
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+alwaysApply: false
 ---
 # TypeScript/JavaScript Coding Style
 
