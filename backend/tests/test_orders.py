@@ -502,10 +502,17 @@ class TestCashBalance:
             currency="KRW",
         )
 
-        with patch(
-            "app.api.orders.get_cash_balance", new_callable=AsyncMock
-        ) as mock_get:
+        with (
+            patch(
+                "app.api.orders.get_cash_balance", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "app.api.orders.fetch_overseas_account_holdings",
+                new_callable=AsyncMock,
+            ) as mock_overseas,
+        ):
             mock_get.return_value = mock_balance
+            mock_overseas.return_value = ([], {})  # 해외 보유 없음
             resp = await client.get(
                 f"/portfolios/{pid}/cash-balance",
                 headers=_auth(token),
