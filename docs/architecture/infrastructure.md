@@ -286,6 +286,9 @@ alembic upgrade head
 | 키 패턴 | 값 | TTL | 용도 |
 |---------|------|-----|------|
 | `refresh_jti:{uuid}` | user_id (문자열) | 7일 | Refresh token JTI 저장 |
+| `cash_balance:{portfolio_id}` | JSON (CashBalance) | 30초 | 예수금 캐시 |
+| `order_lock:{portfolio_id}:{ticker}` | "1" | 10초 | 이중 주문 방지 락 |
+| `order_rate:{user_id}` | count | 60초 | 주문 레이트 리밋 (5회/분) |
 
 ### 5.4 프론트엔드 연동
 

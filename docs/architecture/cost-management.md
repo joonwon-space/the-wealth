@@ -247,5 +247,5 @@ Using cached price for 005930: 68000
 
 ## 관련 문서
 
-- [프로젝트 분석](project_analysis.md) — KIS API 비동기 병렬 호출 아키텍처
-- [인프라](infrastructure.md) — Docker, CI/CD, Redis 구성
+- [프로젝트 분석](analysis.md) -- KIS API 비동기 병렬 호출 아키텍처
+- [인프라](infrastructure.md) -- Docker, CI/CD, Redis 구성

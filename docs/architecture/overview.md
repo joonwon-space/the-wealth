@@ -44,6 +44,10 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | KIS 계좌 연결 | 포트폴리오에 KIS 계좌를 1:1 매핑 |
 | 포트폴리오 순서 변경 | 드래그 앤 드롭으로 포트폴리오 표시 순서 변경 |
 | KIS 체결내역 조회 | KIS API 국내/해외 체결 내역 조회 |
+| 주식 매매 주문 | KIS API 국내/해외 매수/매도 주문 실행, 주문 취소 |
+| 미체결 주문 조회 | KIS API 미체결 주문 목록 조회 + 체결 알림 |
+| 예수금 조회 | 국내+해외 합산 예수금/총 평가금액 조회 (Redis 캐시 30초) |
+| 주문 가능 수량 조회 | 종목별 주문 가능 수량/금액 조회 |
 
 ### 2.3 대시보드
 
@@ -157,7 +161,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 60개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 65개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -189,6 +193,15 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/portfolios/{id}/transactions/export/csv` | 거래내역 CSV 내보내기 |
 | PATCH | `/portfolios/{id}/kis-account` | KIS 계좌 연결 |
 | GET | `/portfolios/{id}/kis-transactions` | KIS 체결내역 조회 (국내+해외) |
+
+### 주문 (5)
+| Method | Path | 설명 |
+|--------|------|------|
+| POST | `/portfolios/{id}/orders` | 매수/매도 주문 실행 (국내+해외) |
+| GET | `/portfolios/{id}/orders/orderable` | 주문 가능 수량/금액 조회 |
+| GET | `/portfolios/{id}/orders/pending` | 미체결 주문 목록 |
+| DELETE | `/portfolios/{id}/orders/{order_no}` | 주문 취소 |
+| GET | `/portfolios/{id}/cash-balance` | 예수금 및 총 평가금액 (국내+해외 합산) |
 
 ### 대시보드 (1)
 | Method | Path | 설명 |

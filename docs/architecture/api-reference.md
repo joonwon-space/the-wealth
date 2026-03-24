@@ -249,6 +249,39 @@ Rate-limited endpoints for brute force protection.
 
 ---
 
+## Orders (`/portfolios`)
+
+### POST /portfolios/{portfolio_id}/orders
+- **Auth**: Required (ownership verified)
+- **Request body**: `{ "ticker": string, "name"?: string, "order_type": "BUY"|"SELL", "order_class": "limit"|"market", "quantity": int, "price"?: decimal, "exchange_code"?: string, "memo"?: string }`
+- **Response** (200): `OrderResult` -- order record with KIS order number
+- **Side effects**: Creates `orders` DB record; on success (pending), creates `transaction` and updates `holdings` (weighted avg price recalculation for BUY, quantity reduction for SELL); invalidates cash balance cache
+- **Notes**: Domestic/overseas auto-detected by ticker pattern. Account-type-specific TR_ID routing (regular/ISA/pension/IRP). Duplicate order prevention via Redis lock (TTL 10s). Rate limit: 5 orders/min per user.
+- **Errors**: 400 (no KIS account linked), 502 (KIS API failure)
+
+### GET /portfolios/{portfolio_id}/orders/orderable
+- **Auth**: Required (ownership verified)
+- **Query params**: `ticker: string`, `price: int` (default 0), `order_type: string` (default "BUY")
+- **Response** (200): `OrderableInfoResponse` -- `{ orderable_quantity, orderable_amount, current_price?, currency }`
+
+### GET /portfolios/{portfolio_id}/orders/pending
+- **Auth**: Required (ownership verified)
+- **Query params**: `is_overseas: bool` (default false)
+- **Response** (200): `PendingOrderResponse[]` -- list of unfilled orders from KIS API
+
+### DELETE /portfolios/{portfolio_id}/orders/{order_no}
+- **Auth**: Required (ownership verified)
+- **Query params**: `ticker: string`, `quantity: int`, `price: int` (default 0), `is_overseas: bool` (default false), `exchange_code: string` (default "")
+- **Response** (204): No content
+- **Side effect**: Updates order status to "cancelled" in DB
+
+### GET /portfolios/{portfolio_id}/cash-balance
+- **Auth**: Required (ownership verified)
+- **Response** (200): `CashBalanceResponse` -- `{ total_cash, available_cash, total_evaluation, total_profit_loss, profit_loss_rate, currency, foreign_cash?, usd_krw_rate? }`
+- **Notes**: Combines domestic balance (TTTC8434R) with overseas holdings evaluation (converted to KRW). When overseas holdings have `frcr_evlu_pfls_amt == 0`, falls back to `sum(quantity * avg_price)`. Result cached in Redis for 30 seconds.
+
+---
+
 ## Sync (`/sync`)
 
 ### POST /sync/balance

@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 60 API endpoints (16 routers)                          │
+│   ├── 65 API endpoints (17 routers)                          │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (60/min)                          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -98,11 +98,14 @@ frontend/src/
 │   ├── PageError.tsx             # 페이지 에러 표시 컴포넌트
 │   ├── TableSkeleton.tsx         # 테이블 로딩 스켈레톤
 │   ├── NotificationBell.tsx     # 알림 벨 아이콘 + 미읽음 배지 + 드롭다운
+│   ├── OrderDialog.tsx          # 매수/매도 주문 다이얼로그 (지정가/시장가, 빠른비율)
+│   ├── PendingOrdersPanel.tsx   # 미체결 주문 패널 (주문 취소, 체결 알림)
 │   ├── SentryInit.tsx           # Sentry 초기화 (프로덕션 전용)
 │   └── ui/                       # shadcn/ui 컴포넌트
 ├── hooks/
 │   ├── usePriceStream.ts         # SSE 실시간 가격 스트리밍 훅
-│   └── useNotifications.ts      # 알림 센터 TanStack Query 훅 (목록, 읽음, 전체 읽음)
+│   ├── useNotifications.ts      # 알림 센터 TanStack Query 훅 (목록, 읽음, 전체 읽음)
+│   └── useOrders.ts             # 주문 TanStack Query 훅 (주문, 예수금, 미체결, 취소)
 ├── lib/
 │   ├── api.ts                    # Axios 인스턴스 (JWT interceptor)
 │   ├── format.ts                 # 숫자/날짜 포맷팅 유틸리티
@@ -252,7 +255,7 @@ frontend/src/
 ```
 backend/app/
 ├── main.py                    # FastAPI app, CORS, 미들웨어, 라우터 등록
-├── api/                       # 16개 API 라우터 + 공통 의존성
+├── api/                       # 17개 API 라우터 + 공통 의존성
 │   ├── deps.py                # get_current_user, get_current_user_sse 인증 의존성
 │   ├── auth.py                # 인증 (register, login, refresh, change-password, logout)
 │   ├── portfolios.py          # 포트폴리오/보유종목/거래내역 CRUD + KIS 체결내역
@@ -267,6 +270,7 @@ backend/app/
 │   ├── chart.py               # 차트 데이터
 │   ├── prices.py              # 가격 히스토리, SSE 스트림
 │   ├── watchlist.py           # 관심종목
+│   ├── orders.py              # 주문 (매수/매도, 미체결, 취소, 예수금)
 │   ├── health.py              # 헬스체크 (DB, Redis, KIS, backup 상태)
 │   └── internal.py            # 내부 API (백업 상태 기록)
 ├── core/
@@ -282,7 +286,7 @@ backend/app/
 ├── db/
 │   ├── base.py                # SQLAlchemy Base
 │   └── session.py             # AsyncSession 팩토리
-├── models/                    # SQLAlchemy ORM 모델 (10 테이블)
+├── models/                    # SQLAlchemy ORM 모델 (11 테이블)
 │   ├── user.py
 │   ├── portfolio.py
 │   ├── holding.py
@@ -292,11 +296,13 @@ backend/app/
 │   ├── notification.py
 │   ├── watchlist.py
 │   ├── price_snapshot.py
+│   ├── order.py
 │   └── sync_log.py
 ├── schemas/                   # Pydantic 검증 스키마
 │   ├── auth.py
 │   ├── portfolio.py
 │   ├── dashboard.py
+│   ├── order.py
 │   ├── analytics.py
 │   ├── notification.py
 │   └── user.py
@@ -304,6 +310,8 @@ backend/app/
 │   ├── kis_token.py           # KIS OAuth2 토큰 관리
 │   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬)
 │   ├── kis_account.py         # KIS 잔고 조회
+│   ├── kis_balance.py         # KIS 예수금 조회 (국내 TTTC8434R + 해외 TTTS3012R)
+│   ├── kis_order.py           # KIS 주문 (국내/해외 매수/매도/취소, 미체결 조회)
 │   ├── kis_transaction.py     # KIS 체결내역 조회 (국내 TTTC8001R + 해외 TTTS3035R)
 │   ├── reconciliation.py      # 보유종목 동기화 로직
 │   ├── price_snapshot.py      # 일일 종가 스냅샷 저장
@@ -418,7 +426,7 @@ Request
 
 ---
 
-## 4. 데이터베이스 스키마 (10 테이블)
+## 4. 데이터베이스 스키마 (11 테이블)
 
 ### 4.1 ERD 다이어그램
 
@@ -504,6 +512,28 @@ Request
          │ message      │
          │ synced_at    │
          └──────────────┘
+
+┌──────────────┐
+│   orders     │
+├──────────────┤
+│ id (PK)      │
+│ portfolio_id │◄── portfolios
+│ kis_account  │
+│  _id (FK)    │◄── kis_accounts
+│ ticker       │
+│ name         │
+│ order_type   │ (BUY/SELL)
+│ order_class  │ (limit/market)
+│ quantity     │
+│ price        │
+│ order_no     │
+│ status       │ (pending/filled/...)
+│ filled_qty   │
+│ filled_price │
+│ memo         │
+│ created_at   │
+│ updated_at   │
+└──────────────┘
 ```
 
 ### 4.2 테이블 상세
@@ -626,6 +656,26 @@ Request
 | message | String | nullable | 에러 메시지 (최대 500자) |
 | synced_at | DateTime | default=now | 동기화 일시 |
 
+#### orders
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|---------|------|
+| id | Integer | PK, auto | 주문 ID |
+| portfolio_id | Integer | FK->portfolios CASCADE, NOT NULL | 소속 포트폴리오 |
+| kis_account_id | Integer | FK->kis_accounts SET NULL, nullable | KIS 계좌 |
+| ticker | String(20) | NOT NULL, INDEX | 종목 코드 |
+| name | String(100) | nullable | 종목명 |
+| order_type | String(10) | NOT NULL | 주문 유형 ("BUY" / "SELL") |
+| order_class | String(10) | NOT NULL, default="limit" | 주문 종류 ("limit" / "market") |
+| quantity | Numeric(18,6) | NOT NULL | 주문 수량 |
+| price | Numeric(18,4) | nullable | 주문 가격 (시장가 시 null) |
+| order_no | String(50) | nullable | KIS 주문번호 |
+| status | String(20) | NOT NULL, default="pending", INDEX | 상태 (pending/filled/partial/cancelled/failed) |
+| filled_quantity | Numeric(18,6) | nullable | 체결 수량 |
+| filled_price | Numeric(18,4) | nullable | 체결 가격 |
+| memo | String(500) | nullable | 주문 메모 |
+| created_at | DateTime(tz) | server_default=now | 생성일시 |
+| updated_at | DateTime(tz) | server_default=now, onupdate=now | 수정일시 |
+
 ---
 
 ## 5. 보안 아키텍처
@@ -667,7 +717,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-03-23)
+## 6. 프로젝트 현황 분석 (2026-03-24)
 
 ### 6.1 완성도
 
@@ -681,6 +731,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
+| 주식 매매 | 완료 | 국내/해외 매수/매도 주문, 미체결 조회/취소, 예수금 조회 (국내+해외 합산), 이중 주문 방지 락 |
 | 자동 동기화 | 완료 | APScheduler 1시간 주기 + 일일 스냅샷 |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
@@ -739,12 +790,19 @@ slowapi 기반 IP별 레이트 리미팅:
 - 포트폴리오 순서 변경: display_order + 드래그 앤 드롭 (@dnd-kit)
 - KIS 체결내역 조회: 국내(TTTC8001R) + 해외(TTTS3035R) 체결 내역 API
 - Redis 장애 폴백: RedisCache 래퍼가 in-memory dict으로 자동 전환
+- KIS 주식 매매: 국내/해외 매수/매도 주문 실행 + 주문 취소 + 미체결 조회
+- 이중 주문 방지: Redis 락 (TTL 10초) + 레이트 리밋 (5회/분)
+- 예수금 조회: 국내+해외 합산 (TTTC8434R + 해외 잔고), Redis 캐시 30초
+- 계좌 유형별 TR_ID 분기: 일반/ISA/연금저축/IRP 자동 구분
+- 주문 다이얼로그: 지정가/시장가 전환, 빠른 비율 버튼(10%/25%/50%/100%), 확인 스텝
+- 미체결 주문 패널: 주문 취소 + 체결 감지 시 toast 알림
 
 ### 6.4 약점 및 개선 필요 사항
 
 - 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
 - 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
 - `kis_transaction.py` 서비스 테스트 커버리지 0% (신규 추가)
+- `kis_order.py`, `kis_balance.py`, `orders.py` 테스트 커버리지 미확인 (Trading Feature 신규 추가)
 - 분석 페이지 기간 필터/벤치마크/고급 지표 미구현
 
 ### 6.5 리스크

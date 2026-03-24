@@ -80,6 +80,12 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `TransactionChart.tsx` | Monthly buy/sell transaction chart |
 | `DynamicCharts.tsx` | Dynamic import wrapper for bundle optimization |
 
+### Trading
+| Component | Description |
+|-----------|-------------|
+| `OrderDialog.tsx` | Buy/sell order dialog with limit/market toggle, quick ratio buttons (10%/25%/50%/100%), confirmation step, cash balance display |
+| `PendingOrdersPanel.tsx` | Pending (unfilled) orders table with cancel action and auto-detect filled orders via toast notification |
+
 ### Notifications
 | Component | Description |
 |-----------|-------------|
@@ -142,6 +148,7 @@ Axios instance configured with:
 |------|------|-------------|
 | `usePriceStream` | `hooks/usePriceStream.ts` | SSE real-time price streaming. Connects to `GET /prices/stream?token={jwt}`. Updates prices every 30s during KST 09:00-15:30. Auto-reconnects on disconnect. |
 | `useNotifications` | `hooks/useNotifications.ts` | TanStack Query hook for notification center. Provides `notifications` list, `markRead`, `markAllRead` mutations with optimistic updates. |
+| `useOrders` | `hooks/useOrders.ts` | TanStack Query hooks for trading: `usePlaceOrder` (mutation), `useCashBalance` (query, 30s refetch), `usePendingOrders` (query, 5s refetch), `useCancelOrder` (mutation), `useOrderableInfo` (query). |
 
 ---
 
