@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BarChart3, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatRate, formatPrice } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,13 +85,7 @@ interface SectorAllocationItem {
 }
 
 export default function AnalyticsPage() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [monthlyReturns, setMonthlyReturns] = useState<MonthlyReturnItem[]>([]);
-  const [portfolioHistory, setPortfolioHistory] = useState<HistoryPoint[]>([]);
   const [historyPeriod, setHistoryPeriod] = useState<"1M" | "3M" | "6M" | "1Y" | "ALL">("3M");
-  const [sectorAllocation, setSectorAllocation] = useState<SectorAllocationItem[]>([]);
 
   // Chart state
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -101,21 +96,41 @@ export default function AnalyticsPage() {
   const [chartLoading, setChartLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      api.get<Summary>("/dashboard/summary"),
-      api.get<Metrics>("/analytics/metrics"),
-      api.get<MonthlyReturnItem[]>("/analytics/monthly-returns"),
-      api.get<HistoryPoint[]>("/analytics/portfolio-history"),
-      api.get<SectorAllocationItem[]>("/analytics/sector-allocation"),
-    ]).then(([summaryRes, metricsRes, monthlyRes, historyRes, sectorRes]) => {
-      setSummary(summaryRes.data);
-      setMetrics(metricsRes.data);
-      setMonthlyReturns(monthlyRes.data);
-      setPortfolioHistory(historyRes.data);
-      setSectorAllocation(sectorRes.data);
-    }).finally(() => setLoading(false));
-  }, []);
+  const { data: summary, isLoading: summaryLoading } = useQuery<Summary>({
+    queryKey: ["analytics", "summary"],
+    queryFn: () => api.get<Summary>("/dashboard/summary").then((r) => r.data),
+    staleTime: 60_000,
+  });
+
+  const { data: metrics } = useQuery<Metrics>({
+    queryKey: ["analytics", "metrics"],
+    queryFn: () => api.get<Metrics>("/analytics/metrics").then((r) => r.data),
+    staleTime: 3_600_000,
+  });
+
+  const { data: monthlyReturns = [] } = useQuery<MonthlyReturnItem[]>({
+    queryKey: ["analytics", "monthly-returns"],
+    queryFn: () => api.get<MonthlyReturnItem[]>("/analytics/monthly-returns").then((r) => r.data),
+    staleTime: 3_600_000,
+  });
+
+  const { data: portfolioHistory = [] } = useQuery<HistoryPoint[]>({
+    queryKey: ["analytics", "portfolio-history", historyPeriod],
+    queryFn: () =>
+      api
+        .get<HistoryPoint[]>("/analytics/portfolio-history", { params: { period: historyPeriod } })
+        .then((r) => r.data),
+    staleTime: 3_600_000,
+  });
+
+  const { data: sectorAllocation = [] } = useQuery<SectorAllocationItem[]>({
+    queryKey: ["analytics", "sector-allocation"],
+    queryFn: () =>
+      api.get<SectorAllocationItem[]>("/analytics/sector-allocation").then((r) => r.data),
+    staleTime: 3_600_000,
+  });
+
+  const loading = summaryLoading;
 
   const fetchChart = async (ticker: string, p: string) => {
     setChartLoading(true);

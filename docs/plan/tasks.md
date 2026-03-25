@@ -102,7 +102,7 @@ Each item should be completable in a single commit.
   - `backend/app/schemas/analytics.py` — 변경 없음
   - 테스트: `backend/tests/test_analytics.py`에 period 파라미터 케이스 추가
 
-- [ ] **feat: 분석 페이지 히스토리 차트 기간 필터 API 연동**
+- [x] **feat: 분석 페이지 히스토리 차트 기간 필터 API 연동**
   - `frontend/src/app/dashboard/analytics/page.tsx` — period 변경 시 클라이언트 필터링 대신 API 재호출
   - `historyPeriod` state 변경 → `api.get("/analytics/portfolio-history", { params: { period } })` 호출
   - TanStack Query `useQuery`로 마이그레이션 (캐싱 + 자동 갱신)
