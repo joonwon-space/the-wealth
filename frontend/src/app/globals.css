@@ -147,9 +147,9 @@
   --sidebar-accent-foreground: oklch(0.94 0.005 250);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.655 0.233 277.117);
-  /* Korean stock market colors */
-  --rise: #E31F26;
-  --fall: #1A56DB;
+  /* Korean stock market colors — brightened for dark background WCAG AA compliance */
+  --rise: #FF4D4F;
+  --fall: #4B8EF5;
   /* Accent shortcuts */
   --accent-indigo: oklch(0.655 0.233 277.117);
   --accent-amber: oklch(0.82 0.18 70.08);

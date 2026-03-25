@@ -175,8 +175,8 @@ const columns: ColumnDef<HoldingRow>[] = [
 function getRowTint(dayChangeRate: number | string | null): string {
   if (dayChangeRate == null) return "";
   const v = Number(dayChangeRate);
-  if (v > 0) return "bg-red-950/10 dark:bg-red-950/20";
-  if (v < 0) return "bg-blue-950/10 dark:bg-blue-950/20";
+  if (v > 0) return "bg-red-50/80 dark:bg-red-950/30";
+  if (v < 0) return "bg-blue-50/80 dark:bg-blue-950/30";
   return "";
 }
 

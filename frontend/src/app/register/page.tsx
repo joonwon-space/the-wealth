@@ -53,6 +53,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              className="h-11"
             />
           </div>
           <div className="space-y-1">
@@ -65,9 +66,10 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="8자 이상"
+              className="h-11"
             />
           </div>
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button type="submit" disabled={loading} className="w-full h-11">
             {loading ? "가입 중..." : "회원가입"}
           </Button>
         </form>

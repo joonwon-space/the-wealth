@@ -20,7 +20,7 @@ export function PnLBadge({ value, showSign = true, suffix = "" }: Props) {
   const isPositive = n > 0;
   const isNegative = n < 0;
   const isZero = n === 0;
-  const color = isZero ? "text-foreground" : isPositive ? "text-[#e31f26]" : "text-[#1a56db]";
+  const color = isZero ? "text-foreground" : isPositive ? "text-rise" : "text-fall";
 
   const formatted = suffix === "%" ? formatRate(n) : formatPnL(n);
   const display = suffix === "%" && showSign && n > 0 ? `+${formatted}` : formatted;

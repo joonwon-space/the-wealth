@@ -272,7 +272,7 @@ export default function AnalyticsPage() {
               <button
                 key={p}
                 onClick={() => handlePeriodChange(p)}
-                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                className={`min-h-[44px] min-w-[44px] rounded px-3 py-1 text-xs font-medium transition-colors ${
                   period === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
                 }`}
               >
@@ -472,7 +472,7 @@ function MetricTooltip({ text }: { text: string }) {
 
 function MetricCard({ label, value, suffix = "", tooltip, nullHint }: MetricCardProps) {
   const display = value != null ? `${value > 0 && suffix === "%" ? "+" : ""}${value.toFixed(suffix === "%" ? 2 : 3)}${suffix}` : "—";
-  const color = value == null ? "" : value > 0 ? "text-[#e31f26]" : value < 0 ? "text-[#1a56db]" : "";
+  const color = value == null ? "" : value > 0 ? "text-rise" : value < 0 ? "text-fall" : "";
   return (
     <Card>
       <CardContent className="p-4">

@@ -20,9 +20,9 @@ export function DayChangeBadge({ pct }: Props) {
   const isNegative = n < 0;
 
   const color = isPositive
-    ? "text-[#e31f26]"
+    ? "text-rise"
     : isNegative
-      ? "text-[#1a56db]"
+      ? "text-fall"
       : "text-foreground";
 
   const arrow = isPositive ? "▲" : isNegative ? "▼" : "";
