@@ -165,6 +165,10 @@ export default function PortfolioDetailPage() {
           `/portfolios/${portfolioId}/transactions/paginated`,
           { params: { cursor, limit: 20 } }
         );
+        // Defensive: if API returns array instead of TxnPage envelope, normalize
+        if (Array.isArray(data)) {
+          return { items: data as unknown as TxnRow[], next_cursor: null, has_more: false };
+        }
         return data;
       } catch {
         return { items: [], next_cursor: null, has_more: false };
