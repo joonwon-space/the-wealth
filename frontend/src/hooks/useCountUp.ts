@@ -50,8 +50,9 @@ export function useCountUp({
     const diff = target - startValue;
 
     if (diff === 0) {
-      setCurrent(target);
-      return;
+      // Use rAF to avoid calling setState synchronously in an effect
+      const id = requestAnimationFrame(() => setCurrent(target));
+      return () => cancelAnimationFrame(id);
     }
 
     const runAnimation = () => {

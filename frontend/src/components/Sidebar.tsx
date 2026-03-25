@@ -46,8 +46,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const logout = useAuthStore((s) => s.logout);
   const [mounted, setMounted] = useState(false);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setMounted(true), []);
+  useEffect(() => { setMounted(true); }, []);
 
   const handleLogout = async () => {
     try {
