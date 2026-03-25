@@ -17,6 +17,9 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-chart-8: var(--chart-8);
+  --color-chart-7: var(--chart-7);
+  --color-chart-6: var(--chart-6);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -45,75 +48,114 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Korean stock market colors */
+  --color-rise: var(--rise);
+  --color-fall: var(--fall);
+  /* Accent colors */
+  --color-accent-indigo: var(--accent-indigo);
+  --color-accent-amber: var(--accent-amber);
+  /* Glassmorphism */
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Light mode — premium slate base */
+  --background: oklch(0.97 0.005 250);
+  --foreground: oklch(0.15 0.01 250);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.15 0.01 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.15 0.01 250);
+  /* Primary: indigo #6366F1 */
+  --primary: oklch(0.585 0.233 277.117);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.94 0.01 250);
+  --secondary-foreground: oklch(0.25 0.01 250);
+  --muted: oklch(0.94 0.01 250);
+  --muted-foreground: oklch(0.50 0.01 250);
+  --accent: oklch(0.94 0.01 250);
+  --accent-foreground: oklch(0.25 0.01 250);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --border: oklch(0.88 0.01 250);
+  --input: oklch(0.88 0.01 250);
+  --ring: oklch(0.585 0.233 277.117);
+  /* Chart: 8-color multicolor palette */
+  --chart-1: oklch(0.585 0.233 277.117);   /* indigo #6366F1 */
+  --chart-2: oklch(0.696 0.17 162.48);     /* emerald #10B981 */
+  --chart-3: oklch(0.769 0.188 70.08);     /* amber #F59E0B */
+  --chart-4: oklch(0.627 0.257 29.23);     /* rose #F43F5E */
+  --chart-5: oklch(0.627 0.265 303.9);     /* violet #8B5CF6 */
+  --chart-6: oklch(0.695 0.195 213.33);    /* cyan #06B6D4 */
+  --chart-7: oklch(0.714 0.203 47.6);      /* orange #F97316 */
+  --chart-8: oklch(0.64 0.15 145.0);       /* green #22C55E */
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar: oklch(0.985 0.005 250);
+  --sidebar-foreground: oklch(0.15 0.01 250);
+  --sidebar-primary: oklch(0.585 0.233 277.117);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.94 0.01 250);
+  --sidebar-accent-foreground: oklch(0.25 0.01 250);
+  --sidebar-border: oklch(0.88 0.01 250);
+  --sidebar-ring: oklch(0.585 0.233 277.117);
+  /* Korean stock market colors */
+  --rise: #E31F26;
+  --fall: #1A56DB;
+  /* Accent shortcuts */
+  --accent-indigo: oklch(0.585 0.233 277.117);
+  --accent-amber: oklch(0.769 0.188 70.08);
+  /* Glassmorphism */
+  --glass-bg: oklch(1 0 0 / 60%);
+  --glass-border: oklch(1 0 0 / 10%);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.22 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.22 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  /* Dark mode — premium deep slate base */
+  --background: oklch(0.13 0.01 250);
+  --foreground: oklch(0.94 0.005 250);
+  --card: oklch(0.18 0.01 250);
+  --card-foreground: oklch(0.94 0.005 250);
+  --popover: oklch(0.18 0.01 250);
+  --popover-foreground: oklch(0.94 0.005 250);
+  /* Primary: indigo #6366F1 */
+  --primary: oklch(0.655 0.233 277.117);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.22 0.01 250);
+  --secondary-foreground: oklch(0.94 0.005 250);
+  --muted: oklch(0.22 0.01 250);
+  --muted-foreground: oklch(0.62 0.01 250);
+  --accent: oklch(0.25 0.015 277);
+  --accent-foreground: oklch(0.94 0.005 250);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --ring: oklch(0.655 0.233 277.117);
+  /* Chart: 8-color multicolor palette (dark mode — slightly brighter) */
+  --chart-1: oklch(0.655 0.233 277.117);   /* indigo */
+  --chart-2: oklch(0.74 0.17 162.48);      /* emerald */
+  --chart-3: oklch(0.82 0.18 70.08);       /* amber */
+  --chart-4: oklch(0.68 0.257 29.23);      /* rose */
+  --chart-5: oklch(0.68 0.255 303.9);      /* violet */
+  --chart-6: oklch(0.75 0.185 213.33);     /* cyan */
+  --chart-7: oklch(0.76 0.19 47.6);        /* orange */
+  --chart-8: oklch(0.70 0.15 145.0);       /* green */
+  --sidebar: oklch(0.16 0.01 250);
+  --sidebar-foreground: oklch(0.94 0.005 250);
+  --sidebar-primary: oklch(0.655 0.233 277.117);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.22 0.01 250);
+  --sidebar-accent-foreground: oklch(0.94 0.005 250);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.655 0.233 277.117);
+  /* Korean stock market colors */
+  --rise: #E31F26;
+  --fall: #1A56DB;
+  /* Accent shortcuts */
+  --accent-indigo: oklch(0.655 0.233 277.117);
+  --accent-amber: oklch(0.82 0.18 70.08);
+  /* Glassmorphism */
+  --glass-bg: oklch(0.18 0.01 250 / 60%);
+  --glass-border: oklch(1 0 0 / 10%);
 }
 
 @layer base {
@@ -125,5 +167,40 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Typography hierarchy */
+  .text-asset-total {
+    @apply text-4xl font-bold tabular-nums tracking-tight;
+  }
+  .text-section-header {
+    @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;
+  }
+  .text-metric-label {
+    @apply text-xs text-muted-foreground;
+  }
+  .text-numeric {
+    @apply font-mono tabular-nums;
+  }
+
+  /* Glassmorphism card */
+  .card-glass {
+    @apply backdrop-blur-sm bg-card/60 border border-white/10;
+  }
+
+  /* Korean stock market price colors */
+  .text-rise {
+    color: var(--rise);
+  }
+  .text-fall {
+    color: var(--fall);
+  }
+  .bg-rise {
+    background-color: var(--rise);
+  }
+  .bg-fall {
+    background-color: var(--fall);
   }
 }

@@ -156,6 +156,99 @@ Each item should be completable in a single commit.
 
 ---
 
+## UI Upgrade — 프리미엄 디자인 개편
+
+### Phase 1 — 색상 시스템 & 기반 (임팩트 최대, 전체 앱 변화)
+
+- [x] **style: 프리미엄 금융 앱 색상 팔레트로 개편 (`globals.css`)**
+  - 현재 neutral gray → 짙은 slate 기반 다크 테마로 전환 (다크 모드를 기본으로)
+  - Primary accent: `#6366F1` (인디고) — 주요 액션 버튼, 활성 상태
+  - Highlight amber: `#F59E0B` — 총 자산, 수익 강조 숫자
+  - Card 배경: `oklch(0.18 0.01 250)` (짙은 slate), glassmorphism용 반투명 변수 추가
+  - 차트 색상 변수 (`--chart-1` ~ `--chart-8`): 멀티컬러 팔레트 (인디고·에메랄드·앰버·로즈·바이올렛·시안·오렌지·그린)
+  - 기존 한국 증시 색상(`#E31F26` 상승, `#1A56DB` 하락)은 유지
+  - 파일: `frontend/src/app/globals.css`
+
+- [x] **style: 타이포그래피 위계 강화**
+  - 총 자산 숫자: `text-4xl font-bold tabular-nums tracking-tight`
+  - 섹션 헤더: `text-xs font-semibold uppercase tracking-widest text-muted-foreground`
+  - 메트릭 레이블: `text-xs text-muted-foreground`
+  - 숫자 데이터: `font-mono tabular-nums` 일관 적용
+  - 파일: `frontend/src/app/globals.css` (커스텀 CSS 클래스 추가)
+
+### Phase 2 — 대시보드 메트릭 카드 리디자인 (첫인상 개선)
+
+- [x] **feat: 대시보드 요약 카드 프리미엄 리디자인**
+  - 현재 평면 4 카드 → 총 자산 Large 카드(상단 전체 너비) + 하단 3 카드 그리드 레이아웃
+  - 총 자산 카드: 앰버 액센트 숫자, 일간 변동 퍼센트 + 화살표 아이콘, 7일 미니 sparkline (Recharts `AreaChart`)
+  - 투자 원금 / 예수금 / 총 손익 카드: 아이콘(Lucide) + 컬러 상단 바 (손익: 빨강/파랑 동적)
+  - 카드 배경: 반투명 glassmorphism (`backdrop-blur-sm bg-card/60 border border-white/10`)
+  - 파일: `frontend/src/app/dashboard/page.tsx`
+
+- [x] **feat: 보유 종목 빠른 요약 — Top 3 종목 위젯 추가**
+  - 대시보드 상단 메트릭 카드 아래에 "수익 상위 3종목" 가로 위젯 추가
+  - 종목명 + 티커 + 수익률 + 미니 바 인디케이터
+  - 파일: `frontend/src/app/dashboard/page.tsx`, `frontend/src/components/TopHoldingsWidget.tsx`
+
+### Phase 3 — 사이드바 & 네비게이션 리디자인 (프로페셔널 느낌)
+
+- [x] **feat: 사이드바 Vercel/Linear 스타일 리디자인**
+  - 로고 영역: 앱 이름 "THE WEALTH" + 작은 마름모 로고 아이콘 (SVG)
+  - 활성 메뉴 아이템: 왼쪽 2px 인디고 컬러 바 + 배경 `bg-accent` + 텍스트 `text-foreground font-medium`
+  - 비활성 메뉴 아이템: `text-muted-foreground hover:text-foreground` 전환 애니메이션 (`transition-colors duration-150`)
+  - 하단 사용자 프로필 고정: 아바타(이니셜 원형) + 이름 + 설정 아이콘
+  - 사이드바 하단 경계: 미묘한 `border-t border-border/50` 구분선
+  - 파일: `frontend/src/components/Sidebar.tsx`
+
+- [x] **feat: 모바일 하단 네비게이션 개선**
+  - 현재 단순 아이콘+텍스트 → 활성 탭 인디고 pill 배경 + 아이콘 색상 전환
+  - 활성 탭 미세한 scale-up 애니메이션 (`transition-transform duration-150`)
+  - 파일: `frontend/src/components/BottomNav.tsx`
+
+### Phase 4 — 데이터 테이블 & 차트 시각화 (데이터 가독성)
+
+- [x] **feat: HoldingsTable 시각화 강화**
+  - 종목명 컬럼: 굵은 폰트 + 티커를 `text-muted-foreground text-xs`로 하위 표시 (2줄 레이아웃)
+  - 수익률 컬럼: 숫자 옆에 미니 bar 인디케이터 (0% 기준선 기준 좌우로 채워지는 바, 너비 최대 60px)
+  - 현재가 컬럼: 전일 대비 상승/하락 시 행 배경 미세 틴팅 (`bg-red-950/10` 또는 `bg-blue-950/10`)
+  - 수량 컬럼 제거 or 숨기기 옵션 추가 (화면 공간 효율화)
+  - 파일: `frontend/src/components/HoldingsTable.tsx`
+
+- [x] **feat: 자산 배분 도넛 차트 색상 & 스타일 개선**
+  - 기존 파란 계열 단조로운 팔레트 → Phase 1에서 정의한 8색 멀티컬러 팔레트 적용
+  - 도넛 중앙 텍스트: 총 평가금액 대신 "TOP 종목명 + 비중%" 표시로 인터랙티브 변경 (hover 시)
+  - 범례: 아이콘 원형 12px + 종목명 + 비중% + 금액 3열 구조로 재배치
+  - 파일: `frontend/src/components/AllocationDonut.tsx`
+
+- [x] **feat: 포트폴리오 히스토리 차트 스타일 개선**
+  - 라인 색상: 인디고 그라디언트 (`#6366F1` → `#818CF8`), 영역 fill 반투명
+  - 수익률 양수/음수에 따라 라인 색상 동적 변경 (양수: 인디고/빨강, 음수: 파랑)
+  - 커스텀 툴팁: 날짜 + 총 평가금액 + 수익률 + 투자 원금 (shadcn Card 스타일)
+  - 파일: `frontend/src/components/PortfolioHistoryChart.tsx`
+
+### Phase 5 — 마이크로 인터랙션 & 폴리싱 (고급스러운 완성도)
+
+- [x] **feat: 숫자 카운트업 애니메이션 (`useCountUp` hook)**
+  - 대시보드 로드 시 총 자산, 손익 숫자가 0에서 실제 값으로 카운트업
+  - `frontend/src/hooks/useCountUp.ts` 신규 생성 (requestAnimationFrame 기반, 1.2s 이징)
+  - 대시보드 요약 카드에 적용
+  - 파일: `frontend/src/hooks/useCountUp.ts`, `frontend/src/app/dashboard/page.tsx`
+
+- [x] **feat: 로딩 Skeleton UI 통일 (Unified Skeleton)**
+  - 현재 `TableSkeleton`만 존재 → 카드 스켈레톤, 차트 스켈레톤 추가
+  - `frontend/src/components/CardSkeleton.tsx` — 메트릭 카드 모양 스켈레톤 (pulse 애니메이션)
+  - `frontend/src/components/ChartSkeleton.tsx` — 차트 영역 스켈레톤
+  - 대시보드 페이지의 모든 로딩 상태에 적용
+  - 파일: `frontend/src/components/CardSkeleton.tsx`, `frontend/src/components/ChartSkeleton.tsx`
+
+- [x] **feat: 페이지 전환 fade-in 애니메이션**
+  - 대시보드 페이지 진입 시 콘텐츠 순차 fade-in (`opacity-0 → opacity-100`, stagger 효과)
+  - Tailwind `animate-in fade-in` 클래스 활용 (tailwindcss-animate 패키지)
+  - 카드별 `animation-delay` 순차 적용 (0ms, 100ms, 200ms, 300ms)
+  - 파일: `frontend/src/app/dashboard/page.tsx`, `frontend/tailwind.config.ts`
+
+---
+
 ## Trading Feature — 실제 주식 매매 기능
 
 ### Step 1 — DB 마이그레이션
