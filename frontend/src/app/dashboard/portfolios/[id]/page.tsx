@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,12 @@ interface TxnRow {
   price: string;
   traded_at: string;
   memo: string | null;
+}
+
+interface TxnPage {
+  items: TxnRow[];
+  next_cursor: number | null;
+  has_more: boolean;
 }
 
 interface KisTxnRow {
@@ -145,17 +151,31 @@ export default function PortfolioDetailPage() {
     },
   });
 
-  const { data: transactions = [] } = useQuery<TxnRow[]>({
+  const {
+    data: txnPages,
+    fetchNextPage: fetchMoreTxns,
+    hasNextPage: hasMorTxns,
+    isFetchingNextPage: isFetchingMoreTxns,
+  } = useInfiniteQuery<TxnPage>({
     queryKey: transactionsKey(portfolioId),
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
+      const cursor = typeof pageParam === "number" ? pageParam : 0;
       try {
-        const { data } = await api.get<TxnRow[]>(`/portfolios/${portfolioId}/transactions`);
+        const { data } = await api.get<TxnPage>(
+          `/portfolios/${portfolioId}/transactions/paginated`,
+          { params: { cursor, limit: 20 } }
+        );
         return data;
       } catch {
-        return [];
+        return { items: [], next_cursor: null, has_more: false };
       }
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.has_more && lastPage.next_cursor != null ? lastPage.next_cursor : undefined,
   });
+
+  const transactions = txnPages?.pages.flatMap((p) => p.items) ?? [];
 
   const { data: kisTransactions, isLoading: kisLoading, refetch: kisRefetch } = useQuery<KisTxnRow[]>({
     queryKey: kisTransactionsKey(portfolioId, kisFromDate, kisToDate),
@@ -220,16 +240,14 @@ export default function PortfolioDetailPage() {
     onSuccess: () => {
       setTxnForm({ ticker: "", type: "BUY", quantity: "", price: "", traded_at: "" });
       setShowTxnForm(false);
-      queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
+      void queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
     },
   });
 
   const deleteTxnMutation = useMutation({
     mutationFn: (txnId: number) => api.delete(`/portfolios/transactions/${txnId}`),
-    onSuccess: (_, txnId) => {
-      queryClient.setQueryData<TxnRow[]>(transactionsKey(portfolioId), (prev) =>
-        prev ? prev.filter((t) => t.id !== txnId) : []
-      );
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
       setDeleteTxnId(null);
     },
   });
@@ -237,19 +255,8 @@ export default function PortfolioDetailPage() {
   const updateMemoMutation = useMutation({
     mutationFn: ({ txnId, memo }: { txnId: number; memo: string | null }) =>
       api.patch<TxnRow>(`/portfolios/${portfolioId}/transactions/${txnId}`, { memo }).then((r) => r.data),
-    onMutate: async ({ txnId, memo }) => {
-      await queryClient.cancelQueries({ queryKey: transactionsKey(portfolioId) });
-      const previous = queryClient.getQueryData<TxnRow[]>(transactionsKey(portfolioId));
-      // Optimistic update
-      queryClient.setQueryData<TxnRow[]>(transactionsKey(portfolioId), (prev) =>
-        prev ? prev.map((t) => (t.id === txnId ? { ...t, memo } : t)) : []
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(transactionsKey(portfolioId), context.previous);
-      }
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
     },
     onSettled: () => {
       setEditMemoId(null);
@@ -881,6 +888,18 @@ export default function PortfolioDetailPage() {
                 </tbody>
               </table>
             </div>
+            {hasMorTxns && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void fetchMoreTxns()}
+                  disabled={isFetchingMoreTxns}
+                >
+                  {isFetchingMoreTxns ? "불러오는 중..." : "더 보기"}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </section>

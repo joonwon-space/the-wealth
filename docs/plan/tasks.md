@@ -114,7 +114,7 @@ Each item should be completable in a single commit.
   - 응답: `{ items: [...], next_cursor: id | null, has_more: bool }`
   - 테스트 추가
 
-- [ ] **feat: 거래 내역 무한 스크롤 (프론트엔드)**
+- [x] **feat: 거래 내역 무한 스크롤 (프론트엔드)**
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 거래 내역 테이블에 "더 보기" 버튼 추가
   - TanStack Query `useInfiniteQuery` 사용
   - 초기 20건 로드 → "더 보기" 클릭 시 다음 20건 append
