@@ -116,11 +116,13 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         path="/",
         domain=_COOKIE_DOMAIN,
     )
-    # Non-HttpOnly flag for client-side auth state detection
+    # Non-HttpOnly flag for client-side auth state detection.
+    # Lifetime matches refresh_token so the client stays aware of login state
+    # for the full 7-day session (access_token silently refreshes on expiry).
     response.set_cookie(
         key="auth_status",
         value="1",
-        max_age=_ACCESS_MAX_AGE,
+        max_age=_REFRESH_MAX_AGE,
         httponly=False,
         secure=_SECURE_COOKIE,
         samesite="lax",
