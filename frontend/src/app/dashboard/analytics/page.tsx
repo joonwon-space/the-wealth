@@ -18,7 +18,6 @@ import {
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { MonthlyHeatmap } from "@/components/MonthlyHeatmap";
 
-const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
 
 interface HoldingRow {
@@ -327,18 +326,7 @@ export default function AnalyticsPage() {
       {s.allocation.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">자산 배분</h2>
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-            <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
-            <div className="flex flex-wrap gap-2">
-              {s.allocation.map((item, i) => (
-                <div key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 text-xs">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                  <span>{item.name}</span>
-                  <span className="text-muted-foreground">{formatRate(item.ratio)}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
         </section>
       )}
 
