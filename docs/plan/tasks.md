@@ -192,7 +192,7 @@ Each item should be completable in a single commit.
 
 ### Phase 3 — 사이드바 & 네비게이션 리디자인 (프로페셔널 느낌)
 
-- [ ] **feat: 사이드바 Vercel/Linear 스타일 리디자인**
+- [x] **feat: 사이드바 Vercel/Linear 스타일 리디자인**
   - 로고 영역: 앱 이름 "THE WEALTH" + 작은 마름모 로고 아이콘 (SVG)
   - 활성 메뉴 아이템: 왼쪽 2px 인디고 컬러 바 + 배경 `bg-accent` + 텍스트 `text-foreground font-medium`
   - 비활성 메뉴 아이템: `text-muted-foreground hover:text-foreground` 전환 애니메이션 (`transition-colors duration-150`)
