@@ -169,7 +169,7 @@ Each item should be completable in a single commit.
   - 기존 한국 증시 색상(`#E31F26` 상승, `#1A56DB` 하락)은 유지
   - 파일: `frontend/src/app/globals.css`
 
-- [ ] **style: 타이포그래피 위계 강화**
+- [x] **style: 타이포그래피 위계 강화**
   - 총 자산 숫자: `text-4xl font-bold tabular-nums tracking-tight`
   - 섹션 헤더: `text-xs font-semibold uppercase tracking-widest text-muted-foreground`
   - 메트릭 레이블: `text-xs text-muted-foreground`
