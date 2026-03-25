@@ -95,7 +95,7 @@ Each item should be completable in a single commit.
 
 ### Milestone 11-2: Analytics API 개선
 
-- [ ] **feat: `/analytics/portfolio-history` period query param 추가**
+- [x] **feat: `/analytics/portfolio-history` period query param 추가**
   - `backend/app/api/analytics.py` — `period: str = "ALL"` query param (1M/3M/6M/1Y/ALL)
   - DB 쿼리 시 날짜 필터 적용 (불필요한 오래된 데이터 제외)
   - 캐시 키에 period 포함 (`analytics:{user_id}:portfolio-history:{period}`)
