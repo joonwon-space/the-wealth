@@ -98,28 +98,29 @@ describe("HoldingsTable", () => {
   describe("PnL color rules (Korean convention)", () => {
     it("positive pnl_amount renders with red color (상승=빨간색)", () => {
       render(<HoldingsTable holdings={[krwHolding]} />);
-      // Find PnLBadge elements with red color
-      const redElements = document.querySelectorAll(".text-\\[\\#e31f26\\]");
+      // Component uses text-rise CSS variable class for positive values
+      const redElements = document.querySelectorAll(".text-rise");
       expect(redElements.length).toBeGreaterThan(0);
     });
 
     it("negative pnl_amount renders with blue color (하락=파란색)", () => {
       render(<HoldingsTable holdings={[negativeHolding]} />);
-      const blueElements = document.querySelectorAll(".text-\\[\\#1a56db\\]");
+      // Component uses text-fall CSS variable class for negative values
+      const blueElements = document.querySelectorAll(".text-fall");
       expect(blueElements.length).toBeGreaterThan(0);
     });
 
     it("positive day_change_rate renders with red color", () => {
       render(<HoldingsTable holdings={[krwHolding]} />);
-      // day_change_rate of 1.2 should be red
-      const redElements = document.querySelectorAll(".text-\\[\\#e31f26\\]");
+      // day_change_rate of 1.2 should use text-rise class
+      const redElements = document.querySelectorAll(".text-rise");
       expect(redElements.length).toBeGreaterThan(0);
     });
 
     it("negative day_change_rate renders with blue color", () => {
       render(<HoldingsTable holdings={[usdHolding]} />);
-      // day_change_rate of -0.5 should be blue
-      const blueElements = document.querySelectorAll(".text-\\[\\#1a56db\\]");
+      // day_change_rate of -0.5 should use text-fall class
+      const blueElements = document.querySelectorAll(".text-fall");
       expect(blueElements.length).toBeGreaterThan(0);
     });
   });

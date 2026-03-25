@@ -4,12 +4,12 @@ import asyncio
 import json
 import math
 import re
-from datetime import date as date_type
+from datetime import date as date_type, timedelta
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,8 +34,25 @@ _analytics_cache = RedisCache(settings.REDIS_URL)
 _ANALYTICS_CACHE_TTL = 3600  # 1시간; sync 시 무효화
 
 
+HistoryPeriod = Literal["1M", "3M", "6M", "1Y", "ALL"]
+
+
 def _is_domestic(ticker: str) -> bool:
     return bool(_DOMESTIC_TICKER_RE.match(ticker))
+
+
+def _period_cutoff(period: str) -> Optional[date_type]:
+    """Return the earliest date for the given period, or None for ALL."""
+    today = date_type.today()
+    if period == "1M":
+        return today - timedelta(days=30)
+    if period == "3M":
+        return today - timedelta(days=91)
+    if period == "6M":
+        return today - timedelta(days=182)
+    if period == "1Y":
+        return today - timedelta(days=365)
+    return None  # ALL
 
 
 def _analytics_key(user_id: int, endpoint: str) -> str:
@@ -44,8 +61,11 @@ def _analytics_key(user_id: int, endpoint: str) -> str:
 
 async def invalidate_analytics_cache(user_id: int) -> None:
     """sync 성공 후 호출 — 해당 유저의 분석 캐시 전체 삭제."""
-    for endpoint in ("metrics", "monthly-returns", "portfolio-history", "sector-allocation"):
+    for endpoint in ("metrics", "monthly-returns", "sector-allocation"):
         await _analytics_cache.delete(_analytics_key(user_id, endpoint))
+    # portfolio-history has period-specific keys
+    for period in ("1M", "3M", "6M", "1Y", "ALL"):
+        await _analytics_cache.delete(_analytics_key(user_id, f"portfolio-history:{period}"))
 
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -310,6 +330,7 @@ async def get_monthly_returns(
 
 @router.get("/portfolio-history", response_model=list[PortfolioHistoryPoint])
 async def get_portfolio_history(
+    period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[PortfolioHistoryPoint]:
@@ -317,8 +338,10 @@ async def get_portfolio_history(
 
     price_snapshots에서 보유 종목의 날짜별 종가를 집계하여
     일별 포트폴리오 가치를 계산한다.
+    period 파라미터로 반환 기간 필터링 가능 (1M/3M/6M/1Y/ALL).
     """
-    cache_key = _analytics_key(current_user.id, "portfolio-history")
+    normalized_period = period.upper() if period.upper() in ("1M", "3M", "6M", "1Y") else "ALL"
+    cache_key = _analytics_key(current_user.id, f"portfolio-history:{normalized_period}")
     cached = await _analytics_cache.get(cache_key)
     if cached:
         return [PortfolioHistoryPoint(**item) for item in json.loads(cached)]
@@ -340,11 +363,16 @@ async def get_portfolio_history(
     tickers = list({h.ticker for h in holdings})
     holding_map = {h.ticker: h for h in holdings}
 
-    snap_result = await db.execute(
+    cutoff = _period_cutoff(normalized_period)
+    snap_query = (
         select(PriceSnapshot)
         .where(PriceSnapshot.ticker.in_(tickers))
         .order_by(PriceSnapshot.snapshot_date)
     )
+    if cutoff is not None:
+        snap_query = snap_query.where(PriceSnapshot.snapshot_date >= cutoff)
+
+    snap_result = await db.execute(snap_query)
     snapshots = snap_result.scalars().all()
     if not snapshots:
         return []

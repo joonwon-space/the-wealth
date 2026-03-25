@@ -66,6 +66,76 @@ class TestPortfolios:
         resp = await client.get("/portfolios")
         assert resp.status_code in (401, 403)
 
+    async def test_patch_portfolio_target_value(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch_target@example.com")
+        create_resp = await client.post(
+            "/portfolios",
+            json={"name": "목표 테스트"},
+            headers=_auth_headers(token),
+        )
+        pid = create_resp.json()["id"]
+
+        # Set target_value
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"target_value": 10000000},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["target_value"] == 10000000
+
+    async def test_patch_portfolio_clear_target_value(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch_clear@example.com")
+        create_resp = await client.post(
+            "/portfolios",
+            json={"name": "목표 초기화 테스트"},
+            headers=_auth_headers(token),
+        )
+        pid = create_resp.json()["id"]
+
+        # Set target_value first
+        await client.patch(
+            f"/portfolios/{pid}",
+            json={"target_value": 5000000},
+            headers=_auth_headers(token),
+        )
+
+        # Clear target_value
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"target_value": None},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["target_value"] is None
+
+    async def test_patch_portfolio_name_only(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch_name@example.com")
+        create_resp = await client.post(
+            "/portfolios",
+            json={"name": "이름 변경 전"},
+            headers=_auth_headers(token),
+        )
+        pid = create_resp.json()["id"]
+
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"name": "이름 변경 후"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "이름 변경 후"
+
+    async def test_patch_portfolio_not_found(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch404@example.com")
+        resp = await client.patch(
+            "/portfolios/99999",
+            json={"name": "없음"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
 
 @pytest.mark.integration
 class TestHoldings:
@@ -508,5 +578,91 @@ class TestHoldingsWithPrices:
         token = await _register_and_get_token(client, "wp3@example.com")
         resp = await client.get(
             "/portfolios/99999/holdings/with-prices", headers=_auth_headers(token)
+        )
+        assert resp.status_code == 404
+
+
+@pytest.mark.integration
+class TestTransactionsPaginated:
+    async def _setup(self, client: AsyncClient, email: str) -> tuple[str, int]:
+        token = await _register_and_get_token(client, email)
+        port = (await client.post("/portfolios", json={"name": "P"}, headers=_auth_headers(token))).json()
+        return token, port["id"]
+
+    async def _add_txn(self, client: AsyncClient, token: str, pid: int, ticker: str = "005930") -> None:
+        await client.post(
+            f"/portfolios/{pid}/transactions",
+            json={"ticker": ticker, "type": "BUY", "quantity": 1, "price": 70000},
+            headers=_auth_headers(token),
+        )
+
+    async def test_paginated_first_page_empty(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_empty@example.com")
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["items"] == []
+        assert data["has_more"] is False
+        assert data["next_cursor"] is None
+
+    async def test_paginated_less_than_limit(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_few@example.com")
+        for _ in range(3):
+            await self._add_txn(client, token, pid)
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 20},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 3
+        assert data["has_more"] is False
+        assert data["next_cursor"] is None
+
+    async def test_paginated_has_more(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_more@example.com")
+        for _ in range(5):
+            await self._add_txn(client, token, pid)
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 3},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 3
+        assert data["has_more"] is True
+        assert data["next_cursor"] is not None
+
+    async def test_paginated_cursor_next_page(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_cursor@example.com")
+        for _ in range(5):
+            await self._add_txn(client, token, pid)
+        # First page
+        resp1 = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 3},
+            headers=_auth_headers(token),
+        )
+        cursor = resp1.json()["next_cursor"]
+        # Second page
+        resp2 = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 3, "cursor": cursor},
+            headers=_auth_headers(token),
+        )
+        data2 = resp2.json()
+        assert len(data2["items"]) == 2
+        assert data2["has_more"] is False
+
+    async def test_paginated_not_found(self, client: AsyncClient) -> None:
+        token, _ = await self._setup(client, "paged404@example.com")
+        resp = await client.get(
+            "/portfolios/99999/transactions/paginated",
+            headers=_auth_headers(token),
         )
         assert resp.status_code == 404

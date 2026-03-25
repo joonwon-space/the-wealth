@@ -17,14 +17,16 @@ describe("DayChangeBadge", () => {
     render(<DayChangeBadge pct={2.3} />);
     const el = screen.getByText(/▲/);
     expect(el.textContent).toMatch(/▲.*2\.3/);
-    expect(el.className).toContain("#e31f26");
+    // Component uses text-rise CSS variable class
+    expect(el.className).toContain("text-rise");
   });
 
   it("shows ▼ arrow and blue color for negative value", () => {
     render(<DayChangeBadge pct={-1.5} />);
     const el = screen.getByText(/▼/);
     expect(el.textContent).toMatch(/▼.*1\.5/);
-    expect(el.className).toContain("#1a56db");
+    // Component uses text-fall CSS variable class
+    expect(el.className).toContain("text-fall");
   });
 
   it("shows no arrow and default color for zero", () => {

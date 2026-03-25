@@ -69,12 +69,55 @@ Each item should be completable in a single commit.
 - [x] Fix: 포트폴리오 총 평가금액에 해외주식 미포함 (`cash-balance` 국내+해외 합산)
 - [x] Fix: 설정 실계좌 조회 총 평가·주식 평가에 해외주식 미반영 (output2 방어 처리 + fallback)
 - [x] Fix: 설정 실계좌 조회 종목 테이블에 "총 금액" 컬럼 추가 및 내림차순 정렬
+- [x] All Trading Feature items (Step 1~8)
+- [x] All UI Upgrade Phase 1~5 items
 
 </details>
 
 ---
 
 ## Current work
+
+### Milestone 11-3: Target Asset Progress Widget
+
+- [x] **feat: portfolios.target_value 컬럼 추가 + PATCH API**
+  - `backend/app/models/portfolio.py` — `target_value: Mapped[Optional[int]]` 컬럼 추가
+  - Alembic migration: `add_portfolio_target_value`
+  - `backend/app/api/portfolios.py` — `PATCH /portfolios/{id}` 엔드포인트 (name, target_value 수정)
+  - `backend/app/schemas/portfolio.py` — `PortfolioUpdate` 스키마 추가
+  - 테스트: `backend/tests/test_portfolios.py`에 PATCH 케이스 추가
+
+- [x] **feat: 포트폴리오 목표 금액 달성률 위젯 (프론트엔드)**
+  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — 포트폴리오 상세 상단에 목표 달성률 프로그레스 바 추가
+  - `target_value` 미설정 시 숨김; 설정 시 현재 평가금액 / 목표금액 진행률 바 + % 표시
+  - 목표 금액 인라인 편집 (클릭 → input, blur → PATCH 호출)
+  - TanStack Query mutation + optimistic update
+
+### Milestone 11-2: Analytics API 개선
+
+- [x] **feat: `/analytics/portfolio-history` period query param 추가**
+  - `backend/app/api/analytics.py` — `period: str = "ALL"` query param (1M/3M/6M/1Y/ALL)
+  - DB 쿼리 시 날짜 필터 적용 (불필요한 오래된 데이터 제외)
+  - 캐시 키에 period 포함 (`analytics:{user_id}:portfolio-history:{period}`)
+  - `backend/app/schemas/analytics.py` — 변경 없음
+  - 테스트: `backend/tests/test_analytics.py`에 period 파라미터 케이스 추가
+
+- [x] **feat: 분석 페이지 히스토리 차트 기간 필터 API 연동**
+  - `frontend/src/app/dashboard/analytics/page.tsx` — period 변경 시 클라이언트 필터링 대신 API 재호출
+  - `historyPeriod` state 변경 → `api.get("/analytics/portfolio-history", { params: { period } })` 호출
+  - TanStack Query `useQuery`로 마이그레이션 (캐싱 + 자동 갱신)
+
+### Milestone 12-5: 트랜잭션 커서 기반 페이지네이션
+
+- [x] **feat: transactions 목록 커서 기반 페이지네이션**
+  - `backend/app/api/portfolios.py` — `GET /portfolios/{id}/transactions` 에 `cursor` (last id), `limit` (default 20) query param
+  - 응답: `{ items: [...], next_cursor: id | null, has_more: bool }`
+  - 테스트 추가
+
+- [x] **feat: 거래 내역 무한 스크롤 (프론트엔드)**
+  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 거래 내역 테이블에 "더 보기" 버튼 추가
+  - TanStack Query `useInfiniteQuery` 사용
+  - 초기 20건 로드 → "더 보기" 클릭 시 다음 20건 append
 
 ### P0 -- Test coverage recovery (90% -> 93%+)
 

@@ -6,14 +6,14 @@ describe("PnLBadge", () => {
   it("shows red for positive values", () => {
     render(<PnLBadge value={1000} />);
     const el = screen.getByText(/1,000/);
-    // The text lives in an inner <span>; the parent wrapper carries the color class
-    expect(el.parentElement).toHaveClass("text-[#e31f26]");
+    // The text lives in an inner <span>; the parent wrapper carries the color class (text-rise CSS variable)
+    expect(el.parentElement).toHaveClass("text-rise");
   });
 
   it("shows blue for negative values", () => {
     render(<PnLBadge value={-500} />);
     const el = screen.getByText(/500/);
-    expect(el.parentElement).toHaveClass("text-[#1a56db]");
+    expect(el.parentElement).toHaveClass("text-fall");
   });
 
   it("shows default color for zero", () => {

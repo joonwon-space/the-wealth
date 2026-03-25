@@ -79,7 +79,7 @@ Current actionable work is in `tasks.md`.
 
 ### 11-3. Dashboard Enhancement
 - [ ] 52-week high/low position bar in holdings table
-- [ ] Target asset progress widget — `portfolios.target_value` + 달성률 프로그레스 바 (`PATCH /portfolios/{id}`)
+- [x] Target asset progress widget — `portfolios.target_value` + 달성률 프로그레스 바 (`PATCH /portfolios/{id}`)
 - [ ] Drag-and-drop widget layout (react-grid-layout)
 
 ### 11-4. Stock Detail Page Enhancement
@@ -120,7 +120,8 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [ ] Email alerts (SendGrid / Resend) → 19-1로 통합
 
 ### 12-5. API Extension
-- [ ] Cursor-based pagination for transactions, sync_logs
+- [x] Cursor-based pagination for transactions
+- [ ] Cursor-based pagination for sync_logs
 - [ ] Bulk operations API (`POST /portfolios/{id}/holdings/bulk`)
 
 ---

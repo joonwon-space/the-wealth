@@ -158,6 +158,73 @@ class TestGetPortfolioHistory:
         resp = await client.get("/analytics/portfolio-history")
         assert resp.status_code in (401, 403)
 
+    async def test_period_filter_1m(self, client: AsyncClient) -> None:
+        """period=1M filters snapshots to last 30 days only."""
+        from app.models.price_snapshot import PriceSnapshot
+
+        token = await _register_and_get_token(client, "history_period1m@example.com")
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [{"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000}],
+        )
+
+        today = date.today()
+        async with _db_session() as db:
+            # One snapshot 2 years ago (should be filtered out)
+            old_snap = PriceSnapshot(
+                ticker="005930",
+                snapshot_date=today - timedelta(days=730),
+                close=Decimal("60000"),
+            )
+            # One snapshot 10 days ago (should be included)
+            recent_snap = PriceSnapshot(
+                ticker="005930",
+                snapshot_date=today - timedelta(days=10),
+                close=Decimal("75000"),
+            )
+            db.add(old_snap)
+            db.add(recent_snap)
+            await db.commit()
+
+        resp = await client.get(
+            "/analytics/portfolio-history", params={"period": "1M"}, headers=_auth(token)
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Only the recent snapshot within 30 days
+        assert len(data) == 1
+        assert data[0]["value"] == 750000.0
+
+    async def test_period_all_returns_all_snapshots(self, client: AsyncClient) -> None:
+        """period=ALL returns all available snapshots."""
+        from app.models.price_snapshot import PriceSnapshot
+
+        token = await _register_and_get_token(client, "history_period_all@example.com")
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [{"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000}],
+        )
+
+        today = date.today()
+        async with _db_session() as db:
+            for delta in (365, 10):
+                snap = PriceSnapshot(
+                    ticker="005930",
+                    snapshot_date=today - timedelta(days=delta),
+                    close=Decimal("70000"),
+                )
+                db.add(snap)
+            await db.commit()
+
+        resp = await client.get(
+            "/analytics/portfolio-history", params={"period": "ALL"}, headers=_auth(token)
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 2
+
 
 @pytest.mark.integration
 class TestGetMonthlyReturns:
