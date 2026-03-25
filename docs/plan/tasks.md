@@ -220,7 +220,7 @@ Each item should be completable in a single commit.
   - 범례: 아이콘 원형 12px + 종목명 + 비중% + 금액 3열 구조로 재배치
   - 파일: `frontend/src/components/AllocationDonut.tsx`
 
-- [ ] **feat: 포트폴리오 히스토리 차트 스타일 개선**
+- [x] **feat: 포트폴리오 히스토리 차트 스타일 개선**
   - 라인 색상: 인디고 그라디언트 (`#6366F1` → `#818CF8`), 영역 fill 반투명
   - 수익률 양수/음수에 따라 라인 색상 동적 변경 (양수: 인디고/빨강, 음수: 파랑)
   - 커스텀 툴팁: 날짜 + 총 평가금액 + 수익률 + 투자 원금 (shadcn Card 스타일)
