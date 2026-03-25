@@ -87,7 +87,7 @@ Each item should be completable in a single commit.
   - `backend/app/schemas/portfolio.py` — `PortfolioUpdate` 스키마 추가
   - 테스트: `backend/tests/test_portfolios.py`에 PATCH 케이스 추가
 
-- [ ] **feat: 포트폴리오 목표 금액 달성률 위젯 (프론트엔드)**
+- [x] **feat: 포트폴리오 목표 금액 달성률 위젯 (프론트엔드)**
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — 포트폴리오 상세 상단에 목표 달성률 프로그레스 바 추가
   - `target_value` 미설정 시 숨김; 설정 시 현재 평가금액 / 목표금액 진행률 바 + % 표시
   - 목표 금액 인라인 편집 (클릭 → input, blur → PATCH 호출)

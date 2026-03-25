@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
@@ -22,6 +22,7 @@ interface PortfolioInfo {
   name: string;
   currency: string;
   kis_account_id: number | null;
+  target_value: number | null;
 }
 
 interface TxnRow {
@@ -112,6 +113,8 @@ export default function PortfolioDetailPage() {
   const [deleteTxnId, setDeleteTxnId] = useState<number | null>(null);
   const [editMemoId, setEditMemoId] = useState<number | null>(null);
   const [editMemoValue, setEditMemoValue] = useState<string>("");
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetInputValue, setTargetInputValue] = useState("");
 
   // KIS 거래 이력 날짜 범위 (기본: 최근 1개월)
   const today = new Date();
@@ -125,7 +128,7 @@ export default function PortfolioDetailPage() {
     queryKey: ["portfolio", portfolioId],
     queryFn: async () => {
       const { data } = await api.get<PortfolioInfo[]>("/portfolios");
-      return data.find((p) => p.id === portfolioId) ?? { id: portfolioId, name: "", currency: "KRW", kis_account_id: null };
+      return data.find((p) => p.id === portfolioId) ?? { id: portfolioId, name: "", currency: "KRW", kis_account_id: null, target_value: null };
     },
     staleTime: 60_000,
   });
@@ -252,6 +255,27 @@ export default function PortfolioDetailPage() {
       setEditMemoId(null);
     },
   });
+
+  const updateTargetMutation = useMutation({
+    mutationFn: (target_value: number | null) =>
+      api.patch(`/portfolios/${portfolioId}`, { target_value }).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
+      setEditingTarget(false);
+    },
+  });
+
+  const handleTargetSave = () => {
+    const raw = targetInputValue.trim().replace(/,/g, "");
+    if (raw === "") {
+      updateTargetMutation.mutate(null);
+    } else {
+      const parsed = parseInt(raw, 10);
+      if (!isNaN(parsed) && parsed >= 0) {
+        updateTargetMutation.mutate(parsed);
+      }
+    }
+  };
 
   const handleTxnSubmit = () => {
     if (!txnForm.ticker || !txnForm.quantity || !txnForm.price) return;
@@ -383,6 +407,103 @@ export default function PortfolioDetailPage() {
           </div>
         </div>
       )}
+
+      {/* 목표 금액 달성률 위젯 */}
+      {(() => {
+        const totalCurrentKrw = holdings.reduce(
+          (sum, h) => sum + Number(h.market_value_krw ?? 0),
+          0
+        );
+        const targetValue = portfolioInfo?.target_value ?? null;
+        if (!targetValue && !editingTarget) {
+          return (
+            <button
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => { setTargetInputValue(""); setEditingTarget(true); }}
+            >
+              <Target className="h-3.5 w-3.5" />
+              목표 금액 설정
+            </button>
+          );
+        }
+        const progress = targetValue && targetValue > 0
+          ? Math.min((totalCurrentKrw / targetValue) * 100, 100)
+          : 0;
+        const isAchieved = targetValue != null && totalCurrentKrw >= targetValue;
+        return (
+          <div className="rounded-lg border p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">목표 달성률</span>
+                {isAchieved && (
+                  <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 dark:bg-green-900/30 dark:text-green-400">
+                    달성!
+                  </span>
+                )}
+              </div>
+              {editingTarget ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    className="h-7 w-36 rounded border px-2 text-xs tabular-nums"
+                    placeholder="목표 금액 (원)"
+                    value={targetInputValue}
+                    onChange={(e) => setTargetInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleTargetSave();
+                      if (e.key === "Escape") setEditingTarget(false);
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleTargetSave}
+                    disabled={updateTargetMutation.isPending}
+                    className="p-1 text-green-600 hover:text-green-700"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setEditingTarget(false)}
+                    className="p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setTargetInputValue(targetValue ? String(targetValue) : "");
+                    setEditingTarget(true);
+                  }}
+                  className="p-1 text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {targetValue != null && (
+              <>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${progress}%`,
+                      background: isAchieved ? "var(--color-green-500, #22c55e)" : "var(--accent-indigo, #6366F1)",
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="tabular-nums">{formatKRW(totalCurrentKrw)}</span>
+                  <span className="tabular-nums font-medium" style={{ color: isAchieved ? "#22c55e" : undefined }}>
+                    {progress.toFixed(1)}% / {formatKRW(targetValue)}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 미체결 주문 패널 */}
       {isKisConnected && showPendingOrders && (
