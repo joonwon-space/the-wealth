@@ -66,6 +66,76 @@ class TestPortfolios:
         resp = await client.get("/portfolios")
         assert resp.status_code in (401, 403)
 
+    async def test_patch_portfolio_target_value(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch_target@example.com")
+        create_resp = await client.post(
+            "/portfolios",
+            json={"name": "목표 테스트"},
+            headers=_auth_headers(token),
+        )
+        pid = create_resp.json()["id"]
+
+        # Set target_value
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"target_value": 10000000},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["target_value"] == 10000000
+
+    async def test_patch_portfolio_clear_target_value(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch_clear@example.com")
+        create_resp = await client.post(
+            "/portfolios",
+            json={"name": "목표 초기화 테스트"},
+            headers=_auth_headers(token),
+        )
+        pid = create_resp.json()["id"]
+
+        # Set target_value first
+        await client.patch(
+            f"/portfolios/{pid}",
+            json={"target_value": 5000000},
+            headers=_auth_headers(token),
+        )
+
+        # Clear target_value
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"target_value": None},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["target_value"] is None
+
+    async def test_patch_portfolio_name_only(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch_name@example.com")
+        create_resp = await client.post(
+            "/portfolios",
+            json={"name": "이름 변경 전"},
+            headers=_auth_headers(token),
+        )
+        pid = create_resp.json()["id"]
+
+        resp = await client.patch(
+            f"/portfolios/{pid}",
+            json={"name": "이름 변경 후"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "이름 변경 후"
+
+    async def test_patch_portfolio_not_found(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "patch404@example.com")
+        resp = await client.patch(
+            "/portfolios/99999",
+            json={"name": "없음"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
 
 @pytest.mark.integration
 class TestHoldings:

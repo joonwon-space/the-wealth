@@ -28,6 +28,7 @@ from app.schemas.portfolio import (
     HoldingUpdate,
     PortfolioCreate,
     PortfolioResponse,
+    PortfolioUpdate,
     ReorderRequest,
     TransactionCreate,
     TransactionMemoUpdate,
@@ -95,6 +96,7 @@ async def list_portfolios(
             "holdings_count": count,
             "total_invested": invested,
             "kis_account_id": p.kis_account_id,
+            "target_value": p.target_value,
         }
         for p, kis_label, count, invested in rows
     ]
@@ -149,7 +151,7 @@ async def reorder_portfolios(
 @router.patch("/{portfolio_id}", response_model=PortfolioResponse)
 async def update_portfolio(
     portfolio_id: int,
-    body: PortfolioCreate,
+    body: PortfolioUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -159,12 +161,15 @@ async def update_portfolio(
             status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
         )
     _assert_portfolio_owner(portfolio, current_user)
-    portfolio.name = body.name
-    if body.currency:
+    if body.name is not None:
+        portfolio.name = body.name
+    if body.currency is not None:
         portfolio.currency = body.currency
+    if "target_value" in body.model_fields_set:
+        portfolio.target_value = body.target_value
 
-    # Sync KIS account label if linked
-    if portfolio.kis_account_id:
+    # Sync KIS account label if linked and name changed
+    if body.name is not None and portfolio.kis_account_id:
         acct = await db.get(KisAccount, portfolio.kis_account_id)
         if acct:
             acct.label = body.name
@@ -184,9 +189,11 @@ async def update_portfolio(
         "user_id": portfolio.user_id,
         "name": portfolio.name,
         "currency": portfolio.currency,
+        "display_order": portfolio.display_order,
         "created_at": portfolio.created_at,
         "holdings_count": count,
         "total_invested": invested,
+        "target_value": portfolio.target_value,
     }
 
 

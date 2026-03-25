@@ -80,7 +80,7 @@ Each item should be completable in a single commit.
 
 ### Milestone 11-3: Target Asset Progress Widget
 
-- [ ] **feat: portfolios.target_value 컬럼 추가 + PATCH API**
+- [x] **feat: portfolios.target_value 컬럼 추가 + PATCH API**
   - `backend/app/models/portfolio.py` — `target_value: Mapped[Optional[int]]` 컬럼 추가
   - Alembic migration: `add_portfolio_target_value`
   - `backend/app/api/portfolios.py` — `PATCH /portfolios/{id}` 엔드포인트 (name, target_value 수정)
