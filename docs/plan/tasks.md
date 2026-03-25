@@ -109,7 +109,7 @@ Each item should be completable in a single commit.
 
 ### Milestone 12-5: 트랜잭션 커서 기반 페이지네이션
 
-- [ ] **feat: transactions 목록 커서 기반 페이지네이션**
+- [x] **feat: transactions 목록 커서 기반 페이지네이션**
   - `backend/app/api/portfolios.py` — `GET /portfolios/{id}/transactions` 에 `cursor` (last id), `limit` (default 20) query param
   - 응답: `{ items: [...], next_cursor: id | null, has_more: bool }`
   - 테스트 추가

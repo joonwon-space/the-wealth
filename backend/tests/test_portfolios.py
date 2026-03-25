@@ -580,3 +580,89 @@ class TestHoldingsWithPrices:
             "/portfolios/99999/holdings/with-prices", headers=_auth_headers(token)
         )
         assert resp.status_code == 404
+
+
+@pytest.mark.integration
+class TestTransactionsPaginated:
+    async def _setup(self, client: AsyncClient, email: str) -> tuple[str, int]:
+        token = await _register_and_get_token(client, email)
+        port = (await client.post("/portfolios", json={"name": "P"}, headers=_auth_headers(token))).json()
+        return token, port["id"]
+
+    async def _add_txn(self, client: AsyncClient, token: str, pid: int, ticker: str = "005930") -> None:
+        await client.post(
+            f"/portfolios/{pid}/transactions",
+            json={"ticker": ticker, "type": "BUY", "quantity": 1, "price": 70000},
+            headers=_auth_headers(token),
+        )
+
+    async def test_paginated_first_page_empty(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_empty@example.com")
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["items"] == []
+        assert data["has_more"] is False
+        assert data["next_cursor"] is None
+
+    async def test_paginated_less_than_limit(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_few@example.com")
+        for _ in range(3):
+            await self._add_txn(client, token, pid)
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 20},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 3
+        assert data["has_more"] is False
+        assert data["next_cursor"] is None
+
+    async def test_paginated_has_more(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_more@example.com")
+        for _ in range(5):
+            await self._add_txn(client, token, pid)
+        resp = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 3},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 3
+        assert data["has_more"] is True
+        assert data["next_cursor"] is not None
+
+    async def test_paginated_cursor_next_page(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "paged_cursor@example.com")
+        for _ in range(5):
+            await self._add_txn(client, token, pid)
+        # First page
+        resp1 = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 3},
+            headers=_auth_headers(token),
+        )
+        cursor = resp1.json()["next_cursor"]
+        # Second page
+        resp2 = await client.get(
+            f"/portfolios/{pid}/transactions/paginated",
+            params={"limit": 3, "cursor": cursor},
+            headers=_auth_headers(token),
+        )
+        data2 = resp2.json()
+        assert len(data2["items"]) == 2
+        assert data2["has_more"] is False
+
+    async def test_paginated_not_found(self, client: AsyncClient) -> None:
+        token, _ = await self._setup(client, "paged404@example.com")
+        resp = await client.get(
+            "/portfolios/99999/transactions/paginated",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404

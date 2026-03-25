@@ -32,6 +32,7 @@ from app.schemas.portfolio import (
     ReorderRequest,
     TransactionCreate,
     TransactionMemoUpdate,
+    TransactionPage,
     TransactionResponse,
 )
 
@@ -464,6 +465,60 @@ async def list_transactions(
         .limit(limit)
     )
     return list(result.scalars().all())
+
+
+@router.get("/{portfolio_id}/transactions/paginated", response_model=TransactionPage)
+async def list_transactions_paginated(
+    portfolio_id: int,
+    cursor: int = Query(default=0, ge=0, description="마지막으로 조회한 transaction ID (0이면 처음부터)"),
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """커서 기반 트랜잭션 페이지네이션.
+
+    cursor: 이전 페이지의 마지막 트랜잭션 ID (0이면 첫 페이지).
+    Returns: { items, next_cursor, has_more }
+    """
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
+    _assert_portfolio_owner(portfolio, current_user)
+
+    query = (
+        select(Transaction)
+        .where(
+            Transaction.portfolio_id == portfolio_id,
+            Transaction.deleted_at.is_(None),
+        )
+        .order_by(Transaction.traded_at.desc(), Transaction.id.desc())
+    )
+    if cursor > 0:
+        # Fetch the reference transaction to get its traded_at for proper cursor
+        ref_txn = await db.get(Transaction, cursor)
+        if ref_txn and ref_txn.portfolio_id == portfolio_id:
+            query = query.where(
+                (Transaction.traded_at < ref_txn.traded_at)
+                | (
+                    (Transaction.traded_at == ref_txn.traded_at)
+                    & (Transaction.id < cursor)
+                )
+            )
+
+    # Fetch limit + 1 to determine has_more
+    result = await db.execute(query.limit(limit + 1))
+    rows = list(result.scalars().all())
+    has_more = len(rows) > limit
+    items = rows[:limit]
+    next_cursor = items[-1].id if has_more else None
+
+    return {
+        "items": items,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+    }
 
 
 @router.post(

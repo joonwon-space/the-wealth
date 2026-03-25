@@ -115,3 +115,11 @@ class TransactionResponse(BaseModel):
     price: Decimal
     traded_at: datetime
     memo: Optional[str] = None
+
+
+class TransactionPage(BaseModel):
+    """Cursor-based paginated response for transactions."""
+
+    items: list[TransactionResponse]
+    next_cursor: Optional[int] = None  # ID of the last item; None if no more pages
+    has_more: bool
