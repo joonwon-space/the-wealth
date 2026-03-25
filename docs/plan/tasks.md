@@ -241,7 +241,7 @@ Each item should be completable in a single commit.
   - 대시보드 페이지의 모든 로딩 상태에 적용
   - 파일: `frontend/src/components/CardSkeleton.tsx`, `frontend/src/components/ChartSkeleton.tsx`
 
-- [ ] **feat: 페이지 전환 fade-in 애니메이션**
+- [x] **feat: 페이지 전환 fade-in 애니메이션**
   - 대시보드 페이지 진입 시 콘텐츠 순차 fade-in (`opacity-0 → opacity-100`, stagger 효과)
   - Tailwind `animate-in fade-in` 클래스 활용 (tailwindcss-animate 패키지)
   - 카드별 `animation-delay` 순차 적용 (0ms, 100ms, 200ms, 300ms)

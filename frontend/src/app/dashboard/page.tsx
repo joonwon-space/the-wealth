@@ -328,7 +328,7 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* 총 자산 Large 카드 */}
-          <Card className="relative overflow-hidden border border-white/10 backdrop-blur-sm bg-card/80">
+          <Card className="relative overflow-hidden border border-white/10 backdrop-blur-sm bg-card/80 animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: "0ms", animationFillMode: "both" }}>
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-indigo)]/10 via-transparent to-[var(--accent-amber)]/5 pointer-events-none" />
             <CardContent className="relative p-6">
               <div className="flex items-start justify-between">
@@ -387,7 +387,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* 하단 3 카드 그리드 */}
-          <div className={`grid grid-cols-1 gap-4 ${s.total_cash != null ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          <div className={`grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500 ${s.total_cash != null ? "sm:grid-cols-3" : "sm:grid-cols-2"}`} style={{ animationDelay: "100ms", animationFillMode: "both" }}>
             {/* 투자 원금 카드 */}
             <MetricCard
               label="투자 원금"
@@ -443,7 +443,9 @@ export default function DashboardPage() {
 
           {/* 수익 상위 3종목 위젯 */}
           {s.holdings.length > 0 && (
-            <TopHoldingsWidget holdings={s.holdings} />
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: "200ms", animationFillMode: "both" }}>
+              <TopHoldingsWidget holdings={s.holdings} />
+            </div>
           )}
 
           {/* 자산 배분 도넛 차트 */}
@@ -451,7 +453,7 @@ export default function DashboardPage() {
             <ErrorBoundary fallback={(err, reset) => (
               <WidgetErrorFallback title="자산 배분" error={err} reset={reset} />
             )}>
-              <section className="space-y-3">
+              <section className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: "300ms", animationFillMode: "both" }}>
                 <h2 className="text-section-header">자산 배분</h2>
                 <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
               </section>
