@@ -185,7 +185,7 @@ Each item should be completable in a single commit.
   - 카드 배경: 반투명 glassmorphism (`backdrop-blur-sm bg-card/60 border border-white/10`)
   - 파일: `frontend/src/app/dashboard/page.tsx`
 
-- [ ] **feat: 보유 종목 빠른 요약 — Top 3 종목 위젯 추가**
+- [x] **feat: 보유 종목 빠른 요약 — Top 3 종목 위젯 추가**
   - 대시보드 상단 메트릭 카드 아래에 "수익 상위 3종목" 가로 위젯 추가
   - 종목명 + 티커 + 수익률 + 미니 바 인디케이터
   - 파일: `frontend/src/app/dashboard/page.tsx`, `frontend/src/components/TopHoldingsWidget.tsx`

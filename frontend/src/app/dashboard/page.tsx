@@ -29,6 +29,7 @@ import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
 import { formatKRW, formatRate } from "@/lib/format";
 import { WatchlistSection } from "@/components/WatchlistSection";
+import { TopHoldingsWidget } from "@/components/TopHoldingsWidget";
 import { PageError } from "@/components/PageError";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { toast } from "sonner";
@@ -433,6 +434,11 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* 수익 상위 3종목 위젯 */}
+          {s.holdings.length > 0 && (
+            <TopHoldingsWidget holdings={s.holdings} />
+          )}
 
           {/* 자산 배분 도넛 차트 */}
           {s.allocation.length > 0 && (
