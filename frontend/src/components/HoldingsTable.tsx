@@ -35,14 +35,39 @@ interface Props {
   holdings: HoldingRow[];
 }
 
+// Mini bar indicator for pnl_rate — 0% as center baseline
+function PnLBar({ rate }: { rate: number | null }) {
+  if (rate == null) return null;
+  // Clamp to ±30% for visual scaling
+  const clamp = Math.min(Math.max(rate, -30), 30);
+  const pct = (Math.abs(clamp) / 30) * 50; // max 50% width from center
+  const isPositive = rate >= 0;
+
+  return (
+    <div className="relative flex h-1.5 w-15 items-center overflow-hidden rounded-full bg-muted">
+      {/* Center divider */}
+      <div className="absolute left-1/2 h-full w-px bg-border" />
+      {/* Bar fills from center */}
+      <div
+        className="absolute h-full rounded-full transition-all duration-300"
+        style={{
+          width: `${pct}%`,
+          [isPositive ? "left" : "right"]: "50%",
+          background: isPositive ? "var(--rise)" : "var(--fall)",
+        }}
+      />
+    </div>
+  );
+}
+
 const columns: ColumnDef<HoldingRow>[] = [
   {
     accessorKey: "name",
     header: "종목명",
     cell: ({ row }) => (
       <Link href={`/dashboard/stocks/${row.original.ticker}`} className="hover:underline">
-        <div className="font-medium">{row.original.name}</div>
-        <div className="text-xs text-muted-foreground flex items-center gap-1">
+        <div className="font-semibold text-sm leading-tight">{row.original.name}</div>
+        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
           <span>{row.original.ticker}</span>
           {row.original.currency === "USD" && (
             <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
@@ -54,15 +79,11 @@ const columns: ColumnDef<HoldingRow>[] = [
     ),
   },
   {
-    accessorKey: "quantity",
-    header: "수량",
-    cell: ({ getValue }) => <span className="tabular-nums">{formatNumber(getValue() as number)}</span>,
-  },
-  {
     accessorKey: "avg_price",
     header: "평균단가",
+    meta: { className: "hidden sm:table-cell" },
     cell: ({ row }) => (
-      <span className="tabular-nums">
+      <span className="tabular-nums text-sm">
         {formatPrice(row.original.avg_price, (row.original.currency as "KRW" | "USD") || "KRW")}
       </span>
     ),
@@ -73,7 +94,7 @@ const columns: ColumnDef<HoldingRow>[] = [
     cell: ({ row }) => {
       const v = row.original.current_price as number | null;
       return (
-        <span className="tabular-nums">
+        <span className="tabular-nums text-sm">
           {formatPrice(v, (row.original.currency as "KRW" | "USD") || "KRW")}
         </span>
       );
@@ -82,14 +103,16 @@ const columns: ColumnDef<HoldingRow>[] = [
   {
     accessorKey: "market_value_krw",
     header: "평가금액(₩)",
+    meta: { className: "hidden md:table-cell" },
     cell: ({ row }) => {
       const v = row.original.market_value_krw as number | null;
-      return <span className="tabular-nums">{formatKRW(v)}</span>;
+      return <span className="tabular-nums text-sm">{formatKRW(v)}</span>;
     },
   },
   {
     accessorKey: "pnl_amount",
     header: "수익금(₩)",
+    meta: { className: "hidden md:table-cell" },
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
       return v != null ? <PnLBadge value={v} /> : <span className="text-muted-foreground">—</span>;
@@ -100,12 +123,18 @@ const columns: ColumnDef<HoldingRow>[] = [
     header: "수익률",
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
-      return v != null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>;
+      return (
+        <div className="flex flex-col gap-1">
+          {v != null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>}
+          <PnLBar rate={v} />
+        </div>
+      );
     },
   },
   {
     accessorKey: "day_change_rate",
     header: "전일 대비",
+    meta: { className: "hidden lg:table-cell" },
     cell: ({ getValue }) => {
       const v = getValue() as number | null;
       return v != null ? <PnLBadge value={v} suffix="%" /> : <span className="text-muted-foreground">—</span>;
@@ -127,7 +156,10 @@ const columns: ColumnDef<HoldingRow>[] = [
       return (
         <div className="w-24 space-y-0.5">
           <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
-            <div className="absolute left-0 top-0 h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+            <div
+              className="absolute left-0 top-0 h-full rounded-full"
+              style={{ width: `${pct}%`, background: "var(--accent-indigo)" }}
+            />
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums">
             <span>{fmt(low)}</span>
@@ -138,6 +170,15 @@ const columns: ColumnDef<HoldingRow>[] = [
     },
   },
 ];
+
+// Get row background tinting based on day_change_rate
+function getRowTint(dayChangeRate: number | string | null): string {
+  if (dayChangeRate == null) return "";
+  const v = Number(dayChangeRate);
+  if (v > 0) return "bg-red-950/10 dark:bg-red-950/20";
+  if (v < 0) return "bg-blue-950/10 dark:bg-blue-950/20";
+  return "";
+}
 
 export function HoldingsTable({ holdings }: Props) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "market_value_krw", desc: true }]);
@@ -158,12 +199,13 @@ export function HoldingsTable({ holdings }: Props) {
         {table.getRowModel().rows.map((row) => {
           const h = row.original;
           const currency = (h.currency as "KRW" | "USD") || "KRW";
+          const tint = getRowTint(h.day_change_rate);
           return (
-            <div key={row.id} className="rounded-lg border p-3 space-y-2">
+            <div key={row.id} className={`rounded-lg border p-3 space-y-2 transition-colors ${tint}`}>
               <div className="flex items-center justify-between">
                 <Link href={`/dashboard/stocks/${h.ticker}`} className="hover:underline">
-                  <div className="font-medium text-sm">{h.name}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <div className="font-semibold text-sm leading-tight">{h.name}</div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <span>{h.ticker}</span>
                     {currency === "USD" && (
                       <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
@@ -173,7 +215,14 @@ export function HoldingsTable({ holdings }: Props) {
                   </div>
                 </Link>
                 <div className="text-right space-y-0.5">
-                  {h.pnl_rate != null ? <PnLBadge value={h.pnl_rate} suffix="%" /> : <span className="text-xs text-muted-foreground">—</span>}
+                  {h.pnl_rate != null ? (
+                    <div className="flex flex-col items-end gap-1">
+                      <PnLBadge value={h.pnl_rate} suffix="%" />
+                      <PnLBar rate={Number(h.pnl_rate)} />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                   {h.day_change_rate != null && (
                     <div className="text-xs text-muted-foreground">
                       전일 <PnLBadge value={Number(h.day_change_rate)} suffix="%" />
@@ -232,10 +281,13 @@ export function HoldingsTable({ holdings }: Props) {
                       }
                     }}
                     aria-sort={
-                      header.column.getIsSorted() === "asc" ? "ascending" :
-                      header.column.getIsSorted() === "desc" ? "descending" : "none"
+                      header.column.getIsSorted() === "asc"
+                        ? "ascending"
+                        : header.column.getIsSorted() === "desc"
+                          ? "descending"
+                          : "none"
                     }
-                    className={`cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground ${(header.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}
+                    className={`cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground text-section-header ${(header.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}
                   >
                     <div className="flex items-center gap-1">
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -257,15 +309,24 @@ export function HoldingsTable({ holdings }: Props) {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-t hover:bg-muted/30 transition-colors">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={`px-4 py-3 ${(cell.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {table.getRowModel().rows.map((row) => {
+              const tint = getRowTint(row.original.day_change_rate);
+              return (
+                <tr
+                  key={row.id}
+                  className={`border-t transition-colors hover:bg-muted/30 ${tint}`}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className={`px-4 py-3 ${(cell.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {holdings.length === 0 && (

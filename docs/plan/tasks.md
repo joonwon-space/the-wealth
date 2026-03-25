@@ -207,7 +207,7 @@ Each item should be completable in a single commit.
 
 ### Phase 4 — 데이터 테이블 & 차트 시각화 (데이터 가독성)
 
-- [ ] **feat: HoldingsTable 시각화 강화**
+- [x] **feat: HoldingsTable 시각화 강화**
   - 종목명 컬럼: 굵은 폰트 + 티커를 `text-muted-foreground text-xs`로 하위 표시 (2줄 레이아웃)
   - 수익률 컬럼: 숫자 옆에 미니 bar 인디케이터 (0% 기준선 기준 좌우로 채워지는 바, 너비 최대 60px)
   - 현재가 컬럼: 전일 대비 상승/하락 시 행 배경 미세 틴팅 (`bg-red-950/10` 또는 `bg-blue-950/10`)
