@@ -200,7 +200,7 @@ Each item should be completable in a single commit.
   - 사이드바 하단 경계: 미묘한 `border-t border-border/50` 구분선
   - 파일: `frontend/src/components/Sidebar.tsx`
 
-- [ ] **feat: 모바일 하단 네비게이션 개선**
+- [x] **feat: 모바일 하단 네비게이션 개선**
   - 현재 단순 아이콘+텍스트 → 활성 탭 인디고 pill 배경 + 아이콘 색상 전환
   - 활성 탭 미세한 scale-up 애니메이션 (`transition-transform duration-150`)
   - 파일: `frontend/src/components/BottomNav.tsx`
