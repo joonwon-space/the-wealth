@@ -228,7 +228,7 @@ Each item should be completable in a single commit.
 
 ### Phase 5 — 마이크로 인터랙션 & 폴리싱 (고급스러운 완성도)
 
-- [ ] **feat: 숫자 카운트업 애니메이션 (`useCountUp` hook)**
+- [x] **feat: 숫자 카운트업 애니메이션 (`useCountUp` hook)**
   - 대시보드 로드 시 총 자산, 손익 숫자가 0에서 실제 값으로 카운트업
   - `frontend/src/hooks/useCountUp.ts` 신규 생성 (requestAnimationFrame 기반, 1.2s 이징)
   - 대시보드 요약 카드에 적용

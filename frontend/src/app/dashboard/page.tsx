@@ -20,6 +20,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
+import { useCountUp } from "@/hooks/useCountUp";
 import { useAuthStore } from "@/store/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -203,6 +204,22 @@ export default function DashboardPage() {
 
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
+  // Count-up animation for total asset (runs on first data load)
+  const animatedTotalAsset = useCountUp({
+    target: summary?.total_asset ?? 0,
+    duration: 1200,
+  });
+  const animatedTotalInvested = useCountUp({
+    target: summary?.total_invested ?? 0,
+    duration: 1200,
+    delay: 100,
+  });
+  const animatedTotalPnl = useCountUp({
+    target: summary?.total_pnl_amount ?? 0,
+    duration: 1200,
+    delay: 200,
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -319,7 +336,7 @@ export default function DashboardPage() {
                 <div className="flex-1">
                   <p className="text-section-header mb-2">총 자산 (평가금액)</p>
                   <p className="text-asset-total" style={{ color: "var(--accent-amber)" }}>
-                    {formatKRW(s.total_asset)}
+                    {formatKRW(animatedTotalAsset)}
                   </p>
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
                     {dayChangePct != null && (
@@ -375,7 +392,7 @@ export default function DashboardPage() {
             {/* 투자 원금 카드 */}
             <MetricCard
               label="투자 원금"
-              value={formatKRW(s.total_invested)}
+              value={formatKRW(animatedTotalInvested)}
               icon={<Wallet className="h-4 w-4" />}
               accentColor="var(--chart-6)"
             />
@@ -416,7 +433,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="text-xl font-bold">
-                  <PnLBadge value={s.total_pnl_amount} />
+                  <PnLBadge value={animatedTotalPnl} />
                 </p>
                 <p className="text-xs mt-0.5">
                   <PnLBadge value={s.total_pnl_rate} suffix="%" />
