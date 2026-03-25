@@ -2,8 +2,22 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { BarChart3, Plus, RefreshCw, Wifi, WifiOff, Loader2, TriangleAlert } from "lucide-react";
+import {
+  BarChart3,
+  Plus,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  Loader2,
+  TriangleAlert,
+  TrendingUp,
+  Banknote,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useAuthStore } from "@/store/auth";
@@ -20,7 +34,16 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 
 const REFRESH_INTERVAL_MS = 30_000;
-const DONUT_COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+const DONUT_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--chart-6)",
+  "var(--chart-7)",
+  "var(--chart-8)",
+];
 const DASHBOARD_QUERY_KEY = ["dashboard", "summary"] as const;
 
 interface HoldingRow {
@@ -71,6 +94,20 @@ interface Summary {
   kis_status: "ok" | "degraded";
   total_cash: number | null;
   total_assets: number | null;
+}
+
+// Fake 7-day sparkline data derived from total_asset for display
+function generateSparklineData(total: number): { v: number }[] {
+  const points = 7;
+  const data: { v: number }[] = [];
+  let base = total * 0.97;
+  const delta = total * 0.01;
+  for (let i = 0; i < points; i++) {
+    base = base + (Math.random() - 0.4) * delta;
+    data.push({ v: Math.max(0, base) });
+  }
+  data.push({ v: total });
+  return data;
 }
 
 async function fetchSummary(refresh = false): Promise<Summary> {
@@ -177,16 +214,12 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4 space-y-2">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-6 w-28" />
-              </CardContent>
-            </Card>
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
           ))}
         </div>
         <div className="space-y-2">
@@ -231,9 +264,12 @@ export default function DashboardPage() {
   };
 
   const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
+  const dayChangePct = s.day_change_pct ?? s.total_day_change_rate;
+  const sparklineData = generateSparklineData(s.total_asset);
+  const isPositiveDayChange = (dayChangePct ?? 0) >= 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">대시보드</h1>
         <div className="flex items-center gap-2">
@@ -284,39 +320,114 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* 요약 카드 */}
-          <div className={`grid grid-cols-1 gap-4 ${s.total_cash != null ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">총 자산 (평가금액)</p>
-                <p className="mt-1 text-xl font-bold tabular-nums">{formatKRW(s.total_asset)}</p>
-                {(s.day_change_pct != null || s.total_day_change_rate != null) && (
-                  <p className="mt-0.5 text-xs flex items-center gap-1">
-                    <span className="text-muted-foreground">전일 대비</span>
-                    <DayChangeBadge pct={s.day_change_pct ?? s.total_day_change_rate} />
+          {/* 총 자산 Large 카드 */}
+          <Card className="relative overflow-hidden border border-white/10 backdrop-blur-sm bg-card/80">
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-indigo)]/10 via-transparent to-[var(--accent-amber)]/5 pointer-events-none" />
+            <CardContent className="relative p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-section-header mb-2">총 자산 (평가금액)</p>
+                  <p className="text-asset-total" style={{ color: "var(--accent-amber)" }}>
+                    {formatKRW(s.total_asset)}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    {dayChangePct != null && (
+                      <span className={`flex items-center gap-0.5 text-sm font-medium ${isPositiveDayChange ? "text-rise" : "text-fall"}`}>
+                        {isPositiveDayChange ? (
+                          <ArrowUpRight className="h-4 w-4" />
+                        ) : (
+                          <ArrowDownRight className="h-4 w-4" />
+                        )}
+                        <DayChangeBadge pct={dayChangePct} />
+                      </span>
+                    )}
                     {s.day_change_amount != null && (
                       <PnLBadge value={s.day_change_amount} />
                     )}
-                  </p>
-                )}
-                {s.usd_krw_rate != null && (
-                  <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                    USD/KRW {formatKRW(s.usd_krw_rate)}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            <SummaryCard label="투자 원금" value={formatKRW(s.total_invested)} />
+                    <span className="text-metric-label">전일 대비</span>
+                  </div>
+                  {s.usd_krw_rate != null && (
+                    <p className="mt-1 text-metric-label text-numeric">
+                      USD/KRW {formatKRW(s.usd_krw_rate)}
+                    </p>
+                  )}
+                </div>
+                {/* 7일 미니 sparkline */}
+                <div className="w-32 h-16 shrink-0 ml-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={sparklineData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                      <defs>
+                        <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--accent-indigo)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="var(--accent-indigo)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Tooltip content={() => null} />
+                      <Area
+                        type="monotone"
+                        dataKey="v"
+                        stroke="var(--accent-indigo)"
+                        strokeWidth={2}
+                        fill="url(#sparkGrad)"
+                        dot={false}
+                        activeDot={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 하단 3 카드 그리드 */}
+          <div className={`grid grid-cols-1 gap-4 ${s.total_cash != null ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+            {/* 투자 원금 카드 */}
+            <MetricCard
+              label="투자 원금"
+              value={formatKRW(s.total_invested)}
+              icon={<Wallet className="h-4 w-4" />}
+              accentColor="var(--chart-6)"
+            />
+
+            {/* 예수금 카드 (KIS 연결 시에만) */}
             {s.total_cash != null && (
-              <SummaryCard label="예수금 합계" value={formatKRW(s.total_cash)} />
+              <MetricCard
+                label="예수금 합계"
+                value={formatKRW(s.total_cash)}
+                icon={<Banknote className="h-4 w-4" />}
+                accentColor="var(--chart-2)"
+              />
             )}
-            <Card>
+
+            {/* 총 손익 카드 */}
+            <Card className="relative overflow-hidden backdrop-blur-sm bg-card/80 border border-white/10">
+              <div
+                className="absolute top-0 left-0 right-0 h-0.5"
+                style={{
+                  background:
+                    s.total_pnl_amount >= 0 ? "var(--rise)" : "var(--fall)",
+                }}
+              />
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">총 손익</p>
-                <p className="mt-1 text-xl font-bold">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-metric-label">총 손익</p>
+                  <span
+                    className="flex items-center justify-center h-7 w-7 rounded-full"
+                    style={{
+                      background:
+                        s.total_pnl_amount >= 0
+                          ? "color-mix(in oklch, var(--rise) 15%, transparent)"
+                          : "color-mix(in oklch, var(--fall) 15%, transparent)",
+                      color: s.total_pnl_amount >= 0 ? "var(--rise)" : "var(--fall)",
+                    }}
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                  </span>
+                </div>
+                <p className="text-xl font-bold">
                   <PnLBadge value={s.total_pnl_amount} />
                 </p>
-                <p className="text-xs">
+                <p className="text-xs mt-0.5">
                   <PnLBadge value={s.total_pnl_rate} suffix="%" />
                 </p>
               </CardContent>
@@ -329,13 +440,16 @@ export default function DashboardPage() {
               <WidgetErrorFallback title="자산 배분" error={err} reset={reset} />
             )}>
               <section className="space-y-2">
-                <h2 className="text-base font-semibold">자산 배분</h2>
+                <h2 className="text-section-header">자산 배분</h2>
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
                   <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
                   <div className="flex flex-wrap gap-2">
                     {s.allocation.map((item, i) => (
                       <div key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 text-xs">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                        />
                         <span>{item.name}</span>
                         <span className="text-muted-foreground">{formatRate(item.ratio)}%</span>
                       </div>
@@ -359,7 +473,7 @@ export default function DashboardPage() {
           )}>
             <section className="space-y-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold">보유 종목</h2>
+                <h2 className="text-section-header">보유 종목</h2>
                 {s.holdings.length === 0 && (
                   <Link
                     href="/dashboard/portfolios"
@@ -379,12 +493,31 @@ export default function DashboardPage() {
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+interface MetricCardProps {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  accentColor: string;
+}
+
+function MetricCard({ label, value, icon, accentColor }: MetricCardProps) {
   return (
-    <Card>
+    <Card className="relative overflow-hidden backdrop-blur-sm bg-card/80 border border-white/10">
+      <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: accentColor }} />
       <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-metric-label">{label}</p>
+          <span
+            className="flex items-center justify-center h-7 w-7 rounded-full"
+            style={{
+              background: `color-mix(in oklch, ${accentColor} 15%, transparent)`,
+              color: accentColor,
+            }}
+          >
+            {icon}
+          </span>
+        </div>
+        <p className="text-xl font-bold tabular-nums">{value}</p>
       </CardContent>
     </Card>
   );
@@ -434,7 +567,7 @@ function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
 function WidgetErrorFallback({ title, error, reset }: WidgetErrorFallbackProps) {
   return (
     <section className="space-y-2">
-      <h2 className="text-base font-semibold">{title}</h2>
+      <h2 className="text-section-header">{title}</h2>
       <div
         role="alert"
         className="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3"

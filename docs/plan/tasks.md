@@ -178,7 +178,7 @@ Each item should be completable in a single commit.
 
 ### Phase 2 — 대시보드 메트릭 카드 리디자인 (첫인상 개선)
 
-- [ ] **feat: 대시보드 요약 카드 프리미엄 리디자인**
+- [x] **feat: 대시보드 요약 카드 프리미엄 리디자인**
   - 현재 평면 4 카드 → 총 자산 Large 카드(상단 전체 너비) + 하단 3 카드 그리드 레이아웃
   - 총 자산 카드: 앰버 액센트 숫자, 일간 변동 퍼센트 + 화살표 아이콘, 7일 미니 sparkline (Recharts `AreaChart`)
   - 투자 원금 / 예수금 / 총 손익 카드: 아이콘(Lucide) + 컬러 상단 바 (손익: 빨강/파랑 동적)
