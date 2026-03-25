@@ -27,7 +27,7 @@ import { AllocationDonut } from "@/components/DynamicCharts";
 import { DayChangeBadge } from "@/components/DayChangeBadge";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { PnLBadge } from "@/components/PnLBadge";
-import { formatKRW, formatRate } from "@/lib/format";
+import { formatKRW } from "@/lib/format";
 import { WatchlistSection } from "@/components/WatchlistSection";
 import { TopHoldingsWidget } from "@/components/TopHoldingsWidget";
 import { PageError } from "@/components/PageError";
@@ -35,16 +35,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 
 const REFRESH_INTERVAL_MS = 30_000;
-const DONUT_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-  "var(--chart-6)",
-  "var(--chart-7)",
-  "var(--chart-8)",
-];
 const DASHBOARD_QUERY_KEY = ["dashboard", "summary"] as const;
 
 interface HoldingRow {
@@ -445,23 +435,9 @@ export default function DashboardPage() {
             <ErrorBoundary fallback={(err, reset) => (
               <WidgetErrorFallback title="자산 배분" error={err} reset={reset} />
             )}>
-              <section className="space-y-2">
+              <section className="space-y-3">
                 <h2 className="text-section-header">자산 배분</h2>
-                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                  <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
-                  <div className="flex flex-wrap gap-2">
-                    {s.allocation.map((item, i) => (
-                      <div key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 text-xs">
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-full"
-                          style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
-                        />
-                        <span>{item.name}</span>
-                        <span className="text-muted-foreground">{formatRate(item.ratio)}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <AllocationDonut data={s.allocation} totalAsset={s.total_asset} />
               </section>
             </ErrorBoundary>
           )}

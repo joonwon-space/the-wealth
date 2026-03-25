@@ -214,7 +214,7 @@ Each item should be completable in a single commit.
   - 수량 컬럼 제거 or 숨기기 옵션 추가 (화면 공간 효율화)
   - 파일: `frontend/src/components/HoldingsTable.tsx`
 
-- [ ] **feat: 자산 배분 도넛 차트 색상 & 스타일 개선**
+- [x] **feat: 자산 배분 도넛 차트 색상 & 스타일 개선**
   - 기존 파란 계열 단조로운 팔레트 → Phase 1에서 정의한 8색 멀티컬러 팔레트 적용
   - 도넛 중앙 텍스트: 총 평가금액 대신 "TOP 종목명 + 비중%" 표시로 인터랙티브 변경 (hover 시)
   - 범례: 아이콘 원형 12px + 종목명 + 비중% + 금액 3열 구조로 재배치

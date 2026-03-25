@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Cell, Pie, PieChart, Tooltip } from "recharts";
 import { formatKRW, formatRate } from "@/lib/format";
 
@@ -24,7 +25,18 @@ interface CustomTooltipProps {
   payload?: TooltipPayloadItem[];
 }
 
-const COLORS = ["#e31f26", "#1a56db", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+// Resolved colors for SVG fill (CSS vars not directly supported in SVG)
+const CHART_COLORS_FALLBACK = [
+  "#6366F1", // indigo
+  "#10B981", // emerald
+  "#F59E0B", // amber
+  "#F43F5E", // rose
+  "#8B5CF6", // violet
+  "#06B6D4", // cyan
+  "#F97316", // orange
+  "#22C55E", // green
+];
+
 const SIZE = 240;
 
 function CustomTooltip({ active, payload }: CustomTooltipProps) {
@@ -41,34 +53,111 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function AllocationDonut({ data, totalAsset }: Props) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
   // API may return numeric strings from Decimal fields — coerce to numbers
-  const numericData = data.map((item) => ({ ...item, value: Number(item.value), ratio: Number(item.ratio) }));
+  const numericData = data.map((item) => ({
+    ...item,
+    value: Number(item.value),
+    ratio: Number(item.ratio),
+  }));
+
+  const activeItem = hoverIndex != null ? numericData[hoverIndex] : null;
+  const activeColor = hoverIndex != null ? CHART_COLORS_FALLBACK[hoverIndex % CHART_COLORS_FALLBACK.length] : null;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: SIZE, height: SIZE }}>
-      <PieChart width={SIZE} height={SIZE}>
-        <Pie
-          data={numericData}
-          cx="50%"
-          cy="50%"
-          innerRadius={70}
-          outerRadius={110}
-          paddingAngle={2}
-          dataKey="value"
-        >
-          {data.map((_, index) => (
-            <Cell key={index} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 10 }} />
-      </PieChart>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      {/* Donut chart */}
+      <div className="relative flex items-center justify-center shrink-0" style={{ width: SIZE, height: SIZE }}>
+        <PieChart width={SIZE} height={SIZE}>
+          <Pie
+            data={numericData}
+            cx="50%"
+            cy="50%"
+            innerRadius={70}
+            outerRadius={110}
+            paddingAngle={2}
+            dataKey="value"
+            onMouseEnter={(_, index) => setHoverIndex(index)}
+            onMouseLeave={() => setHoverIndex(null)}
+          >
+            {numericData.map((_, index) => (
+              <Cell
+                key={index}
+                fill={CHART_COLORS_FALLBACK[index % CHART_COLORS_FALLBACK.length]}
+                opacity={hoverIndex != null && hoverIndex !== index ? 0.5 : 1}
+                cursor="pointer"
+                style={{
+                  transform: hoverIndex === index ? "scale(1.04)" : "scale(1)",
+                  transformOrigin: "center",
+                  transition: "transform 0.15s ease, opacity 0.15s ease",
+                }}
+              />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 10 }} />
+        </PieChart>
 
-      {/* 중앙 텍스트 오버레이 — tooltip 아래에 위치 */}
-      <div className="pointer-events-none absolute flex flex-col items-center justify-center" style={{ zIndex: 0 }}>
-        <span className="text-xs text-muted-foreground">총 자산</span>
-        <span className="text-lg font-bold tabular-nums">
-          {formatKRW(totalAsset)}
-        </span>
+        {/* 중앙 텍스트 오버레이 — hover 시 TOP 종목명 + 비중%, 기본은 총 자산 */}
+        <div
+          className="pointer-events-none absolute flex flex-col items-center justify-center text-center px-4"
+          style={{ zIndex: 0 }}
+        >
+          {activeItem && activeColor ? (
+            <>
+              <span className="text-xs font-semibold leading-tight max-w-[80px] truncate">
+                {activeItem.name}
+              </span>
+              <span className="text-lg font-bold tabular-nums" style={{ color: activeColor }}>
+                {formatRate(activeItem.ratio)}%
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-muted-foreground">총 자산</span>
+              <span className="text-base font-bold tabular-nums">
+                {formatKRW(totalAsset)}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 범례: 아이콘 원형 12px + 종목명 + 비중% + 금액 3열 구조 */}
+      <div className="flex flex-col gap-1.5 pt-2 min-w-0">
+        {numericData.map((item, i) => {
+          const color = CHART_COLORS_FALLBACK[i % CHART_COLORS_FALLBACK.length];
+          const isActive = hoverIndex === i;
+          return (
+            <div
+              key={`${item.ticker}-${i}`}
+              className="grid items-center gap-x-3 text-xs cursor-default"
+              style={{ gridTemplateColumns: "12px 1fr auto auto" }}
+              onMouseEnter={() => setHoverIndex(i)}
+              onMouseLeave={() => setHoverIndex(null)}
+            >
+              <span
+                className="inline-block h-3 w-3 rounded-full shrink-0 transition-all duration-150"
+                style={{
+                  background: color,
+                  outline: isActive ? `2px solid ${color}` : "2px solid transparent",
+                  outlineOffset: "1px",
+                }}
+              />
+              <span
+                className={`truncate transition-colors duration-150 ${isActive ? "font-medium text-foreground" : "text-foreground/80"}`}
+              >
+                {item.name}
+              </span>
+              <span className="tabular-nums text-muted-foreground text-right">
+                {formatRate(item.ratio)}%
+              </span>
+              <span className="tabular-nums text-muted-foreground text-right">
+                {formatKRW(item.value)}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
