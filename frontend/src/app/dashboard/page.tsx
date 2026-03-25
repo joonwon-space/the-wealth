@@ -24,6 +24,8 @@ import { useCountUp } from "@/hooks/useCountUp";
 import { useAuthStore } from "@/store/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CardSkeleton, LargeCardSkeleton } from "@/components/CardSkeleton";
+import { ChartSkeleton, DonutSkeleton } from "@/components/ChartSkeleton";
 import { AllocationDonut } from "@/components/DynamicCharts";
 import { DayChangeBadge } from "@/components/DayChangeBadge";
 import { HoldingsTable } from "@/components/HoldingsTable";
@@ -224,21 +226,18 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-40 w-full rounded-2xl" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
-          ))}
+        <LargeCardSkeleton />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <CardSkeleton />
+          <CardSkeleton showAccentBar />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-20" />
+          <DonutSkeleton />
         </div>
         <div className="space-y-2">
-          <Skeleton className="h-5 w-20" />
-          <Skeleton className="h-48 w-48 rounded-full mx-auto" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-20" />
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
+          <Skeleton className="h-3 w-20" />
+          <ChartSkeleton height={200} />
         </div>
       </div>
     );

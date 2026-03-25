@@ -234,7 +234,7 @@ Each item should be completable in a single commit.
   - 대시보드 요약 카드에 적용
   - 파일: `frontend/src/hooks/useCountUp.ts`, `frontend/src/app/dashboard/page.tsx`
 
-- [ ] **feat: 로딩 Skeleton UI 통일 (Unified Skeleton)**
+- [x] **feat: 로딩 Skeleton UI 통일 (Unified Skeleton)**
   - 현재 `TableSkeleton`만 존재 → 카드 스켈레톤, 차트 스켈레톤 추가
   - `frontend/src/components/CardSkeleton.tsx` — 메트릭 카드 모양 스켈레톤 (pulse 애니메이션)
   - `frontend/src/components/ChartSkeleton.tsx` — 차트 영역 스켈레톤
