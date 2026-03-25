@@ -80,7 +80,7 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-muted-foreground">
           계정이 없으신가요?{" "}
-          <Link href="/register" className="font-medium text-foreground underline underline-offset-4">
+          <Link href="/register" className="inline-flex min-h-[44px] items-center font-medium text-foreground underline underline-offset-4">
             회원가입
           </Link>
         </p>

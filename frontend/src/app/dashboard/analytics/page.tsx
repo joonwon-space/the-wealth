@@ -304,7 +304,7 @@ export default function AnalyticsPage() {
               <button
                 key={`${h.ticker}-${i}`}
                 onClick={() => handleSelectStock(h.ticker, h.name)}
-                className="rounded-lg border px-3 py-1.5 text-xs hover:bg-accent transition-colors"
+                className="min-h-[44px] rounded-lg border px-3 py-1.5 text-xs hover:bg-accent transition-colors"
               >
                 {h.name}
               </button>

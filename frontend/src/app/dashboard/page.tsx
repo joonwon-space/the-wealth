@@ -360,7 +360,7 @@ export default function DashboardPage() {
                   )}
                 </div>
                 {/* 7일 미니 sparkline */}
-                <div className="w-32 h-16 shrink-0 ml-4">
+                <div className="w-20 h-16 shrink-0 ml-3 sm:w-32 sm:ml-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={sparklineData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
                       <defs>

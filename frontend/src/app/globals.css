@@ -173,7 +173,7 @@
 @layer utilities {
   /* Typography hierarchy */
   .text-asset-total {
-    @apply text-4xl font-bold tabular-nums tracking-tight;
+    @apply text-3xl sm:text-4xl font-bold tabular-nums tracking-tight;
   }
   .text-section-header {
     @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;

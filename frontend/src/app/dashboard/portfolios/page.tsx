@@ -90,7 +90,7 @@ function SortablePortfolioRow({
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"
+        className="cursor-grab touch-none min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"
         aria-label="순서 변경"
       >
         <GripVertical className="h-4 w-4" />
@@ -142,7 +142,7 @@ function SortablePortfolioRow({
             </Link>
             <button
               onClick={() => onEditStart(portfolio.id, portfolio.name)}
-              className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground p-1"
+              className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground/40 hover:text-muted-foreground"
               aria-label={`${portfolio.name} 이름 편집`}
             >
               <Pencil className="h-3 w-3" />
@@ -162,7 +162,7 @@ function SortablePortfolioRow({
       <button
         onClick={() => onDelete(portfolio.id)}
         aria-label={`${portfolio.name} 삭제`}
-        className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+        className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
       >
         <Trash2 className="h-4 w-4" />
       </button>

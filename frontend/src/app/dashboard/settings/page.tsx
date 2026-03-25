@@ -206,7 +206,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+            className="flex min-h-[44px] items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "라이트 모드" : "다크 모드"}
@@ -398,7 +398,7 @@ export default function SettingsPage() {
                   {acct.holdings.length === 0 ? (
                     <p className="text-sm text-muted-foreground">보유 종목이 없습니다.</p>
                   ) : (
-                    <div className="rounded-lg border overflow-hidden">
+                    <div className="rounded-lg border overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-muted/50">
                           <tr>
@@ -454,25 +454,26 @@ export default function SettingsPage() {
           </div>
 
           {/* 등록 폼 */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
             <Input
               aria-label="티커"
               placeholder="티커 (예: 005930)"
               value={newAlert.ticker}
               onChange={(e) => setNewAlert((p) => ({ ...p, ticker: e.target.value }))}
-              className="uppercase"
+              className="uppercase h-11 sm:h-9"
             />
             <Input
               aria-label="종목명"
               placeholder="종목명 (선택)"
               value={newAlert.name}
               onChange={(e) => setNewAlert((p) => ({ ...p, name: e.target.value }))}
+              className="h-11 sm:h-9"
             />
             <select
               aria-label="조건"
               value={newAlert.condition}
               onChange={(e) => setNewAlert((p) => ({ ...p, condition: e.target.value as "above" | "below" }))}
-              className="rounded-md border bg-background px-3 py-2 text-sm"
+              className="h-11 sm:h-9 rounded-md border bg-background px-3 py-2 text-sm"
             >
               <option value="above">이상 (≥)</option>
               <option value="below">이하 (≤)</option>
@@ -483,8 +484,9 @@ export default function SettingsPage() {
               placeholder="목표가"
               value={newAlert.threshold}
               onChange={(e) => setNewAlert((p) => ({ ...p, threshold: e.target.value }))}
+              className="h-11 sm:h-9"
             />
-            <Button onClick={handleAddAlert} disabled={addingAlert || !newAlert.ticker || !newAlert.threshold} size="sm">
+            <Button onClick={handleAddAlert} disabled={addingAlert || !newAlert.ticker || !newAlert.threshold} className="h-11 sm:h-9 gap-1">
               {addingAlert ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
               추가
             </Button>
