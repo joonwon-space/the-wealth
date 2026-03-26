@@ -385,7 +385,7 @@ Each item should be completable in a single commit.
   - `frontend/src/app/dashboard/analytics/page.tsx` — `historyPeriod` 타입에 `"1W"` 추가, PortfolioHistoryChart `onPeriodChange` 에 `"1W"` 전달
   - `frontend/src/components/PortfolioHistoryChart.tsx` — PERIODS 배열에 `"1W"` 추가 (버튼 UI)
 
-- [ ] **feat: HoldingsTable 브레이크이븐 마커 (평균 매입가 52주 범위 내 표시)**
+- [x] **feat: HoldingsTable 브레이크이븐 마커 (평균 매입가 52주 범위 내 표시)**
   - `frontend/src/components/HoldingsTable.tsx` — `w52_range` 컬럼 cell 내 avg_price 마커 추가
   - 52주 범위 바 위에 avg_price 위치를 흰색 세로선(`|`)으로 표시
   - avg_price 가 low~high 범위 밖이면 마커 숨김

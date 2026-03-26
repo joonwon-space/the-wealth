@@ -217,4 +217,34 @@ describe("HoldingsTable", () => {
       expect(dashes.length).toBeGreaterThan(0);
     });
   });
+
+  describe("breakeven marker (avg_price on 52-week range bar)", () => {
+    it("renders avg_price marker with tooltip when avg_price is within 52-week range", () => {
+      // krwHolding: avg_price=70000, w52_low=60000, w52_high=80000 → within range
+      render(<HoldingsTable holdings={[krwHolding]} />);
+      const marker = document.querySelector("[title^='평균매입가']");
+      expect(marker).not.toBeNull();
+    });
+
+    it("does not render avg_price marker when avg_price is below 52-week low", () => {
+      const holding = { ...krwHolding, avg_price: 50000, w52_low: 60000, w52_high: 80000 };
+      render(<HoldingsTable holdings={[holding]} />);
+      const marker = document.querySelector("[title^='평균매입가']");
+      expect(marker).toBeNull();
+    });
+
+    it("does not render avg_price marker when avg_price is above 52-week high", () => {
+      const holding = { ...krwHolding, avg_price: 90000, w52_low: 60000, w52_high: 80000 };
+      render(<HoldingsTable holdings={[holding]} />);
+      const marker = document.querySelector("[title^='평균매입가']");
+      expect(marker).toBeNull();
+    });
+
+    it("shows dash when 52-week data is unavailable", () => {
+      const holding = { ...krwHolding, w52_high: null, w52_low: null };
+      render(<HoldingsTable holdings={[holding]} />);
+      const dashes = screen.getAllByText("—");
+      expect(dashes.length).toBeGreaterThan(0);
+    });
+  });
 });
