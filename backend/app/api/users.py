@@ -18,7 +18,13 @@ from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
-from app.schemas.user import ChangeEmailRequest, ChangePasswordRequest, UserMe, UserUpdate
+from app.schemas.user import (
+    ChangeEmailRequest,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
+    UserMe,
+    UserUpdate,
+)
 from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -96,6 +102,30 @@ async def change_email(
     await db.commit()
     await revoke_all_refresh_tokens_for_user(current_user.id)
     return {"message": "Email changed successfully"}
+
+
+@router.delete("/me", status_code=200)
+async def delete_account(
+    body: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Permanently delete the current user's account.
+
+    Requires the current password for confirmation. Cascades to delete all
+    portfolios, holdings, transactions, orders, alerts, notifications,
+    KIS accounts, and watchlist entries. Invalidates all Redis tokens.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    user_id = current_user.id
+    await db.delete(current_user)
+    await db.commit()
+    await revoke_all_refresh_tokens_for_user(user_id)
+    return {"message": "Account deleted successfully"}
 
 
 class KisAccountCreate(BaseModel):

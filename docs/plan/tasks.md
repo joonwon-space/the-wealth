@@ -125,7 +125,7 @@ Each item should be completable in a single commit.
   - `backend/app/schemas/user.py` — `ChangeEmailRequest` 스키마
   - 테스트: 성공/PW불일치/중복이메일 케이스
 
-- [ ] **feat: 회원 탈퇴 API**
+- [x] **feat: 회원 탈퇴 API**
   - `backend/app/api/users.py` — `DELETE /users/me`
     - Body: `{ current_password }` (비밀번호 재확인)
     - 현재 비밀번호 검증
