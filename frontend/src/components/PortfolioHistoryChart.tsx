@@ -19,19 +19,20 @@ interface HistoryPoint {
 
 interface Props {
   data: HistoryPoint[];
-  period: "1M" | "3M" | "6M" | "1Y" | "ALL";
+  period: "1W" | "1M" | "3M" | "6M" | "1Y" | "ALL";
   onPeriodChange: (p: Props["period"]) => void;
   /** Optional invested amount at the beginning of the period (for reference line) */
   initialInvested?: number;
 }
 
-const PERIODS: Props["period"][] = ["1M", "3M", "6M", "1Y", "ALL"];
+const PERIODS: Props["period"][] = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
 
 function filterByPeriod(data: HistoryPoint[], period: Props["period"]): HistoryPoint[] {
   if (period === "ALL" || data.length === 0) return data;
   const now = new Date();
   const cutoff = new Date(now);
-  if (period === "1M") cutoff.setMonth(now.getMonth() - 1);
+  if (period === "1W") cutoff.setDate(now.getDate() - 7);
+  else if (period === "1M") cutoff.setMonth(now.getMonth() - 1);
   else if (period === "3M") cutoff.setMonth(now.getMonth() - 3);
   else if (period === "6M") cutoff.setMonth(now.getMonth() - 6);
   else if (period === "1Y") cutoff.setFullYear(now.getFullYear() - 1);

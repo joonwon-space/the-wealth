@@ -376,6 +376,33 @@ Each item should be completable in a single commit.
 
 ---
 
+### Milestone 11-2: Analytics 기간 필터 확장 + 브레이크이븐 시각화
+
+- [x] **feat: portfolio-history 1W 기간 추가 + analytics 페이지 연동**
+  - `backend/app/api/analytics.py` — `HistoryPeriod` Literal에 `"1W"` 추가, `_period_cutoff` 에 `1W` → `today - timedelta(days=7)` 처리
+  - `backend/app/api/analytics.py` — `invalidate_analytics_cache` 에 `"1W"` 포함
+  - `backend/tests/test_analytics.py` — `1W` period 케이스 추가
+  - `frontend/src/app/dashboard/analytics/page.tsx` — `historyPeriod` 타입에 `"1W"` 추가, PortfolioHistoryChart `onPeriodChange` 에 `"1W"` 전달
+  - `frontend/src/components/PortfolioHistoryChart.tsx` — PERIODS 배열에 `"1W"` 추가 (버튼 UI)
+
+- [x] **feat: HoldingsTable 브레이크이븐 마커 (평균 매입가 52주 범위 내 표시)**
+  - `frontend/src/components/HoldingsTable.tsx` — `w52_range` 컬럼 cell 내 avg_price 마커 추가
+  - 52주 범위 바 위에 avg_price 위치를 흰색 세로선(`|`)으로 표시
+  - avg_price 가 low~high 범위 밖이면 마커 숨김
+  - 마커에 `title` 속성으로 `평균매입가: {formatPrice(avg_price)}` 툴팁 추가
+  - 테스트: `frontend/src/components/HoldingsTable.test.tsx` — 마커 렌더링 케이스 추가
+
+### Milestone 12-5: sync_logs 커서 기반 페이지네이션
+
+- [x] **feat: sync_logs 커서 기반 페이지네이션**
+  - `backend/app/api/sync.py` — `GET /sync/logs` 에 `cursor` (last id), `limit` (default 50) query param 추가
+  - `cursor` 없으면 최신 50건 반환, `cursor` 있으면 해당 id 미만의 레코드 반환
+  - 응답: `{ items: [...], next_cursor: int | null, has_more: bool }`
+  - 기존 `offset` param 제거 (하위 호환 불필요 — 프론트엔드 미사용)
+  - `backend/tests/test_sync.py` — cursor 페이지네이션 케이스 추가
+
+---
+
 ## Trading Feature — 실제 주식 매매 기능
 
 ### Step 1 — DB 마이그레이션

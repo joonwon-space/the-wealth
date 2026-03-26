@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { Cell, Pie, PieChart, Tooltip } from "recharts";
 import { formatKRW, formatRate } from "@/lib/format";
 
@@ -25,10 +26,21 @@ interface CustomTooltipProps {
   payload?: TooltipPayloadItem[];
 }
 
-// Resolved colors for SVG fill (CSS vars not directly supported in SVG)
-const CHART_COLORS_FALLBACK = [
+// Resolved colors for SVG fill (CSS vars not directly supported in SVG).
+// Light mode: blue-first, dark mode: green-first.
+const CHART_COLORS_LIGHT = [
   "#1e90ff", // dodger blue
   "#00ff00", // neon green
+  "#F59E0B", // amber
+  "#F43F5E", // rose
+  "#8B5CF6", // violet
+  "#06B6D4", // cyan
+  "#F97316", // orange
+  "#22C55E", // green
+];
+const CHART_COLORS_DARK = [
+  "#00ff00", // neon green
+  "#1e90ff", // dodger blue
   "#F59E0B", // amber
   "#F43F5E", // rose
   "#8B5CF6", // violet
@@ -53,6 +65,8 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function AllocationDonut({ data, totalAsset }: Props) {
+  const { resolvedTheme } = useTheme();
+  const CHART_COLORS = resolvedTheme === "dark" ? CHART_COLORS_DARK : CHART_COLORS_LIGHT;
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   // API may return numeric strings from Decimal fields — coerce to numbers
@@ -63,7 +77,7 @@ export function AllocationDonut({ data, totalAsset }: Props) {
   }));
 
   const activeItem = hoverIndex != null ? numericData[hoverIndex] : null;
-  const activeColor = hoverIndex != null ? CHART_COLORS_FALLBACK[hoverIndex % CHART_COLORS_FALLBACK.length] : null;
+  const activeColor = hoverIndex != null ? CHART_COLORS[hoverIndex % CHART_COLORS.length] : null;
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -84,7 +98,7 @@ export function AllocationDonut({ data, totalAsset }: Props) {
             {numericData.map((_, index) => (
               <Cell
                 key={index}
-                fill={CHART_COLORS_FALLBACK[index % CHART_COLORS_FALLBACK.length]}
+                fill={CHART_COLORS[index % CHART_COLORS.length]}
                 opacity={hoverIndex != null && hoverIndex !== index ? 0.5 : 1}
                 cursor="pointer"
                 style={{
@@ -126,7 +140,7 @@ export function AllocationDonut({ data, totalAsset }: Props) {
       {/* 범례: 아이콘 원형 12px + 종목명 + 비중% + 금액 3열 구조 */}
       <div className="flex flex-col gap-1.5 pt-2 min-w-0">
         {numericData.map((item, i) => {
-          const color = CHART_COLORS_FALLBACK[i % CHART_COLORS_FALLBACK.length];
+          const color = CHART_COLORS[i % CHART_COLORS.length];
           const isActive = hoverIndex === i;
           return (
             <div

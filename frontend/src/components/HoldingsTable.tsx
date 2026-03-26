@@ -150,16 +150,28 @@ const columns: ColumnDef<HoldingRow>[] = [
       const high = Number(row.original.w52_high);
       const low = Number(row.original.w52_low);
       const cur = Number(row.original.current_price);
+      const avg = Number(row.original.avg_price);
       if (!high || !low || !cur || high <= low) return <span className="text-muted-foreground">—</span>;
-      const pct = Math.min(Math.max(((cur - low) / (high - low)) * 100, 0), 100);
+      const curPct = Math.min(Math.max(((cur - low) / (high - low)) * 100, 0), 100);
+      // avg_price marker: only show if within the 52-week range
+      const avgPct = avg > 0 && avg >= low && avg <= high
+        ? ((avg - low) / (high - low)) * 100
+        : null;
       const fmt = isUSD ? formatUSD : formatKRW;
       return (
         <div className="w-24 space-y-0.5">
           <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
             <div
               className="absolute left-0 top-0 h-full rounded-full"
-              style={{ width: `${pct}%`, background: "var(--accent-indigo)" }}
+              style={{ width: `${curPct}%`, background: "var(--accent-indigo)" }}
             />
+            {avgPct != null && (
+              <div
+                className="absolute top-0 h-full w-px bg-white/90"
+                style={{ left: `${avgPct}%` }}
+                title={`평균매입가: ${fmt(avg)}`}
+              />
+            )}
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums">
             <span>{fmt(low)}</span>

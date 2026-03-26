@@ -121,7 +121,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ### 12-5. API Extension
 - [x] Cursor-based pagination for transactions
-- [ ] Cursor-based pagination for sync_logs
+- [x] Cursor-based pagination for sync_logs
 - [ ] Bulk operations API (`POST /portfolios/{id}/holdings/bulk`)
 
 ---
@@ -189,7 +189,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ## Milestone 15: User Experience & Extension
 
 ### 15-2. Portfolio Tools
-- [ ] Breakeven visualization — HoldingsTable 미니 게이지 바 (52주 범위 내 현재가 + 평균 매입가 마커)
+- [x] Breakeven visualization — HoldingsTable 미니 게이지 바 (52주 범위 내 현재가 + 평균 매입가 마커)
 - [ ] Portfolio performance sharing → 19-2로 통합
 - [ ] Screenshot sharing → 19-2로 통합
 

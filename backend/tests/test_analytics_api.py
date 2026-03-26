@@ -225,6 +225,44 @@ class TestGetPortfolioHistory:
         data = resp.json()
         assert len(data) == 2
 
+    async def test_period_filter_1w(self, client: AsyncClient) -> None:
+        """period=1W filters snapshots to last 7 days only."""
+        from app.models.price_snapshot import PriceSnapshot
+
+        token = await _register_and_get_token(client, "history_period1w@example.com")
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [{"ticker": "005930", "name": "삼성전자", "quantity": 5, "avg_price": 70000}],
+        )
+
+        today = date.today()
+        async with _db_session() as db:
+            # Snapshot 30 days ago — should be excluded by 1W filter
+            old_snap = PriceSnapshot(
+                ticker="005930",
+                snapshot_date=today - timedelta(days=30),
+                close=Decimal("65000"),
+            )
+            # Snapshot 3 days ago — should be included
+            recent_snap = PriceSnapshot(
+                ticker="005930",
+                snapshot_date=today - timedelta(days=3),
+                close=Decimal("72000"),
+            )
+            db.add(old_snap)
+            db.add(recent_snap)
+            await db.commit()
+
+        resp = await client.get(
+            "/analytics/portfolio-history", params={"period": "1W"}, headers=_auth(token)
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Only the recent snapshot within 7 days
+        assert len(data) == 1
+        assert data[0]["value"] == 360000.0  # 5 * 72000
+
 
 @pytest.mark.integration
 class TestGetMonthlyReturns:
