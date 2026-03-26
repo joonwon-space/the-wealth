@@ -67,11 +67,12 @@
   --card-foreground: oklch(0.15 0.01 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.01 250);
-  /* Primary: indigo #6366F1 */
-  --primary: oklch(0.585 0.233 277.117);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.94 0.01 250);
-  --secondary-foreground: oklch(0.25 0.01 250);
+  /* Primary: dodger blue #1e90ff */
+  --primary: #1e90ff;
+  --primary-foreground: #ffffff;
+  /* Secondary: neon green #00ff00 */
+  --secondary: #00ff00;
+  --secondary-foreground: #000000;
   --muted: oklch(0.94 0.01 250);
   --muted-foreground: oklch(0.50 0.01 250);
   --accent: oklch(0.94 0.01 250);
@@ -79,10 +80,10 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.88 0.01 250);
   --input: oklch(0.88 0.01 250);
-  --ring: oklch(0.585 0.233 277.117);
+  --ring: #1e90ff;
   /* Chart: 8-color multicolor palette */
-  --chart-1: oklch(0.585 0.233 277.117);   /* indigo #6366F1 */
-  --chart-2: oklch(0.696 0.17 162.48);     /* emerald #10B981 */
+  --chart-1: #1e90ff;                       /* dodger blue */
+  --chart-2: #00ff00;                       /* neon green */
   --chart-3: oklch(0.769 0.188 70.08);     /* amber #F59E0B */
   --chart-4: oklch(0.627 0.257 29.23);     /* rose #F43F5E */
   --chart-5: oklch(0.627 0.265 303.9);     /* violet #8B5CF6 */
@@ -92,17 +93,17 @@
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0.005 250);
   --sidebar-foreground: oklch(0.15 0.01 250);
-  --sidebar-primary: oklch(0.585 0.233 277.117);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #1e90ff;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.94 0.01 250);
   --sidebar-accent-foreground: oklch(0.25 0.01 250);
   --sidebar-border: oklch(0.88 0.01 250);
-  --sidebar-ring: oklch(0.585 0.233 277.117);
+  --sidebar-ring: #1e90ff;
   /* Korean stock market colors */
   --rise: #E31F26;
   --fall: #1A56DB;
   /* Accent shortcuts */
-  --accent-indigo: oklch(0.585 0.233 277.117);
+  --accent-indigo: #1e90ff;
   --accent-amber: oklch(0.769 0.188 70.08);
   /* Glassmorphism */
   --glass-bg: oklch(1 0 0 / 60%);
@@ -117,11 +118,12 @@
   --card-foreground: oklch(0.94 0.005 250);
   --popover: oklch(0.18 0.01 250);
   --popover-foreground: oklch(0.94 0.005 250);
-  /* Primary: indigo #6366F1 */
-  --primary: oklch(0.655 0.233 277.117);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.22 0.01 250);
-  --secondary-foreground: oklch(0.94 0.005 250);
+  /* Primary: dodger blue #1e90ff */
+  --primary: #1e90ff;
+  --primary-foreground: #ffffff;
+  /* Secondary: neon green #00ff00 */
+  --secondary: #00ff00;
+  --secondary-foreground: #000000;
   --muted: oklch(0.22 0.01 250);
   --muted-foreground: oklch(0.62 0.01 250);
   --accent: oklch(0.25 0.015 277);
@@ -129,10 +131,10 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.655 0.233 277.117);
-  /* Chart: 8-color multicolor palette (dark mode — slightly brighter) */
-  --chart-1: oklch(0.655 0.233 277.117);   /* indigo */
-  --chart-2: oklch(0.74 0.17 162.48);      /* emerald */
+  --ring: #1e90ff;
+  /* Chart: 8-color multicolor palette (dark mode) */
+  --chart-1: #1e90ff;                       /* dodger blue */
+  --chart-2: #00ff00;                       /* neon green */
   --chart-3: oklch(0.82 0.18 70.08);       /* amber */
   --chart-4: oklch(0.68 0.257 29.23);      /* rose */
   --chart-5: oklch(0.68 0.255 303.9);      /* violet */
@@ -141,17 +143,17 @@
   --chart-8: oklch(0.70 0.15 145.0);       /* green */
   --sidebar: oklch(0.16 0.01 250);
   --sidebar-foreground: oklch(0.94 0.005 250);
-  --sidebar-primary: oklch(0.655 0.233 277.117);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #1e90ff;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.22 0.01 250);
   --sidebar-accent-foreground: oklch(0.94 0.005 250);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.655 0.233 277.117);
+  --sidebar-ring: #1e90ff;
   /* Korean stock market colors — brightened for dark background WCAG AA compliance */
   --rise: #FF4D4F;
   --fall: #4B8EF5;
   /* Accent shortcuts */
-  --accent-indigo: oklch(0.655 0.233 277.117);
+  --accent-indigo: #1e90ff;
   --accent-amber: oklch(0.82 0.18 70.08);
   /* Glassmorphism */
   --glass-bg: oklch(0.18 0.01 250 / 60%);

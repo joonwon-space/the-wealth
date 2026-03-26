@@ -334,7 +334,7 @@ export default function DashboardPage() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <p className="text-section-header mb-2">총 자산 (평가금액)</p>
-                  <p className="text-asset-total" style={{ color: "var(--accent-amber)" }}>
+                  <p className="text-asset-total" style={{ color: "var(--accent-indigo)" }}>
                     {formatKRW(animatedTotalAsset)}
                   </p>
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
