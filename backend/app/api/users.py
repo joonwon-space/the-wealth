@@ -9,11 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.encryption import decrypt, encrypt
+from app.core.security import (
+    hash_password,
+    revoke_all_refresh_tokens_for_user,
+    verify_password,
+)
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
-from app.schemas.user import UserMe, UserUpdate
+from app.schemas.user import ChangePasswordRequest, UserMe, UserUpdate
 from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -39,6 +44,28 @@ async def update_me(
     await db.commit()
     await db.refresh(current_user)
     return current_user
+
+
+@router.post("/me/change-password", status_code=200)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Change the current user's password.
+
+    Verifies the current password, updates the hash, and invalidates all
+    existing refresh tokens to force re-authentication.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    current_user.hashed_password = hash_password(body.new_password)
+    await db.commit()
+    await revoke_all_refresh_tokens_for_user(current_user.id)
+    return {"message": "Password changed successfully"}
 
 
 class KisAccountCreate(BaseModel):

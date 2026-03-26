@@ -107,7 +107,7 @@ Each item should be completable in a single commit.
   - `backend/app/api/users.py` — `GET /users/me` (이메일·이름 반환), `PATCH /users/me` (이름 변경)
   - 테스트: `backend/tests/test_users.py` — GET/PATCH 케이스
 
-- [ ] **feat: 비밀번호 변경 API**
+- [x] **feat: 비밀번호 변경 API**
   - `backend/app/api/users.py` — `POST /users/me/change-password`
     - Body: `{ current_password, new_password }` (new_password 최소 8자)
     - 현재 비밀번호 bcrypt 검증 → 불일치 시 400
