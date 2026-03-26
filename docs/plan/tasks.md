@@ -137,7 +137,7 @@ Each item should be completable in a single commit.
 
 #### Step 2 — 프론트엔드 UI
 
-- [ ] **feat: 설정 페이지 "계정 정보" 섹션 추가**
+- [x] **feat: 설정 페이지 "계정 정보" 섹션 추가**
   - `frontend/src/app/dashboard/settings/page.tsx` 상단에 계정 섹션 추가
   - 현재 이메일 표시 (읽기 전용)
   - 이름 인라인 편집 (클릭 → input → blur/enter 시 PATCH 저장)

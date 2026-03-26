@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bell, CheckCircle, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2, Wifi, XCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bell, Check, CheckCircle, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2, Wifi, XCircle } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatUSD } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+
+interface UserMe {
+  id: number;
+  email: string;
+  name: string | null;
+}
 
 interface BalanceHolding {
   ticker: string;
@@ -42,6 +49,36 @@ interface AlertItem {
 }
 
 export default function SettingsPage() {
+  const queryClient = useQueryClient();
+
+  // Account info
+  const { data: userMe } = useQuery<UserMe>({
+    queryKey: ["users", "me"],
+    queryFn: () => api.get<UserMe>("/users/me").then((r) => r.data),
+  });
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const updateNameMutation = useMutation({
+    mutationFn: (name: string) =>
+      api.patch<UserMe>("/users/me", { name: name || null }),
+    onSuccess: (resp) => {
+      queryClient.setQueryData<UserMe>(["users", "me"], resp.data);
+      setEditingName(false);
+      toast.success("이름이 저장되었습니다");
+    },
+    onError: () => toast.error("저장에 실패했습니다"),
+  });
+
+  const handleNameSave = () => {
+    updateNameMutation.mutate(nameInput.trim());
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") handleNameSave();
+    if (e.key === "Escape") setEditingName(false);
+  };
+
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceAccounts, setBalanceAccounts] = useState<AccountBalance[] | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
@@ -196,6 +233,61 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-xl">
       <h1 className="text-2xl font-bold">설정</h1>
+
+      {/* 계정 정보 */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-base font-semibold">계정 정보</h2>
+
+          {/* 이메일 (읽기 전용) */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">이메일</p>
+            <p className="text-sm font-medium">{userMe?.email ?? "—"}</p>
+          </div>
+
+          {/* 이름 인라인 편집 */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">이름</p>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  ref={nameInputRef}
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onBlur={handleNameSave}
+                  onKeyDown={handleNameKeyDown}
+                  className="h-8 text-sm max-w-[200px]"
+                  placeholder="이름 입력"
+                  autoFocus
+                />
+                <button
+                  onClick={handleNameSave}
+                  disabled={updateNameMutation.isPending}
+                  className="flex min-h-[32px] items-center gap-1 rounded px-2 text-xs font-medium text-primary hover:bg-accent disabled:opacity-50"
+                >
+                  {updateNameMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Check className="h-3 w-3" />
+                  )}
+                  저장
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setNameInput(userMe?.name ?? "");
+                  setEditingName(true);
+                }}
+                className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors group"
+              >
+                <span>{userMe?.name ?? "이름 없음"}</span>
+                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 테마 */}
       <Card>
