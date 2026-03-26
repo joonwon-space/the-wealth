@@ -84,7 +84,7 @@ interface SectorAllocationItem {
 }
 
 export default function AnalyticsPage() {
-  const [historyPeriod, setHistoryPeriod] = useState<"1M" | "3M" | "6M" | "1Y" | "ALL">("3M");
+  const [historyPeriod, setHistoryPeriod] = useState<"1W" | "1M" | "3M" | "6M" | "1Y" | "ALL">("3M");
 
   // Chart state
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);

@@ -378,7 +378,7 @@ Each item should be completable in a single commit.
 
 ### Milestone 11-2: Analytics 기간 필터 확장 + 브레이크이븐 시각화
 
-- [ ] **feat: portfolio-history 1W 기간 추가 + analytics 페이지 연동**
+- [x] **feat: portfolio-history 1W 기간 추가 + analytics 페이지 연동**
   - `backend/app/api/analytics.py` — `HistoryPeriod` Literal에 `"1W"` 추가, `_period_cutoff` 에 `1W` → `today - timedelta(days=7)` 처리
   - `backend/app/api/analytics.py` — `invalidate_analytics_cache` 에 `"1W"` 포함
   - `backend/tests/test_analytics.py` — `1W` period 케이스 추가
