@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Bell, Check, CheckCircle, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2, Wifi, XCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 import { formatKRW, formatNumber, formatUSD } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -151,6 +153,30 @@ export default function SettingsPage() {
               .response?.data?.error?.message
           : null;
       setEmailError(msg ?? "이메일 변경에 실패했습니다");
+    },
+  });
+
+  // Delete account dialog
+  const router = useRouter();
+  const logout = useAuthStore((s) => s.logout);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteAccountMutation = useMutation({
+    mutationFn: () =>
+      api.delete("/users/me", { data: { current_password: deletePassword } }),
+    onSuccess: () => {
+      toast.success("계정이 삭제되었습니다");
+      logout();
+      router.push("/login");
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { error?: { message?: string } } } })
+              .response?.data?.error?.message
+          : null;
+      setDeleteError(msg ?? "계정 삭제에 실패했습니다");
     },
   });
 
@@ -800,6 +826,60 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* 위험 구역 — 계정 삭제 */}
+      <Card className="border-destructive/40">
+        <CardContent className="space-y-3 p-6">
+          <h2 className="text-base font-semibold text-destructive">위험 구역</h2>
+          <p className="text-sm text-muted-foreground">
+            계정을 삭제하면 모든 포트폴리오, 보유 종목, 거래 내역이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+          </p>
+          <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) {
+              setDeletePassword("");
+              setDeleteError(null);
+            }
+          }}>
+            <DialogTrigger render={<Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs" />}>
+              계정 삭제
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-destructive">계정 영구 삭제</DialogTitle>
+                <DialogDescription>
+                  이 작업은 되돌릴 수 없습니다. 계속하려면 현재 비밀번호를 입력하세요.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">현재 비밀번호</label>
+                  <Input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="현재 비밀번호"
+                  />
+                </div>
+                {deleteError && (
+                  <p className="text-xs text-destructive">{deleteError}</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="destructive"
+                  onClick={() => deleteAccountMutation.mutate()}
+                  disabled={deleteAccountMutation.isPending || !deletePassword}
+                  size="sm"
+                >
+                  {deleteAccountMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                  영구 삭제
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
 

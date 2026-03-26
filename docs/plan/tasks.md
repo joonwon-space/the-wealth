@@ -154,7 +154,7 @@ Each item should be completable in a single commit.
   - shadcn Dialog: 새 이메일 + 현재 비밀번호 입력
   - 성공 시 로컬 상태 갱신 + toast, 실패 시 인라인 에러
 
-- [ ] **feat: 회원 탈퇴 UI**
+- [x] **feat: 회원 탈퇴 UI**
   - 설정 페이지 최하단 "위험 구역" 섹션 (빨간 테두리 카드)
   - "계정 삭제" 버튼 클릭 → 경고 Dialog (복구 불가 안내)
   - Dialog 내 현재 비밀번호 입력 + "영구 삭제" 확인 버튼
