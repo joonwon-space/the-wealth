@@ -1,6 +1,7 @@
 """KIS 계좌 자동 동기화 API."""
 
 import asyncio
+from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -337,29 +338,43 @@ async def sync_portfolio(
 @limiter.limit("5/minute")
 async def get_sync_logs(
     request: Request,
-    offset: int = Query(default=0, ge=0),
+    cursor: Optional[int] = Query(default=None, description="마지막으로 받은 id (커서 페이지네이션)"),
     limit: int = Query(default=50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
-    result = await db.execute(
-        select(SyncLog)
-        .where(SyncLog.user_id == current_user.id)
-        .order_by(SyncLog.synced_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
-    logs = result.scalars().all()
-    return [
-        {
-            "id": log.id,
-            "portfolio_id": log.portfolio_id,
-            "status": log.status,
-            "inserted": log.inserted,
-            "updated": log.updated,
-            "deleted": log.deleted,
-            "message": log.message,
-            "synced_at": log.synced_at.isoformat(),
-        }
-        for log in logs
-    ]
+) -> dict:
+    """동기화 로그 조회 (커서 기반 페이지네이션).
+
+    cursor 없이 호출하면 가장 최신 limit건 반환.
+    cursor(last id)를 전달하면 해당 id보다 작은(오래된) 레코드를 반환.
+    """
+    query = select(SyncLog).where(SyncLog.user_id == current_user.id)
+    if cursor is not None:
+        query = query.where(SyncLog.id < cursor)
+    query = query.order_by(SyncLog.synced_at.desc()).limit(limit + 1)
+
+    result = await db.execute(query)
+    rows = result.scalars().all()
+
+    has_more = len(rows) > limit
+    items = rows[:limit]
+
+    next_cursor = items[-1].id if has_more and items else None
+
+    return {
+        "items": [
+            {
+                "id": log.id,
+                "portfolio_id": log.portfolio_id,
+                "status": log.status,
+                "inserted": log.inserted,
+                "updated": log.updated,
+                "deleted": log.deleted,
+                "message": log.message,
+                "synced_at": log.synced_at.isoformat(),
+            }
+            for log in items
+        ],
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+    }

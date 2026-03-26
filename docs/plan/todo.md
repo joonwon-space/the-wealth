@@ -121,7 +121,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ### 12-5. API Extension
 - [x] Cursor-based pagination for transactions
-- [ ] Cursor-based pagination for sync_logs
+- [x] Cursor-based pagination for sync_logs
 - [ ] Bulk operations API (`POST /portfolios/{id}/holdings/bulk`)
 
 ---

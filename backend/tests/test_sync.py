@@ -93,13 +93,16 @@ class TestSyncAPI:
         assert resp.status_code in (401, 403)
 
     async def test_get_sync_logs_empty(self, client: AsyncClient) -> None:
-        """동기화 이력 없으면 빈 리스트."""
+        """동기화 이력 없으면 빈 items 리스트."""
         token = await _register_login(client, "sync3@example.com")
         resp = await client.get(
             "/sync/logs", headers={"Authorization": f"Bearer {token}"}
         )
         assert resp.status_code == 200
-        assert resp.json() == []
+        data = resp.json()
+        assert data["items"] == []
+        assert data["next_cursor"] is None
+        assert data["has_more"] is False
 
     async def test_get_sync_logs_unauthenticated(self, client: AsyncClient) -> None:
         """인증 없이 sync logs 접근 불가."""
@@ -257,25 +260,74 @@ class TestSyncAPI:
 
         logs_resp = await client.get("/sync/logs", headers=headers)
         assert logs_resp.status_code == 200
-        logs = logs_resp.json()
-        assert len(logs) >= 1
-        log = logs[0]
+        data = logs_resp.json()
+        assert "items" in data
+        assert "next_cursor" in data
+        assert "has_more" in data
+        assert len(data["items"]) >= 1
+        log = data["items"][0]
         assert "id" in log
         assert "status" in log
         assert "synced_at" in log
 
-    async def test_sync_logs_pagination(self, client: AsyncClient) -> None:
-        """sync logs 페이지네이션 파라미터 동작 확인."""
-        token = await _register_login(client, "sync10@example.com")
+    async def test_sync_logs_cursor_pagination(self, client: AsyncClient) -> None:
+        """cursor 기반 페이지네이션: cursor 없으면 최신 N건, cursor 있으면 이전 건 반환."""
+        token, pid = await self._setup_linked_portfolio(client, "sync10@example.com")
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Trigger 3 syncs to create 3 log entries
+        for _ in range(3):
+            with (
+                patch(
+                    "app.api.sync.fetch_account_holdings",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ),
+                patch(
+                    "app.api.sync.fetch_overseas_account_holdings",
+                    new_callable=AsyncMock,
+                    return_value=([], {}),
+                ),
+            ):
+                await client.post(f"/sync/{pid}", headers=headers)
+
+        # First page: no cursor, limit=2
+        resp1 = await client.get(
+            "/sync/logs", params={"limit": 2}, headers=headers
+        )
+        assert resp1.status_code == 200
+        data1 = resp1.json()
+        assert len(data1["items"]) == 2
+        assert data1["has_more"] is True
+        assert data1["next_cursor"] is not None
+
+        # Second page: use cursor from first page
+        cursor = data1["next_cursor"]
+        resp2 = await client.get(
+            "/sync/logs", params={"limit": 2, "cursor": cursor}, headers=headers
+        )
+        assert resp2.status_code == 200
+        data2 = resp2.json()
+        # Should return remaining items (at least 1)
+        assert len(data2["items"]) >= 1
+        # All items on page 2 should have lower id than cursor
+        for item in data2["items"]:
+            assert item["id"] < cursor
+
+    async def test_sync_logs_limit_param(self, client: AsyncClient) -> None:
+        """limit 파라미터 동작 확인."""
+        token = await _register_login(client, "sync10b@example.com")
         headers = {"Authorization": f"Bearer {token}"}
 
         resp = await client.get(
             "/sync/logs",
-            params={"offset": 0, "limit": 10},
+            params={"limit": 10},
             headers=headers,
         )
         assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
+        data = resp.json()
+        assert "items" in data
+        assert isinstance(data["items"], list)
 
     async def test_sync_other_user_portfolio_returns_404(
         self, client: AsyncClient

@@ -394,7 +394,7 @@ Each item should be completable in a single commit.
 
 ### Milestone 12-5: sync_logs 커서 기반 페이지네이션
 
-- [ ] **feat: sync_logs 커서 기반 페이지네이션**
+- [x] **feat: sync_logs 커서 기반 페이지네이션**
   - `backend/app/api/sync.py` — `GET /sync/logs` 에 `cursor` (last id), `limit` (default 50) query param 추가
   - `cursor` 없으면 최신 50건 반환, `cursor` 있으면 해당 id 미만의 레코드 반환
   - 응답: `{ items: [...], next_cursor: int | null, has_more: bool }`
