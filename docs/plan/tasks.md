@@ -116,7 +116,7 @@ Each item should be completable in a single commit.
   - `backend/app/schemas/user.py` — `ChangePasswordRequest` 스키마
   - 테스트: 성공/현재PW불일치/짧은PW 케이스
 
-- [ ] **feat: 이메일 변경 API**
+- [x] **feat: 이메일 변경 API**
   - `backend/app/api/users.py` — `POST /users/me/change-email`
     - Body: `{ new_email, current_password }`
     - 현재 비밀번호 검증 → 불일치 시 400
