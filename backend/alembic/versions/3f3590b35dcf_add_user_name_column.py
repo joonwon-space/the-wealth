@@ -1,6 +1,6 @@
 """add_user_name_column
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 3f3590b35dcf
 Revises: f7a8b9c0d1e2
 Create Date: 2026-03-26 09:00:00.000000
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1b2c3d4e5f6"
+revision: str = "3f3590b35dcf"
 down_revision: Union[str, Sequence[str], None] = "f7a8b9c0d1e2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
