@@ -10,6 +10,15 @@ import { formatKRW, formatNumber, formatUSD } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface UserMe {
   id: number;
@@ -77,6 +86,45 @@ export default function SettingsPage() {
   const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleNameSave();
     if (e.key === "Escape") setEditingName(false);
+  };
+
+  // Password change dialog
+  const [pwDialogOpen, setPwDialogOpen] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwError, setPwError] = useState<string | null>(null);
+  const changePwMutation = useMutation({
+    mutationFn: () =>
+      api.post("/users/me/change-password", {
+        current_password: pwForm.current,
+        new_password: pwForm.next,
+      }),
+    onSuccess: () => {
+      toast.success("비밀번호가 변경되었습니다");
+      setPwDialogOpen(false);
+      setPwForm({ current: "", next: "", confirm: "" });
+      setPwError(null);
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { error?: { message?: string } } } })
+              .response?.data?.error?.message
+          : null;
+      setPwError(msg ?? "비밀번호 변경에 실패했습니다");
+    },
+  });
+
+  const handleChangePw = () => {
+    setPwError(null);
+    if (pwForm.next.length < 8) {
+      setPwError("새 비밀번호는 8자 이상이어야 합니다");
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      setPwError("새 비밀번호가 일치하지 않습니다");
+      return;
+    }
+    changePwMutation.mutate();
   };
 
   const [balanceLoading, setBalanceLoading] = useState(false);
@@ -285,6 +333,69 @@ export default function SettingsPage() {
                 <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             )}
+          </div>
+
+          {/* 비밀번호 변경 버튼 + Dialog */}
+          <div className="pt-2 border-t border-border/50">
+            <Dialog open={pwDialogOpen} onOpenChange={(open) => {
+              setPwDialogOpen(open);
+              if (!open) {
+                setPwForm({ current: "", next: "", confirm: "" });
+                setPwError(null);
+              }
+            }}>
+              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs" />}>
+                비밀번호 변경
+              </DialogTrigger>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>비밀번호 변경</DialogTitle>
+                  <DialogDescription>새 비밀번호는 8자 이상이어야 합니다.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">현재 비밀번호</label>
+                    <Input
+                      type="password"
+                      value={pwForm.current}
+                      onChange={(e) => setPwForm((p) => ({ ...p, current: e.target.value }))}
+                      placeholder="현재 비밀번호"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">새 비밀번호</label>
+                    <Input
+                      type="password"
+                      value={pwForm.next}
+                      onChange={(e) => setPwForm((p) => ({ ...p, next: e.target.value }))}
+                      placeholder="새 비밀번호 (8자 이상)"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">새 비밀번호 확인</label>
+                    <Input
+                      type="password"
+                      value={pwForm.confirm}
+                      onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
+                      placeholder="새 비밀번호 재입력"
+                    />
+                  </div>
+                  {pwError && (
+                    <p className="text-xs text-destructive">{pwError}</p>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleChangePw}
+                    disabled={changePwMutation.isPending || !pwForm.current || !pwForm.next}
+                    size="sm"
+                  >
+                    {changePwMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                    변경
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardContent>
       </Card>

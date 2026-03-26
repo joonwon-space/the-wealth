@@ -143,7 +143,7 @@ Each item should be completable in a single commit.
   - 이름 인라인 편집 (클릭 → input → blur/enter 시 PATCH 저장)
   - TanStack Query로 `GET /users/me` 조회 + `PATCH /users/me` mutation
 
-- [ ] **feat: 비밀번호 변경 UI**
+- [x] **feat: 비밀번호 변경 UI**
   - 설정 페이지 계정 섹션 내 "비밀번호 변경" 버튼
   - shadcn Dialog: 현재 비밀번호 + 새 비밀번호 + 확인 입력
   - 클라이언트 검증: 새 비밀번호 8자 이상, 확인 일치
