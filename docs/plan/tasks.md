@@ -149,7 +149,7 @@ Each item should be completable in a single commit.
   - 클라이언트 검증: 새 비밀번호 8자 이상, 확인 일치
   - 성공 시 toast + Dialog 닫기, 실패 시 인라인 에러 메시지
 
-- [ ] **feat: 이메일 변경 UI**
+- [x] **feat: 이메일 변경 UI**
   - 설정 페이지 계정 섹션 내 "이메일 변경" 버튼
   - shadcn Dialog: 새 이메일 + 현재 비밀번호 입력
   - 성공 시 로컬 상태 갱신 + toast, 실패 시 인라인 에러

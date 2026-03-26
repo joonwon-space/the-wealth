@@ -127,6 +127,33 @@ export default function SettingsPage() {
     changePwMutation.mutate();
   };
 
+  // Email change dialog
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailForm, setEmailForm] = useState({ newEmail: "", password: "" });
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const changeEmailMutation = useMutation({
+    mutationFn: () =>
+      api.post("/users/me/change-email", {
+        new_email: emailForm.newEmail,
+        current_password: emailForm.password,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+      toast.success("이메일이 변경되었습니다");
+      setEmailDialogOpen(false);
+      setEmailForm({ newEmail: "", password: "" });
+      setEmailError(null);
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { error?: { message?: string } } } })
+              .response?.data?.error?.message
+          : null;
+      setEmailError(msg ?? "이메일 변경에 실패했습니다");
+    },
+  });
+
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceAccounts, setBalanceAccounts] = useState<AccountBalance[] | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
@@ -335,8 +362,61 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* 비밀번호 변경 버튼 + Dialog */}
-          <div className="pt-2 border-t border-border/50">
+          {/* 비밀번호 / 이메일 변경 버튼 영역 */}
+          <div className="pt-2 border-t border-border/50 flex flex-wrap gap-2">
+            {/* 이메일 변경 Dialog */}
+            <Dialog open={emailDialogOpen} onOpenChange={(open) => {
+              setEmailDialogOpen(open);
+              if (!open) {
+                setEmailForm({ newEmail: "", password: "" });
+                setEmailError(null);
+              }
+            }}>
+              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs" />}>
+                이메일 변경
+              </DialogTrigger>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>이메일 변경</DialogTitle>
+                  <DialogDescription>새 이메일 주소와 현재 비밀번호를 입력하세요.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">새 이메일</label>
+                    <Input
+                      type="email"
+                      value={emailForm.newEmail}
+                      onChange={(e) => setEmailForm((f) => ({ ...f, newEmail: e.target.value }))}
+                      placeholder="new@example.com"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">현재 비밀번호</label>
+                    <Input
+                      type="password"
+                      value={emailForm.password}
+                      onChange={(e) => setEmailForm((f) => ({ ...f, password: e.target.value }))}
+                      placeholder="현재 비밀번호"
+                    />
+                  </div>
+                  {emailError && (
+                    <p className="text-xs text-destructive">{emailError}</p>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={() => changeEmailMutation.mutate()}
+                    disabled={changeEmailMutation.isPending || !emailForm.newEmail || !emailForm.password}
+                    size="sm"
+                  >
+                    {changeEmailMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                    변경
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* 비밀번호 변경 Dialog */}
             <Dialog open={pwDialogOpen} onOpenChange={(open) => {
               setPwDialogOpen(open);
               if (!open) {
