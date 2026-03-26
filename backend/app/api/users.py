@@ -9,13 +9,123 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.encryption import decrypt, encrypt
+from app.core.security import (
+    hash_password,
+    revoke_all_refresh_tokens_for_user,
+    verify_password,
+)
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
+from app.schemas.user import (
+    ChangeEmailRequest,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
+    UserMe,
+    UserUpdate,
+)
 from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/me", response_model=UserMe)
+async def get_me(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Return the current user's profile (email and name)."""
+    return current_user
+
+
+@router.patch("/me", response_model=UserMe)
+async def update_me(
+    body: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Update the current user's display name."""
+    if body.name is not None:
+        current_user.name = body.name or None
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.post("/me/change-password", status_code=200)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Change the current user's password.
+
+    Verifies the current password, updates the hash, and invalidates all
+    existing refresh tokens to force re-authentication.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    current_user.hashed_password = hash_password(body.new_password)
+    await db.commit()
+    await revoke_all_refresh_tokens_for_user(current_user.id)
+    return {"message": "Password changed successfully"}
+
+
+@router.post("/me/change-email", status_code=200)
+async def change_email(
+    body: ChangeEmailRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Change the current user's email address.
+
+    Requires the current password for verification. Fails if the new email is
+    already taken. Invalidates all refresh tokens on success.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    existing = await db.execute(
+        select(User).where(User.email == str(body.new_email))
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already in use",
+        )
+    current_user.email = str(body.new_email)
+    await db.commit()
+    await revoke_all_refresh_tokens_for_user(current_user.id)
+    return {"message": "Email changed successfully"}
+
+
+@router.delete("/me", status_code=200)
+async def delete_account(
+    body: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Permanently delete the current user's account.
+
+    Requires the current password for confirmation. Cascades to delete all
+    portfolios, holdings, transactions, orders, alerts, notifications,
+    KIS accounts, and watchlist entries. Invalidates all Redis tokens.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    user_id = current_user.id
+    await db.delete(current_user)
+    await db.commit()
+    await revoke_all_refresh_tokens_for_user(user_id)
+    return {"message": "Account deleted successfully"}
 
 
 class KisAccountCreate(BaseModel):

@@ -78,6 +78,90 @@ Each item should be completable in a single commit.
 
 ## Current work
 
+### 브랜드 컬러 시스템 적용
+
+- [x] **style: 주요 컬러를 #1e90ff(블루) + #00ff00(그린) 듀얼 팔레트로 교체**
+  - `frontend/src/app/globals.css`
+    - Light 모드: `--primary: #1e90ff` (도저블루), `--secondary: #00ff00` (네온그린)
+    - Dark 모드: 동일 컬러 유지 (이미 충분한 명도)
+    - `--primary-foreground`: `#ffffff` (블루 위 흰 텍스트)
+    - `--secondary-foreground`: `#000000` (그린 위 검정 텍스트 — 가독성)
+    - 차트 팔레트 1번: `#1e90ff`, 2번: `#00ff00` 로 교체 (나머지 6색 유지)
+  - `frontend/src/app/globals.css` — `.text-primary` 유틸 자동 반영
+  - 사이드바 active indicator, BottomNav pill, 버튼 primary 자동 반영 (CSS 변수 참조 중)
+  - 대시보드 총 자산 카드 숫자 accent: amber → `#1e90ff`로 교체
+  - 포트폴리오 히스토리 차트 라인 컬러: indigo → `#1e90ff`
+  - `frontend/src/components/AllocationDonut.tsx` — `CHART_COLORS_FALLBACK[0]` = `#1e90ff`, `[1]` = `#00ff00`
+  - 빌드 확인: `npx tsc --noEmit && npm run build`
+
+---
+
+### 계정 정보 변경 기능
+
+#### Step 1 — 백엔드 모델 & API
+
+- [x] **feat: users.name 컬럼 추가 + GET/PATCH /users/me**
+  - `backend/app/models/user.py` — `name: Mapped[Optional[str]]` 컬럼 추가 (String(100))
+  - Alembic migration: `add_user_name_column`
+  - `backend/app/schemas/user.py` — `UserMe`, `UserUpdate(name)` 스키마 추가
+  - `backend/app/api/users.py` — `GET /users/me` (이메일·이름 반환), `PATCH /users/me` (이름 변경)
+  - 테스트: `backend/tests/test_users.py` — GET/PATCH 케이스
+
+- [x] **feat: 비밀번호 변경 API**
+  - `backend/app/api/users.py` — `POST /users/me/change-password`
+    - Body: `{ current_password, new_password }` (new_password 최소 8자)
+    - 현재 비밀번호 bcrypt 검증 → 불일치 시 400
+    - 새 비밀번호 해싱 후 DB 저장
+    - 성공 시 기존 refresh token 무효화 (Redis `refresh:{user_id}` 삭제)
+  - `backend/app/schemas/user.py` — `ChangePasswordRequest` 스키마
+  - 테스트: 성공/현재PW불일치/짧은PW 케이스
+
+- [x] **feat: 이메일 변경 API**
+  - `backend/app/api/users.py` — `POST /users/me/change-email`
+    - Body: `{ new_email, current_password }`
+    - 현재 비밀번호 검증 → 불일치 시 400
+    - 이미 사용 중인 이메일이면 409
+    - DB 이메일 업데이트 + refresh token 무효화
+  - `backend/app/schemas/user.py` — `ChangeEmailRequest` 스키마
+  - 테스트: 성공/PW불일치/중복이메일 케이스
+
+- [x] **feat: 회원 탈퇴 API**
+  - `backend/app/api/users.py` — `DELETE /users/me`
+    - Body: `{ current_password }` (비밀번호 재확인)
+    - 현재 비밀번호 검증
+    - Cascade: portfolios → holdings/transactions/orders/alerts/notifications 삭제
+    - kis_accounts, watchlist 삭제
+    - users 레코드 삭제
+    - Redis 토큰 무효화
+  - 테스트: 성공/PW불일치 케이스, cascade 삭제 확인
+
+#### Step 2 — 프론트엔드 UI
+
+- [x] **feat: 설정 페이지 "계정 정보" 섹션 추가**
+  - `frontend/src/app/dashboard/settings/page.tsx` 상단에 계정 섹션 추가
+  - 현재 이메일 표시 (읽기 전용)
+  - 이름 인라인 편집 (클릭 → input → blur/enter 시 PATCH 저장)
+  - TanStack Query로 `GET /users/me` 조회 + `PATCH /users/me` mutation
+
+- [x] **feat: 비밀번호 변경 UI**
+  - 설정 페이지 계정 섹션 내 "비밀번호 변경" 버튼
+  - shadcn Dialog: 현재 비밀번호 + 새 비밀번호 + 확인 입력
+  - 클라이언트 검증: 새 비밀번호 8자 이상, 확인 일치
+  - 성공 시 toast + Dialog 닫기, 실패 시 인라인 에러 메시지
+
+- [x] **feat: 이메일 변경 UI**
+  - 설정 페이지 계정 섹션 내 "이메일 변경" 버튼
+  - shadcn Dialog: 새 이메일 + 현재 비밀번호 입력
+  - 성공 시 로컬 상태 갱신 + toast, 실패 시 인라인 에러
+
+- [x] **feat: 회원 탈퇴 UI**
+  - 설정 페이지 최하단 "위험 구역" 섹션 (빨간 테두리 카드)
+  - "계정 삭제" 버튼 클릭 → 경고 Dialog (복구 불가 안내)
+  - Dialog 내 현재 비밀번호 입력 + "영구 삭제" 확인 버튼
+  - 성공 시 zustand logout() → `/login` 리다이렉트
+
+---
+
 ### Milestone 11-3: Target Asset Progress Widget
 
 - [x] **feat: portfolios.target_value 컬럼 추가 + PATCH API**

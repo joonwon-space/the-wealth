@@ -81,8 +81,8 @@ export function PortfolioHistoryChart({ data, period, onPeriodChange }: Props) {
   const last = filtered[filtered.length - 1]?.value ?? 0;
   const gain = first > 0 ? ((last - first) / first) * 100 : 0;
 
-  // Positive: indigo gradient; Negative: blue
-  const lineColor = gain >= 0 ? "#6366F1" : "#1A56DB";
+  // Positive: dodger blue; Negative: fall blue
+  const lineColor = gain >= 0 ? "#1e90ff" : "#1A56DB";
   const gradientId = `historyGrad-${gain >= 0 ? "pos" : "neg"}`;
 
   // Compute per-point gain for tooltip

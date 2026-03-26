@@ -27,8 +27,8 @@ interface CustomTooltipProps {
 
 // Resolved colors for SVG fill (CSS vars not directly supported in SVG)
 const CHART_COLORS_FALLBACK = [
-  "#6366F1", // indigo
-  "#10B981", // emerald
+  "#1e90ff", // dodger blue
+  "#00ff00", // neon green
   "#F59E0B", // amber
   "#F43F5E", // rose
   "#8B5CF6", // violet

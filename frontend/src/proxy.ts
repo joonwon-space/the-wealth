@@ -12,15 +12,20 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "?"));
 
-  const token = request.cookies.get("access_token")?.value;
+  // access_token(30분) 또는 refresh_token(7일) 중 하나라도 있으면 로그인 상태로 간주.
+  // access_token이 만료돼도 refresh_token이 살아있으면 첫 API 호출 시 인터셉터가 자동 갱신.
+  const isLoggedIn = !!(
+    request.cookies.get("access_token")?.value ||
+    request.cookies.get("refresh_token")?.value
+  );
 
   // 비인증 상태에서 보호된 경로 접근 → 로그인으로
-  if (!isPublic && !token) {
+  if (!isPublic && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // 인증 상태에서 로그인/회원가입 접근 → 대시보드로
-  if (isPublic && token) {
+  if (isPublic && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
