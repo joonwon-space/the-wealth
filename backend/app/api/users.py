@@ -13,9 +13,32 @@ from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
+from app.schemas.user import UserMe, UserUpdate
 from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/me", response_model=UserMe)
+async def get_me(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Return the current user's profile (email and name)."""
+    return current_user
+
+
+@router.patch("/me", response_model=UserMe)
+async def update_me(
+    body: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Update the current user's display name."""
+    if body.name is not None:
+        current_user.name = body.name or None
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
 
 
 class KisAccountCreate(BaseModel):

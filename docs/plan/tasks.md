@@ -100,7 +100,7 @@ Each item should be completable in a single commit.
 
 #### Step 1 — 백엔드 모델 & API
 
-- [ ] **feat: users.name 컬럼 추가 + GET/PATCH /users/me**
+- [x] **feat: users.name 컬럼 추가 + GET/PATCH /users/me**
   - `backend/app/models/user.py` — `name: Mapped[Optional[str]]` 컬럼 추가 (String(100))
   - Alembic migration: `add_user_name_column`
   - `backend/app/schemas/user.py` — `UserMe`, `UserUpdate(name)` 스키마 추가
