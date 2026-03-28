@@ -161,7 +161,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 65개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 70개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -244,9 +244,14 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/sync/{portfolio_id}` | 포트폴리오 동기화 |
 | GET | `/sync/logs` | 동기화 로그 |
 
-### KIS 계좌 관리 (5)
+### 사용자 관리 (9)
 | Method | Path | 설명 |
 |--------|------|------|
+| GET | `/users/me` | 내 정보 조회 (이메일, 이름) |
+| PATCH | `/users/me` | 내 정보 수정 (이름) |
+| POST | `/users/me/change-password` | 비밀번호 변경 |
+| POST | `/users/me/change-email` | 이메일 변경 |
+| DELETE | `/users/me` | 회원 탈퇴 (cascade 삭제) |
 | POST | `/users/kis-accounts` | KIS 계좌 등록 |
 | GET | `/users/kis-accounts` | KIS 계좌 목록 |
 | PATCH | `/users/kis-accounts/{id}` | KIS 계좌 수정 |
