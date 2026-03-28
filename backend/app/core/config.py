@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # Sentry DSN for error tracking. Leave empty to disable.
     SENTRY_DSN: str = ""
 
+    # File logging (RotatingFileHandler). Leave LOG_DIR empty to disable file logging.
+    LOG_DIR: str = ""
+    LOG_MAX_BYTES: int = 10_485_760  # 10 MB
+    LOG_BACKUP_COUNT: int = 5
+
     # Cloudflare R2 (S3-compatible) for DB backups. Leave empty to disable.
     R2_ENDPOINT: str = ""
     R2_ACCESS_KEY_ID: str = ""

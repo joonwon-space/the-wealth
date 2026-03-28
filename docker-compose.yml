@@ -37,6 +37,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/the_wealth
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: http://localhost:3000,https://joonwon.dev
+      LOG_DIR: /var/log/the-wealth
     ports:
       - "8000:8000"
     depends_on:
@@ -51,6 +52,13 @@ services:
       retries: 5
       start_period: 15s
     stop_grace_period: 30s
+    volumes:
+      - backend_logs:/var/log/the-wealth
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   frontend:
     build:
@@ -58,7 +66,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: https://api.joonwon.dev
-        NEXT_PUBLIC_SENTRY_DSN: https://9dcd414aac45d9d356af673e53bf0f63@o4511081209987072.ingest.us.sentry.io/4511081216147456
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
     environment:
       NEXT_PUBLIC_API_URL: https://api.joonwon.dev
     ports:
@@ -67,6 +75,20 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+  # Lightweight real-time log viewer. Access via SSH tunnel or VPN only.
+  # Usage: ssh -L 9999:localhost:9999 <server> then open http://localhost:9999
+  dozzle:
+    image: amir20/dozzle:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "127.0.0.1:9999:8080"
+    environment:
+      DOZZLE_NO_ANALYTICS: "true"
+      DOZZLE_USERNAME: ${DOZZLE_USERNAME:-admin}
+      DOZZLE_PASSWORD: ${DOZZLE_PASSWORD:-}
 
   # Runs once per day at 02:00 via supercronic.
   # Backups are written to the postgres_backups volume.
@@ -105,3 +127,4 @@ volumes:
   postgres_data:
   redis_data:
   postgres_backups:
+  backend_logs:
