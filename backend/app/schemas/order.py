@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class OrderRequest(BaseModel):
@@ -18,6 +18,12 @@ class OrderRequest(BaseModel):
     price: Optional[Decimal] = Field(None, ge=0)
     exchange_code: Optional[str] = Field(None, max_length=10)  # 해외 거래소 코드
     memo: Optional[str] = Field(None, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_limit_price(self) -> "OrderRequest":
+        if self.order_class == "limit" and (self.price is None or self.price <= 0):
+            raise ValueError("지정가 주문에는 0보다 큰 가격을 입력해야 합니다")
+        return self
 
 
 class OrderResult(BaseModel):

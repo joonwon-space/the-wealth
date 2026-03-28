@@ -127,6 +127,22 @@ async def place_order(
 
     is_overseas = not _is_domestic(body.ticker)
 
+    # SELL 전 보유 수량 검증
+    if body.order_type == "SELL":
+        result = await db.execute(
+            select(Holding).where(
+                Holding.portfolio_id == portfolio_id,
+                Holding.ticker == body.ticker,
+            )
+        )
+        holding = result.scalar_one_or_none()
+        if holding is None or holding.quantity < body.quantity:
+            available = holding.quantity if holding else Decimal("0")
+            raise HTTPException(
+                status_code=400,
+                detail=f"보유 수량 부족: 보유 {available}주, 매도 요청 {body.quantity}주",
+            )
+
     # Execute order via KIS API
     try:
         if is_overseas:
@@ -155,7 +171,7 @@ async def place_order(
                 ticker=body.ticker,
                 order_type=body.order_type,
                 quantity=body.quantity,
-                price=int(body.price or 0),
+                price=body.price or Decimal("0"),
                 order_class=body.order_class,
                 account_type=acct.account_type,
                 is_paper_trading=acct.is_paper_trading,
@@ -252,7 +268,14 @@ async def _update_holdings(
                 new_avg = price
             holding.quantity = total_qty
             holding.avg_price = new_avg
-    elif order_type == "SELL" and holding is not None:
+    elif order_type == "SELL":
+        if holding is None:
+            logger.warning(
+                "SELL order processed but no local holding found: portfolio_id=%s ticker=%s",
+                portfolio_id,
+                ticker,
+            )
+            return
         new_qty = holding.quantity - quantity
         if new_qty <= 0:
             await db.delete(holding)

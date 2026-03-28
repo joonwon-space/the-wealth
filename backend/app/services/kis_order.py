@@ -166,7 +166,7 @@ async def place_domestic_order(
     ticker: str,
     order_type: str,
     quantity: int,
-    price: int,
+    price: Decimal,
     order_class: str = "limit",
     account_type: Optional[str] = None,
     is_paper_trading: bool = False,
@@ -244,7 +244,9 @@ async def place_domestic_order(
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":
-            msg = data.get("msg1", "Unknown KIS API error")
+            msg1 = data.get("msg1", "")
+            msg2 = data.get("msg2", "")
+            msg = " ".join(filter(None, [msg1, msg2])) or "Unknown KIS API error"
             logger.warning(
                 "KIS domestic order failed: ticker=%s rt_cd=%s msg=%s",
                 ticker,
@@ -256,7 +258,7 @@ async def place_domestic_order(
                 ticker=ticker,
                 order_type=order_type,
                 quantity=Decimal(quantity),
-                price=Decimal(price),
+                price=price,
                 status="failed",
                 message=msg,
             )
@@ -274,7 +276,7 @@ async def place_domestic_order(
             ticker=ticker,
             order_type=order_type,
             quantity=Decimal(quantity),
-            price=Decimal(price),
+            price=price,
             status="pending",
             message=data.get("msg1", ""),
         )
@@ -364,7 +366,9 @@ async def place_overseas_order(
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":
-            msg = data.get("msg1", "Unknown KIS API error")
+            msg1 = data.get("msg1", "")
+            msg2 = data.get("msg2", "")
+            msg = " ".join(filter(None, [msg1, msg2])) or "Unknown KIS API error"
             logger.warning(
                 "KIS overseas order failed: ticker=%s rt_cd=%s msg=%s",
                 ticker,
