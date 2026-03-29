@@ -103,7 +103,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- 중복 파일 정리
 
-- [ ] **chore: 공백 포함 중복 파일 삭제**
+- [x] **chore: 공백 포함 중복 파일 삭제**
   - `backend/.coverage 2`, `.coverage 3`, `.coverage 4` 삭제
   - `backend/alembic/versions/61cd677d984b_add_sync_type_to_sync_logs 2.py` 삭제
   - `backend/app/api/internal 2.py` 삭제
