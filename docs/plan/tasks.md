@@ -174,7 +174,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 저커버리지 라우터 테스트 보강
 
-- [ ] **test: health.py 라우터 테스트 보강** (39% -> 80%+)
+- [x] **test: health.py 라우터 테스트 보강** (39% -> 80%+)
   - data-integrity, holdings-reconciliation, orphan-records 엔드포인트 테스트
   - 파일: `backend/tests/test_health.py`
 
