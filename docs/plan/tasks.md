@@ -140,7 +140,7 @@ Each item should be completable in a single commit.
   - 계좌 유형별 TR_ID 분기 검증 (일반/ISA/연금/IRP)
   - 파일: `backend/tests/test_kis_order.py`
 
-- [ ] **test: kis_balance.py 서비스 테스트 추가**
+- [x] **test: kis_balance.py 서비스 테스트 추가**
   - 국내+해외 예수금 합산 로직 테스트
   - KIS API 실패 시 에러 전파 검증
   - 파일: `backend/tests/test_kis_balance.py`
