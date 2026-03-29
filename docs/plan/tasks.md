@@ -178,7 +178,7 @@ Each item should be completable in a single commit.
   - data-integrity, holdings-reconciliation, orphan-records 엔드포인트 테스트
   - 파일: `backend/tests/test_health.py`
 
-- [ ] **test: alerts.py 라우터 테스트 보강** (67% -> 80%+)
+- [x] **test: alerts.py 라우터 테스트 보강** (67% -> 80%+)
   - 알림 CRUD + 활성화/비활성화 엔드포인트 테스트
   - 파일: `backend/tests/test_alerts.py`
 
