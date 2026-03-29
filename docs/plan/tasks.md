@@ -124,7 +124,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- Trading Feature 테스트 커버리지 (27% -> 80%+)
 
-- [ ] **test: orders.py 라우터 테스트 확장** (27% -> 80%+)
+- [x] **test: orders.py 라우터 테스트 확장** (27% -> 80%+)
   - `backend/tests/test_orders.py` -- 매수/매도, 예수금 조회, 미체결, 취소 등 통합 테스트
   - KIS API mock, Redis 락 mock
   - 에러 케이스: 보유수량 부족, KIS API 실패, 장외시간

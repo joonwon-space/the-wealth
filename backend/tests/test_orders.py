@@ -645,3 +645,165 @@ class TestRateLimitKey:
         key = f"order_lock:{456}:{789}"
         # This is a placeholder key test
         assert "order_lock" in key
+
+
+@pytest.mark.integration
+class TestSellInsufficientHoldings:
+    """매도 시 보유 수량 부족 오류 테스트."""
+
+    async def test_sell_exceeds_holding_quantity_returns_400(
+        self, client: AsyncClient
+    ) -> None:
+        """보유 수량보다 많이 매도 요청 시 400 반환.
+
+        sync/balance mock은 005930 10주를 생성하므로,
+        11주 매도 시도 시 400이 반환되어야 한다.
+        """
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "sell_insuf@test.com"
+        )
+        # sync/balance로 10주 005930 보유 → 11주 매도 시 400
+        resp = await client.post(
+            f"/portfolios/{pid}/orders",
+            json={
+                "ticker": "005930",
+                "order_type": "SELL",
+                "order_class": "limit",
+                "quantity": 11,  # 10주 보유인데 11주 매도 시도
+                "price": 70000,
+            },
+            headers=_auth(token),
+        )
+        assert resp.status_code == 400
+        assert "보유 수량 부족" in resp.json()["error"]["message"]
+
+    async def test_sell_with_no_holding_returns_400(
+        self, client: AsyncClient
+    ) -> None:
+        """보유 종목 없이 매도 요청 시 400 반환."""
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "sell_no_holding@test.com"
+        )
+
+        resp = await client.post(
+            f"/portfolios/{pid}/orders",
+            json={
+                "ticker": "000660",  # 보유하지 않은 종목
+                "order_type": "SELL",
+                "order_class": "limit",
+                "quantity": 1,
+                "price": 120000,
+            },
+            headers=_auth(token),
+        )
+        assert resp.status_code == 400
+
+
+@pytest.mark.integration
+class TestOrderableEndpoint:
+    """주문 가능 수량/금액 조회 테스트."""
+
+    async def test_orderable_success(self, client: AsyncClient) -> None:
+        """orderable 조회 성공 시 수량과 금액 반환."""
+        from app.services.kis_order import OrderableInfo
+
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "orderable_ok@test.com"
+        )
+
+        mock_info = OrderableInfo(
+            orderable_quantity=Decimal("50"),
+            orderable_amount=Decimal("3500000"),
+            current_price=Decimal("70000"),
+            currency="KRW",
+        )
+
+        with patch(
+            "app.api.orders.get_orderable_quantity", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_info
+            resp = await client.get(
+                f"/portfolios/{pid}/orders/orderable",
+                params={"ticker": "005930", "price": 70000},
+                headers=_auth(token),
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert Decimal(data["orderable_quantity"]) == Decimal("50")
+        assert Decimal(data["orderable_amount"]) == Decimal("3500000")
+
+    async def test_orderable_kis_failure_returns_502(
+        self, client: AsyncClient
+    ) -> None:
+        """KIS API 실패 시 502 반환."""
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "orderable_fail@test.com"
+        )
+
+        with patch(
+            "app.api.orders.get_orderable_quantity", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.side_effect = RuntimeError("KIS API 오류")
+            resp = await client.get(
+                f"/portfolios/{pid}/orders/orderable",
+                params={"ticker": "005930", "price": 70000},
+                headers=_auth(token),
+            )
+
+        assert resp.status_code == 502
+
+
+@pytest.mark.integration
+class TestPendingOrdersError:
+    """미체결 주문 조회 에러 테스트."""
+
+    async def test_pending_orders_kis_failure_returns_502(
+        self, client: AsyncClient
+    ) -> None:
+        """KIS API 실패 시 502 반환."""
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "pending_fail@test.com"
+        )
+
+        with patch(
+            "app.api.orders.get_pending_orders", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.side_effect = RuntimeError("미체결 조회 실패")
+            resp = await client.get(
+                f"/portfolios/{pid}/orders/pending",
+                headers=_auth(token),
+            )
+
+        assert resp.status_code == 502
+
+
+@pytest.mark.integration
+class TestPlaceOrderErrors:
+    """주문 실행 에러 케이스 테스트."""
+
+    async def test_order_kis_api_error_returns_502(
+        self, client: AsyncClient
+    ) -> None:
+        """KIS API 호출 실패 시 502 반환."""
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "order_kis_err@test.com"
+        )
+
+        with patch(
+            "app.api.orders.place_domestic_order", new_callable=AsyncMock
+        ) as mock_order:
+            mock_order.side_effect = RuntimeError("KIS API 오류")
+            resp = await client.post(
+                f"/portfolios/{pid}/orders",
+                json={
+                    "ticker": "005930",
+                    "order_type": "BUY",
+                    "order_class": "limit",
+                    "quantity": 1,
+                    "price": 70000,
+                },
+                headers=_auth(token),
+            )
+
+        assert resp.status_code == 502
