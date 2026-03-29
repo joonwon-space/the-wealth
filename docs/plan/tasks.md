@@ -135,7 +135,7 @@ Each item should be completable in a single commit.
   - httpx mock으로 KIS API 응답 모킹
   - 파일: `backend/tests/test_kis_transaction.py`
 
-- [ ] **test: kis_order.py 서비스 테스트 추가**
+- [x] **test: kis_order.py 서비스 테스트 추가**
   - place_domestic_order, place_overseas_order, cancel_order 단위 테스트
   - 계좌 유형별 TR_ID 분기 검증 (일반/ISA/연금/IRP)
   - 파일: `backend/tests/test_kis_order.py`
