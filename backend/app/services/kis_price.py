@@ -25,6 +25,8 @@ _cache = RedisCache(settings.REDIS_URL)
 _PRICE_CACHE_PREFIX = "price:"
 _PRICE_CACHE_TTL_MARKET_OPEN = 300     # 5 min during market hours
 _PRICE_CACHE_TTL_MARKET_CLOSED = 86400  # 24 h after market close
+_PRICE_CACHE_TTL_HOLDINGS_OPEN = 30    # 30 s during market hours (user-facing)
+_PRICE_CACHE_TTL_HOLDINGS_CLOSED = 300  # 5 min outside market hours (user-facing)
 _FX_CACHE_KEY = "fx:USDKRW"
 _FX_STALE_KEY = "fx:USDKRW:stale"
 _FX_CACHE_TTL = 3600        # 1 hour (fresh)
@@ -35,6 +37,21 @@ _FX_FALLBACK_RATE = Decimal("1450")
 _KST = timezone(timedelta(hours=9))
 _MARKET_OPEN_HOUR_MIN = (9, 0)
 _MARKET_CLOSE_HOUR_MIN = (15, 30)
+
+
+def get_holdings_ttl() -> int:
+    """사용자 대면 holdings 전용 캐시 TTL.
+
+    - 장중 (KST 09:00~15:30, 평일): 30초 — SSE와 동기화
+    - 그 외: 300초 (5분) — 장외에도 적절히 신선한 값 유지
+    """
+    now = datetime.now(_KST)
+    if now.weekday() >= 5:
+        return _PRICE_CACHE_TTL_HOLDINGS_CLOSED
+    t = (now.hour, now.minute)
+    if _MARKET_OPEN_HOUR_MIN <= t <= _MARKET_CLOSE_HOUR_MIN:
+        return _PRICE_CACHE_TTL_HOLDINGS_OPEN
+    return _PRICE_CACHE_TTL_HOLDINGS_CLOSED
 
 
 def get_adaptive_ttl() -> int:
@@ -389,6 +406,74 @@ async def get_cached_fx_rate() -> float:
     if stale:
         return float(stale)
     return float(_FX_FALLBACK_RATE)
+
+
+async def get_or_fetch_domestic_price(
+    ticker: str,
+    app_key: str,
+    app_secret: str,
+    client: httpx.AsyncClient,
+    ttl: int | None = None,
+) -> Optional[Decimal]:
+    """국내주식 현재가 캐시 우선 조회.
+
+    캐시 히트 → KIS API 미호출.
+    캐시 미스 → KIS API 조회 후 캐시 저장.
+    """
+    cached = await _get_cached_price(ticker)
+    if cached is not None:
+        return cached
+    price = await fetch_domestic_price(ticker, app_key, app_secret, client)
+    if price is not None and price > 0:
+        effective_ttl = ttl if ttl is not None else get_holdings_ttl()
+        await _cache.setex(f"{_PRICE_CACHE_PREFIX}{ticker}", effective_ttl, str(price))
+    return price
+
+
+async def fetch_and_cache_domestic_price(
+    ticker: str,
+    app_key: str,
+    app_secret: str,
+    client: httpx.AsyncClient,
+) -> Optional[Decimal]:
+    """국내주식 현재가 KIS 직접 조회 후 Redis 캐시 저장.
+
+    SSE처럼 항상 fresh 가격이 필요하지만 결과를 캐시에 남겨
+    이후 holdings 조회가 캐시 히트할 수 있도록 한다.
+    """
+    price = await fetch_domestic_price(ticker, app_key, app_secret, client)
+    if price is not None and price > 0:
+        await _cache.setex(
+            f"{_PRICE_CACHE_PREFIX}{ticker}", get_holdings_ttl(), str(price)
+        )
+    return price
+
+
+async def get_or_fetch_overseas_price(
+    ticker: str,
+    market: str,
+    app_key: str,
+    app_secret: str,
+    client: httpx.AsyncClient,
+    ttl: int | None = None,
+) -> Optional[Decimal]:
+    """해외주식 현재가 캐시 우선 조회 (current 가격만).
+
+    캐시 히트 → KIS API 미호출.
+    캐시 미스 → fetch_overseas_price_detail 호출 후 current 가격만 캐시 저장.
+    w52_high/low 등 추가 필드가 필요한 경우 fetch_overseas_price_detail을 직접 사용.
+    """
+    cached = await _get_cached_price(ticker)
+    if cached is not None:
+        return cached
+    detail = await fetch_overseas_price_detail(ticker, market, app_key, app_secret, client)
+    if detail is not None and detail.current > 0:
+        effective_ttl = ttl if ttl is not None else get_holdings_ttl()
+        await _cache.setex(
+            f"{_PRICE_CACHE_PREFIX}{ticker}", effective_ttl, str(detail.current)
+        )
+        return detail.current
+    return None
 
 
 async def get_exchange_rate(app_key: str, app_secret: str) -> float:

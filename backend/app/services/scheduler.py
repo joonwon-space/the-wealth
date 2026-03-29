@@ -8,6 +8,9 @@ KIS 자격증명이 등록된 사용자의 첫 번째 포트폴리오를 1시간
 실패하면 CRITICAL 레벨 로그를 남겨 운영자가 인지할 수 있도록 한다.
 """
 
+import asyncio
+from decimal import Decimal
+
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
@@ -20,7 +23,12 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
 from app.services.kis_account import fetch_account_holdings
-from app.services.kis_price import fetch_domestic_daily_ohlcv, fetch_domestic_price
+from app.services.kis_price import (
+    fetch_domestic_daily_ohlcv,
+    fetch_domestic_price,
+    fetch_and_cache_domestic_price,
+    get_or_fetch_overseas_price,
+)
 from app.services.price_snapshot import OhlcvData, save_ohlcv_snapshots, save_snapshots
 from app.services.reconciliation import reconcile_holdings
 
@@ -36,6 +44,7 @@ _consecutive_failures: dict[str, int] = {
     "kis_sync_kr": 0,
     "kis_sync_us": 0,
     "daily_close_snapshot": 0,
+    "preload_prices": 0,
 }
 
 
@@ -208,6 +217,69 @@ async def _snapshot_daily_close() -> None:
         _record_job_failure(job_id, exc)
 
 
+_DOMESTIC_TICKER_RE_SCHED = __import__("re").compile(r"^[0-9A-Z]{6}$")
+_MARKET_MAP_SCHED = {
+    "NASD": "NAS", "NYSE": "NYS", "AMEX": "AMS",
+    "SEHK": "HKS", "TKSE": "TSE", "SHAA": "SHS",
+    "SZAA": "SZS", "HASE": "HNX", "VNSE": "HSX",
+}
+
+
+async def _preload_prices(job_id: str = "preload_prices") -> None:
+    """장 개시 전 모든 보유 종목 가격을 KIS API에서 조회해 Redis 캐시를 워밍.
+
+    KST 08:00에 실행하여 아침에 접속하는 사용자가 즉시 최신 가격을 볼 수 있게 한다.
+    캐시 미스 시에만 KIS API를 호출하므로 이미 캐시된 종목은 건너뜀.
+    """
+    logger.info("[Scheduler] Starting pre-market price preload")
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(KisAccount).limit(1))
+            acct = result.scalar_one_or_none()
+            if not acct:
+                logger.info("[Scheduler] No KIS account found, skipping preload")
+                _record_job_success(job_id)
+                return
+
+            app_key = decrypt(acct.app_key_enc)
+            app_secret = decrypt(acct.app_secret_enc)
+
+            hold_result = await db.execute(
+                select(Holding.ticker, Holding.market).distinct()
+            )
+            rows = hold_result.all()
+
+        if not rows:
+            logger.info("[Scheduler] No holdings found, skipping preload")
+            _record_job_success(job_id)
+            return
+
+        domestic = [r[0] for r in rows if _DOMESTIC_TICKER_RE_SCHED.match(r[0])]
+        overseas = [(r[0], r[1]) for r in rows if not _DOMESTIC_TICKER_RE_SCHED.match(r[0])]
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            tasks = [
+                fetch_and_cache_domestic_price(t, app_key, app_secret, client)
+                for t in domestic
+            ] + [
+                get_or_fetch_overseas_price(
+                    t, _MARKET_MAP_SCHED.get(m or "", "NAS"), app_key, app_secret, client
+                )
+                for t, m in overseas
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        success = sum(1 for r in results if isinstance(r, Decimal) and r > 0)
+        logger.info(
+            "[Scheduler] Pre-market preload complete: %d/%d tickers cached",
+            success,
+            len(rows),
+        )
+        _record_job_success(job_id)
+    except Exception as exc:
+        _record_job_failure(job_id, exc)
+
+
 def start_scheduler() -> None:
     # 국내 장 마감 후 동기화: KST 16:00 = UTC 07:00
     scheduler.add_job(
@@ -243,10 +315,22 @@ def start_scheduler() -> None:
         id="daily_close_snapshot",
         replace_existing=True,
     )
+    # 장 개시 전 가격 캐시 워밍: KST 08:00 평일
+    scheduler.add_job(
+        _preload_prices,
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour=8,
+        minute=0,
+        timezone="Asia/Seoul",
+        id="preload_prices",
+        kwargs={"job_id": "preload_prices"},
+        replace_existing=True,
+    )
     scheduler.start()
     logger.info(
         "[Scheduler] APScheduler started — KIS sync at KST 16:00 (KR close) & 06:30 (US close), "
-        "daily close snapshot at KST 16:10"
+        "daily close snapshot at KST 16:10, price preload at KST 08:00"
     )
 
 

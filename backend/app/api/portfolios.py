@@ -18,9 +18,9 @@ from app.core.logging import get_logger
 import asyncio
 import httpx
 from app.services.kis_price import (
-    fetch_prices_parallel,
-    fetch_overseas_price_detail,
     fetch_usd_krw_rate,
+    get_or_fetch_domestic_price,
+    get_or_fetch_overseas_price,
 )
 from app.schemas.portfolio import (
     HoldingCreate,
@@ -275,35 +275,38 @@ async def list_holdings_with_prices(
             try:
                 app_key = decrypt(acct.app_key_enc)
                 app_secret = decrypt(acct.app_secret_enc)
+                domestic_tickers = list({h.ticker for h in holdings if _is_domestic(h.ticker)})
+                overseas_tickers = list({h.ticker for h in overseas_holdings})
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    # 국내주식 현재가
-                    domestic_tickers = list({h.ticker for h in holdings if _is_domestic(h.ticker)})
-                    domestic_task = (
-                        fetch_prices_parallel(domestic_tickers, app_key, app_secret)
-                        if domestic_tickers else asyncio.sleep(0, result={})
-                    )
-                    # 해외주식 현재가 (ticker별 market 코드 적용)
-                    overseas_tasks = [
-                        fetch_overseas_price_detail(t, ticker_to_market[t], app_key, app_secret, client)
-                        for t in {h.ticker for h in overseas_holdings}
+                    # 국내주식 현재가 (캐시 우선)
+                    domestic_tasks = [
+                        get_or_fetch_domestic_price(t, app_key, app_secret, client)
+                        for t in domestic_tickers
                     ]
-                    overseas_tickers = list({h.ticker for h in overseas_holdings})
+                    # 해외주식 현재가 (캐시 우선, current 가격만)
+                    overseas_tasks = [
+                        get_or_fetch_overseas_price(t, ticker_to_market[t], app_key, app_secret, client)
+                        for t in overseas_tickers
+                    ]
                     fx_task = (
                         fetch_usd_krw_rate(app_key, app_secret, client)
                         if overseas_holdings else asyncio.sleep(0, result=Decimal("1450"))
                     )
-                    domestic_prices, *overseas_results, fx = await asyncio.gather(
-                        domestic_task, *overseas_tasks, fx_task, return_exceptions=True
+                    *all_prices, fx = await asyncio.gather(
+                        *domestic_tasks, *overseas_tasks, fx_task, return_exceptions=True
                     )
 
-                if isinstance(domestic_prices, dict):
-                    prices.update(domestic_prices)
+                domestic_results = all_prices[: len(domestic_tickers)]
+                overseas_results = all_prices[len(domestic_tickers):]
+
+                for ticker, price in zip(domestic_tickers, domestic_results):
+                    if isinstance(price, Decimal) and price > 0:
+                        prices[ticker] = price
                 if isinstance(fx, Decimal):
                     exchange_rate = fx
-
-                for ticker, detail in zip(overseas_tickers, overseas_results):
-                    if detail and not isinstance(detail, Exception):
-                        prices[ticker] = detail.current
+                for ticker, price in zip(overseas_tickers, overseas_results):
+                    if isinstance(price, Decimal) and price > 0:
+                        prices[ticker] = price
 
             except Exception as e:
                 logger.warning(

@@ -467,7 +467,7 @@ class TestSchedulerLifecycle:
         with patch("app.services.scheduler.scheduler", mock_scheduler):
             start_scheduler()
 
-        assert mock_scheduler.add_job.call_count == 3
+        assert mock_scheduler.add_job.call_count == 4
         job_ids = [c.kwargs.get("id") for c in mock_scheduler.add_job.call_args_list]
         # Verify three distinct jobs are registered
         assert "kis_sync_kr" in job_ids
