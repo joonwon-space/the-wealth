@@ -182,7 +182,7 @@ Each item should be completable in a single commit.
   - 알림 CRUD + 활성화/비활성화 엔드포인트 테스트
   - 파일: `backend/tests/test_alerts.py`
 
-- [ ] **test: analytics.py 라우터 테스트 보강** (55% -> 80%+)
+- [x] **test: analytics.py 라우터 테스트 보강** (55% -> 80%+)
   - sector-allocation, monthly-returns, metrics 엔드포인트 테스트
   - 기간별 필터 (1W/1M/3M/6M/1Y/ALL) 케이스
-  - 파일: `backend/tests/test_analytics.py`
+  - 파일: `backend/tests/test_analytics_api.py`
