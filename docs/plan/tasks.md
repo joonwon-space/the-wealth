@@ -95,7 +95,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- 테스트 인프라 수정 (일괄 실행 시 294건 ERROR)
 
-- [ ] **fix: conftest.py async DB session 격리 문제 해결**
+- [x] **fix: conftest.py async DB session 격리 문제 해결**
   - `backend/tests/conftest.py` -- async session fixture가 일괄 실행 시 세션 누수 발생
   - 원인: `pytest-asyncio` + `asyncpg` 세션 cleanup이 불완전
   - 해결: 테스트별 독립 DB session 생성 + 트랜잭션 rollback 패턴 적용
@@ -144,6 +144,33 @@ Each item should be completable in a single commit.
   - 국내+해외 예수금 합산 로직 테스트
   - KIS API 실패 시 에러 전파 검증
   - 파일: `backend/tests/test_kis_balance.py`
+
+### P1 -- 매수/매도 UX 개선 (Before/After 경험)
+
+- [ ] **feat: OrderDialog에 현재 보유 정보 표시**
+  - `frontend/src/components/OrderDialog.tsx` — `existingHolding` prop 추가
+  - 포트폴리오 페이지에서 holding 데이터를 OrderDialog에 전달
+  - 다이얼로그 상단에 "현재 보유: N주 @ 평단가" 표시 (보유 없으면 미표시)
+  - 파일: `OrderDialog.tsx`, `portfolios/[id]/page.tsx`
+
+- [ ] **feat: 매수 폼 — 추가 매수 후 예상 평단가 실시간 계산**
+  - 수량/가격 입력 시 `(보유수량 × 평단가 + 매수수량 × 매수가) / (보유수량 + 매수수량)` 계산
+  - 기존 평단가 대비 변화 방향(↑↓)과 차이 표시
+  - 시장가 주문 시 현재가 기준으로 계산
+  - 파일: `OrderDialog.tsx`
+
+- [ ] **feat: 매도 폼 — 현재 손익 + 실현손익 미리보기**
+  - 보유 중인 경우 현재 손익(₩)과 수익률(%) 표시
+  - 수량 입력 시 해당 수량 매도 기준 실현손익 실시간 계산
+    - `(매도가 - 평단가) × 매도수량`
+  - 전량 매도 버튼 추가 (보유 수량 자동 입력)
+  - 파일: `OrderDialog.tsx`
+
+- [ ] **feat: 주문 완료 후 Before/After 변화 요약 표시**
+  - 주문 성공 toast에 포트폴리오 변화 요약 추가
+    - 매수: "평단가 50,000 → 48,500 (-3%)"
+    - 매도: "실현손익 +125,000원 (+5.0%)"
+  - 파일: `OrderDialog.tsx`, `useOrders.ts`
 
 ### P2 -- 저커버리지 라우터 테스트 보강
 
