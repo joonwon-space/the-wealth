@@ -147,26 +147,26 @@ Each item should be completable in a single commit.
 
 ### P1 -- 매수/매도 UX 개선 (Before/After 경험)
 
-- [ ] **feat: OrderDialog에 현재 보유 정보 표시**
+- [x] **feat: OrderDialog에 현재 보유 정보 표시**
   - `frontend/src/components/OrderDialog.tsx` — `existingHolding` prop 추가
   - 포트폴리오 페이지에서 holding 데이터를 OrderDialog에 전달
   - 다이얼로그 상단에 "현재 보유: N주 @ 평단가" 표시 (보유 없으면 미표시)
   - 파일: `OrderDialog.tsx`, `portfolios/[id]/page.tsx`
 
-- [ ] **feat: 매수 폼 — 추가 매수 후 예상 평단가 실시간 계산**
+- [x] **feat: 매수 폼 — 추가 매수 후 예상 평단가 실시간 계산**
   - 수량/가격 입력 시 `(보유수량 × 평단가 + 매수수량 × 매수가) / (보유수량 + 매수수량)` 계산
   - 기존 평단가 대비 변화 방향(↑↓)과 차이 표시
   - 시장가 주문 시 현재가 기준으로 계산
   - 파일: `OrderDialog.tsx`
 
-- [ ] **feat: 매도 폼 — 현재 손익 + 실현손익 미리보기**
+- [x] **feat: 매도 폼 — 현재 손익 + 실현손익 미리보기**
   - 보유 중인 경우 현재 손익(₩)과 수익률(%) 표시
   - 수량 입력 시 해당 수량 매도 기준 실현손익 실시간 계산
     - `(매도가 - 평단가) × 매도수량`
   - 전량 매도 버튼 추가 (보유 수량 자동 입력)
   - 파일: `OrderDialog.tsx`
 
-- [ ] **feat: 주문 완료 후 Before/After 변화 요약 표시**
+- [x] **feat: 주문 완료 후 Before/After 변화 요약 표시**
   - 주문 성공 toast에 포트폴리오 변화 요약 추가
     - 매수: "평단가 50,000 → 48,500 (-3%)"
     - 매도: "실현손익 +125,000원 (+5.0%)"

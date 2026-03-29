@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import {
   Dialog,
@@ -14,6 +14,14 @@ import { Input } from "@/components/ui/input";
 import { useCashBalance, usePlaceOrder } from "@/hooks/useOrders";
 import { formatKRW } from "@/lib/format";
 
+/** 현재 보유 종목 정보 (portfolio page에서 전달). */
+export interface ExistingHolding {
+  quantity: string; // Decimal as string
+  avg_price: string; // Decimal as string
+  pnl_amount: string | null;
+  pnl_rate: string | null;
+}
+
 interface OrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -23,6 +31,10 @@ interface OrderDialogProps {
   currentPrice?: number;
   /** 해외 거래소 코드 (예: "NASD"). 없으면 국내주식으로 간주. */
   exchangeCode?: string;
+  /** 현재 포트폴리오에서 이 종목의 보유 정보. 없으면 미보유. */
+  existingHolding?: ExistingHolding;
+  /** 다이얼로그 열릴 때 기본 탭. 기본값: "BUY". */
+  initialTab?: OrderType;
 }
 
 type OrderType = "BUY" | "SELL";
@@ -38,9 +50,18 @@ export function OrderDialog({
   stockName,
   currentPrice,
   exchangeCode,
+  existingHolding,
+  initialTab = "BUY",
 }: OrderDialogProps) {
-  const [activeTab, setActiveTab] = useState<OrderType>("BUY");
+  const [activeTab, setActiveTab] = useState<OrderType>(initialTab);
   const [orderClass, setOrderClass] = useState<OrderClass>("limit");
+
+  // 다이얼로그가 열릴 때 initialTab으로 탭 동기화
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [open, initialTab]);
   const [quantity, setQuantity] = useState<string>("");
   const [price, setPrice] = useState<string>(
     currentPrice ? String(currentPrice) : ""
@@ -60,10 +81,64 @@ export function OrderDialog({
     ? parseFloat(cashBalance.available_cash)
     : null;
 
+  // ─── Existing holding data ────────────────────────────────────────────────
+
+  const heldQuantity = existingHolding
+    ? parseFloat(existingHolding.quantity)
+    : 0;
+  const heldAvgPrice = existingHolding
+    ? parseFloat(existingHolding.avg_price)
+    : 0;
+  const heldPnlAmount = existingHolding?.pnl_amount
+    ? parseFloat(existingHolding.pnl_amount)
+    : null;
+  const heldPnlRate = existingHolding?.pnl_rate
+    ? parseFloat(existingHolding.pnl_rate)
+    : null;
+
+  // ─── 매수: 추가 매수 후 예상 평단가 계산 ─────────────────────────────────
+
+  const effectiveBuyPrice =
+    orderClass === "market" ? (currentPrice ?? 0) : parsedPrice;
+
+  const estimatedAvgPrice =
+    heldQuantity > 0 && parsedQuantity > 0 && effectiveBuyPrice > 0
+      ? (heldQuantity * heldAvgPrice + parsedQuantity * effectiveBuyPrice) /
+        (heldQuantity + parsedQuantity)
+      : null;
+
+  const avgPriceDiff =
+    estimatedAvgPrice !== null
+      ? estimatedAvgPrice - heldAvgPrice
+      : null;
+
+  // ─── 매도: 실현손익 미리보기 ──────────────────────────────────────────────
+
+  const sellEffectivePrice =
+    orderClass === "market" ? (currentPrice ?? 0) : parsedPrice;
+
+  const realizedPnl =
+    parsedQuantity > 0 && sellEffectivePrice > 0 && heldAvgPrice > 0
+      ? (sellEffectivePrice - heldAvgPrice) * parsedQuantity
+      : null;
+
+  const realizedPnlRate =
+    realizedPnl !== null && heldAvgPrice > 0
+      ? ((sellEffectivePrice - heldAvgPrice) / heldAvgPrice) * 100
+      : null;
+
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+
   function handleQuickQuantity(ratio: number) {
     if (!availableCash || !parsedPrice) return;
     const qty = Math.floor((availableCash * ratio) / parsedPrice);
     setQuantity(String(qty));
+  }
+
+  function handleSellAll() {
+    if (heldQuantity > 0) {
+      setQuantity(String(Math.floor(heldQuantity)));
+    }
   }
 
   function handleConfirm() {
@@ -73,6 +148,8 @@ export function OrderDialog({
   }
 
   function handleSubmit() {
+    const isBuyTab = activeTab === "BUY";
+
     placeOrderMutation.mutate(
       {
         ticker,
@@ -86,10 +163,19 @@ export function OrderDialog({
       },
       {
         onSuccess: (result) => {
-          const msg =
-            result.status === "failed"
-              ? `주문 실패: ${result.memo ?? "알 수 없는 오류"}`
-              : `주문 접수 완료 (주문번호: ${result.order_no ?? "-"})`;
+          let msg: string;
+          if (result.status === "failed") {
+            msg = `주문 실패: ${result.memo ?? "알 수 없는 오류"}`;
+          } else if (isBuyTab && estimatedAvgPrice !== null && heldQuantity > 0) {
+            const direction = avgPriceDiff !== null && avgPriceDiff > 0 ? "▲" : "▼";
+            msg = `주문 접수 완료 (${result.order_no ?? "-"})\n평단가 ${formatKRW(heldAvgPrice)} → ${formatKRW(estimatedAvgPrice)} ${direction}`;
+          } else if (!isBuyTab && realizedPnl !== null) {
+            const sign = realizedPnl >= 0 ? "+" : "";
+            const rateSign = (realizedPnlRate ?? 0) >= 0 ? "+" : "";
+            msg = `주문 접수 완료 (${result.order_no ?? "-"})\n예상 실현손익 ${sign}${formatKRW(realizedPnl)} (${rateSign}${(realizedPnlRate ?? 0).toFixed(1)}%)`;
+          } else {
+            msg = `주문 접수 완료 (주문번호: ${result.order_no ?? "-"})`;
+          }
           setSuccessMessage(msg);
           setConfirmMode(false);
           resetForm();
@@ -132,7 +218,7 @@ export function OrderDialog({
           <DialogHeader>
             <DialogTitle>주문 결과</DialogTitle>
           </DialogHeader>
-          <p className="text-sm py-4">{successMessage}</p>
+          <p className="text-sm py-4 whitespace-pre-line">{successMessage}</p>
           <Button onClick={() => handleClose(false)} className="w-full">
             닫기
           </Button>
@@ -175,6 +261,29 @@ export function OrderDialog({
                 {orderClass === "market" ? "시장가" : formatKRW(orderAmount)}
               </span>
             </div>
+            {/* 매수: 예상 평단가 */}
+            {isBuy && estimatedAvgPrice !== null && heldQuantity > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground border-t pt-2">
+                <span>예상 평단가</span>
+                <span className={avgPriceDiff !== null && avgPriceDiff > 0 ? "text-red-600" : "text-blue-600"}>
+                  {formatKRW(heldAvgPrice)} → {formatKRW(estimatedAvgPrice)}
+                </span>
+              </div>
+            )}
+            {/* 매도: 예상 실현손익 */}
+            {!isBuy && realizedPnl !== null && (
+              <div className="flex justify-between text-xs border-t pt-2">
+                <span className="text-muted-foreground">예상 실현손익</span>
+                <span className={realizedPnl >= 0 ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
+                  {realizedPnl >= 0 ? "+" : ""}{formatKRW(realizedPnl)}
+                  {realizedPnlRate !== null && (
+                    <span className="ml-1">
+                      ({realizedPnlRate >= 0 ? "+" : ""}{realizedPnlRate.toFixed(1)}%)
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Button
@@ -209,6 +318,25 @@ export function OrderDialog({
             {stockName} <span className="text-muted-foreground text-sm">({ticker})</span>
           </DialogTitle>
         </DialogHeader>
+
+        {/* 현재 보유 정보 */}
+        {existingHolding && heldQuantity > 0 && (
+          <div className="rounded-md bg-muted/50 px-3 py-2 text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">현재 보유</span>
+              <span className="font-medium">{Math.floor(heldQuantity).toLocaleString()}주 @ {formatKRW(heldAvgPrice)}</span>
+            </div>
+            {heldPnlAmount !== null && heldPnlRate !== null && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">평가손익</span>
+                <span className={heldPnlAmount >= 0 ? "font-medium text-red-600" : "font-medium text-blue-600"}>
+                  {heldPnlAmount >= 0 ? "+" : ""}{formatKRW(heldPnlAmount)}
+                  {" "}({heldPnlRate >= 0 ? "+" : ""}{heldPnlRate.toFixed(1)}%)
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as OrderType)}>
           <TabsList className="w-full">
@@ -268,9 +396,21 @@ export function OrderDialog({
 
               {/* 수량 입력 */}
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">
-                  수량 (주)
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs text-muted-foreground">
+                    수량 (주)
+                  </label>
+                  {/* 전량 매도 버튼 (매도 탭 + 보유 있을 때만) */}
+                  {tab === "SELL" && heldQuantity > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleSellAll}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      전량 ({Math.floor(heldQuantity).toLocaleString()}주)
+                    </button>
+                  )}
+                </div>
                 <Input
                   type="number"
                   placeholder="주문 수량"
@@ -295,6 +435,36 @@ export function OrderDialog({
                       {ratio * 100}%
                     </Button>
                   ))}
+                </div>
+              )}
+
+              {/* 매수: 예상 평단가 미리보기 */}
+              {tab === "BUY" && estimatedAvgPrice !== null && heldQuantity > 0 && parsedQuantity > 0 && (
+                <div className="flex justify-between text-xs border rounded px-2 py-1.5 bg-muted/30">
+                  <span className="text-muted-foreground">추가 매수 후 평단가</span>
+                  <span className={avgPriceDiff !== null && avgPriceDiff > 0 ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
+                    {formatKRW(heldAvgPrice)} → {formatKRW(estimatedAvgPrice)}
+                    {avgPriceDiff !== null && (
+                      <span className="ml-1 text-muted-foreground">
+                        ({avgPriceDiff > 0 ? "+" : ""}{formatKRW(Math.abs(avgPriceDiff))})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* 매도: 실현손익 미리보기 */}
+              {tab === "SELL" && realizedPnl !== null && parsedQuantity > 0 && (
+                <div className="flex justify-between text-xs border rounded px-2 py-1.5 bg-muted/30">
+                  <span className="text-muted-foreground">예상 실현손익</span>
+                  <span className={realizedPnl >= 0 ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
+                    {realizedPnl >= 0 ? "+" : ""}{formatKRW(realizedPnl)}
+                    {realizedPnlRate !== null && (
+                      <span className="ml-1">
+                        ({realizedPnlRate >= 0 ? "+" : ""}{realizedPnlRate.toFixed(1)}%)
+                      </span>
+                    )}
+                  </span>
                 </div>
               )}
 
