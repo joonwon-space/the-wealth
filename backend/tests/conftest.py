@@ -60,15 +60,29 @@ def _create_schema():
 
 
 async def _clean_all_data() -> None:
-    """Delete all rows from all tables (keeps schema intact)."""
+    """Delete all rows from all tables (keeps schema intact).
+
+    Iterates tables in reverse FK order so child rows are deleted before parents.
+    If a table is missing (e.g. dropped by a rogue duplicate test file), the schema
+    is recreated before cleaning so subsequent tests start with a fresh slate.
+    """
     from app.db.base import Base
     import app.models  # noqa: F401
 
     engine = _make_engine()
-    async with engine.begin() as conn:
-        for table in reversed(Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
-    await engine.dispose()
+    try:
+        async with engine.begin() as conn:
+            for table in reversed(Base.metadata.sorted_tables):
+                await conn.execute(table.delete())
+    except Exception:
+        # Schema was dropped externally (e.g. by duplicate test file) — recreate it.
+        await engine.dispose()
+        engine = _make_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+    finally:
+        await engine.dispose()
 
 
 @pytest_asyncio.fixture

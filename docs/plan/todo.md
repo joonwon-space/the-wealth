@@ -71,7 +71,7 @@ Current actionable work is in `tasks.md`.
 ## Milestone 11: Frontend Enhancement (Remaining)
 
 ### 11-2. Analytics Page Enhancement
-- [ ] Portfolio performance period filter (1w / 1m / 3m / 6m / 1y / all 탭)
+- [x] Portfolio performance period filter (1w / 1m / 3m / 6m / 1y / all 탭)
 - [ ] KOSPI200 / S&P500 benchmark overlay (KIS index API `FHKUP03500100`)
 - [ ] Dividend income tracking (calendar + yield chart)
 - [ ] Investment performance metrics: Sharpe ratio, MDD, CAGR (`backend/app/services/metrics.py`)
@@ -79,7 +79,7 @@ Current actionable work is in `tasks.md`.
 
 ### 11-3. Dashboard Enhancement
 - [ ] 52-week high/low position bar in holdings table
-- [x] Target asset progress widget — `portfolios.target_value` + 달성률 프로그레스 바 (`PATCH /portfolios/{id}`)
+- [x] Target asset progress widget -- `portfolios.target_value` + 달성률 프로그레스 바 (`PATCH /portfolios/{id}`)
 - [ ] Drag-and-drop widget layout (react-grid-layout)
 
 ### 11-4. Stock Detail Page Enhancement
@@ -98,7 +98,7 @@ Current actionable work is in `tasks.md`.
 - [x] Granular error boundaries — per-widget isolation
 - [x] SSE reconnection UI — connection status indicator + manual reconnect button
 - [x] Non-color indicators — ▲/▼ icons for gain/loss (accessibility)
-- [ ] Unified skeleton UI loading states
+- [x] Unified skeleton UI loading states (CardSkeleton, ChartSkeleton, TableSkeleton)
 
 ---
 
@@ -280,23 +280,21 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
-## Priority Guide (2026-03-24 갱신)
+## Priority Guide (2026-03-28 갱신)
 
 | Priority | Item | Reason |
 |----------|------|--------|
-| ~~**P0**~~ | ~~0-2 (users 레거시 컬럼 제거)~~ | ✅ 완료 |
-| ~~**P0**~~ | ~~14-2 (Sentry APM)~~ | ✅ 완료 |
-| ~~**P1**~~ | ~~16-2 (Frontend 테스트 MSW + 컴포넌트 테스트)~~ | ✅ 완료 |
-| ~~**P1**~~ | ~~12-4 (알림 센터)~~ | ✅ 완료 |
-| ~~**P2**~~ | ~~11-5 (Trade memo)~~ | ✅ 완료 |
-| ~~**P2**~~ | ~~14-2c (MetricsMiddleware)~~ | ✅ 완료 |
-| **P1** | 11-2 (Analytics: 기간 필터 + 지표) | 핵심 차별화 기능, 사용자 가치 최상위 |
-| **P1** | 17-2 (환율 관리 및 해외투자 분석) | 해외주식 환차익 분리 — 사용자 요청 빈번 |
+| **P0** | 테스트 일괄 실행 수정 (294 ERROR) | CI false negative 위험, conftest.py async session 격리 |
+| **P0** | 중복 파일 정리 | 커버리지 측정 오염 (`internal 2.py` 0%) |
+| **P1** | Trading Feature 테스트 커버리지 | orders.py 27%, kis_transaction.py 0%, 80% 기준 미달 |
+| **P1** | npm 취약점 수정 (yaml) | 4건 moderate+high |
+| **P1** | 11-2 (Analytics: 고급 지표 + 벤치마크) | Sharpe ratio, MDD, CAGR, KOSPI/S&P 오버레이 |
+| **P1** | 17-2 (환율 관리 및 해외투자 분석) | 해외주식 환차익 분리 -- 사용자 요청 빈번 |
 | **P1** | 13-5a (Disk monitoring) | 운영 안정성, 장애 예방 |
 | **P1** | 18-2 (매니지드 인프라 전환) | 단일 서버 리스크 해소 |
+| **P2** | 저커버리지 라우터 테스트 보강 | health 39%, analytics 55%, alerts 67% |
 | **P2** | 17-1 (포트폴리오 비교 대시보드) | 다중 포트폴리오 사용자의 핵심 니즈 |
 | **P2** | 11-2 (Benchmark overlay) | 13-1 외부 데이터 수집 선행 필요 |
-| **P2** | 11-3 (Target asset widget) | 사용자 가치 높음, 구현 간단 |
 | **P2** | 13-2 (분석 엔진: TWR/MWR, 리스크 지표) | price_snapshots 데이터 누적 전제 |
 | **P2** | 17-3 (투자 일지 대시보드) | 거래 메모 활용, 투자 학습 지원 |
 | **P2** | 15-4 (Excel export) | CSV 이미 있음, xlsx는 추가 가치 |

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 TEST_DB_URL = os.environ.get(
@@ -19,7 +20,7 @@ TEST_DB_URL = os.environ.get(
 @asynccontextmanager
 async def _db_session():
     """Direct DB session using the shared test DB (tables already created by client fixture)."""
-    engine = create_async_engine(TEST_DB_URL, echo=False)
+    engine = create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with factory() as session:
         yield session
@@ -52,7 +53,12 @@ async def _setup_portfolio_with_holdings(
 
 @pytest.mark.integration
 class TestGetMetricsEmpty:
-    async def test_no_portfolios_returns_null_metrics(self, client: AsyncClient) -> None:
+    @patch("app.api.analytics._analytics_cache")
+    async def test_no_portfolios_returns_null_metrics(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "metrics_empty1@example.com")
         resp = await client.get("/analytics/metrics", headers=_auth(token))
         assert resp.status_code == 200
@@ -62,7 +68,12 @@ class TestGetMetricsEmpty:
         assert data["mdd"] is None
         assert data["sharpe_ratio"] is None
 
-    async def test_no_holdings_returns_null_metrics(self, client: AsyncClient) -> None:
+    @patch("app.api.analytics._analytics_cache")
+    async def test_no_holdings_returns_null_metrics(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "metrics_empty2@example.com")
         await client.post("/portfolios", json={"name": "빈 포트폴리오"}, headers=_auth(token))
         resp = await client.get("/analytics/metrics", headers=_auth(token))
@@ -75,11 +86,14 @@ class TestGetMetricsEmpty:
         resp = await client.get("/analytics/metrics")
         assert resp.status_code in (401, 403)
 
+    @patch("app.api.analytics._analytics_cache")
     @patch("app.api.analytics.fetch_domestic_price_detail", new_callable=AsyncMock)
     async def test_metrics_no_snapshots_uses_avg_price(
-        self, mock_fetch: AsyncMock, client: AsyncClient
+        self, mock_fetch: AsyncMock, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
         """No snapshots → total_return_rate is 0 (current price falls back to avg_price)."""
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "metrics_nosnap@example.com")
         # No KIS account → won't call fetch; no snapshots → uses avg_price as current price
         await _setup_portfolio_with_holdings(
@@ -123,10 +137,15 @@ class TestGetPortfolioHistory:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    async def test_with_snapshots_returns_history(self, client: AsyncClient) -> None:
+    @patch("app.api.analytics._analytics_cache")
+    async def test_with_snapshots_returns_history(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
         """With price_snapshots inserted, portfolio-history returns daily values."""
         from app.models.price_snapshot import PriceSnapshot
 
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "history_data@example.com")
         await _setup_portfolio_with_holdings(
             client,
@@ -314,10 +333,15 @@ class TestGetMonthlyReturns:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    async def test_two_months_returns_one_entry(self, client: AsyncClient) -> None:
+    @patch("app.api.analytics._analytics_cache")
+    async def test_two_months_returns_one_entry(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
         """Two months of snapshots → one monthly return entry."""
         from app.models.price_snapshot import PriceSnapshot
 
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "monthly_twoMonth@example.com")
         await _setup_portfolio_with_holdings(
             client,
@@ -343,3 +367,243 @@ class TestGetMonthlyReturns:
     async def test_monthly_returns_unauthenticated(self, client: AsyncClient) -> None:
         resp = await client.get("/analytics/monthly-returns")
         assert resp.status_code in (401, 403)
+
+
+@pytest.mark.integration
+class TestGetSectorAllocation:
+    @patch("app.api.analytics._analytics_cache")
+    async def test_no_portfolios_returns_empty(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
+        token = await _register_and_get_token(client, "sector_empty1@example.com")
+        resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    @patch("app.api.analytics._analytics_cache")
+    async def test_no_holdings_returns_empty(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
+        token = await _register_and_get_token(client, "sector_empty2@example.com")
+        await client.post("/portfolios", json={"name": "빈"}, headers=_auth(token))
+        resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    async def test_sector_allocation_unauthenticated(self, client: AsyncClient) -> None:
+        """인증 없이 접근 시 401 반환."""
+        resp = await client.get("/analytics/sector-allocation")
+        assert resp.status_code in (401, 403)
+
+    async def test_single_holding_returns_100_percent(self, client: AsyncClient) -> None:
+        """단일 종목 보유 시 해당 섹터 비중 100%."""
+        token = await _register_and_get_token(client, "sector_single@example.com")
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [{"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000}],
+        )
+        resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) >= 1
+        total_weight = sum(item["weight"] for item in data)
+        assert abs(total_weight - 100.0) < 0.5
+
+    async def test_multiple_holdings_sum_to_100_percent(self, client: AsyncClient) -> None:
+        """복수 종목 보유 시 섹터 비중 합계 = 100%."""
+        token = await _register_and_get_token(client, "sector_multi@example.com")
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [
+                {"ticker": "005930", "name": "삼성전자", "quantity": 5, "avg_price": 70000},
+                {"ticker": "035720", "name": "카카오", "quantity": 3, "avg_price": 50000},
+            ],
+        )
+        resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) >= 1
+        total_weight = sum(item["weight"] for item in data)
+        assert abs(total_weight - 100.0) < 0.5
+        # Each item has required fields
+        for item in data:
+            assert "sector" in item
+            assert "value" in item
+            assert "weight" in item
+
+    @patch("app.api.analytics._analytics_cache")
+    @patch("app.api.analytics.get_cached_fx_rate", new_callable=AsyncMock)
+    async def test_sector_allocation_sorted_by_value_desc(
+        self,
+        mock_fx: AsyncMock,
+        mock_cache: AsyncMock,
+        client: AsyncClient,
+    ) -> None:
+        """섹터 배분은 value 내림차순으로 정렬된다."""
+        mock_fx.return_value = 1300.0
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=True)
+        token = await _register_and_get_token(client, "sector_sorted@example.com")
+        # 두 종목, 명확한 금액 차이
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [
+                {"ticker": "005930", "name": "삼성전자", "quantity": 100, "avg_price": 70000},
+                {"ticker": "035720", "name": "카카오", "quantity": 1, "avg_price": 50000},
+            ],
+        )
+        resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        if len(data) > 1:
+            values = [item["value"] for item in data]
+            assert values == sorted(values, reverse=True)
+
+    @patch("app.api.analytics._analytics_cache")
+    @patch("app.api.analytics.get_cached_fx_rate", new_callable=AsyncMock)
+    async def test_single_holding_returns_100_percent_no_cache(
+        self,
+        mock_fx: AsyncMock,
+        mock_cache: AsyncMock,
+        client: AsyncClient,
+    ) -> None:
+        """단일 종목 보유 시 해당 섹터 비중 100% (캐시 없음)."""
+        mock_fx.return_value = 1300.0
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=True)
+        token = await _register_and_get_token(client, "sector_single2@example.com")
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [{"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000}],
+        )
+        resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) >= 1
+        total_weight = sum(item["weight"] for item in data)
+        assert abs(total_weight - 100.0) < 0.5
+
+    @patch("app.api.analytics._analytics_cache")
+    @patch("app.api.analytics.get_cached_fx_rate", new_callable=AsyncMock)
+    async def test_overseas_holding_converted_to_krw(
+        self,
+        mock_fx: AsyncMock,
+        mock_cache: AsyncMock,
+        client: AsyncClient,
+    ) -> None:
+        """해외 주식 보유 시 USD → KRW 환산 적용."""
+        mock_fx.return_value = 1300.0
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=True)
+        token = await _register_and_get_token(client, "sector_overseas@example.com")
+        # 해외 ticker (6자리 숫자 아님)
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [{"ticker": "AAPL", "name": "Apple", "quantity": 1, "avg_price": 200}],
+        )
+        resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) >= 1
+        # AAPL 1주 × 200 USD × 1300 = 260000 KRW
+        total_value = sum(item["value"] for item in data)
+        assert abs(total_value - 260000.0) < 1.0
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for analytics helper functions
+# ---------------------------------------------------------------------------
+
+
+class TestIsDomestic:
+    def test_six_digit_ticker_is_domestic(self) -> None:
+        from app.api.analytics import _is_domestic
+        assert _is_domestic("005930") is True
+        assert _is_domestic("035720") is True
+        assert _is_domestic("000660") is True
+
+    def test_us_ticker_is_not_domestic(self) -> None:
+        from app.api.analytics import _is_domestic
+        assert _is_domestic("AAPL") is False
+        assert _is_domestic("NVDA") is False
+
+    def test_7_char_ticker_not_domestic(self) -> None:
+        """7자리 이상 ticker는 국내 주식이 아님."""
+        from app.api.analytics import _is_domestic
+        assert _is_domestic("0059300") is False  # 7 chars
+
+
+class TestPeriodCutoff:
+    def test_all_returns_none(self) -> None:
+        from app.api.analytics import _period_cutoff
+        assert _period_cutoff("ALL") is None
+
+    def test_1w_returns_7_days_ago(self) -> None:
+        from app.api.analytics import _period_cutoff
+        from datetime import date as date_type
+        cutoff = _period_cutoff("1W")
+        today = date_type.today()
+        assert cutoff == today - timedelta(days=7)
+
+    def test_1m_returns_30_days_ago(self) -> None:
+        from app.api.analytics import _period_cutoff
+        from datetime import date as date_type
+        cutoff = _period_cutoff("1M")
+        today = date_type.today()
+        assert cutoff == today - timedelta(days=30)
+
+    def test_3m_returns_91_days_ago(self) -> None:
+        from app.api.analytics import _period_cutoff
+        from datetime import date as date_type
+        cutoff = _period_cutoff("3M")
+        today = date_type.today()
+        assert cutoff == today - timedelta(days=91)
+
+    def test_6m_returns_182_days_ago(self) -> None:
+        from app.api.analytics import _period_cutoff
+        from datetime import date as date_type
+        cutoff = _period_cutoff("6M")
+        today = date_type.today()
+        assert cutoff == today - timedelta(days=182)
+
+    def test_1y_returns_365_days_ago(self) -> None:
+        from app.api.analytics import _period_cutoff
+        from datetime import date as date_type
+        cutoff = _period_cutoff("1Y")
+        today = date_type.today()
+        assert cutoff == today - timedelta(days=365)
+
+
+class TestInvalidateAnalyticsCache:
+    async def test_invalidate_deletes_all_keys(self) -> None:
+        """invalidate_analytics_cache가 모든 캐시 키를 삭제 시도."""
+        from app.api.analytics import invalidate_analytics_cache, _analytics_cache
+
+        deleted_keys: list[str] = []
+        original_delete = _analytics_cache.delete
+
+        async def _capture_delete(key: str) -> None:
+            deleted_keys.append(key)
+            return await original_delete(key)
+
+        with patch.object(_analytics_cache, "delete", side_effect=_capture_delete):
+            await invalidate_analytics_cache(42)
+
+        # Should have deleted metrics, monthly-returns, sector-allocation + 6 period history keys
+        assert any("metrics" in k for k in deleted_keys)
+        assert any("monthly-returns" in k for k in deleted_keys)
+        assert any("sector-allocation" in k for k in deleted_keys)
+        assert any("portfolio-history:1W" in k for k in deleted_keys)
+        assert any("portfolio-history:ALL" in k for k in deleted_keys)

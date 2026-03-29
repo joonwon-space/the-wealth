@@ -13,7 +13,7 @@ import { PnLBadge } from "@/components/PnLBadge";
 import { TransactionChart } from "@/components/DynamicCharts";
 import { PageError } from "@/components/PageError";
 import { TableSkeleton } from "@/components/TableSkeleton";
-import { OrderDialog } from "@/components/OrderDialog";
+import { OrderDialog, ExistingHolding } from "@/components/OrderDialog";
 import { PendingOrdersPanel } from "@/components/PendingOrdersPanel";
 import { useCashBalance, usePendingOrders } from "@/hooks/useOrders";
 
@@ -110,6 +110,9 @@ export default function PortfolioDetailPage() {
   const [orderTicker, setOrderTicker] = useState("");
   const [orderName, setOrderName] = useState("");
   const [orderCurrentPrice, setOrderCurrentPrice] = useState<number | undefined>();
+  const [orderInitialTab, setOrderInitialTab] = useState<"BUY" | "SELL">("BUY");
+  const [orderExchangeCode, setOrderExchangeCode] = useState<string | undefined>();
+  const [orderExistingHolding, setOrderExistingHolding] = useState<ExistingHolding | undefined>();
   const [showPendingOrders, setShowPendingOrders] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{ quantity: string; avg_price: string }>({ quantity: "", avg_price: "" });
@@ -648,6 +651,9 @@ export default function PortfolioDetailPage() {
                                     setOrderTicker(h.ticker);
                                     setOrderName(h.name);
                                     setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
+                                    setOrderInitialTab("BUY");
+                                    setOrderExchangeCode(h.currency === "USD" ? (h.ticker.includes(".") ? h.ticker.split(".")[1] : "NASD") : undefined);
+                                    setOrderExistingHolding({ quantity: h.quantity, avg_price: h.avg_price, pnl_amount: h.pnl_amount, pnl_rate: h.pnl_rate });
                                     setOrderDialogOpen(true);
                                   }}
                                   className="rounded border px-2 py-0.5 text-xs font-medium text-red-600 border-red-200 hover:bg-red-50"
@@ -659,6 +665,9 @@ export default function PortfolioDetailPage() {
                                     setOrderTicker(h.ticker);
                                     setOrderName(h.name);
                                     setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
+                                    setOrderInitialTab("SELL");
+                                    setOrderExchangeCode(h.currency === "USD" ? (h.ticker.includes(".") ? h.ticker.split(".")[1] : "NASD") : undefined);
+                                    setOrderExistingHolding({ quantity: h.quantity, avg_price: h.avg_price, pnl_amount: h.pnl_amount, pnl_rate: h.pnl_rate });
                                     setOrderDialogOpen(true);
                                   }}
                                   className="rounded border px-2 py-0.5 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
@@ -1016,15 +1025,19 @@ export default function PortfolioDetailPage() {
         onSelect={handleStockSelect}
       />
 
-      {/* KIS 주문 다이얼로그 */}
+      {/* KIS 주문 다이얼로그 — key로 ticker+tab 변경 시 강제 리마운트 */}
       {isKisConnected && (
         <OrderDialog
+          key={`${orderTicker}-${orderInitialTab}`}
           open={orderDialogOpen}
           onOpenChange={setOrderDialogOpen}
           portfolioId={portfolioId}
           ticker={orderTicker}
           stockName={orderName}
           currentPrice={orderCurrentPrice}
+          initialTab={orderInitialTab}
+          exchangeCode={orderExchangeCode}
+          existingHolding={orderExistingHolding}
         />
       )}
     </div>
