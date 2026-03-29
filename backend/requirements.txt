@@ -59,6 +59,7 @@ PyJWT==2.12.1
 python-multipart==0.0.22
 redis==7.3.0
 requests==2.32.5
+respx==0.22.0
 rich==14.3.3
 ruff==0.15.6
 six==1.17.0

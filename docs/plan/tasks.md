@@ -130,7 +130,7 @@ Each item should be completable in a single commit.
   - 에러 케이스: 보유수량 부족, KIS API 실패, 장외시간
   - 파일: `backend/tests/test_orders.py`
 
-- [ ] **test: kis_transaction.py 서비스 테스트 추가** (0% -> 80%+)
+- [x] **test: kis_transaction.py 서비스 테스트 추가** (0% -> 80%+)
   - 국내(TTTC8001R) + 해외(TTTS3035R) 체결내역 조회 테스트
   - httpx mock으로 KIS API 응답 모킹
   - 파일: `backend/tests/test_kis_transaction.py`
