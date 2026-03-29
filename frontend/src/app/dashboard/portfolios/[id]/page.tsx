@@ -1025,9 +1025,10 @@ export default function PortfolioDetailPage() {
         onSelect={handleStockSelect}
       />
 
-      {/* KIS 주문 다이얼로그 */}
+      {/* KIS 주문 다이얼로그 — key로 ticker+tab 변경 시 강제 리마운트 */}
       {isKisConnected && (
         <OrderDialog
+          key={`${orderTicker}-${orderInitialTab}`}
           open={orderDialogOpen}
           onOpenChange={setOrderDialogOpen}
           portfolioId={portfolioId}

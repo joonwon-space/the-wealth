@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import {
   Dialog,
@@ -55,13 +55,6 @@ export function OrderDialog({
 }: OrderDialogProps) {
   const [activeTab, setActiveTab] = useState<OrderType>(initialTab);
   const [orderClass, setOrderClass] = useState<OrderClass>("limit");
-
-  // 다이얼로그가 열릴 때 initialTab으로 탭 동기화
-  useEffect(() => {
-    if (open) {
-      setActiveTab(initialTab);
-    }
-  }, [open, initialTab]);
   const [quantity, setQuantity] = useState<string>("");
   const [price, setPrice] = useState<string>(
     currentPrice ? String(currentPrice) : ""
