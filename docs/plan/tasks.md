@@ -117,7 +117,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- npm 취약점 해결
 
-- [ ] **chore: yaml 2.0.0-2.8.2 Stack Overflow 취약점 수정**
+- [x] **chore: yaml 2.0.0-2.8.2 Stack Overflow 취약점 수정**
   - `cd frontend && npm audit fix`
   - 4건 (2 moderate, 2 high): yaml 패키지 deep nested YAML collections
   - 빌드 확인 후 커밋
