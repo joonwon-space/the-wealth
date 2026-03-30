@@ -6,17 +6,36 @@ description: Visual QA
 
 AI가 직접 사이트에 접속해 UI 이슈를 탐지하고 수정 제안을 생성한다.
 
-## 전제조건
+## 사용법
 
-Playwright MCP가 활성화되어 있어야 한다 (`.mcp.json` 참조).
-프론트엔드 dev server가 실행 중이어야 한다 (`npm run dev` in `frontend/`).
-백엔드 dev server가 실행 중이어야 한다 (`uvicorn app.main:app --reload` in `backend/`).
+```
+/visual-qa                          → 라이브 서버 전체 페이지 검사 (기본)
+/visual-qa --local                  → 로컬 dev 서버 전체 페이지 검사
+/visual-qa /dashboard/analytics     → 라이브 서버 특정 페이지만
+/visual-qa --local /dashboard/analytics  → 로컬 특정 페이지만
+```
 
-로그인 자격증명은 환경변수로 설정한다 (설정 안 된 경우 실행 전에 물어본다):
-```
-VISUAL_QA_EMAIL=...
-VISUAL_QA_PASSWORD=...
-```
+## 환경 결정
+
+### 기본값: 라이브 서버 (`--live`)
+
+| 항목 | 값 |
+|------|-----|
+| Base URL | `https://joonwon.dev` |
+| 자격증명 | `VISUAL_QA_EMAIL` / `VISUAL_QA_PASSWORD` 환경변수 |
+| 코드 수정 | 불가 — 이슈 리포트만 출력 |
+| 전제조건 | 없음 (서버가 이미 떠 있음) |
+
+### `--local` 플래그 사용 시
+
+| 항목 | 값 |
+|------|-----|
+| Base URL | `http://localhost:3000` |
+| 자격증명 | `VISUAL_QA_EMAIL` / `VISUAL_QA_PASSWORD` 환경변수 |
+| 코드 수정 | 가능 (Next.js 핫리로드 활용) |
+| 전제조건 | `npm run dev` (frontend) + `uvicorn` (backend) 실행 중 |
+
+환경변수가 설정되지 않은 경우 실행 전에 이메일/비밀번호를 직접 물어본다.
 
 ## 워크플로우
 
@@ -25,7 +44,7 @@ VISUAL_QA_PASSWORD=...
 모든 페이지 검사 전에 반드시 먼저 로그인한다.
 
 ```
-1. browser_navigate("http://localhost:3000/login")
+1. browser_navigate("{BASE_URL}/login")
 2. 현재 URL 확인 — 이미 /dashboard면 로그인된 상태이므로 3~5 건너뜀
 3. 이메일 입력 필드에 VISUAL_QA_EMAIL 입력
 4. 비밀번호 입력 필드에 VISUAL_QA_PASSWORD 입력
@@ -33,22 +52,20 @@ VISUAL_QA_PASSWORD=...
 6. /dashboard로 리다이렉트됐는지 확인
 ```
 
-환경변수가 설정되지 않은 경우:
-- 사용자에게 이메일/비밀번호를 직접 물어본 뒤 진행한다.
-
 로그인 실패 시:
 - 스크린샷을 찍고 에러 메시지를 보고한 뒤 중단한다.
-- 자격증명이 올바른지, 백엔드가 실행 중인지 확인을 요청한다.
+- 자격증명이 올바른지 확인을 요청한다. `--local`이면 서버 실행 여부도 확인한다.
 
 ### 1. 대상 페이지 결정
 
 인자가 없으면 다음 페이지를 순서대로 검사한다:
 - `/dashboard` (대시보드)
 - `/dashboard/analytics` (분석)
-- `/dashboard/portfolio` (포트폴리오)
+- `/dashboard/portfolios` (포트폴리오 목록)
+- `/dashboard/journal` (투자 일지)
 - `/dashboard/settings` (설정)
 
-인자가 있으면 해당 경로만 검사한다. 예: `/visual-qa /dashboard/analytics`
+경로 인자가 있으면 해당 경로만 검사한다. 예: `/visual-qa /dashboard/analytics`
 
 ### 2. 뷰포트별 스크린샷 촬영
 
@@ -119,13 +136,17 @@ browser_screenshot → 스크린샷 캡처
 
 사용자에게 확인 후 수정 진행 여부를 묻는다.
 
-### 7. 코드 수정 및 재검증
+### 7. 이슈 처리
 
-승인된 이슈에 대해:
+**`--local` 모드** — 코드 수정 및 재검증:
 1. 관련 소스 파일을 `Read` 도구로 읽는다
 2. `Edit` 도구로 수정한다
 3. Next.js 핫 리로드 후 동일 뷰포트에서 재촬영
 4. 수정 전후 비교 설명
+
+**라이브 모드 (기본)** — 리포트만 출력, 코드 수정 없음:
+- 각 이슈에 원인 파일과 수정 방향을 명시한다
+- 사용자가 별도로 `/visual-qa --local`을 실행해 수정할 수 있도록 안내한다
 
 ## 출력 형식
 
