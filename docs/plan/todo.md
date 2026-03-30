@@ -220,19 +220,19 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ## Milestone 17: 투자 분석 고도화 (신규)
 
 ### 17-1. 포트폴리오 비교 대시보드
-- [ ] 포트폴리오 간 수익률 비교 차트 (overlay line chart)
+- [x] 포트폴리오 간 수익률 비교 차트 (overlay line chart)
 - [ ] 기간별 필터 (1w / 1m / 3m / 6m / 1y / all) + date range picker
 - [ ] 포트폴리오별 섹터 비중 비교 (side-by-side donut)
 
 ### 17-2. 환율 관리 및 해외투자 분석
-- [ ] USD/KRW 환율 히스토리 저장 (daily snapshot)
+- [x] USD/KRW 환율 히스토리 저장 (daily snapshot)
 - [ ] 해외주식 환차익/환차손 분리 표시 (주가 수익 vs 환율 수익)
 - [ ] 원화 환산 총 자산 추이 차트 (환율 변동 반영)
 - [ ] 환율 알림 (목표 환율 도달 시 알림)
 
 ### 17-3. 투자 일지 대시보드
-- [ ] 거래 메모 기반 투자 일기장 뷰 (타임라인 UI)
-- [ ] 거래별 태그 시스템 (#실적발표, #배당투자, #단기매매 등)
+- [x] 거래 메모 기반 투자 일기장 뷰 (타임라인 UI)
+- [x] 거래별 태그 시스템 (#실적발표, #배당투자, #단기매매 등)
 - [ ] 월별/종목별 투자 일지 필터링 및 검색
 - [ ] 투자 결정 회고 — 매수 시점 가격 vs 현재가 비교 위젯
 
@@ -253,7 +253,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [ ] Docker Compose 로컬 개발용으로만 유지
 
 ### 18-3. 인프라 모니터링 확장
-- [ ] Docker 볼륨 디스크 사용량 모니터링 (80% 임계값 경고)
+- [x] Docker 볼륨 디스크 사용량 모니터링 (80% 임계값 경고)
 - [ ] TLS 인증서 만료 체크 자동화
 - [ ] KIS API 가격 조회 실패율 추적 (30% 초과 시 alert)
 - [ ] 백업 성공률 대시보드 (최근 30일 히스토리)
