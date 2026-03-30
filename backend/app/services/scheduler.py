@@ -43,11 +43,11 @@ CONSECUTIVE_FAILURE_THRESHOLD = 3
 
 # In-memory consecutive failure counters, keyed by job id
 _consecutive_failures: dict[str, int] = {
-    "kis_sync_kr": 0,
     "kis_sync_us": 0,
     "daily_close_snapshot": 0,
     "fx_rate_snapshot": 0,
-    "preload_prices": 0,
+    "preload_prices_am": 0,
+    "preload_prices_pm": 0,
 }
 
 
@@ -76,7 +76,7 @@ def _record_job_failure(job_id: str, exc: Exception) -> None:
         )
 
 
-async def _sync_all_accounts(job_id: str = "kis_sync_kr") -> None:
+async def _sync_all_accounts(job_id: str = "kis_sync_us") -> None:
     """KIS 계좌가 등록된 모든 포트폴리오를 순차 동기화."""
     logger.info("[Scheduler] Starting periodic KIS account sync")
 
@@ -324,19 +324,7 @@ async def _save_fx_rate_snapshot(job_id: str = "fx_rate_snapshot") -> None:
 
 
 def start_scheduler() -> None:
-    # 국내 장 마감 후 동기화: KST 16:00 = UTC 07:00
-    scheduler.add_job(
-        _sync_all_accounts,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour=7,
-        minute=0,
-        timezone="UTC",
-        id="kis_sync_kr",
-        kwargs={"job_id": "kis_sync_kr"},
-        replace_existing=True,
-    )
-    # 미국 장 마감 후 동기화: EST 16:00 ≈ UTC 21:00 (= KST 06:00)
+    # 미국 장 마감 후 동기화: EST 16:00 ≈ UTC 21:30 (= KST 06:30)
     scheduler.add_job(
         _sync_all_accounts,
         trigger="cron",
@@ -358,7 +346,7 @@ def start_scheduler() -> None:
         id="daily_close_snapshot",
         replace_existing=True,
     )
-    # 장 개시 전 가격 캐시 워밍: KST 08:00 평일
+    # 오전 동기화 + 가격 캐시 워밍: KST 08:00 평일 (장 개시 1시간 전)
     scheduler.add_job(
         _preload_prices,
         trigger="cron",
@@ -366,8 +354,20 @@ def start_scheduler() -> None:
         hour=8,
         minute=0,
         timezone="Asia/Seoul",
-        id="preload_prices",
-        kwargs={"job_id": "preload_prices"},
+        id="preload_prices_am",
+        kwargs={"job_id": "preload_prices_am"},
+        replace_existing=True,
+    )
+    # 오후 동기화 + 가격 캐시 워밍: KST 16:00 평일 (국내 장 마감 직후)
+    scheduler.add_job(
+        _preload_prices,
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour=16,
+        minute=0,
+        timezone="Asia/Seoul",
+        id="preload_prices_pm",
+        kwargs={"job_id": "preload_prices_pm"},
         replace_existing=True,
     )
     # 장 마감 후 환율 스냅샷: KST 16:30 = UTC 07:30 평일
@@ -384,8 +384,10 @@ def start_scheduler() -> None:
     )
     scheduler.start()
     logger.info(
-        "[Scheduler] APScheduler started — KIS sync at KST 16:00 (KR close) & 06:30 (US close), "
-        "daily close snapshot at KST 16:10, FX snapshot at KST 16:30, price preload at KST 08:00"
+        "[Scheduler] APScheduler started — "
+        "holdings sync + price preload at KST 08:00 & 16:00, "
+        "US close sync at KST 06:30, "
+        "daily close snapshot at KST 16:10, FX snapshot at KST 16:30"
     )
 
 

@@ -434,14 +434,14 @@ class TestConsecutiveFailureTracking:
         ):
             await sched_mod._sync_all_accounts()
 
-        assert sched_mod._consecutive_failures["kis_sync_kr"] == 1
+        assert sched_mod._consecutive_failures["kis_sync_us"] == 1
 
     @pytest.mark.asyncio
     async def test_sync_all_accounts_success_resets_counter(self) -> None:
         import app.services.scheduler as sched_mod
 
         # Pre-set a failure count
-        sched_mod._consecutive_failures["kis_sync_kr"] = 2
+        sched_mod._consecutive_failures["kis_sync_us"] = 2
 
         db = _make_db_session(kis_accounts=[])
         with patch(
@@ -450,7 +450,7 @@ class TestConsecutiveFailureTracking:
         ):
             await sched_mod._sync_all_accounts()
 
-        assert sched_mod._consecutive_failures["kis_sync_kr"] == 0
+        assert sched_mod._consecutive_failures["kis_sync_us"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -470,11 +470,11 @@ class TestSchedulerLifecycle:
         assert mock_scheduler.add_job.call_count == 5
         job_ids = [c.kwargs.get("id") for c in mock_scheduler.add_job.call_args_list]
         # Verify all distinct jobs are registered
-        assert "kis_sync_kr" in job_ids
         assert "kis_sync_us" in job_ids
         assert "daily_close_snapshot" in job_ids
         assert "fx_rate_snapshot" in job_ids
-        assert "preload_prices" in job_ids
+        assert "preload_prices_am" in job_ids
+        assert "preload_prices_pm" in job_ids
         assert mock_scheduler.start.called
 
     def test_stop_scheduler_calls_shutdown(self) -> None:
