@@ -126,7 +126,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 거래 태그 시스템 (17-3)
 
-- [ ] **feat: transactions.tags 컬럼 + 태그 입력 UI**
+- [x] **feat: transactions.tags 컬럼 + 태그 입력 UI**
   - Alembic migration: `transactions` 테이블에 `tags text[] DEFAULT '{}'` 컬럼 추가
   - `backend/app/models/transaction.py` — `tags: list[str]` 필드 추가
   - `backend/app/schemas/transaction.py` — 스키마 업데이트

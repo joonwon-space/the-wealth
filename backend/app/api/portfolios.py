@@ -678,6 +678,8 @@ async def update_transaction_memo(
         )
 
     txn.memo = body.memo
+    if body.tags is not None:
+        txn.tags = body.tags
     await db.commit()
     await db.refresh(txn)
     return txn

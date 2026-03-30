@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
+from sqlalchemy import ARRAY, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -33,5 +33,8 @@ class Transaction(Base):
     order_source: Mapped[str] = mapped_column(
         String(10), nullable=False, default="manual", server_default="manual"
     )  # manual | kis
+    tags: Mapped[Optional[list[str]]] = mapped_column(
+        ARRAY(Text), nullable=True, default=None, server_default=None
+    )
 
     portfolio: Mapped["Portfolio"] = relationship(back_populates="transactions")

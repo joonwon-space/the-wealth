@@ -23,9 +23,12 @@ interface Transaction {
   price: string;
   traded_at: string;
   memo: string | null;
+  tags: string[] | null;
 }
 
 type TypeFilter = "ALL" | "BUY" | "SELL";
+
+const PRESET_TAGS = ["#실적발표", "#배당투자", "#단기매매", "#장기투자", "#리밸런싱"] as const;
 
 function formatDateGroup(iso: string): string {
   const d = new Date(iso);
@@ -56,9 +59,18 @@ interface TransactionCardProps {
   txn: Transaction;
 }
 
+function TagBadge({ tag }: { tag: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-accent/70 px-2 py-0.5 text-[10px] font-medium text-accent-foreground">
+      {tag}
+    </span>
+  );
+}
+
 function TransactionCard({ txn }: TransactionCardProps) {
   const isBuy = txn.type === "BUY";
   const total = Number(txn.quantity) * Number(txn.price);
+  const hasTags = txn.tags && txn.tags.length > 0;
 
   return (
     <div className="flex gap-3 rounded-lg border bg-card p-3">
@@ -100,6 +112,15 @@ function TransactionCard({ txn }: TransactionCardProps) {
           </span>
         </div>
 
+        {/* Tags */}
+        {hasTags && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {txn.tags!.map((tag) => (
+              <TagBadge key={tag} tag={tag} />
+            ))}
+          </div>
+        )}
+
         {/* Memo */}
         {txn.memo && (
           <div className="mt-1 flex items-start gap-1.5 rounded-md bg-muted/60 px-2.5 py-2">
@@ -116,6 +137,7 @@ export default function JournalPage() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [memoOnly, setMemoOnly] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const { data: portfolios = [], isLoading: portfoliosLoading } = useQuery<Portfolio[]>({
     queryKey: ["portfolios"],
@@ -142,9 +164,10 @@ export default function JournalPage() {
     return transactions.filter((txn) => {
       if (typeFilter !== "ALL" && txn.type !== typeFilter) return false;
       if (memoOnly && !txn.memo) return false;
+      if (selectedTag && !(txn.tags ?? []).includes(selectedTag)) return false;
       return true;
     });
-  }, [transactions, typeFilter, memoOnly]);
+  }, [transactions, typeFilter, memoOnly, selectedTag]);
 
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
   const sortedDates = useMemo(() => [...grouped.keys()].sort((a, b) => b.localeCompare(a)), [grouped]);
@@ -210,27 +233,60 @@ export default function JournalPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        {(["ALL", "BUY", "SELL"] as TypeFilter[]).map((t) => (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {(["ALL", "BUY", "SELL"] as TypeFilter[]).map((t) => (
+            <Button
+              key={t}
+              variant={typeFilter === t ? "default" : "outline"}
+              size="sm"
+              onClick={() => setTypeFilter(t)}
+              className="min-h-[36px]"
+            >
+              {t === "ALL" ? "전체" : t === "BUY" ? "매수" : "매도"}
+            </Button>
+          ))}
           <Button
-            key={t}
-            variant={typeFilter === t ? "default" : "outline"}
+            variant={memoOnly ? "default" : "outline"}
             size="sm"
-            onClick={() => setTypeFilter(t)}
-            className="min-h-[36px]"
+            onClick={() => setMemoOnly((v) => !v)}
+            className="min-h-[36px] gap-1"
           >
-            {t === "ALL" ? "전체" : t === "BUY" ? "매수" : "매도"}
+            <MessageSquare className="h-3.5 w-3.5" />
+            메모만
           </Button>
-        ))}
-        <Button
-          variant={memoOnly ? "default" : "outline"}
-          size="sm"
-          onClick={() => setMemoOnly((v) => !v)}
-          className="min-h-[36px] gap-1"
-        >
-          <MessageSquare className="h-3.5 w-3.5" />
-          메모만
-        </Button>
+        </div>
+
+        {/* Tag filter */}
+        <div className="flex flex-wrap gap-1.5">
+          {PRESET_TAGS.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag((prev) => (prev === tag ? null : tag))}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                selectedTag === tag
+                  ? "border-transparent text-white"
+                  : "hover:bg-accent text-muted-foreground"
+              )}
+              style={
+                selectedTag === tag
+                  ? { background: "var(--accent-indigo)" }
+                  : undefined
+              }
+            >
+              {tag}
+            </button>
+          ))}
+          {selectedTag && (
+            <button
+              onClick={() => setSelectedTag(null)}
+              className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ✕ 초기화
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Timeline */}
