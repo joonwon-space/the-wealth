@@ -191,7 +191,7 @@ export function usePlaceOrder(portfolioId: number) {
       queryClient.invalidateQueries({
         queryKey: PENDING_ORDERS_KEY(portfolioId),
       });
-      queryClient.invalidateQueries({ queryKey: ["holdings", portfolioId] });
+      queryClient.invalidateQueries({ queryKey: ["portfolios", portfolioId, "holdings"] });
       queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
