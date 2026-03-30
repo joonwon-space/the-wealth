@@ -113,7 +113,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 투자 일지 페이지 (17-3)
 
-- [ ] **feat: 투자 일지 타임라인 페이지**
+- [x] **feat: 투자 일지 타임라인 페이지**
   - `frontend/src/app/dashboard/journal/page.tsx` 생성
   - 거래 내역(transactions)을 날짜 역순으로 타임라인 형식으로 표시
   - 메모가 있는 항목은 말풍선으로 강조 표시

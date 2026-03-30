@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Home, LogOut, Menu, Moon, Settings, Sun, Wallet, X } from "lucide-react";
+import { BarChart3, BookOpen, Home, LogOut, Menu, Moon, Settings, Sun, Wallet, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/dashboard", label: "대시보드", icon: Home },
   { href: "/dashboard/portfolios", label: "포트폴리오", icon: Wallet },
   { href: "/dashboard/analytics", label: "분석", icon: BarChart3 },
+  { href: "/dashboard/journal", label: "투자 일지", icon: BookOpen },
   { href: "/dashboard/settings", label: "설정", icon: Settings },
 ];
 
