@@ -93,6 +93,48 @@ Each item should be completable in a single commit.
 
 ## Current work
 
+### P1 -- 운영 안정성: 디스크 사용량 모니터링 (18-3)
+
+- [ ] **chore: Docker 볼륨 디스크 사용량 모니터링 스크립트**
+  - `scripts/disk-check.sh` 생성 — Docker 볼륨 마운트 경로의 디스크 사용량 체크
+  - 80% 초과 시 CRITICAL 로그 (structlog 호환 JSON) + exit code 1
+  - 사용량 정상이면 INFO 로그 + exit code 0
+  - `docker-compose.yml` 에 cron-like health check label 주석 추가
+  - `backend/app/api/health.py` — `GET /health/disk` 엔드포인트 추가 (df -h 결과 파싱)
+  - 파일: `scripts/disk-check.sh`, `backend/app/api/health.py`
+
+### P1 -- 환율 히스토리 저장 (17-2)
+
+- [ ] **feat: fx_rate_snapshots 테이블 + 일별 환율 스냅샷 저장**
+  - Alembic migration: `fx_rate_snapshots(id, currency_pair, rate, snapshot_date)` 테이블 생성
+  - `backend/app/models/fx_rate_snapshot.py` 모델 추가
+  - `backend/app/services/kis_price.py` — `save_fx_rate_snapshot()` 함수 추가 (USD/KRW KIS API → DB 저장)
+  - `backend/app/services/scheduler.py` — 장 마감 후(KST 16:30) 환율 저장 job 추가
+  - `backend/app/api/analytics.py` — `GET /analytics/fx-history` 엔드포인트 (최근 90일 USD/KRW)
+  - 파일: migration, `fx_rate_snapshot.py`, `kis_price.py`, `scheduler.py`, `analytics.py`
+
+### P2 -- 포트폴리오 비교 차트 (17-1)
+
+- [ ] **feat: 포트폴리오 비교 페이지 (수익률 오버레이 차트)**
+  - `frontend/src/app/dashboard/compare/page.tsx` 생성
+  - 포트폴리오 목록에서 최대 3개 선택 → 기간별 누적 수익률 오버레이 라인 차트
+  - x축: 날짜, y축: 수익률(%) — 기준가 = 기간 시작일 가치
+  - 기간 탭: 1M / 3M / 6M / 1Y / ALL
+  - 포트폴리오별 색상 구분 (brand blue + 보조색 2가지)
+  - Sidebar/BottomNav에 "비교" 메뉴 항목 추가
+  - 파일: `compare/page.tsx`, `Sidebar.tsx`, `BottomNav.tsx`
+
+### P2 -- 거래 태그 시스템 (17-3)
+
+- [ ] **feat: transactions.tags 컬럼 + 태그 입력 UI**
+  - Alembic migration: `transactions` 테이블에 `tags text[] DEFAULT '{}'` 컬럼 추가
+  - `backend/app/models/transaction.py` — `tags: list[str]` 필드 추가
+  - `backend/app/schemas/transaction.py` — 스키마 업데이트
+  - `backend/app/api/portfolios.py` — PATCH transaction 엔드포인트에서 tags 업데이트 지원
+  - `frontend/src/app/dashboard/journal/page.tsx` — 태그 뱃지 표시 + 태그 필터 UI
+  - 사전 정의 태그: `#실적발표`, `#배당투자`, `#단기매매`, `#장기투자`, `#리밸런싱`
+  - 파일: migration, `transaction.py`, `transaction.py`(schema), `portfolios.py`, `journal/page.tsx`
+
 ### P1 -- Excel 내보내기 (15-4 / 19-3)
 
 - [x] **feat: 포트폴리오 Excel(xlsx) 내보내기 API + UI**
