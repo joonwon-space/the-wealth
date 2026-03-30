@@ -104,7 +104,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- Bulk Holdings API (12-5)
 
-- [ ] **feat: 보유 종목 일괄 등록 API**
+- [x] **feat: 보유 종목 일괄 등록 API**
   - `backend/app/api/portfolios.py` — `POST /portfolios/{id}/holdings/bulk` 엔드포인트 추가
   - 요청: `[{ticker, name, quantity, avg_price}]` 배열 (최대 100건)
   - 중복 ticker 처리: upsert (기존 보유 수량+평단가 가중평균 업데이트)

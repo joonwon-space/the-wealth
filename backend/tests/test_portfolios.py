@@ -666,3 +666,117 @@ class TestTransactionsPaginated:
             headers=_auth_headers(token),
         )
         assert resp.status_code == 404
+
+
+@pytest.mark.integration
+class TestBulkHoldings:
+    """보유 종목 일괄 등록 API 테스트."""
+
+    async def _setup(self, client: AsyncClient, email: str) -> tuple[str, int]:
+        await client.post("/auth/register", json={"email": email, "password": "Test1234!"})
+        resp = await client.post("/auth/login", json={"email": email, "password": "Test1234!"})
+        token = resp.json()["access_token"]
+        port = await client.post(
+            "/portfolios",
+            json={"name": "Bulk Test Portfolio"},
+            headers=_auth_headers(token),
+        )
+        return token, port.json()["id"]
+
+    async def test_bulk_create_new_holdings(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "bulk_create@example.com")
+        resp = await client.post(
+            f"/portfolios/{pid}/holdings/bulk",
+            json={
+                "items": [
+                    {"ticker": "005930", "name": "삼성전자", "quantity": "10", "avg_price": "70000"},
+                    {"ticker": "AAPL", "name": "Apple", "quantity": "5", "avg_price": "150.00"},
+                ]
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["created"] == 2
+        assert data["updated"] == 0
+        assert data["errors"] == []
+
+    async def test_bulk_upsert_existing_holding(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "bulk_upsert@example.com")
+        # 첫 번째 등록
+        await client.post(
+            f"/portfolios/{pid}/holdings/bulk",
+            json={
+                "items": [
+                    {"ticker": "005930", "name": "삼성전자", "quantity": "10", "avg_price": "70000"},
+                ]
+            },
+            headers=_auth_headers(token),
+        )
+        # 추가 매수 (upsert)
+        resp = await client.post(
+            f"/portfolios/{pid}/holdings/bulk",
+            json={
+                "items": [
+                    {"ticker": "005930", "name": "삼성전자", "quantity": "10", "avg_price": "80000"},
+                ]
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["created"] == 0
+        assert data["updated"] == 1
+
+        # 평단가 가중평균 확인: (10*70000 + 10*80000) / 20 = 75000
+        holdings = await client.get(
+            f"/portfolios/{pid}/holdings",
+            headers=_auth_headers(token),
+        )
+        h = next(h for h in holdings.json() if h["ticker"] == "005930")
+        assert float(h["avg_price"]) == pytest.approx(75000.0)
+        assert float(h["quantity"]) == pytest.approx(20.0)
+
+    async def test_bulk_not_found(self, client: AsyncClient) -> None:
+        token, _ = await self._setup(client, "bulk_404@example.com")
+        resp = await client.post(
+            "/portfolios/99999/holdings/bulk",
+            json={"items": [{"ticker": "005930", "name": "삼성전자", "quantity": "1", "avg_price": "70000"}]},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    async def test_bulk_forbidden_other_user(self, client: AsyncClient) -> None:
+        token1, pid = await self._setup(client, "bulk_owner@example.com")
+        # 다른 사용자
+        await client.post("/auth/register", json={"email": "bulk_other@example.com", "password": "Test1234!"})
+        resp2 = await client.post("/auth/login", json={"email": "bulk_other@example.com", "password": "Test1234!"})
+        token2 = resp2.json()["access_token"]
+        resp = await client.post(
+            f"/portfolios/{pid}/holdings/bulk",
+            json={"items": [{"ticker": "005930", "name": "삼성전자", "quantity": "1", "avg_price": "70000"}]},
+            headers=_auth_headers(token2),
+        )
+        assert resp.status_code == 403
+
+    async def test_bulk_empty_items_rejected(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "bulk_empty@example.com")
+        resp = await client.post(
+            f"/portfolios/{pid}/holdings/bulk",
+            json={"items": []},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 422
+
+    async def test_bulk_invalid_ticker_rejected(self, client: AsyncClient) -> None:
+        token, pid = await self._setup(client, "bulk_badticker@example.com")
+        resp = await client.post(
+            f"/portfolios/{pid}/holdings/bulk",
+            json={
+                "items": [
+                    {"ticker": "INVALID_TICKER_TOO_LONG", "name": "Bad", "quantity": "1", "avg_price": "1000"},
+                ]
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 422

@@ -74,6 +74,35 @@ class HoldingUpdate(BaseModel):
     avg_price: Optional[Decimal] = None
 
 
+class BulkHoldingItem(BaseModel):
+    """보유 종목 일괄 등록 항목."""
+
+    ticker: str
+    name: str
+    quantity: Decimal = Field(gt=0)
+    avg_price: Decimal = Field(gt=0)
+    market: Optional[str] = None
+
+    @field_validator("ticker")
+    @classmethod
+    def ticker_format(cls, v: str) -> str:
+        return validate_ticker(v)
+
+
+class BulkHoldingRequest(BaseModel):
+    """보유 종목 일괄 등록 요청."""
+
+    items: list[BulkHoldingItem] = Field(min_length=1, max_length=100)
+
+
+class BulkHoldingResult(BaseModel):
+    """보유 종목 일괄 등록 결과."""
+
+    created: int
+    updated: int
+    errors: list[str] = []
+
+
 class HoldingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
