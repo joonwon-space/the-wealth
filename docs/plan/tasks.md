@@ -95,7 +95,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 운영 안정성: 디스크 사용량 모니터링 (18-3)
 
-- [ ] **chore: Docker 볼륨 디스크 사용량 모니터링 스크립트**
+- [x] **chore: Docker 볼륨 디스크 사용량 모니터링 스크립트**
   - `scripts/disk-check.sh` 생성 — Docker 볼륨 마운트 경로의 디스크 사용량 체크
   - 80% 초과 시 CRITICAL 로그 (structlog 호환 JSON) + exit code 1
   - 사용량 정상이면 INFO 로그 + exit code 0
