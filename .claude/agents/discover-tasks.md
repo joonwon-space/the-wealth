@@ -1,7 +1,7 @@
 ---
 name: discover-tasks
 description: Research project analysis docs and codebase state to refresh tasks.md (current work) and todo.md (future work).
-model: opus
+model: sonnet
 tools:
   - Read
   - Write
