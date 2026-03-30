@@ -607,7 +607,7 @@ class TestSSEEventGeneratorPaths:
             patch("app.api.prices.decrypt", return_value="mock_val"),
             patch.object(prices_mod, "_shutdown_event", mock_evt),
             patch(
-                "app.api.prices.fetch_domestic_price",
+                "app.api.prices.fetch_and_cache_domestic_price",
                 new_callable=AsyncMock,
                 return_value=Decimal("70000"),
             ),

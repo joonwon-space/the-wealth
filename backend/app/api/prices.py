@@ -24,7 +24,7 @@ from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
 from app.core.logging import get_logger
-from app.services.kis_price import fetch_domestic_price
+from app.services.kis_price import fetch_and_cache_domestic_price
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 logger = get_logger(__name__)
@@ -244,7 +244,7 @@ async def stream_prices(
                     else:
                         async with httpx.AsyncClient(timeout=10.0) as client:
                             results = await asyncio.gather(
-                                *[fetch_domestic_price(t, app_key, app_secret, client) for t in tickers],
+                                *[fetch_and_cache_domestic_price(t, app_key, app_secret, client) for t in tickers],
                                 return_exceptions=True,
                             )
                         prices = {
