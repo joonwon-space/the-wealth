@@ -95,7 +95,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- Excel 내보내기 (15-4 / 19-3)
 
-- [ ] **feat: 포트폴리오 Excel(xlsx) 내보내기 API + UI**
+- [x] **feat: 포트폴리오 Excel(xlsx) 내보내기 API + UI**
   - `backend/app/api/portfolio_export.py` — `GET /{portfolio_id}/export/xlsx` 엔드포인트 추가
   - openpyxl 사용: 보유 종목 시트 + 거래내역 시트 (서식 포함)
   - 열 너비 자동 조정, 헤더 볼드, 숫자 형식 적용

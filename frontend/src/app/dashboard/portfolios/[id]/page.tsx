@@ -334,6 +334,21 @@ export default function PortfolioDetailPage() {
     URL.revokeObjectURL(url);
   };
 
+  const downloadXlsx = async () => {
+    const response = await api.get<Blob>(`/portfolios/${portfolioId}/export/xlsx`, {
+      responseType: "blob",
+    });
+    const mimeType =
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const url = URL.createObjectURL(new Blob([response.data], { type: mimeType }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `portfolio_${portfolioId}_${today}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -371,6 +386,15 @@ export default function PortfolioDetailPage() {
           >
             <Download className="h-4 w-4" />
             거래 내역 CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadXlsx}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Excel
           </Button>
           <Button onClick={() => setSearchOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
