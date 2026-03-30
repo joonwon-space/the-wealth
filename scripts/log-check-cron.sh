@@ -62,6 +62,7 @@ fi
 echo "[$(date '+%H:%M')] 이상 감지 — Claude 분석 시작"
 
 LOG_CONTENT=$(cat "$TEMP_LOG")
+ALERTS_BEFORE=$(ls "$REPO_DIR/docs/alerts/"*.md 2>/dev/null | grep -v ".gitkeep" | sort || true)
 
 cd "$REPO_DIR"
 claude --dangerously-skip-permissions -p "
@@ -77,3 +78,25 @@ ${LOG_CONTENT}
 
 echo "[$(date '+%H:%M')] Claude 분석 완료"
 rm -f "$TEMP_LOG"
+
+# 4. 새로 생성된 alert 파일에 Critical 항목이 있으면 즉시 fix-alerts 실행
+ALERTS_AFTER=$(ls "$REPO_DIR/docs/alerts/"*.md 2>/dev/null | grep -v ".gitkeep" | sort || true)
+NEW_ALERT=$(comm -13 <(echo "$ALERTS_BEFORE") <(echo "$ALERTS_AFTER") | head -1)
+
+if [ -n "$NEW_ALERT" ]; then
+    # Critical 섹션에 실제 내용이 있는지 확인 (헤더만 있는 경우 제외)
+    HAS_CRITICAL=$(awk '/^## 🔴 Critical/,/^## /' "$NEW_ALERT" 2>/dev/null \
+      | grep -v "^## " | grep -c '\S' || echo 0)
+
+    if [ "${HAS_CRITICAL:-0}" -gt 0 ]; then
+        echo "[$(date '+%H:%M')] Critical 감지 — fix-alerts 자동 실행"
+        claude --dangerously-skip-permissions -p "
+docs/alerts/ 에 새로운 알림 파일이 생성됐습니다: $(basename "$NEW_ALERT")
+.claude/commands/fix-alerts.md 의 지시에 따라 Critical 항목을 즉시 처리해주세요.
+사용자 확인 없이 바로 수정을 진행하고, 수정 후 커밋까지 완료해주세요.
+" 2>&1
+        echo "[$(date '+%H:%M')] fix-alerts 완료"
+    else
+        echo "[$(date '+%H:%M')] Warning만 감지 — fix-alerts 생략 (수동 실행: /fix-alerts)"
+    fi
+fi
