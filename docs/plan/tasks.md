@@ -105,7 +105,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 환율 히스토리 저장 (17-2)
 
-- [ ] **feat: fx_rate_snapshots 테이블 + 일별 환율 스냅샷 저장**
+- [x] **feat: fx_rate_snapshots 테이블 + 일별 환율 스냅샷 저장**
   - Alembic migration: `fx_rate_snapshots(id, currency_pair, rate, snapshot_date)` 테이블 생성
   - `backend/app/models/fx_rate_snapshot.py` 모델 추가
   - `backend/app/services/kis_price.py` — `save_fx_rate_snapshot()` 함수 추가 (USD/KRW KIS API → DB 저장)

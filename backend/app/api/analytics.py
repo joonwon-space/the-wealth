@@ -17,6 +17,7 @@ from app.api.deps import get_current_user
 from app.core.redis_cache import RedisCache
 from app.core.config import settings
 from app.db.session import get_db
+from app.models.fx_rate_snapshot import FxRateSnapshot
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
@@ -462,3 +463,37 @@ async def get_sector_allocation(
         json.dumps([r.model_dump() for r in result])
     )
     return result
+
+
+@router.get("/fx-history")
+async def get_fx_history(
+    currency_pair: str = Query(default="USDKRW", description="통화쌍 (예: USDKRW)"),
+    days: int = Query(default=90, ge=1, le=365, description="조회 기간 (일, 최대 365)"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """USD/KRW 환율 히스토리 반환.
+
+    fx_rate_snapshots 테이블에서 최근 N일 환율 데이터를 조회한다.
+    스케줄러가 매 평일 장 마감 후(KST 16:30) 저장한다.
+
+    응답 예시:
+    [
+      {"date": "2026-03-28", "rate": 1380.5},
+      {"date": "2026-03-27", "rate": 1375.0}
+    ]
+    """
+    cutoff = date_type.today() - timedelta(days=days)
+    result = await db.execute(
+        select(FxRateSnapshot)
+        .where(
+            FxRateSnapshot.currency_pair == currency_pair,
+            FxRateSnapshot.snapshot_date >= cutoff,
+        )
+        .order_by(FxRateSnapshot.snapshot_date)
+    )
+    snapshots = result.scalars().all()
+    return [
+        {"date": snap.snapshot_date.isoformat(), "rate": float(snap.rate)}
+        for snap in snapshots
+    ]

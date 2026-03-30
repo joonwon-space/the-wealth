@@ -27,7 +27,9 @@ from app.services.kis_price import (
     fetch_domestic_daily_ohlcv,
     fetch_domestic_price,
     fetch_and_cache_domestic_price,
+    fetch_usd_krw_rate,
     get_or_fetch_overseas_price,
+    save_fx_rate_snapshot,
 )
 from app.services.price_snapshot import OhlcvData, save_ohlcv_snapshots, save_snapshots
 from app.services.reconciliation import reconcile_holdings
@@ -44,6 +46,7 @@ _consecutive_failures: dict[str, int] = {
     "kis_sync_kr": 0,
     "kis_sync_us": 0,
     "daily_close_snapshot": 0,
+    "fx_rate_snapshot": 0,
     "preload_prices": 0,
 }
 
@@ -280,6 +283,40 @@ async def _preload_prices(job_id: str = "preload_prices") -> None:
         _record_job_failure(job_id, exc)
 
 
+async def _save_fx_rate_snapshot(job_id: str = "fx_rate_snapshot") -> None:
+    """장 마감 후 USD/KRW 환율을 조회해 fx_rate_snapshots에 저장.
+
+    KST 16:30 (UTC 07:30) 실행 — 한국 장 마감 후 당일 환율을 기록한다.
+    KIS 자격증명이 없으면 frankfurter.app을 통해 환율을 조회한다.
+    """
+    logger.info("[Scheduler] Starting FX rate snapshot job")
+    try:
+        async with AsyncSessionLocal() as db:
+            # KIS 자격증명 조회 (선택적)
+            result = await db.execute(select(KisAccount).limit(1))
+            acct = result.scalar_one_or_none()
+
+            if acct:
+                app_key = decrypt(acct.app_key_enc)
+                app_secret = decrypt(acct.app_secret_enc)
+            else:
+                app_key = ""
+                app_secret = ""
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                rate = await fetch_usd_krw_rate(app_key, app_secret, client)
+
+            saved = await save_fx_rate_snapshot(db, "USDKRW", float(rate))
+            if saved:
+                logger.info("[Scheduler] FX rate snapshot saved: USDKRW = %s", rate)
+            else:
+                logger.warning("[Scheduler] FX rate snapshot save failed")
+
+        _record_job_success(job_id)
+    except Exception as exc:
+        _record_job_failure(job_id, exc)
+
+
 def start_scheduler() -> None:
     # 국내 장 마감 후 동기화: KST 16:00 = UTC 07:00
     scheduler.add_job(
@@ -327,10 +364,22 @@ def start_scheduler() -> None:
         kwargs={"job_id": "preload_prices"},
         replace_existing=True,
     )
+    # 장 마감 후 환율 스냅샷: KST 16:30 = UTC 07:30 평일
+    scheduler.add_job(
+        _save_fx_rate_snapshot,
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour=7,
+        minute=30,
+        timezone="UTC",
+        id="fx_rate_snapshot",
+        kwargs={"job_id": "fx_rate_snapshot"},
+        replace_existing=True,
+    )
     scheduler.start()
     logger.info(
         "[Scheduler] APScheduler started — KIS sync at KST 16:00 (KR close) & 06:30 (US close), "
-        "daily close snapshot at KST 16:10, price preload at KST 08:00"
+        "daily close snapshot at KST 16:10, FX snapshot at KST 16:30, price preload at KST 08:00"
     )
 
 

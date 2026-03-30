@@ -8,7 +8,10 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 import httpx
 
@@ -484,3 +487,36 @@ async def get_exchange_rate(app_key: str, app_secret: str) -> float:
     async with httpx.AsyncClient(timeout=10.0) as client:
         rate = await fetch_usd_krw_rate(app_key, app_secret, client)
     return float(rate)
+
+
+async def save_fx_rate_snapshot(db: "AsyncSession", currency_pair: str, rate: float) -> bool:
+    """환율 일별 스냅샷을 DB에 저장 (upsert).
+
+    같은 날짜에 이미 저장된 경우 rate를 업데이트한다.
+    성공 시 True, 실패 시 False 반환.
+    """
+    from datetime import date as date_type
+
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from app.models.fx_rate_snapshot import FxRateSnapshot
+
+    today = date_type.today()
+    try:
+        stmt = pg_insert(FxRateSnapshot).values(
+            currency_pair=currency_pair,
+            rate=rate,
+            snapshot_date=today,
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_fx_rate_snapshot_pair_date",
+            set_={"rate": stmt.excluded.rate},
+        )
+        await db.execute(stmt)
+        await db.commit()
+        logger.info("Saved FX rate snapshot: %s = %s on %s", currency_pair, rate, today)
+        return True
+    except Exception as exc:
+        logger.warning("Failed to save FX rate snapshot: %s", exc)
+        await db.rollback()
+        return False
