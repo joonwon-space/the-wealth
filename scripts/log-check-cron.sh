@@ -1,6 +1,6 @@
 #!/bin/bash
 # log-check-cron.sh
-# crontab에서 매시간 실행. 로컬 docker 로그를 분석해 이상 감지 시 Claude로 상세 분석.
+# crontab에서 매시간 실행. 컨테이너 내부 JSON 파일 로그를 읽어 이상 감지 시 Claude로 분석.
 #
 # crontab 등록:
 #   crontab -e
@@ -13,16 +13,26 @@ COMPOSE_DIR="/Users/joonwon/Documents/GitHub/the-wealth"
 REPO_DIR="/Users/joonwon/Documents/GitHub/the-wealth"
 TEMP_LOG="/tmp/the-wealth-log-$(date +%Y%m%d%H).txt"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M KST')
+# 1시간 전 ISO timestamp (로그 시간 필터용)
+ONE_HOUR_AGO=$(date -v-1H '+%Y-%m-%dT%H' 2>/dev/null || date -d '1 hour ago' '+%Y-%m-%dT%H')
 # ──────────────────────────────────────────────────────────────────────
 
 echo "[$(date '+%H:%M')] log-check 시작"
 
-# 1. 최근 1시간 로그 수집
 cd "$COMPOSE_DIR"
-docker compose logs backend --since 1h --no-log-prefix > "$TEMP_LOG" 2>/dev/null || {
-    echo "[ERROR] docker compose logs 실패 — 컨테이너가 실행 중인지 확인하세요"
-    exit 1
-}
+
+# 1. 컨테이너 내부 JSON 파일 로그 읽기 (항상 JSON 형식, ANSI 코드 없음)
+#    최근 1시간 분량만 필터 (ISO timestamp 접두어로 grep)
+docker compose exec -T backend cat /var/log/the-wealth/app.log 2>/dev/null \
+  | grep "\"${ONE_HOUR_AGO}\|\"$(date '+%Y-%m-%dT%H')" \
+  > "$TEMP_LOG" 2>/dev/null || true
+
+# 파일 로그가 비어있으면 docker stdout 로그로 폴백 (ANSI 제거 후 사용)
+if [ ! -s "$TEMP_LOG" ]; then
+    docker compose logs backend --since 1h --no-log-prefix 2>/dev/null \
+      | sed 's/\x1b\[[0-9;]*[mGKHF]//g' \
+      > "$TEMP_LOG" 2>/dev/null || true
+fi
 
 # 로그가 비어있으면 종료
 if [ ! -s "$TEMP_LOG" ]; then
@@ -32,13 +42,17 @@ if [ ! -s "$TEMP_LOG" ]; then
 fi
 
 # 2. bash pre-filter: ERROR/WARNING 카운트 (Claude 호출 전 무료 검사)
-ERROR_COUNT=$(grep -c '"level":"error"\|"level": "error"\| ERROR \|Traceback\|Exception\|500' "$TEMP_LOG" 2>/dev/null || true)
-WARN_COUNT=$(grep -c '"level":"warning"\|"level": "warning"\| WARNING ' "$TEMP_LOG" 2>/dev/null || true)
+#    JSON 파일 로그: "level":"error" / "level":"warning"
+#    ANSI 제거된 stdout 로그: error / warning (plain text)
+ERROR_COUNT=$(grep -ci '"level":"error"\|"level": "error"\|] error \| error]' "$TEMP_LOG" 2>/dev/null || echo 0)
+WARN_COUNT=$(grep -ci '"level":"warning"\|"level": "warning"\|] warning \| warning]' "$TEMP_LOG" 2>/dev/null || echo 0)
+HTTP500_COUNT=$(grep -c '"status_code": 500\|HTTP/[0-9.]* 500\| 500 ' "$TEMP_LOG" 2>/dev/null || echo 0)
 
-echo "[$(date '+%H:%M')] ERROR: ${ERROR_COUNT}건, WARNING: ${WARN_COUNT}건"
+TOTAL=$((ERROR_COUNT + WARN_COUNT + HTTP500_COUNT))
+echo "[$(date '+%H:%M')] ERROR: ${ERROR_COUNT}건, WARNING: ${WARN_COUNT}건, 500: ${HTTP500_COUNT}건"
 
 # 이상 없으면 Claude 호출 없이 종료 (토큰 절약)
-if [ "${ERROR_COUNT:-0}" -eq 0 ] && [ "${WARN_COUNT:-0}" -eq 0 ]; then
+if [ "$TOTAL" -eq 0 ]; then
     echo "✅ 이상 없음 ($TIMESTAMP)"
     rm -f "$TEMP_LOG"
     exit 0
