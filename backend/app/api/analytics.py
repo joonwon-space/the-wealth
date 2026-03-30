@@ -334,6 +334,7 @@ async def get_monthly_returns(
 @router.get("/portfolio-history", response_model=list[PortfolioHistoryPoint])
 async def get_portfolio_history(
     period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
+    portfolio_id: Optional[int] = Query(default=None, description="특정 포트폴리오 ID (미지정 시 전체 합산)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[PortfolioHistoryPoint]:
@@ -342,16 +343,19 @@ async def get_portfolio_history(
     price_snapshots에서 보유 종목의 날짜별 종가를 집계하여
     일별 포트폴리오 가치를 계산한다.
     period 파라미터로 반환 기간 필터링 가능 (1W/1M/3M/6M/1Y/ALL).
+    portfolio_id 파라미터로 특정 포트폴리오만 조회 가능.
     """
     normalized_period = period.upper() if period.upper() in ("1W", "1M", "3M", "6M", "1Y") else "ALL"
-    cache_key = _analytics_key(current_user.id, f"portfolio-history:{normalized_period}")
+    cache_suffix = f"portfolio-history:{normalized_period}" + (f":{portfolio_id}" if portfolio_id else "")
+    cache_key = _analytics_key(current_user.id, cache_suffix)
     cached = await _analytics_cache.get(cache_key)
     if cached:
         return [PortfolioHistoryPoint(**item) for item in json.loads(cached)]
 
-    port_result = await db.execute(
-        select(Portfolio).where(Portfolio.user_id == current_user.id)
-    )
+    port_query = select(Portfolio).where(Portfolio.user_id == current_user.id)
+    if portfolio_id is not None:
+        port_query = port_query.where(Portfolio.id == portfolio_id)
+    port_result = await db.execute(port_query)
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
         return []

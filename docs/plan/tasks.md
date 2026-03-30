@@ -115,7 +115,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 포트폴리오 비교 차트 (17-1)
 
-- [ ] **feat: 포트폴리오 비교 페이지 (수익률 오버레이 차트)**
+- [x] **feat: 포트폴리오 비교 페이지 (수익률 오버레이 차트)**
   - `frontend/src/app/dashboard/compare/page.tsx` 생성
   - 포트폴리오 목록에서 최대 3개 선택 → 기간별 누적 수익률 오버레이 라인 차트
   - x축: 날짜, y축: 수익률(%) — 기준가 = 기간 시작일 가치
