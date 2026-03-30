@@ -1,11 +1,6 @@
 #!/bin/bash
 # log-check-cron.sh
-# Mac 로컬 crontab에서 매시간 실행. 서버 로그를 SSH로 가져와 이상 감지 시 Claude로 분석.
-#
-# 설정:
-#   SERVER        SSH 접속 주소 (예: user@joonwon.dev)
-#   COMPOSE_DIR   서버 내 docker-compose.yml 위치
-#   REPO_DIR      로컬 레포지토리 경로
+# crontab에서 매시간 실행. 로컬 docker 로그를 분석해 이상 감지 시 Claude로 상세 분석.
 #
 # crontab 등록:
 #   crontab -e
@@ -14,20 +9,18 @@
 set -euo pipefail
 
 # ── 설정 ──────────────────────────────────────────────────────────────
-SERVER="${LOG_CHECK_SERVER:-user@joonwon.dev}"          # SSH 접속 주소
-COMPOSE_DIR="${LOG_CHECK_COMPOSE_DIR:-~/the-wealth}"    # 서버 내 프로젝트 경로
-REPO_DIR="${LOG_CHECK_REPO_DIR:-/Users/joonwon/Documents/GitHub/the-wealth}"
+COMPOSE_DIR="/Users/joonwon/Documents/GitHub/the-wealth"
+REPO_DIR="/Users/joonwon/Documents/GitHub/the-wealth"
 TEMP_LOG="/tmp/the-wealth-log-$(date +%Y%m%d%H).txt"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M KST')
 # ──────────────────────────────────────────────────────────────────────
 
 echo "[$(date '+%H:%M')] log-check 시작"
 
-# 1. 서버에서 최근 1시간 로그 가져오기
-ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER" \
-  "cd $COMPOSE_DIR && docker compose logs backend --since 1h --no-log-prefix 2>/dev/null" \
-  > "$TEMP_LOG" 2>/dev/null || {
-    echo "[ERROR] SSH 접속 실패: $SERVER"
+# 1. 최근 1시간 로그 수집
+cd "$COMPOSE_DIR"
+docker compose logs backend --since 1h --no-log-prefix > "$TEMP_LOG" 2>/dev/null || {
+    echo "[ERROR] docker compose logs 실패 — 컨테이너가 실행 중인지 확인하세요"
     exit 1
 }
 
