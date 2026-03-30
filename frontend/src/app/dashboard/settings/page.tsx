@@ -284,7 +284,20 @@ export default function SettingsPage() {
       setNewAcct({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "", is_paper_trading: false, account_type: "일반" });
       setShowAddAccount(false);
       fetchKisAccounts();
-      toast.success("KIS 계좌가 등록되었습니다");
+      toast.success("KIS 계좌가 등록되었습니다. 보유 종목을 동기화하는 중...");
+      // 계좌 등록 즉시 자동 동기화 — holdings DB 채우기
+      try {
+        const { data } = await api.post<{ accounts: AccountBalance[] }>("/sync/balance");
+        const synced = data.accounts[0]?.synced;
+        if (synced && (synced.inserted > 0 || synced.updated > 0)) {
+          toast.success(`동기화 완료: ${synced.inserted}개 종목이 포트폴리오에 추가됐습니다`);
+        } else {
+          toast.success("동기화 완료");
+        }
+        setBalanceAccounts(data.accounts);
+      } catch {
+        toast.warning("계좌는 등록됐지만 초기 동기화에 실패했습니다. 설정 > 실계좌 조회 & 동기화를 다시 시도해주세요.");
+      }
     } catch {
       toast.error("계좌 등록에 실패했습니다");
     } finally {

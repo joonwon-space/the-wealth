@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X } from "lucide-react";
+import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X, RefreshCw } from "lucide-react";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
@@ -16,6 +16,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { OrderDialog, ExistingHolding } from "@/components/OrderDialog";
 import { PendingOrdersPanel } from "@/components/PendingOrdersPanel";
 import { useCashBalance, usePendingOrders } from "@/hooks/useOrders";
+import { toast } from "sonner";
 
 interface PortfolioInfo {
   id: number;
@@ -124,6 +125,23 @@ export default function PortfolioDetailPage() {
   const [editMemoValue, setEditMemoValue] = useState<string>("");
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInputValue, setTargetInputValue] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleKisSync = async () => {
+    setIsSyncing(true);
+    try {
+      const { data } = await api.post<{ inserted: number; updated: number; deleted: number }>(
+        `/sync/${portfolioId}`
+      );
+      await queryClient.invalidateQueries({ queryKey: holdingsKey(portfolioId) });
+      const total = data.inserted + data.updated + data.deleted;
+      toast.success(total > 0 ? `동기화 완료 (+${data.inserted} ~${data.updated} -${data.deleted})` : "이미 최신 상태입니다");
+    } catch {
+      toast.error("동기화에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // KIS 거래 이력 날짜 범위 (기본: 최근 1개월)
   const today = new Date();
@@ -536,12 +554,25 @@ export default function PortfolioDetailPage() {
       ) : holdings.length === 0 && !addForm ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <PackageOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
-          <p className="font-medium">보유 종목이 없습니다</p>
-          <p className="mt-1 text-sm text-muted-foreground">종목을 검색해서 추가해보세요.</p>
-          <Button onClick={() => setSearchOpen(true)} className="mt-4 gap-2">
-            <Search className="h-4 w-4" />
-            종목 검색
-          </Button>
+          {isKisConnected ? (
+            <>
+              <p className="font-medium">KIS 계좌가 연결됐지만 아직 동기화되지 않았습니다</p>
+              <p className="mt-1 text-sm text-muted-foreground">실계좌 보유 종목을 불러오려면 동기화를 실행하세요.</p>
+              <Button onClick={handleKisSync} disabled={isSyncing} className="mt-4 gap-2">
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                {isSyncing ? "동기화 중..." : "지금 동기화"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="font-medium">보유 종목이 없습니다</p>
+              <p className="mt-1 text-sm text-muted-foreground">종목을 검색해서 추가해보세요.</p>
+              <Button onClick={() => setSearchOpen(true)} className="mt-4 gap-2">
+                <Search className="h-4 w-4" />
+                종목 검색
+              </Button>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border">
