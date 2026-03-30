@@ -1,6 +1,6 @@
 ---
 name: doc-updater
-description: Sync and expand project documentation in docs/. Updates existing files to reflect current codebase state and creates new docs when needed.
+description: Sync all docs/ files with current codebase state. Extracts ground truth from code first, then diffs against docs, then updates. Never relies on AI memory.
 model: opus
 tools:
   - Read
@@ -13,168 +13,310 @@ tools:
 
 # Documentation Updater
 
-Scan the codebase and keep all documentation in `docs/` accurate and complete.
+**Core principle**: Extract facts from code first → diff against docs → update only what's wrong.
+Never rely on AI memory. Always verify from source before writing anything.
 
-## Scope
+---
 
-| Directory | Files | What to maintain |
-|-----------|-------|-----------------|
-| `docs/architecture/` | `overview.md`, `analysis.md`, `infrastructure.md` | Tech stack, APIs, DB models, pages, services, strengths/risks |
-| `docs/plan/` | `tasks.md`, `todo.md`, `manual-tasks.md` | Task lists — do NOT modify these (owned by discover-tasks / auto-task) |
-| `docs/reviews/` | `*.md` | Code/architecture review snapshots |
+## Phase 1: Extract Ground Truth from Code
 
-## Step 1 — Read all existing docs
+Run ALL of the following before reading any docs. Save results mentally as your "source of truth".
 
-Read every file in `docs/` recursively:
+### 1a. Backend routes (full paths)
+
+First get router prefixes:
+```bash
+grep -rn "APIRouter(prefix=" backend/app/api/*.py | \
+  sed 's/.*api\/\([^.]*\)\.py.*prefix="\([^"]*\)".*/\2 → \1.py/' | sort
+```
+
+Then get all route decorators per file:
+```bash
+grep -rn "^@router\." backend/app/api/*.py | \
+  grep -E '\.(get|post|patch|delete|put)\("' | \
+  sed 's|backend/app/api/||; s|\.py:[0-9]*:@router\.| |; s|("| |; s|".*||'
+```
+
+Read `backend/app/main.py` to confirm router include order and any path overrides.
+
+Combine prefix + relative path to build a **complete canonical route list**:
+```
+METHOD  /full/path                                FILE
+GET     /portfolios                               portfolios.py
+POST    /portfolios/{id}/holdings                 portfolios.py
+POST    /portfolios/{id}/holdings/bulk            portfolios.py
+...
+```
+
+### 1b. Frontend pages
+
+```bash
+find frontend/src/app -name "page.tsx" | \
+  sed 's|frontend/src/app||; s|/page\.tsx$||' | sort
+```
+
+Also check sidebar nav items to confirm which pages are linked:
+```bash
+grep -n "href" frontend/src/components/Sidebar.tsx | grep dashboard
+```
+
+### 1c. DB models
+
+```bash
+grep -rn "^class " backend/app/models/*.py | grep "(Base)" | \
+  sed 's/.*class \([A-Za-z]*\).*/\1/'
+```
+
+For each model, note its table name and key columns by reading the file.
+
+### 1d. Recent changes
+
+```bash
+git log --oneline -20
+```
+
+Note every commit that adds/removes/renames a feature, endpoint, or page.
+
+### 1e. Build & test status
+
+```bash
+cd frontend && npx tsc --noEmit 2>&1 | tail -5
+```
+```bash
+cd backend && source venv/bin/activate && ruff check . 2>&1 | tail -5
+```
+```bash
+cd backend && source venv/bin/activate && pytest -q --tb=no 2>&1 | tail -3
+```
+
+---
+
+## Phase 2: Read All Docs
+
+Read every doc file in full:
 - `docs/architecture/overview.md`
+- `docs/architecture/api-reference.md` (if exists)
+- `docs/architecture/frontend-guide.md` (if exists)
 - `docs/architecture/analysis.md`
 - `docs/architecture/infrastructure.md`
-- `docs/reviews/` — all files
-- `docs/plan/tasks.md` (read-only, for context)
-- `docs/plan/todo.md` (read-only, for context)
+- `docs/plan/tasks.md` — read-only context
+- `docs/plan/todo.md` — read-only context
 
-## Step 2 — Scan codebase for changes
+---
 
-Compare docs against actual code state:
+## Phase 3: Build Explicit Diffs
 
-### Backend (`backend/app/`)
-- **API routes**: Read all files in `backend/app/api/` — list every router, endpoint (method + path), and what it does
-- **Models**: Read `backend/app/models/` — list all SQLAlchemy models and their key fields
-- **Services**: Read `backend/app/services/` — list all service modules and their responsibilities
-- **Schemas**: Read `backend/app/schemas/` — list Pydantic schemas
-- **Auth/core**: Read `backend/app/core/` — note auth strategy, config, encryption
+For EACH doc, produce two lists before touching anything:
 
-### Frontend (`frontend/src/`)
-- **Pages**: Glob `frontend/src/app/**/page.tsx` — list all routes and what each renders
-- **Components**: Glob `frontend/src/components/**/*.tsx` — list key components
-- **Hooks/lib**: Read `frontend/src/lib/`, `frontend/src/hooks/` — list utilities and hooks
-- **API client**: Find how frontend calls backend (axios instance, fetch wrappers)
+### API diff (for overview.md section 5 and api-reference.md)
 
-### Project-level
-- Run `git log --oneline -15` — note recent changes not yet in docs
-- Run `cd frontend && npm run build 2>&1 | tail -20` — capture build status
-- Run `cd backend && source venv/bin/activate && ruff check . 2>&1 | tail -20` — capture lint status
-- Run `cd backend && source venv/bin/activate && pytest --cov=app -q 2>&1 | tail -20` — capture test coverage
+**Missing from docs** (route exists in code, not in docs):
+```
++ POST /portfolios/{id}/holdings/bulk
++ GET  /portfolios/{id}/export/xlsx
++ GET  /portfolios/{id}/transactions/paginated
+...
+```
 
-## Step 3 — Update existing docs
+**Stale in docs** (route in docs, not in code):
+```
+- POST /portfolios/{id}/something-removed
+...
+```
+
+### Pages diff (for overview.md section 3 and frontend-guide.md)
+
+**Missing from docs**:
+```
++ /dashboard/journal
+...
+```
+
+**Stale in docs**:
+```
+- /dashboard/old-page
+...
+```
+
+### Features diff (for overview.md section 2)
+
+From git log, identify features added since docs were last updated. For each:
+- Does overview.md section 2 mention it? If not → add.
+
+If diffs are all empty → docs are in sync, skip to Phase 5.
+
+---
+
+## Phase 4: Update Docs
+
+Apply only what the diff found. Do NOT rewrite sections that are still accurate.
 
 ### `docs/architecture/overview.md`
 
-Must stay accurate on:
-- **Tech stack table** — versions from `package.json` and `pyproject.toml` / `requirements*.txt`
-- **Directory layout** — any new top-level directories or significant new files
-- **API endpoint table** — every route in `backend/app/api/` with method, path, auth requirement, description
-- **DB models table** — every model with key columns
-- **Frontend pages table** — every `page.tsx` route with what it shows
-- **Key components** — important shared components (data grids, charts, forms)
-- **Services summary** — what each backend service does
+**Section 2 (기능 명세)** — Add missing features:
+- New table rows only. Do not reorganize existing accurate rows.
+- Example: "Excel 내보내기", "보유종목 일괄 등록", "투자 일지" if added since last update.
 
-Remove stale entries. Add missing ones.
+**Section 3 (페이지 구조)** — Sync tree with extracted page list:
+- Add missing pages with a short description.
+- Remove pages that no longer exist.
+
+**Section 5 (API 엔드포인트 전체 목록)** — Sync with canonical route list:
+- Update group counts in headers (e.g., "### 포트폴리오 (21)").
+- Add missing rows. Remove stale rows.
+- Keep existing descriptions for unchanged routes.
+
+### `docs/architecture/api-reference.md`
+
+For each **missing** endpoint from the diff, add a section:
+```markdown
+### METHOD /full/path
+- **Auth**: Required / None
+- **Rate limit**: X/minute (if applicable)
+- **Request body**: `{ field: type }` (read the schema file to fill this in accurately)
+- **Response** (status_code): shape or description
+- **Description**: what it does in one sentence
+```
+
+Read the actual schema/route handler before writing request/response shapes — do not guess.
+
+For each **stale** endpoint, remove its section entirely.
+
+### `docs/architecture/frontend-guide.md`
+
+- Sync the page routing map with the extracted page list.
+- Add sections for new pages (what they show, key components used).
+- Remove sections for deleted pages.
+- If the file doesn't exist, create it with the structure below.
 
 ### `docs/architecture/analysis.md`
 
-Must stay accurate on:
-- **Project completeness** — % complete per area (auth, portfolio, dashboard, KIS integration, tests)
-- **Test coverage** — overall % and per-module breakdown (update from pytest output)
-- **Strengths** — validated working features
-- **Weaknesses** — known gaps, partial implementations
-- **Risks** — technical debt, security concerns, external dependencies
-- **Recent improvements** — what was fixed/added recently (from git log)
-
-Remove resolved weaknesses. Add newly discovered risks.
+- Update "최근 변경사항" / "Recent improvements" section from git log.
+- Update test coverage numbers from pytest output.
+- Remove weaknesses that are now resolved (cross-reference git log).
+- Add new risks if introduced (e.g., new external API dependency).
 
 ### `docs/architecture/infrastructure.md`
 
-Must stay accurate on:
-- Deployment architecture (if documented)
-- Environment variables required (cross-reference `backend/.env.example`)
-- Redis usage
-- External services (KIS API)
+Update only if:
+- New env vars were added (cross-reference `backend/.env.example`)
+- New services added (Redis, new scheduler jobs, etc.)
+- Docker compose changed
 
-### `docs/reviews/` — New reviews when needed
+---
 
-Create a new review file if any of these conditions are true:
-- A major new feature was added since the last review (check git log)
-- A significant refactor happened
-- No review exists for a subsystem that is now complete
+## Phase 5: Create Missing Files
 
-Review file naming: `{subsystem}_review_{YYYY-MM-DD}.md`
+### If `docs/architecture/api-reference.md` doesn't exist
 
-Review file structure:
-```markdown
-# {Subsystem} Review — {date}
+Generate from canonical route list. For every route, read the handler and schema to fill in accurate request/response shapes.
 
-## Summary
-Brief description of what was reviewed.
-
-## Strengths
-- ...
-
-## Issues Found
-### Critical
-- ...
-### Medium
-- ...
-### Low / Suggestions
-- ...
-
-## Verdict
-Overall assessment.
-```
-
-## Step 4 — Create missing docs
-
-If any of these don't exist, create them:
-
-### `docs/architecture/api-reference.md` (create if missing)
-Full API reference generated from scanning `backend/app/api/`:
+Structure:
 ```markdown
 # API Reference
 
-## Authentication
-- POST /auth/register
-- POST /auth/login
+Base URL: `/api/v1`
+Auth: Bearer token required on all endpoints except /auth/* and /health
+
+---
+
+## Auth (`/auth`)
+### POST /auth/register
 ...
 
-## Portfolio
-- GET /portfolios
+## Portfolios (`/portfolios`)
+### GET /portfolios
 ...
 ```
-For each endpoint: method, path, auth required, request body (if any), response shape, description.
 
-### `docs/architecture/frontend-guide.md` (create if missing)
-Frontend structure guide:
-- Page routing map
-- Key components and their props
-- State management approach
-- How to add a new page/component
-- Theming (colors, typography)
+### If `docs/architecture/frontend-guide.md` doesn't exist
 
-## Step 5 — Commit
+```markdown
+# Frontend Guide
+
+## Page Routing Map
+
+| Route | Description |
+|-------|-------------|
+| /login | 로그인 |
+| /register | 회원가입 |
+| /dashboard | 메인 대시보드 |
+...
+
+## State Management
+- TanStack Query: server state, cache invalidation on mutations
+- Zustand (`useAuthStore`): auth token, user info
+- Optimistic updates via `queryClient.setQueryData`
+
+## HTTP Client
+- Axios instance in `frontend/src/lib/api.ts`
+- Response interceptor: JWT expiry → auto refresh rotation
+- Base URL: `process.env.NEXT_PUBLIC_API_URL`
+
+## How to Add a New Page
+1. Create `frontend/src/app/dashboard/{name}/page.tsx`
+2. Add nav entry in `Sidebar.tsx` (desktop) and `BottomNav.tsx` (mobile)
+3. Register query key in relevant hook file
+4. Update this doc's page routing map
+
+## Key Components
+| Component | Purpose |
+|-----------|---------|
+...
+
+## Theming
+- shadcn/ui `base-nova` style, `neutral` base color
+- Korean color convention: red = gain, blue = loss
+- Dark mode via `next-themes`
+```
+
+---
+
+## Phase 6: Commit
 
 ```bash
 git add docs/
 git commit -m "docs: sync documentation with current codebase state"
 ```
 
-## Step 6 — Output
+---
+
+## Phase 7: Output Report
 
 ```
-Documentation updated!
+## Ground Truth (extracted from code)
+- Backend routes: N total
+- Frontend pages: N total
+- DB models: N total
 
-Updated:
-- docs/architecture/overview.md — [what changed]
-- docs/architecture/analysis.md — [what changed]
-- docs/architecture/infrastructure.md — [what changed]
+## Diffs Applied
+### overview.md
+  Added endpoints: POST /portfolios/{id}/holdings/bulk, GET /portfolios/{id}/export/xlsx, ...
+  Added pages: /dashboard/journal
+  Added features: Excel 내보내기, 보유종목 일괄 등록, 투자 일지
 
-Created:
-- docs/architecture/api-reference.md (new)
-- docs/reviews/xxx_review_YYYY-MM-DD.md (new)
+### api-reference.md
+  Added sections: POST /portfolios/{id}/holdings/bulk, GET /portfolios/{id}/export/xlsx, ...
+  Removed sections: (none)
 
-Unchanged:
-- ...
+### frontend-guide.md
+  Added pages: /dashboard/journal
+  No other changes.
 
-Build status: ✓ clean / ✗ N errors
-Lint status: ✓ clean / ✗ N errors
-Test coverage: N%
+### analysis.md
+  Updated: test coverage N% → N%, added 3 recent improvements
+
+### infrastructure.md
+  No changes needed.
+
+## Unchanged (verified accurate)
+- docs/architecture/infrastructure.md (no env var or service changes)
+
+## Build Status
+  TypeScript: ✓ / ✗ (N errors)
+  Ruff: ✓ / ✗ (N issues)
+  Tests: N passed, N failed — coverage N%
+
+## Committed
+  docs: sync documentation with current codebase state
 ```
