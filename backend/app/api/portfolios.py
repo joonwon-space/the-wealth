@@ -23,6 +23,8 @@ from app.services.kis_price import (
     fetch_usd_krw_rate,
 )
 from app.schemas.portfolio import (
+    BulkHoldingRequest,
+    BulkHoldingResult,
     HoldingCreate,
     HoldingResponse,
     HoldingUpdate,
@@ -387,6 +389,77 @@ async def add_holding(
     await db.commit()
     await db.refresh(holding)
     return holding
+
+
+@router.post(
+    "/{portfolio_id}/holdings/bulk",
+    response_model=BulkHoldingResult,
+    status_code=status.HTTP_200_OK,
+)
+async def bulk_add_holdings(
+    portfolio_id: int,
+    body: BulkHoldingRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> BulkHoldingResult:
+    """보유 종목 일괄 등록/업데이트.
+
+    - 신규 ticker: 새 Holding 생성
+    - 기존 ticker: 수량 합산 + 가중평균 평단가 업데이트
+    - 최대 100건; 유효성 오류 항목은 건너뛰고 errors 목록에 추가
+    """
+    portfolio = await db.get(Portfolio, portfolio_id)
+    if not portfolio:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
+    _assert_portfolio_owner(portfolio, current_user)
+
+    # 기존 보유 종목 조회 (ticker → Holding 맵)
+    existing_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id == portfolio_id)
+    )
+    existing_map: dict[str, Holding] = {h.ticker: h for h in existing_result.scalars().all()}
+
+    created = 0
+    updated = 0
+    errors: list[str] = []
+
+    for item in body.items:
+        try:
+            if item.ticker in existing_map:
+                # upsert: 가중평균 평단가 계산
+                existing = existing_map[item.ticker]
+                old_qty = existing.quantity
+                old_price = existing.avg_price
+                new_qty = item.quantity
+                new_price = item.avg_price
+                total_qty = old_qty + new_qty
+                weighted_avg = (old_qty * old_price + new_qty * new_price) / total_qty
+                existing.quantity = total_qty
+                existing.avg_price = weighted_avg
+                updated += 1
+            else:
+                holding = Holding(
+                    portfolio_id=portfolio_id,
+                    ticker=item.ticker,
+                    name=item.name,
+                    quantity=item.quantity,
+                    avg_price=item.avg_price,
+                    market=item.market,
+                )
+                db.add(holding)
+                existing_map[item.ticker] = holding
+                created += 1
+        except Exception as exc:
+            errors.append(f"{item.ticker}: {exc}")
+
+    await db.commit()
+    logger.info(
+        "Bulk holdings upsert: portfolio=%d created=%d updated=%d errors=%d",
+        portfolio_id, created, updated, len(errors),
+    )
+    return BulkHoldingResult(created=created, updated=updated, errors=errors)
 
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingResponse)

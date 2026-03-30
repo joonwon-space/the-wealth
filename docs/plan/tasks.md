@@ -93,6 +93,34 @@ Each item should be completable in a single commit.
 
 ## Current work
 
+### P1 -- Excel 내보내기 (15-4 / 19-3)
+
+- [x] **feat: 포트폴리오 Excel(xlsx) 내보내기 API + UI**
+  - `backend/app/api/portfolio_export.py` — `GET /{portfolio_id}/export/xlsx` 엔드포인트 추가
+  - openpyxl 사용: 보유 종목 시트 + 거래내역 시트 (서식 포함)
+  - 열 너비 자동 조정, 헤더 볼드, 숫자 형식 적용
+  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — "Excel 내보내기" 버튼 추가 (CSV 버튼 옆)
+  - 파일: `backend/app/api/portfolio_export.py`, 포트폴리오 상세 페이지
+
+### P1 -- Bulk Holdings API (12-5)
+
+- [x] **feat: 보유 종목 일괄 등록 API**
+  - `backend/app/api/portfolios.py` — `POST /portfolios/{id}/holdings/bulk` 엔드포인트 추가
+  - 요청: `[{ticker, name, quantity, avg_price}]` 배열 (최대 100건)
+  - 중복 ticker 처리: upsert (기존 보유 수량+평단가 가중평균 업데이트)
+  - 응답: `{created: N, updated: N, errors: [...]}`
+  - 파일: `backend/app/api/portfolios.py`, `backend/tests/test_portfolios.py`
+
+### P1 -- 투자 일지 페이지 (17-3)
+
+- [x] **feat: 투자 일지 타임라인 페이지**
+  - `frontend/src/app/dashboard/journal/page.tsx` 생성
+  - 거래 내역(transactions)을 날짜 역순으로 타임라인 형식으로 표시
+  - 메모가 있는 항목은 말풍선으로 강조 표시
+  - 종목별 필터, BUY/SELL 타입 필터 제공
+  - Sidebar/BottomNav에 "일지" 메뉴 항목 추가
+  - 파일: `frontend/src/app/dashboard/journal/page.tsx`, `Sidebar.tsx`, `BottomNav.tsx`
+
 ### P0 -- 테스트 인프라 수정 (일괄 실행 시 294건 ERROR)
 
 - [x] **fix: conftest.py async DB session 격리 문제 해결**
