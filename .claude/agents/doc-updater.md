@@ -1,7 +1,7 @@
 ---
 name: doc-updater
 description: Sync all docs/ files with current codebase state. Extracts ground truth from code first, then diffs against docs, then updates. Never relies on AI memory.
-model: opus
+model: sonnet
 tools:
   - Read
   - Write
