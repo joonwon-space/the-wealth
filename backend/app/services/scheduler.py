@@ -229,13 +229,19 @@ _MARKET_MAP_SCHED = {
 
 
 async def _preload_prices(job_id: str = "preload_prices") -> None:
-    """장 개시 전 모든 보유 종목 가격을 KIS API에서 조회해 Redis 캐시를 워밍.
+    """장 개시 전 보유 종목을 KIS에서 동기화한 뒤 가격 캐시를 워밍.
 
-    KST 08:00에 실행하여 아침에 접속하는 사용자가 즉시 최신 가격을 볼 수 있게 한다.
-    캐시 미스 시에만 KIS API를 호출하므로 이미 캐시된 종목은 건너뜀.
+    KST 08:00 평일 실행:
+    1. 모든 KIS 계좌의 보유 종목을 reconcile_holdings로 최신화 (어제 종가 이후 변동 반영)
+    2. 갱신된 보유 종목 전체의 가격을 Redis에 캐싱 (접속 시 즉시 최신 가격 제공)
     """
-    logger.info("[Scheduler] Starting pre-market price preload")
+    logger.info("[Scheduler] Starting pre-market holdings sync + price preload")
     try:
+        # Step 1: holdings 동기화 (모든 KIS 계좌)
+        await _sync_all_accounts(job_id=job_id)
+        logger.info("[Scheduler] Pre-market holdings sync complete, starting price preload")
+
+        # Step 2: 갱신된 holdings 기준으로 가격 캐시 워밍
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(KisAccount).limit(1))
             acct = result.scalar_one_or_none()
