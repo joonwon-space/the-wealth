@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 65 API endpoints (17 routers)                          │
+│   ├── 73 API endpoints (17 routers)                          │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (60/min)                          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -71,6 +71,7 @@ frontend/src/
 │       ├── error.tsx             # 대시보드 에러 바운더리
 │       ├── layout.tsx            # 대시보드 레이아웃 (사이드바+하단 네비)
 │       ├── analytics/            # 분석 페이지
+│       ├── journal/              # 투자 일지 페이지
 │       ├── portfolios/           # 포트폴리오 목록/상세
 │       │   ├── page.tsx          # 포트폴리오 목록
 │       │   └── [id]/             # 포트폴리오 상세 (거래내역)
@@ -93,9 +94,12 @@ frontend/src/
 │   ├── StockSearchDialog.tsx     # Cmd+K 종목 검색
 │   ├── ThemeProvider.tsx         # next-themes 테마 프로바이더
 │   ├── TransactionChart.tsx      # 거래내역 차트 (월별 매수/매도)
+│   ├── TopHoldingsWidget.tsx     # 상위 보유종목 위젯
 │   ├── WatchlistSection.tsx      # 관심종목 섹션
 │   ├── QueryProvider.tsx         # TanStack Query 프로바이더 (QueryClientProvider)
 │   ├── PageError.tsx             # 페이지 에러 표시 컴포넌트
+│   ├── CardSkeleton.tsx          # 카드 로딩 스켈레톤
+│   ├── ChartSkeleton.tsx         # 차트 로딩 스켈레톤
 │   ├── TableSkeleton.tsx         # 테이블 로딩 스켈레톤
 │   ├── NotificationBell.tsx     # 알림 벨 아이콘 + 미읽음 배지 + 드롭다운
 │   ├── OrderDialog.tsx          # 매수/매도 주문 다이얼로그 (지정가/시장가, 빠른비율)
@@ -103,6 +107,7 @@ frontend/src/
 │   ├── SentryInit.tsx           # Sentry 초기화 (프로덕션 전용)
 │   └── ui/                       # shadcn/ui 컴포넌트
 ├── hooks/
+│   ├── useCountUp.ts              # 숫자 카운트업 애니메이션 훅
 │   ├── usePriceStream.ts         # SSE 실시간 가격 스트리밍 훅
 │   ├── useNotifications.ts      # 알림 센터 TanStack Query 훅 (목록, 읽음, 전체 읽음)
 │   └── useOrders.ts             # 주문 TanStack Query 훅 (주문, 예수금, 미체결, 취소)
@@ -718,17 +723,18 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-03-28)
+## 6. 프로젝트 현황 분석 (2026-03-30)
 
 ### 6.1 완성도
 
 | 영역 | 상태 | 비고 |
 |------|------|------|
 | 인증 (JWT + HttpOnly Cookie) | 완료 | Refresh token rotation, IDOR 방지, 로그아웃 |
-| 포트폴리오 CRUD | 완료 | CSV export (보유종목 + 거래내역), 거래내역 soft delete 포함 |
+| 포트폴리오 CRUD | 완료 | CSV/Excel export, 보유종목 일괄등록, 거래내역 cursor 페이지네이션, soft delete 포함 |
 | 대시보드 | 완료 | SSE 실시간, 30초 폴링, 자산 배분 도넛, 해외주식 USD 가격 표시, KIS 장애 감지 배너 |
 | KIS API 연동 | 완료 | 국내/해외 현재가, OHLCV, 잔고 동기화, 장애 감지 (kis_status: degraded) |
 | 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리 |
+| 투자 일지 | 완료 | 전용 페이지 (/dashboard/journal) |
 | 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
@@ -749,23 +755,20 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: **65%** (741 tests collected, 447 passed, 294 errors)
+전체: **89%** (820 passed, 0 errors)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
-| core/ (security, encryption, middleware, limiter, redis_cache, logging) | 91-100% | logging.py 98% (신규 테스트 추가) |
+| core/ (security, encryption, middleware, limiter, redis_cache, logging) | 91-100% | logging.py 98% |
 | models/ | 100% | ORM 모델 |
-| schemas/ | 100% | Pydantic 스키마 |
-| services/ | 93-100% | backup_health(100%), kis_health(100%), kis_price(94%), scheduler(98%) |
-| services/kis_transaction.py | 0% | 테스트 미작성 |
-| api/ routers | 25-100% | 신규 Trading 라우터(orders.py 27%) 등 미커버 다수 |
+| schemas/ | 98-100% | Pydantic 스키마 (order.py 98%) |
+| services/ | 79-100% | kis_order(92%), kis_price(80%), kis_transaction(93%), scheduler(79%) |
+| services/backup_health, kis_health, reconciliation, price_snapshot | 100% | 완전 커버 |
+| api/ routers | 25-100% | 대부분 통합 테스트 통과 |
 | db/ | 75-100% | session.py 75% |
 | main.py | 85% | lifespan, 예외 핸들러 |
 
-**주요 이슈**: 전체 테스트 일괄 실행 시 294건 ERROR 발생 (async DB session 격리 문제로 setup 단계에서 실패). 개별 테스트 파일 실행 시 모두 PASS. 테스트 fixture의 DB session cleanup이 불완전하여 일괄 실행 시 세션 누수 발생. 커버리지가 87%에서 65%로 하락한 주요 원인:
-1. 일괄 실행 시 294개 테스트가 ERROR로 집계되어 커버리지 측정에서 제외
-2. 신규 Trading Feature 코드(orders.py, kis_order.py, kis_balance.py) 커버리지 미달
-3. `internal 2.py` 등 중복 파일이 커버리지 측정에 포함 (0%)
+이전 일괄 실행 시 294건 ERROR가 발생하던 async DB session 격리 문제가 해결되어, 820건 전체 PASS 달성. 커버리지 89%로 80% 최소 기준 충족.
 
 ### 6.3 강점
 
@@ -778,7 +781,7 @@ slowapi 기반 IP별 레이트 리미팅:
 - 해외주식 USD 가격 표시 및 원화 환산 (환율 자동 적용)
 - 보유종목 market_value_krw 기준 내림차순 정렬
 - SSE 연결 하드닝: 사용자별 제한, 하트비트, 유휴 감지, 최대 연결 시간
-- 테스트 741건 수집, ruff lint 오류 0건
+- 테스트 820건 전체 PASS (89% 커버리지), ruff lint 오류 0건
 - Commitlint 커밋 메시지 검증 자동화
 - 표준화된 에러 응답 envelope (error.code, error.message, request_id)
 - Graceful shutdown (SSE 연결 종료 시그널, 스케줄러 정지)
@@ -804,16 +807,19 @@ slowapi 기반 IP별 레이트 리미팅:
 - 계좌 유형별 TR_ID 분기: 일반/ISA/연금저축/IRP 자동 구분
 - 주문 다이얼로그: 지정가/시장가 전환, 빠른 비율 버튼(10%/25%/50%/100%), 확인 스텝
 - 미체결 주문 패널: 주문 취소 + 체결 감지 시 toast 알림
+- Excel(xlsx) 내보내기: 보유종목 + 거래내역 시트 포함
+- 보유종목 일괄등록 API: 최대 100건 일괄 등록/업데이트 (가중평균 합산)
+- 투자 일지 전용 페이지 (/dashboard/journal)
+- 거래내역 커서 기반 페이지네이션 (무한 스크롤)
+- KIS API 중복 호출 제거 및 장 전 가격 캐시 워밍
+- 테스트 일괄 실행 안정성 개선: 294 ERROR -> 0 ERROR (async DB session 격리 문제 해결)
 
 ### 6.4 약점 및 개선 필요 사항
 
-- **[CRITICAL] 테스트 일괄 실행 시 294건 ERROR** — async DB session 격리 문제, conftest.py fixture 개선 필요
-- **[HIGH] npm 취약점 4건** (yaml 2.0.0-2.8.2 Stack Overflow, 2 moderate + 2 high) — `npm audit fix`로 해결 가능
-- **[HIGH] 중복 파일 정리 필요** — `internal 2.py`, `.coverage 2~4`, `test_* 2.py/3.py` 등 공백 포함 중복 파일 다수
+- **[HIGH] npm 취약점 4건** (yaml 2.0.0-2.8.2 Stack Overflow, 2 moderate + 2 high) -- `npm audit fix`로 해결 가능
+- **[HIGH] 중복 파일 정리 필요** -- `.coverage 2~9`, `test_* 2.py` 등 공백 포함 중복 파일 다수
 - 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
 - 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
-- `kis_transaction.py` 서비스 테스트 커버리지 0% (신규 추가)
-- `kis_order.py`(27%), `kis_balance.py`, `orders.py`(27%) 테스트 커버리지 미달 (Trading Feature)
 - 분석 페이지 벤치마크/고급 지표 미구현 (기간 필터는 1W/1M/3M/6M/1Y/ALL 구현 완료)
 
 ### 6.5 리스크
@@ -823,8 +829,6 @@ slowapi 기반 IP별 레이트 리미팅:
 | KIS API 의존성 | 중 | KIS API 장애 시 가격 조회 불가 (Redis 폴백 300초, 장 마감 후 24h). degraded 배너로 사용자에게 알림 |
 | 단일 서버 | 중 | self-hosted 단일 서버, 서버 장애 시 전체 서비스 중단 |
 | 단일 사용자 환경 | 저 | 현재 다중 사용자 동시 접속 부하 테스트 미실시 |
-| 테스트 일괄 실행 실패 | 높 | 741 중 294건 ERROR (async DB session 격리), 개별 실행 시 PASS — CI에서 false negative 가능 |
-| 테스트 커버리지 하락 | 중 | 65%로 하락 (일괄 실행 ERROR + Trading Feature 미커버), 80% 최소 기준 미달 |
 
 ---
 

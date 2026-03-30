@@ -41,6 +41,9 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 거래내역 기록 | BUY/SELL 거래 기록, 자동 보유종목 수량 반영 |
 | 거래 메모 | 거래별 투자 메모 기록 (인라인 편집) |
 | CSV 내보내기 | 포트폴리오 보유종목 및 거래내역 CSV 다운로드 |
+| Excel 내보내기 | 보유종목 + 거래내역 시트 포함 xlsx 파일 다운로드 |
+| 보유종목 일괄등록 | 최대 100건 일괄 등록/업데이트 (신규 생성 + 기존 가중평균 합산) |
+| 커서 기반 페이지네이션 | 거래내역 cursor 기반 무한 스크롤 |
 | KIS 계좌 연결 | 포트폴리오에 KIS 계좌를 1:1 매핑 |
 | 포트폴리오 순서 변경 | 드래그 앤 드롭으로 포트폴리오 표시 순서 변경 |
 | KIS 체결내역 조회 | KIS API 국내/해외 체결 내역 조회 |
@@ -107,6 +110,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 /dashboard                  → 메인 대시보드
   ├── /                     → 포트폴리오 요약 + 보유종목 테이블 + 자산 배분 차트
   ├── /analytics            → 수익률 분석 (월별 히트맵, 포트폴리오 히스토리)
+  ├── /journal              → 투자 일지 페이지
   ├── /portfolios           → 포트폴리오 목록
   ├── /portfolios/[id]      → 포트폴리오 상세 (거래내역, 보유종목)
   ├── /stocks/[ticker]      → 종목 상세 (캔들스틱 차트, 종목 정보)
@@ -161,7 +165,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 70개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 73개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -172,7 +176,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/auth/change-password` | 비밀번호 변경 |
 | POST | `/auth/logout` | 로그아웃 |
 
-### 포트폴리오 (19)
+### 포트폴리오 (21)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/portfolios` | 포트폴리오 목록 |
@@ -183,15 +187,17 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/portfolios/{id}/holdings` | 보유종목 목록 |
 | GET | `/portfolios/{id}/holdings/with-prices` | 보유종목 + 현재가 |
 | POST | `/portfolios/{id}/holdings` | 보유종목 추가 |
+| POST | `/portfolios/{id}/holdings/bulk` | 보유종목 일괄등록 (최대 100건) |
 | PATCH | `/portfolios/holdings/{hid}` | 보유종목 수정 |
 | DELETE | `/portfolios/holdings/{hid}` | 보유종목 삭제 |
 | GET | `/portfolios/{id}/transactions` | 거래내역 목록 |
+| GET | `/portfolios/{id}/transactions/paginated` | 거래내역 커서 기반 페이지네이션 |
 | POST | `/portfolios/{id}/transactions` | 거래 기록 |
 | DELETE | `/portfolios/transactions/{tid}` | 거래 삭제 |
 | PATCH | `/portfolios/{id}/transactions/{tid}` | 거래 메모 수정 |
 | GET | `/portfolios/{id}/export/csv` | 보유종목 CSV 내보내기 |
 | GET | `/portfolios/{id}/transactions/export/csv` | 거래내역 CSV 내보내기 |
-| PATCH | `/portfolios/{id}/kis-account` | KIS 계좌 연결 |
+| GET | `/portfolios/{id}/export/xlsx` | 포트폴리오 Excel 내보내기 |
 | GET | `/portfolios/{id}/kis-transactions` | KIS 체결내역 조회 (국내+해외) |
 
 ### 주문 (5)
@@ -244,7 +250,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/sync/{portfolio_id}` | 포트폴리오 동기화 |
 | GET | `/sync/logs` | 동기화 로그 |
 
-### 사용자 관리 (9)
+### 사용자 관리 (10)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/users/me` | 내 정보 조회 (이메일, 이름) |

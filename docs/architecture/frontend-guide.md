@@ -36,6 +36,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `/register` | `app/register/page.tsx` | Registration form |
 | `/dashboard` | `app/dashboard/page.tsx` | Main dashboard: portfolio summary, holdings table, allocation donut |
 | `/dashboard/analytics` | `app/dashboard/analytics/page.tsx` | Analytics: monthly heatmap, sector allocation, portfolio history |
+| `/dashboard/journal` | `app/dashboard/journal/page.tsx` | Investment journal: transaction memos across all portfolios |
 | `/dashboard/portfolios` | `app/dashboard/portfolios/page.tsx` | Portfolio list |
 | `/dashboard/portfolios/[id]` | `app/dashboard/portfolios/[id]/page.tsx` | Portfolio detail: holdings, transactions |
 | `/dashboard/stocks/[ticker]` | `app/dashboard/stocks/[ticker]/page.tsx` | Stock detail: candlestick chart, stock info |
@@ -67,6 +68,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `HoldingsTable.tsx` | TanStack Table v8 -- multi-column sort, live prices, P&L badges |
 | `PnLBadge.tsx` | Profit/loss badge (gain=red, loss=blue per Korean convention) |
 | `DayChangeBadge.tsx` | Daily change badge (gain=red, loss=blue) |
+| `TopHoldingsWidget.tsx` | Top holdings summary widget |
 | `WatchlistSection.tsx` | Watchlist with KRX/NYSE/NASDAQ market tags |
 
 ### Charts
@@ -97,6 +99,8 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `QueryProvider.tsx` | TanStack Query provider (wraps app with QueryClientProvider) |
 | `ErrorBoundary.tsx` | React Error Boundary with fallback UI + Sentry captureException |
 | `PageError.tsx` | Page-level error display component |
+| `CardSkeleton.tsx` | Card loading skeleton |
+| `ChartSkeleton.tsx` | Chart loading skeleton |
 | `TableSkeleton.tsx` | Table loading skeleton |
 | `ThemeProvider.tsx` | next-themes provider (system/manual theme) |
 | `SentryInit.tsx` | Sentry SDK initialization (production only) |
@@ -146,6 +150,7 @@ Axios instance configured with:
 
 | Hook | File | Description |
 |------|------|-------------|
+| `useCountUp` | `hooks/useCountUp.ts` | Animated number count-up hook for dashboard metrics display. |
 | `usePriceStream` | `hooks/usePriceStream.ts` | SSE real-time price streaming. Connects to `GET /prices/stream?token={jwt}`. Updates prices every 30s during KST 09:00-15:30. Auto-reconnects on disconnect. |
 | `useNotifications` | `hooks/useNotifications.ts` | TanStack Query hook for notification center. Provides `notifications` list, `markRead`, `markAllRead` mutations with optimistic updates. |
 | `useOrders` | `hooks/useOrders.ts` | TanStack Query hooks for trading: `usePlaceOrder` (mutation), `useCashBalance` (query, 30s refetch), `usePendingOrders` (query, 5s refetch), `useCancelOrder` (mutation), `useOrderableInfo` (query). |

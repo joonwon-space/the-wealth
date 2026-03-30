@@ -85,11 +85,6 @@ Rate-limited endpoints for brute force protection.
 - **Response** (204): No content
 - **Side effect**: Cascade deletes holdings, transactions
 
-### PATCH /portfolios/{portfolio_id}/kis-account
-- **Auth**: Required (ownership verified)
-- **Request body**: `{ "kis_account_id": int | null }`
-- **Response** (200): `PortfolioResponse`
-
 ---
 
 ## Holdings (`/portfolios`)
@@ -108,6 +103,12 @@ Rate-limited endpoints for brute force protection.
 - **Request body**: `{ "ticker": string, "name": string, "quantity": decimal, "avg_price": decimal }`
 - **Response** (201): `HoldingResponse`
 
+### POST /portfolios/{portfolio_id}/holdings/bulk
+- **Auth**: Required (ownership verified)
+- **Request body**: `{ "holdings": [{ "ticker": string, "name": string, "quantity": decimal, "avg_price": decimal, "market"?: string }] }`
+- **Response** (200): `BulkHoldingResult` -- `{ created: int, updated: int, errors: [{ ticker, reason }] }`
+- **Notes**: Max 100 items per request. New tickers create new holdings; existing tickers merge (quantity added, weighted average price recalculated). Validation errors are skipped and returned in the errors list.
+
 ### PATCH /portfolios/holdings/{holding_id}
 - **Auth**: Required (ownership verified)
 - **Request body**: `{ "quantity"?: decimal, "avg_price"?: decimal }`
@@ -124,6 +125,12 @@ Rate-limited endpoints for brute force protection.
 ### GET /portfolios/{portfolio_id}/transactions
 - **Auth**: Required (ownership verified)
 - **Response** (200): `TransactionResponse[]`
+
+### GET /portfolios/{portfolio_id}/transactions/paginated
+- **Auth**: Required (ownership verified)
+- **Query params**: `cursor: int` (default 0, last transaction ID from previous page), `limit: int` (default 20, max 100)
+- **Response** (200): `TransactionPage` -- `{ items: TransactionResponse[], next_cursor: int | null, has_more: boolean }`
+- **Notes**: Cursor-based pagination for infinite scroll. `cursor=0` returns the first page. Excludes soft-deleted transactions.
 
 ### POST /portfolios/{portfolio_id}/transactions
 - **Auth**: Required (ownership verified)
@@ -159,6 +166,11 @@ Rate-limited endpoints for brute force protection.
 - **Auth**: Required (ownership verified)
 - **Response**: CSV file download (transaction history)
 - **Content-Type**: `text/csv`
+
+### GET /portfolios/{portfolio_id}/export/xlsx
+- **Auth**: Required (ownership verified)
+- **Response**: Excel file download (Sheet 1: holdings, Sheet 2: transactions)
+- **Content-Type**: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 
 ---
 
