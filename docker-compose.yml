@@ -90,6 +90,10 @@ services:
       DOZZLE_USERNAME: ${DOZZLE_USERNAME:-admin}
       DOZZLE_PASSWORD: ${DOZZLE_PASSWORD:-}
 
+  # Disk monitoring: run `scripts/disk-check.sh` via cron on the host to alert at 80% usage.
+  # Example host cron (every 6h): 0 */6 * * * /path/to/scripts/disk-check.sh >> /var/log/disk-check.log 2>&1
+  # The /health/disk API endpoint also returns real-time disk usage for each volume path.
+
   # Runs once per day at 02:00 via supercronic.
   # Backups are written to the postgres_backups volume.
   backup:

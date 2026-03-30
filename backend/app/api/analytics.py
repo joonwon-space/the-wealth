@@ -17,6 +17,7 @@ from app.api.deps import get_current_user
 from app.core.redis_cache import RedisCache
 from app.core.config import settings
 from app.db.session import get_db
+from app.models.fx_rate_snapshot import FxRateSnapshot
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
@@ -333,6 +334,7 @@ async def get_monthly_returns(
 @router.get("/portfolio-history", response_model=list[PortfolioHistoryPoint])
 async def get_portfolio_history(
     period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
+    portfolio_id: Optional[int] = Query(default=None, description="특정 포트폴리오 ID (미지정 시 전체 합산)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[PortfolioHistoryPoint]:
@@ -341,16 +343,19 @@ async def get_portfolio_history(
     price_snapshots에서 보유 종목의 날짜별 종가를 집계하여
     일별 포트폴리오 가치를 계산한다.
     period 파라미터로 반환 기간 필터링 가능 (1W/1M/3M/6M/1Y/ALL).
+    portfolio_id 파라미터로 특정 포트폴리오만 조회 가능.
     """
     normalized_period = period.upper() if period.upper() in ("1W", "1M", "3M", "6M", "1Y") else "ALL"
-    cache_key = _analytics_key(current_user.id, f"portfolio-history:{normalized_period}")
+    cache_suffix = f"portfolio-history:{normalized_period}" + (f":{portfolio_id}" if portfolio_id else "")
+    cache_key = _analytics_key(current_user.id, cache_suffix)
     cached = await _analytics_cache.get(cache_key)
     if cached:
         return [PortfolioHistoryPoint(**item) for item in json.loads(cached)]
 
-    port_result = await db.execute(
-        select(Portfolio).where(Portfolio.user_id == current_user.id)
-    )
+    port_query = select(Portfolio).where(Portfolio.user_id == current_user.id)
+    if portfolio_id is not None:
+        port_query = port_query.where(Portfolio.id == portfolio_id)
+    port_result = await db.execute(port_query)
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
         return []
@@ -462,3 +467,37 @@ async def get_sector_allocation(
         json.dumps([r.model_dump() for r in result])
     )
     return result
+
+
+@router.get("/fx-history")
+async def get_fx_history(
+    currency_pair: str = Query(default="USDKRW", description="통화쌍 (예: USDKRW)"),
+    days: int = Query(default=90, ge=1, le=365, description="조회 기간 (일, 최대 365)"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """USD/KRW 환율 히스토리 반환.
+
+    fx_rate_snapshots 테이블에서 최근 N일 환율 데이터를 조회한다.
+    스케줄러가 매 평일 장 마감 후(KST 16:30) 저장한다.
+
+    응답 예시:
+    [
+      {"date": "2026-03-28", "rate": 1380.5},
+      {"date": "2026-03-27", "rate": 1375.0}
+    ]
+    """
+    cutoff = date_type.today() - timedelta(days=days)
+    result = await db.execute(
+        select(FxRateSnapshot)
+        .where(
+            FxRateSnapshot.currency_pair == currency_pair,
+            FxRateSnapshot.snapshot_date >= cutoff,
+        )
+        .order_by(FxRateSnapshot.snapshot_date)
+    )
+    snapshots = result.scalars().all()
+    return [
+        {"date": snap.snapshot_date.isoformat(), "rate": float(snap.rate)}
+        for snap in snapshots
+    ]

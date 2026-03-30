@@ -1,7 +1,9 @@
 """데이터 무결성 헬스체크 API."""
 
+import shutil
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import case, func, select
@@ -17,6 +19,69 @@ from app.models.transaction import Transaction
 from app.models.user import User
 
 router = APIRouter(prefix="/health", tags=["health"])
+
+# 디스크 사용량 경고 임계값 (기본 80%)
+_DISK_THRESHOLD_PCT = 80
+
+# 모니터링할 경로 목록
+_DISK_CHECK_PATHS = ["/", "/var/lib/docker", "/tmp"]
+
+
+def _disk_usage_for_path(path: str) -> Optional[dict]:
+    """경로의 디스크 사용량 정보를 반환. 경로가 없으면 None."""
+    try:
+        usage = shutil.disk_usage(path)
+    except (FileNotFoundError, PermissionError):
+        return None
+    total_gb = usage.total / (1024**3)
+    used_gb = usage.used / (1024**3)
+    free_gb = usage.free / (1024**3)
+    used_pct = round(usage.used / usage.total * 100, 1) if usage.total > 0 else 0.0
+    return {
+        "path": path,
+        "total_gb": round(total_gb, 2),
+        "used_gb": round(used_gb, 2),
+        "free_gb": round(free_gb, 2),
+        "used_pct": used_pct,
+        "status": "critical" if used_pct >= _DISK_THRESHOLD_PCT else "ok",
+    }
+
+
+@router.get("/disk")
+async def disk_check(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Docker 볼륨 / 호스트 디스크 사용량 헬스체크.
+
+    각 경로의 사용률이 80% 이상이면 status = "critical".
+    응답 예시:
+    {
+      "status": "ok" | "critical",
+      "threshold_pct": 80,
+      "volumes": [
+        {
+          "path": "/",
+          "total_gb": 100.0,
+          "used_gb": 45.0,
+          "free_gb": 55.0,
+          "used_pct": 45.0,
+          "status": "ok"
+        }
+      ]
+    }
+    """
+    volumes = []
+    for path in _DISK_CHECK_PATHS:
+        info = _disk_usage_for_path(path)
+        if info is not None:
+            volumes.append(info)
+
+    overall = "critical" if any(v["status"] == "critical" for v in volumes) else "ok"
+    return {
+        "status": overall,
+        "threshold_pct": _DISK_THRESHOLD_PCT,
+        "volumes": volumes,
+    }
 
 
 def _last_n_weekdays(n: int, reference: date) -> list[date]:

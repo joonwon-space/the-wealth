@@ -131,6 +131,7 @@ class TransactionCreate(BaseModel):
 
 class TransactionMemoUpdate(BaseModel):
     memo: Optional[str] = Field(None, max_length=500)
+    tags: Optional[list[str]] = None
 
 
 class TransactionResponse(BaseModel):
@@ -144,6 +145,7 @@ class TransactionResponse(BaseModel):
     price: Decimal
     traded_at: datetime
     memo: Optional[str] = None
+    tags: Optional[list[str]] = None
 
 
 class TransactionPage(BaseModel):
