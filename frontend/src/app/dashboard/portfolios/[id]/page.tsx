@@ -161,7 +161,7 @@ export default function PortfolioDetailPage() {
   });
 
   const isKisConnected = Boolean(portfolioInfo?.kis_account_id);
-  const { data: cashBalance } = useCashBalance(isKisConnected ? portfolioId : 0);
+  const { data: cashBalance, isError: cashBalanceError, dataUpdatedAt: cashBalanceUpdatedAt, refetch: refetchCashBalance } = useCashBalance(isKisConnected ? portfolioId : 0);
   const { data: pendingOrders = [] } = usePendingOrders(isKisConnected ? portfolioId : 0);
 
   const { data: holdings = [], isLoading, isError, error, refetch } = useQuery<Holding[]>({
@@ -422,6 +422,24 @@ export default function PortfolioDetailPage() {
       </div>
 
       {/* KIS 연결 포트폴리오: 예수금 요약 */}
+      {isKisConnected && (cashBalance || cashBalanceError) && (
+        <div className="space-y-1.5">
+          {cashBalanceError && (
+            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+              <RefreshCw className="h-3 w-3" />
+              <span>잔액 조회 실패 — 마지막 데이터 표시 중</span>
+              <button onClick={() => void refetchCashBalance()} className="underline hover:no-underline">
+                새로고침
+              </button>
+            </div>
+          )}
+          {!cashBalanceError && cashBalanceUpdatedAt > 0 && (
+            <div className="text-xs text-muted-foreground text-right">
+              업데이트: {new Date(cashBalanceUpdatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </div>
+          )}
+        </div>
+      )}
       {isKisConnected && cashBalance && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-lg border p-3">
