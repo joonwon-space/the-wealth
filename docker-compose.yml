@@ -37,6 +37,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/the_wealth
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: http://localhost:3000,https://joonwon.dev
+      COOKIE_DOMAIN: .joonwon.dev
       LOG_DIR: /var/log/the-wealth
     ports:
       - "8000:8000"

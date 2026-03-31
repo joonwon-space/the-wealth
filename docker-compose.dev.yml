@@ -1,0 +1,43 @@
+# 로컬 개발용 — 인프라(postgres, redis)만 실행
+# 앱은 직접 실행: uvicorn + npm run dev
+#
+# 사용법:
+#   docker compose -f docker-compose.dev.yml up -d   # 인프라 시작
+#   cd backend && uvicorn app.main:app --reload       # 백엔드
+#   cd frontend && npm run dev                        # 프론트엔드
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: the_wealth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./scripts/pg-init-hba.sh:/docker-entrypoint-initdb.d/pg-init-hba.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data_dev:
+  redis_data_dev:
