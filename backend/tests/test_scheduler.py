@@ -124,6 +124,11 @@ class TestSyncAllAccounts:
                 return_value=[],
             ),
             patch(
+                "app.services.scheduler.fetch_overseas_account_holdings",
+                new_callable=AsyncMock,
+                return_value=([], None),
+            ),
+            patch(
                 "app.services.scheduler.reconcile_holdings",
                 new_callable=AsyncMock,
                 return_value=reconcile_counts,
