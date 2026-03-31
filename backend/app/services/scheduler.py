@@ -22,7 +22,7 @@ from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.sync_log import SyncLog
-from app.services.kis_account import fetch_account_holdings
+from app.services.kis_account import fetch_account_holdings, fetch_overseas_account_holdings
 from app.services.kis_price import (
     fetch_domestic_daily_ohlcv,
     fetch_domestic_price,
@@ -106,9 +106,13 @@ async def _sync_all_accounts(job_id: str = "kis_sync_us") -> None:
                     app_secret = decrypt(acct.app_secret_enc)
                     account_no = acct.account_no
 
-                    kis_holdings = await fetch_account_holdings(
-                        app_key, app_secret, account_no
+                    domestic_holdings = await fetch_account_holdings(
+                        app_key, app_secret, account_no, acct.acnt_prdt_cd
                     )
+                    overseas_holdings, _ = await fetch_overseas_account_holdings(
+                        app_key, app_secret, account_no, acct.acnt_prdt_cd
+                    )
+                    kis_holdings = domestic_holdings + overseas_holdings
                     counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
 
                     log_entry = SyncLog(
