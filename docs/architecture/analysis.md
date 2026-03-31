@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 73 API endpoints (17 routers)                          │
+│   ├── 71 API endpoints (17 routers)                          │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (60/min)                          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -71,6 +71,7 @@ frontend/src/
 │       ├── error.tsx             # 대시보드 에러 바운더리
 │       ├── layout.tsx            # 대시보드 레이아웃 (사이드바+하단 네비)
 │       ├── analytics/            # 분석 페이지
+│       ├── compare/              # 포트폴리오 비교 페이지
 │       ├── journal/              # 투자 일지 페이지
 │       ├── portfolios/           # 포트폴리오 목록/상세
 │       │   ├── page.tsx          # 포트폴리오 목록
@@ -384,22 +385,34 @@ async def fetch_prices_parallel(
 ### 3.4 스케줄러 (APScheduler)
 
 ```
-┌─────────────────────────────────────────────┐
-│ APScheduler (AsyncIOScheduler)               │
-│                                              │
-│ Job 1: kis_sync                              │
-│   trigger: interval(hours=1)                 │
-│   action: KIS 자격증명 있는 모든 사용자의      │
-│           첫 번째 포트폴리오 잔고 동기화        │
-│   결과: sync_logs 테이블에 기록               │
-│                                              │
-│ Job 2: daily_close_snapshot                  │
-│   trigger: cron(mon-fri, 07:10 UTC)          │
-│            = KST 16:10 (장 마감 후)           │
-│   action: 전체 보유종목 OHLCV 조회            │
-│           → price_snapshots 테이블 저장        │
-│   폴백: OHLCV 실패 시 현재가로 close 저장     │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ APScheduler (AsyncIOScheduler) — 5개 cron 잡             │
+│                                                         │
+│ Job 1: kis_sync_us (미국 장 마감 후 동기화)               │
+│   trigger: cron(mon-fri, 21:30 UTC) = KST 06:30         │
+│   action: KIS 자격증명 있는 모든 사용자의 잔고 동기화      │
+│   결과: sync_logs 테이블에 기록                           │
+│                                                         │
+│ Job 2: preload_prices_am (장 전 holdings 동기화 + 캐시)   │
+│   trigger: cron(mon-fri, 23:00 UTC) = KST 08:00         │
+│   action: 1) reconcile_holdings로 보유종목 최신화          │
+│           2) 갱신된 holdings 기준 가격 캐시 워밍           │
+│                                                         │
+│ Job 3: daily_close_snapshot (일일 종가 스냅샷)            │
+│   trigger: cron(mon-fri, 07:10 UTC) = KST 16:10         │
+│   action: 전체 보유종목 OHLCV 조회                        │
+│           → price_snapshots 테이블 저장                   │
+│   폴백: OHLCV 실패 시 현재가로 close 저장                 │
+│                                                         │
+│ Job 4: preload_prices_pm (장 마감 후 holdings 동기화 + 캐시)│
+│   trigger: cron(mon-fri, 07:00 UTC) = KST 16:00         │
+│   action: 1) reconcile_holdings로 보유종목 최신화          │
+│           2) 갱신된 holdings 기준 가격 캐시 워밍           │
+│                                                         │
+│ Job 5: fx_rate_snapshot (환율 스냅샷)                     │
+│   trigger: cron(mon-fri, 07:30 UTC) = KST 16:30         │
+│   action: USD/KRW 환율 조회 → fx_rate_snapshots 테이블 저장│
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### 3.5 미들웨어 체인
@@ -723,7 +736,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-03-30)
+## 6. 프로젝트 현황 분석 (2026-03-31)
 
 ### 6.1 완성도
 
@@ -739,7 +752,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
 | 주식 매매 | 완료 | 국내/해외 매수/매도 주문, 미체결 조회/취소, 예수금 조회 (국내+해외 합산), 이중 주문 방지 락 |
-| 자동 동기화 | 완료 | APScheduler 1시간 주기 + 일일 스냅샷 |
+| 자동 동기화 | 완료 | APScheduler 5개 cron 잡: KST 06:30 미국 장 마감 sync, KST 08:00/16:00 holdings sync + 캐시 워밍, KST 16:10 일일 스냅샷, KST 16:30 환율 스냅샷 |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
 | 에러 처리 | 완료 | 표준 에러 응답 (envelope), Error Boundary, 전역 예외 핸들러 |
@@ -813,6 +826,11 @@ slowapi 기반 IP별 레이트 리미팅:
 - 거래내역 커서 기반 페이지네이션 (무한 스크롤)
 - KIS API 중복 호출 제거 및 장 전 가격 캐시 워밍
 - 테스트 일괄 실행 안정성 개선: 294 ERROR -> 0 ERROR (async DB session 격리 문제 해결)
+- holdings 동기화 + 가격 캐시 워밍을 KST 08:00, 16:00 두 번 실행 (장 전/후 최신화)
+- FX 환율 히스토리 API + 평일 KST 16:30 환율 스냅샷 자동 저장
+- 포트폴리오 비교 페이지 (/dashboard/compare)
+- 디스크 모니터링 헬스 엔드포인트 (GET /health/disk)
+- docker-compose.dev.yml: 로컬 인프라 전용 개발 환경 구성
 
 ### 6.4 약점 및 개선 필요 사항
 

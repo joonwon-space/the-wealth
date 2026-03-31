@@ -72,6 +72,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 섹터별 배분 | 보유종목의 섹터별 비중 분석 |
 | 캔들스틱 차트 | lightweight-charts 기반 일봉 차트 |
 | 일별 OHLCV 차트 | KIS API 일별 시가/고가/저가/종가/거래량 |
+| 환율 히스토리 | USD/KRW 환율 변동 이력 조회 |
+| 포트폴리오 비교 | 복수 포트폴리오 성과 비교 페이지 |
 
 ### 2.5 종목 검색 및 관심종목
 
@@ -94,10 +96,13 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 | 기능 | 설명 |
 |------|------|
-| KIS 계좌 동기화 | APScheduler 기반 1시간 주기 자동 동기화 |
+| KIS 계좌 동기화 (미국 장 마감 후) | APScheduler 기반 평일 KST 06:30 자동 동기화 |
+| 장 전 holdings 동기화 + 캐시 워밍 | 평일 KST 08:00 reconcile_holdings 실행 후 가격 캐시 워밍 |
+| 장 마감 후 holdings 동기화 + 캐시 워밍 | 평일 KST 16:00 reconcile_holdings 실행 후 가격 캐시 워밍 |
 | 수동 동기화 | 즉시 동기화 트리거 |
 | 동기화 로그 | 동기화 이력 조회 (inserted/updated/deleted 건수) |
 | 일일 종가 스냅샷 | 평일 KST 16:10 보유종목 OHLCV 자동 저장 |
+| 환율 스냅샷 | 평일 KST 16:30 USD/KRW 환율 자동 저장 |
 
 ---
 
@@ -110,6 +115,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 /dashboard                  → 메인 대시보드
   ├── /                     → 포트폴리오 요약 + 보유종목 테이블 + 자산 배분 차트
   ├── /analytics            → 수익률 분석 (월별 히트맵, 포트폴리오 히스토리)
+  ├── /compare              → 포트폴리오 비교 페이지
   ├── /journal              → 투자 일지 페이지
   ├── /portfolios           → 포트폴리오 목록
   ├── /portfolios/[id]      → 포트폴리오 상세 (거래내역, 보유종목)
@@ -165,7 +171,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 73개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 71개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -176,7 +182,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/auth/change-password` | 비밀번호 변경 |
 | POST | `/auth/logout` | 로그아웃 |
 
-### 포트폴리오 (21)
+### 포트폴리오 (20)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/portfolios` | 포트폴리오 목록 |
@@ -214,13 +220,14 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 |--------|------|------|
 | GET | `/dashboard/summary` | 대시보드 요약 (kis_status: "ok" / "degraded" 포함) |
 
-### 분석 (4)
+### 분석 (5)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/analytics/metrics` | 수익률 지표 |
 | GET | `/analytics/monthly-returns` | 월별 수익률 |
 | GET | `/analytics/portfolio-history` | 포트폴리오 히스토리 |
 | GET | `/analytics/sector-allocation` | 섹터별 배분 |
+| GET | `/analytics/fx-history` | USD/KRW 환율 히스토리 |
 
 ### 알림 (4)
 | Method | Path | 설명 |
@@ -282,7 +289,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/watchlist` | 관심종목 추가 |
 | DELETE | `/watchlist/{id}` | 관심종목 삭제 |
 
-### 헬스체크 & 데이터 무결성 (5)
+### 헬스체크 & 데이터 무결성 (6)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/health` | 서버 상태 확인 (루트) |
@@ -290,6 +297,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/health/data-integrity` | price_snapshots 갭 감지 (최근 7 평일) |
 | GET | `/health/holdings-reconciliation` | 보유 수량 정합성 검사 (거래내역 vs holdings) |
 | GET | `/health/orphan-records` | 고아 레코드 감지 (삭제된 포트폴리오 잔여 데이터) |
+| GET | `/health/disk` | 디스크 사용량 모니터링 |
 
 ### 내부 API (1)
 | Method | Path | 설명 |

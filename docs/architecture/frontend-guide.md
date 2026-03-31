@@ -36,6 +36,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `/register` | `app/register/page.tsx` | Registration form |
 | `/dashboard` | `app/dashboard/page.tsx` | Main dashboard: portfolio summary, holdings table, allocation donut |
 | `/dashboard/analytics` | `app/dashboard/analytics/page.tsx` | Analytics: monthly heatmap, sector allocation, portfolio history |
+| `/dashboard/compare` | `app/dashboard/compare/page.tsx` | Portfolio comparison page |
 | `/dashboard/journal` | `app/dashboard/journal/page.tsx` | Investment journal: transaction memos across all portfolios |
 | `/dashboard/portfolios` | `app/dashboard/portfolios/page.tsx` | Portfolio list |
 | `/dashboard/portfolios/[id]` | `app/dashboard/portfolios/[id]/page.tsx` | Portfolio detail: holdings, transactions |

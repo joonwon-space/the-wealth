@@ -206,6 +206,11 @@ Rate-limited endpoints for brute force protection.
 - **Auth**: Required
 - **Response** (200): `SectorAllocation[]` -- sector-wise distribution of holdings
 
+### GET /analytics/fx-history
+- **Auth**: Required
+- **Response** (200): USD/KRW exchange rate history from `fx_rate_snapshots` table
+- **Notes**: Returns time-series FX rate data used for overseas holdings valuation
+
 ---
 
 ## Alerts (`/alerts`)
@@ -413,6 +418,11 @@ Rate-limited endpoints for brute force protection.
 - **Auth**: Required
 - **Response** (200): `{ "status": "ok"|"degraded", "orphan_holdings": int, "orphan_transactions": int, "orphan_sync_logs": int }`
 - **Notes**: Detects records referencing non-existent portfolio IDs (should be 0 if CASCADE DELETE works correctly)
+
+### GET /health/disk
+- **Auth**: Required
+- **Response** (200): Disk usage statistics for the server filesystem
+- **Notes**: Reports used/total/free disk space; used for proactive disk capacity monitoring
 
 ---
 
