@@ -101,18 +101,29 @@ async def _get_domestic_balance(
 
         output2: dict = (data.get("output2") or [{}])[0] if data.get("output2") else {}
         total_eval = Decimal(str(output2.get("tot_evlu_amt", "0")))
-        dnca_tot_amt = Decimal(str(output2.get("dnca_tot_amt", "0")))  # 예수금 총금액 (T+0, 미체결 매수 미반영)
-        nxdy_excc_amt = Decimal(str(output2.get("nxdy_excc_amt", "0")))  # 익일 정산금액 (오늘 매수 즉시 반영)
+        dnca_tot_amt = Decimal(str(output2.get("dnca_tot_amt", "0")))  # 예수금 총금액 (T+0)
+        nxdy_excc_amt = Decimal(str(output2.get("nxdy_excc_amt", "0")))  # 익일 정산금액
+        thdt_buy_amt = Decimal(str(output2.get("thdt_buy_amt", "0")))   # 금일 매수금액
+        thdt_sll_amt = Decimal(str(output2.get("thdt_sll_amt", "0")))   # 금일 매도금액
         evlu_pfls_smtl_amt = Decimal(str(output2.get("evlu_pfls_smtl_amt", "0")))
         evlu_erng_rt = Decimal(str(output2.get("evlu_erng_rt", "0")))
 
-        # 익일 정산금액이 예수금보다 작으면 오늘 매수가 있는 것 → 익일 정산금액이 실질 잔액
-        # 익일 정산금액이 0이거나 예수금보다 크면 예수금 사용 (해당 필드 미지원 계좌 대비)
-        effective_cash = nxdy_excc_amt if Decimal("0") < nxdy_excc_amt <= dnca_tot_amt else dnca_tot_amt
+        # 실질 잔액 계산 (우선순위):
+        # 1) nxdy_excc_amt < dnca_tot_amt → KIS가 직접 반영한 익일 정산금액 사용
+        # 2) thdt_buy_amt > 0 → 연금저축 등 nxdy_excc_amt 미반영 계좌: 직접 계산
+        # 3) 그 외 → dnca_tot_amt 그대로
+        if Decimal("0") < nxdy_excc_amt < dnca_tot_amt:
+            effective_cash = nxdy_excc_amt
+        elif thdt_buy_amt > Decimal("0"):
+            effective_cash = dnca_tot_amt - thdt_buy_amt + thdt_sll_amt
+        else:
+            effective_cash = dnca_tot_amt
 
-        logger.debug(
-            "Cash balance for %s: dnca_tot_amt=%s nxdy_excc_amt=%s effective=%s",
-            account_no, dnca_tot_amt, nxdy_excc_amt, effective_cash,
+        logger.info(
+            "Cash balance for %s: dnca_tot_amt=%s nxdy_excc_amt=%s "
+            "thdt_buy=%s thdt_sll=%s effective=%s",
+            account_no, dnca_tot_amt, nxdy_excc_amt,
+            thdt_buy_amt, thdt_sll_amt, effective_cash,
         )
 
         return CashBalance(
