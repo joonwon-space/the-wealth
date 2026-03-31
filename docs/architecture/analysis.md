@@ -736,7 +736,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-03-31)
+## 6. 프로젝트 현황 분석 (2026-04-01)
 
 ### 6.1 완성도
 
@@ -768,7 +768,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: **89%** (820 passed, 0 errors)
+전체: 730 passed, 46 failed (2026-04-01 기준)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
@@ -781,7 +781,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | db/ | 75-100% | session.py 75% |
 | main.py | 85% | lifespan, 예외 핸들러 |
 
-이전 일괄 실행 시 294건 ERROR가 발생하던 async DB session 격리 문제가 해결되어, 820건 전체 PASS 달성. 커버리지 89%로 80% 최소 기준 충족.
+현재 46건 실패 중 (확인된 실패: test_csv_export IDOR 2건, test_dashboard 2건 포함). 전체 통과 기준 미충족 — 수정 필요.
 
 ### 6.3 강점
 
@@ -794,7 +794,7 @@ slowapi 기반 IP별 레이트 리미팅:
 - 해외주식 USD 가격 표시 및 원화 환산 (환율 자동 적용)
 - 보유종목 market_value_krw 기준 내림차순 정렬
 - SSE 연결 하드닝: 사용자별 제한, 하트비트, 유휴 감지, 최대 연결 시간
-- 테스트 820건 전체 PASS (89% 커버리지), ruff lint 오류 0건
+- ruff lint 오류 0건 (코드 품질 유지)
 - Commitlint 커밋 메시지 검증 자동화
 - 표준화된 에러 응답 envelope (error.code, error.message, request_id)
 - Graceful shutdown (SSE 연결 종료 시그널, 스케줄러 정지)
@@ -831,9 +831,15 @@ slowapi 기반 IP별 레이트 리미팅:
 - 포트폴리오 비교 페이지 (/dashboard/compare)
 - 디스크 모니터링 헬스 엔드포인트 (GET /health/disk)
 - docker-compose.dev.yml: 로컬 인프라 전용 개발 환경 구성
+- 스케줄러 해외 holdings 누락 수정: reconcile_holdings 내 fetch_overseas_account_holdings 호출 추가
+- 연금저축/IRP 등 nxdy_excc_amt 미반영 계좌 예수금 계산 보완 (thdt_buy_amt 기반 직접 계산 폴백)
+- 주문 실패 시 KIS 실제 오류 메시지 표시 (이전: '알 수 없는 오류', 이후: KIS msg1 그대로 노출)
+- 매수 후 예수금 미갱신 수정: nxdy_excc_amt로 실질 잔액 반영 + 에러 시 상태 표시
+- CI 최적화: docker-build·codeql 워크플로우를 main push 제외 PR 전용으로 변경
 
 ### 6.4 약점 및 개선 필요 사항
 
+- **[CRITICAL] 백엔드 테스트 46건 실패** -- test_csv_export IDOR 2건, test_dashboard 2건 포함 (2026-04-01 기준, 수정 필요)
 - **[HIGH] npm 취약점 4건** (yaml 2.0.0-2.8.2 Stack Overflow, 2 moderate + 2 high) -- `npm audit fix`로 해결 가능
 - **[HIGH] 중복 파일 정리 필요** -- `.coverage 2~9`, `test_* 2.py` 등 공백 포함 중복 파일 다수
 - 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
