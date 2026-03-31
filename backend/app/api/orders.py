@@ -182,6 +182,12 @@ async def place_order(
         raise HTTPException(status_code=502, detail=str(e))
 
     # Record order in DB
+    # 주문 실패 시 KIS 오류 메시지를 memo에 저장 (사용자 메모보다 우선)
+    effective_memo = (
+        order_result.message
+        if order_result.status == "failed" and order_result.message
+        else body.memo
+    )
     db_order = Order(
         portfolio_id=portfolio_id,
         kis_account_id=acct.id,
@@ -193,7 +199,7 @@ async def place_order(
         price=body.price,
         order_no=order_result.order_no or None,
         status=order_result.status,
-        memo=body.memo,
+        memo=effective_memo,
     )
     db.add(db_order)
 
