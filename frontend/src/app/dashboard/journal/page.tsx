@@ -14,6 +14,15 @@ interface Portfolio {
   name: string;
 }
 
+interface SummaryHolding {
+  ticker: string;
+  name: string;
+  current_price: number | null;
+  avg_price: number;
+  market_value_krw: number | null;
+  pnl_rate: number | null;
+}
+
 interface Transaction {
   id: number;
   portfolio_id: number;
@@ -176,6 +185,58 @@ export default function JournalPage() {
     staleTime: 60_000,
   });
 
+  // Dashboard summary for current prices (used in retrospective widget)
+  const { data: summaryHoldings = [] } = useQuery<SummaryHolding[]>({
+    queryKey: ["dashboard-summary-holdings"],
+    queryFn: () =>
+      api
+        .get<{ holdings: SummaryHolding[] }>("/dashboard/summary")
+        .then((r) => r.data.holdings ?? []),
+    staleTime: 60_000,
+  });
+
+  // Retrospective: recent 30-day BUY transactions, max 5, sorted by market_value_krw desc
+  const retrospectiveItems = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    const recentBuys = transactions.filter(
+      (t) => t.type === "BUY" && new Date(t.traded_at) >= cutoff
+    );
+    // Deduplicate by ticker, keep the most recent buy for each ticker
+    const byTicker = new Map<string, Transaction>();
+    for (const txn of recentBuys) {
+      const existing = byTicker.get(txn.ticker);
+      if (!existing || txn.traded_at > existing.traded_at) {
+        byTicker.set(txn.ticker, txn);
+      }
+    }
+    // Match with current prices
+    const holdingMap = new Map(summaryHoldings.map((h) => [h.ticker, h]));
+    const items = Array.from(byTicker.values())
+      .map((txn) => {
+        const holding = holdingMap.get(txn.ticker);
+        const currentPrice = holding?.current_price ?? null;
+        const buyPrice = Number(txn.price);
+        const pnlRate =
+          currentPrice != null && buyPrice > 0
+            ? ((currentPrice - buyPrice) / buyPrice) * 100
+            : null;
+        return {
+          ticker: txn.ticker,
+          name: holding?.name ?? txn.ticker,
+          buyPrice,
+          currentPrice,
+          pnlRate,
+          marketValueKrw: holding?.market_value_krw ?? null,
+          tradedAt: txn.traded_at,
+        };
+      })
+      // Sort by market value desc (largest position first), fallback to buyPrice
+      .sort((a, b) => (b.marketValueKrw ?? 0) - (a.marketValueKrw ?? 0))
+      .slice(0, 5);
+    return items;
+  }, [transactions, summaryHoldings]);
+
   // Derive unique months and tickers from all transactions
   const availableMonths = useMemo(() => {
     const months = new Set(transactions.map((t) => t.traded_at.slice(0, 7)));
@@ -241,6 +302,55 @@ export default function JournalPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">투자 일지</h1>
+
+      {/* 투자 결정 회고 위젯 */}
+      {retrospectiveItems.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">최근 30일 매수 회고</h2>
+          <p className="text-xs text-muted-foreground">최근 30일 이내 매수한 종목의 현재 손익 현황</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {retrospectiveItems.map((item) => (
+              <div
+                key={item.ticker}
+                className="rounded-lg border bg-card p-3 space-y-1.5"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-sm truncate max-w-[120px]">{item.name}</div>
+                    <div className="text-xs text-muted-foreground">{item.ticker}</div>
+                  </div>
+                  {item.pnlRate != null && (
+                    <span
+                      className={cn(
+                        "text-sm font-bold tabular-nums",
+                        item.pnlRate > 0 ? "text-rise" : item.pnlRate < 0 ? "text-fall" : ""
+                      )}
+                    >
+                      {item.pnlRate > 0 ? "▲" : item.pnlRate < 0 ? "▼" : ""}{" "}
+                      {Math.abs(item.pnlRate).toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>매수가</span>
+                  <span className="tabular-nums font-medium text-foreground">
+                    {item.buyPrice.toLocaleString("ko-KR")}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>현재가</span>
+                  <span className="tabular-nums font-medium text-foreground">
+                    {item.currentPrice != null ? item.currentPrice.toLocaleString("ko-KR") : "—"}
+                  </span>
+                </div>
+                <div className="text-[10px] text-muted-foreground/70">
+                  매수일: {new Date(item.tradedAt).toLocaleDateString("ko-KR")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Portfolio selector */}
       {portfolios.length > 1 && (

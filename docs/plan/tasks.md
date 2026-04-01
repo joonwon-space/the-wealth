@@ -159,7 +159,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 투자 결정 회고 위젯 (17-3)
 
-- [ ] **feat: 투자 결정 회고 위젯 — 매수 시점 가격 vs 현재가 비교**
+- [x] **feat: 투자 결정 회고 위젯 — 매수 시점 가격 vs 현재가 비교**
   - `frontend/src/app/dashboard/journal/page.tsx` — 페이지 상단에 회고 요약 섹션 추가
   - 최근 30일 이내 BUY 거래 종목에 대해: 매수가 vs 현재가 비교 카드
   - 각 카드: 종목명, 매수가(avg), 현재가(from dashboard summary), 수익률(%)
