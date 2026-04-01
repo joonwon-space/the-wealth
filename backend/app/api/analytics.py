@@ -469,6 +469,251 @@ async def get_sector_allocation(
     return result
 
 
+@router.get("/fx-gain-loss")
+async def get_fx_gain_loss(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """해외주식 보유 종목별 환차익/환차손 분리 계산.
+
+    각 해외주식에 대해 주가 수익(USD 기준)과 환차익(KRW 기준)을 분리하여 반환한다.
+    - 주가 수익 = (현재가 - 매입가) × 수량 (USD)
+    - 환차익 = 매입 원금 × (현재 환율 / 매입 시 환율 - 1) (KRW)
+
+    매입 시 환율: 보유 종목 created_at 날짜에 가장 가까운 fx_rate_snapshots 환율 사용.
+    현재가: Redis 캐시 우선, 없으면 avg_price fallback.
+    현재 환율: Redis 캐시(get_cached_fx_rate) 사용.
+    """
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
+    portfolio_ids = [p.id for p in port_result.scalars().all()]
+    if not portfolio_ids:
+        return []
+
+    hold_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    )
+    all_holdings = hold_result.scalars().all()
+
+    # 해외주식만 필터링 (ticker가 숫자 6자리가 아닌 경우)
+    overseas = [h for h in all_holdings if not _is_domestic(h.ticker)]
+    if not overseas:
+        return []
+
+    # 현재 환율
+    fx_current = await get_cached_fx_rate()
+
+    # 날짜별 환율 스냅샷 조회 (최근 2년)
+    cutoff_fx = date_type.today() - timedelta(days=730)
+    fx_result = await db.execute(
+        select(FxRateSnapshot)
+        .where(
+            FxRateSnapshot.currency_pair == "USDKRW",
+            FxRateSnapshot.snapshot_date >= cutoff_fx,
+        )
+        .order_by(FxRateSnapshot.snapshot_date)
+    )
+    fx_snapshots = fx_result.scalars().all()
+    # 날짜 -> 환율 맵
+    fx_date_map: dict[str, float] = {
+        snap.snapshot_date.isoformat(): float(snap.rate)
+        for snap in fx_snapshots
+    }
+    fx_dates_sorted = sorted(fx_date_map.keys())
+
+    def _nearest_fx_rate(target_date: str) -> float:
+        """target_date에 가장 가까운 환율 반환."""
+        if not fx_dates_sorted:
+            return fx_current
+        # 이분 탐색으로 가장 가까운 날짜 찾기
+        import bisect
+        idx = bisect.bisect_left(fx_dates_sorted, target_date)
+        candidates: list[float] = []
+        if idx < len(fx_dates_sorted):
+            candidates.append(fx_date_map[fx_dates_sorted[idx]])
+        if idx > 0:
+            candidates.append(fx_date_map[fx_dates_sorted[idx - 1]])
+        if not candidates:
+            return fx_current
+        # 날짜 차이 기준으로 가장 가까운 것 선택
+        if len(candidates) == 1:
+            return candidates[0]
+        d0 = abs((date_type.fromisoformat(fx_dates_sorted[max(0, idx - 1)]) -
+                  date_type.fromisoformat(target_date)).days)
+        d1 = abs((date_type.fromisoformat(fx_dates_sorted[min(len(fx_dates_sorted) - 1, idx)]) -
+                  date_type.fromisoformat(target_date)).days)
+        return candidates[1] if d0 <= d1 else candidates[0]
+
+    result_items: list[dict] = []
+    for h in overseas:
+        # 현재가 (USD)
+        cached_price = await _get_cached_price(h.ticker)
+        current_price_usd = float(cached_price) if cached_price is not None else float(h.avg_price)
+
+        qty = float(h.quantity)
+        avg_price_usd = float(h.avg_price)
+
+        # 매입 시 환율 (보유 종목 created_at 날짜 기준)
+        buy_date_str = h.created_at.date().isoformat()
+        fx_at_buy = _nearest_fx_rate(buy_date_str)
+
+        # 주가 수익 (USD)
+        stock_pnl_usd = (current_price_usd - avg_price_usd) * qty
+        # 주가 수익 (KRW, 현재 환율 기준)
+        stock_gain_krw = stock_pnl_usd * fx_current
+
+        # 환차익 (KRW): 매입 원금 KRW × (현재환율/매입환율 - 1)
+        buy_value_usd = avg_price_usd * qty
+        buy_value_krw = buy_value_usd * fx_at_buy
+        fx_gain_krw = buy_value_usd * fx_current - buy_value_krw
+
+        # 총 손익 (KRW)
+        total_pnl_krw = stock_gain_krw + fx_gain_krw
+
+        result_items.append({
+            "ticker": h.ticker,
+            "name": h.name,
+            "quantity": qty,
+            "avg_price_usd": round(avg_price_usd, 4),
+            "current_price_usd": round(current_price_usd, 4),
+            "stock_pnl_usd": round(stock_pnl_usd, 2),
+            "fx_rate_at_buy": round(fx_at_buy, 2),
+            "fx_rate_current": round(fx_current, 2),
+            "fx_gain_krw": round(fx_gain_krw, 0),
+            "stock_gain_krw": round(stock_gain_krw, 0),
+            "total_pnl_krw": round(total_pnl_krw, 0),
+        })
+
+    return result_items
+
+
+@router.get("/krw-asset-history")
+async def get_krw_asset_history(
+    period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """환율 변동 반영 원화 환산 총 자산 추이.
+
+    price_snapshots와 fx_rate_snapshots를 결합하여 날짜별로
+    국내주식(KRW)과 해외주식(USD→KRW 환산)을 합산한 총 자산 추이를 반환한다.
+
+    해당 날짜의 fx_rate_snapshots 환율을 사용하며,
+    없으면 가장 최근 이전 날짜의 환율을 forward-fill한다.
+
+    응답 예시:
+    [
+      {"date": "2026-03-28", "value": 15000000, "domestic_value": 10000000, "overseas_value_krw": 5000000},
+      ...
+    ]
+    """
+    normalized_period = period.upper() if period.upper() in ("1W", "1M", "3M", "6M", "1Y") else "ALL"
+    cache_key = _analytics_key(current_user.id, f"krw-asset-history:{normalized_period}")
+    cached = await _analytics_cache.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
+    portfolio_ids = [p.id for p in port_result.scalars().all()]
+    if not portfolio_ids:
+        return []
+
+    hold_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    )
+    holdings = hold_result.scalars().all()
+    if not holdings:
+        return []
+
+    tickers = list({h.ticker for h in holdings})
+    holding_map = {h.ticker: h for h in holdings}
+    domestic_tickers = [t for t in tickers if _is_domestic(t)]
+    overseas_tickers = [t for t in tickers if not _is_domestic(t)]
+
+    cutoff = _period_cutoff(normalized_period)
+
+    # 종가 스냅샷 조회
+    snap_query = (
+        select(PriceSnapshot)
+        .where(PriceSnapshot.ticker.in_(tickers))
+        .order_by(PriceSnapshot.snapshot_date)
+    )
+    if cutoff is not None:
+        snap_query = snap_query.where(PriceSnapshot.snapshot_date >= cutoff)
+    snap_result = await db.execute(snap_query)
+    snapshots = snap_result.scalars().all()
+    if not snapshots:
+        return []
+
+    # 날짜별 {ticker: close} 맵
+    date_ticker_map: dict[str, dict[str, float]] = {}
+    for snap in snapshots:
+        d = snap.snapshot_date.isoformat()
+        if d not in date_ticker_map:
+            date_ticker_map[d] = {}
+        date_ticker_map[d][snap.ticker] = float(snap.close)
+
+    all_dates = sorted(date_ticker_map.keys())
+
+    # 환율 스냅샷 조회 (기간 기준)
+    fx_cutoff = cutoff if cutoff is not None else (date_type.today() - timedelta(days=1825))
+    fx_result = await db.execute(
+        select(FxRateSnapshot)
+        .where(
+            FxRateSnapshot.currency_pair == "USDKRW",
+            FxRateSnapshot.snapshot_date >= fx_cutoff,
+        )
+        .order_by(FxRateSnapshot.snapshot_date)
+    )
+    fx_snapshots = fx_result.scalars().all()
+    fx_date_map: dict[str, float] = {
+        snap.snapshot_date.isoformat(): float(snap.rate)
+        for snap in fx_snapshots
+    }
+
+    # forward-fill 환율: 날짜별 가장 최근 환율 채우기
+    fallback_fx = await get_cached_fx_rate()
+    filled_fx: dict[str, float] = {}
+    last_known_fx: float = fallback_fx
+    for d in all_dates:
+        if d in fx_date_map:
+            last_known_fx = fx_date_map[d]
+        filled_fx[d] = last_known_fx
+
+    # 날짜별 원화 환산 총 자산 계산
+    history: list[dict] = []
+    for date_str in all_dates:
+        prices_on_date = date_ticker_map[date_str]
+        fx_rate = filled_fx.get(date_str, fallback_fx)
+
+        domestic_value = sum(
+            float(holding_map[t].quantity) * prices_on_date[t]
+            for t in domestic_tickers
+            if t in prices_on_date and t in holding_map
+        )
+        overseas_value_usd = sum(
+            float(holding_map[t].quantity) * prices_on_date[t]
+            for t in overseas_tickers
+            if t in prices_on_date and t in holding_map
+        )
+        overseas_value_krw = overseas_value_usd * fx_rate
+        total_value = domestic_value + overseas_value_krw
+
+        if total_value > 0:
+            history.append({
+                "date": date_str,
+                "value": round(total_value, 0),
+                "domestic_value": round(domestic_value, 0),
+                "overseas_value_krw": round(overseas_value_krw, 0),
+            })
+
+    await _analytics_cache.setex(cache_key, _ANALYTICS_CACHE_TTL, json.dumps(history))
+    return history
+
+
 @router.get("/fx-history")
 async def get_fx_history(
     currency_pair: str = Query(default="USDKRW", description="통화쌍 (예: USDKRW)"),
