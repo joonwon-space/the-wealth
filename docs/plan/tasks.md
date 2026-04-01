@@ -149,7 +149,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 투자 일지 필터링 및 검색 (17-3)
 
-- [ ] **feat: 투자 일지 월별/종목별 필터링 + 키워드 검색**
+- [x] **feat: 투자 일지 월별/종목별 필터링 + 키워드 검색**
   - `frontend/src/app/dashboard/journal/page.tsx` — 검색/필터 기능 추가
   - 월별 필터: 드롭다운 (거래 이력에서 유니크 월 목록 추출)
   - 종목별 필터: 드롭다운 (보유 종목 + 거래 종목 합집합)

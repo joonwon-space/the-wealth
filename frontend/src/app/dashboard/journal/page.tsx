@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { BookOpen, ArrowUpCircle, ArrowDownCircle, MessageSquare } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { BookOpen, ArrowUpCircle, ArrowDownCircle, MessageSquare, Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
@@ -138,6 +138,22 @@ export default function JournalPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [memoOnly, setMemoOnly] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
+  const [selectedTicker, setSelectedTicker] = useState<string>("ALL");
+  const [searchInput, setSearchInput] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input (300ms)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchInput]);
 
   const { data: portfolios = [], isLoading: portfoliosLoading } = useQuery<Portfolio[]>({
     queryKey: ["portfolios"],
@@ -160,14 +176,28 @@ export default function JournalPage() {
     staleTime: 60_000,
   });
 
+  // Derive unique months and tickers from all transactions
+  const availableMonths = useMemo(() => {
+    const months = new Set(transactions.map((t) => t.traded_at.slice(0, 7)));
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
+
+  const availableTickers = useMemo(() => {
+    const tickers = new Set(transactions.map((t) => t.ticker));
+    return Array.from(tickers).sort();
+  }, [transactions]);
+
   const filtered = useMemo(() => {
     return transactions.filter((txn) => {
       if (typeFilter !== "ALL" && txn.type !== typeFilter) return false;
       if (memoOnly && !txn.memo) return false;
       if (selectedTag && !(txn.tags ?? []).includes(selectedTag)) return false;
+      if (selectedMonth !== "ALL" && !txn.traded_at.startsWith(selectedMonth)) return false;
+      if (selectedTicker !== "ALL" && txn.ticker !== selectedTicker) return false;
+      if (debouncedSearch && !(txn.memo ?? "").toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
       return true;
     });
-  }, [transactions, typeFilter, memoOnly, selectedTag]);
+  }, [transactions, typeFilter, memoOnly, selectedTag, selectedMonth, selectedTicker, debouncedSearch]);
 
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
   const sortedDates = useMemo(() => [...grouped.keys()].sort((a, b) => b.localeCompare(a)), [grouped]);
@@ -234,6 +264,7 @@ export default function JournalPage() {
 
       {/* Filters */}
       <div className="space-y-2">
+        {/* Row 1: type + memo + month + ticker */}
         <div className="flex flex-wrap items-center gap-2">
           {(["ALL", "BUY", "SELL"] as TypeFilter[]).map((t) => (
             <Button
@@ -255,6 +286,60 @@ export default function JournalPage() {
             <MessageSquare className="h-3.5 w-3.5" />
             메모만
           </Button>
+
+          {/* Month filter */}
+          {availableMonths.length > 0 && (
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              aria-label="월별 필터"
+            >
+              <option value="ALL">전체 월</option>
+              {availableMonths.map((m) => (
+                <option key={m} value={m}>
+                  {m.replace("-", "년 ")}월
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Ticker filter */}
+          {availableTickers.length > 0 && (
+            <select
+              value={selectedTicker}
+              onChange={(e) => setSelectedTicker(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              aria-label="종목별 필터"
+            >
+              <option value="ALL">전체 종목</option>
+              {availableTickers.map((ticker) => (
+                <option key={ticker} value={ticker}>{ticker}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Row 2: keyword search */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="메모 내용 검색..."
+            className="h-9 w-full rounded-md border bg-background pl-8 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            aria-label="메모 검색"
+          />
+          {searchInput && (
+            <button
+              onClick={() => setSearchInput("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="검색어 지우기"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Tag filter */}
@@ -302,9 +387,13 @@ export default function JournalPage() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <BookOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
-          <p className="font-semibold">거래 내역이 없습니다</p>
+          <p className="font-semibold">검색 결과가 없습니다</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {memoOnly ? "메모가 있는 거래 내역이 없습니다." : "해당 포트폴리오에 거래 내역이 없습니다."}
+            {debouncedSearch
+              ? `"${debouncedSearch}" 메모가 없는 거래 내역입니다.`
+              : memoOnly
+              ? "메모가 있는 거래 내역이 없습니다."
+              : "선택한 조건에 맞는 거래 내역이 없습니다."}
           </p>
         </div>
       ) : (
