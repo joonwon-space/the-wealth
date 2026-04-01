@@ -177,7 +177,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- localStorage.getItem() 방어 처리 [team-analysis: SEC-008]
 
-- [ ] **fix: StockSearchDialog localStorage read try-catch 추가**
+- [x] **fix: StockSearchDialog localStorage read try-catch 추가**
   - `frontend/src/components/StockSearchDialog.tsx` — JSON.parse() try-catch 추가
   - 파싱 실패 시 빈 배열 반환, 각 항목 string 유효성 검사
   - 파일: `frontend/src/components/StockSearchDialog.tsx`
