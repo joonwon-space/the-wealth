@@ -140,7 +140,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- price_snapshots 복합 인덱스 추가 [team-analysis: PERF-004 + TD-013]
 
-- [ ] **perf: price_snapshots (ticker, snapshot_date) 복합 인덱스**
+- [x] **perf: price_snapshots (ticker, snapshot_date) 복합 인덱스**
   - `backend/app/models/price_snapshot.py` — `__table_args__`에 `Index('ix_price_snapshot_ticker_date', 'ticker', 'snapshot_date')` 추가
   - Alembic migration 생성
   - analytics 쿼리 `WHERE ticker IN (...) AND snapshot_date >= cutoff` 성능 개선
