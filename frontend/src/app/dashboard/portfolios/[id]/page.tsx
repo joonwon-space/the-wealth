@@ -449,6 +449,11 @@ export default function PortfolioDetailPage() {
             </div>
             <div className="font-semibold text-sm">{formatKRW(cashBalance.total_cash)}</div>
             <div className="text-xs text-muted-foreground">사용가능: {formatKRW(cashBalance.available_cash)}</div>
+            {Number(cashBalance.total_cash) - Number(cashBalance.available_cash) > 0 && (
+              <div className="text-xs text-amber-600">
+                대기 중: {formatKRW(String(Number(cashBalance.total_cash) - Number(cashBalance.available_cash)))}
+              </div>
+            )}
           </div>
           <div className="rounded-lg border p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">

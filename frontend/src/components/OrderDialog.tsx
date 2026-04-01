@@ -11,7 +11,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCashBalance, usePlaceOrder } from "@/hooks/useOrders";
+import { useCashBalance, usePlaceOrder, useOrderableQuantity } from "@/hooks/useOrders";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatKRW } from "@/lib/format";
 
 /** 현재 보유 종목 정보 (portfolio page에서 전달). */
@@ -74,6 +75,36 @@ export function OrderDialog({
     ? parseFloat(cashBalance.available_cash)
     : null;
 
+  const totalCash = cashBalance
+    ? parseFloat(cashBalance.total_cash)
+    : null;
+
+  // 대기 중 금액 (총 예수금 - 사용가능 예수금)
+  const pendingCash =
+    totalCash !== null && availableCash !== null
+      ? totalCash - availableCash
+      : 0;
+
+  // 가격 입력 debounce (500ms) → orderable API 호출 빈도 제한
+  const debouncedPrice = useDebounce(parsedPrice, 500);
+
+  // 국내 매수 + 가격 입력 시에만 orderable API 호출
+  const isDomestic = !exchangeCode;
+  const orderableEnabled = isDomestic && activeTab === "BUY" && debouncedPrice > 0;
+  const { data: orderable } = useOrderableQuantity(
+    portfolioId,
+    ticker,
+    orderableEnabled ? debouncedPrice : 0,
+    "BUY"
+  );
+
+  // 최대 매수 가능 수량 (orderable API 우선, fallback: 클라이언트 계산)
+  const maxBuyQuantity = orderableEnabled && orderable
+    ? Math.floor(parseFloat(orderable.orderable_quantity))
+    : availableCash !== null && parsedPrice > 0
+      ? Math.floor(availableCash / parsedPrice)
+      : null;
+
   // ─── Existing holding data ────────────────────────────────────────────────
 
   const heldQuantity = existingHolding
@@ -123,9 +154,19 @@ export function OrderDialog({
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
   function handleQuickQuantity(ratio: number) {
-    if (!availableCash || !parsedPrice) return;
-    const qty = Math.floor((availableCash * ratio) / parsedPrice);
-    setQuantity(String(qty));
+    if (maxBuyQuantity !== null && maxBuyQuantity > 0) {
+      const qty = Math.floor(maxBuyQuantity * ratio);
+      setQuantity(String(qty));
+    } else if (availableCash && parsedPrice) {
+      const qty = Math.floor((availableCash * ratio) / parsedPrice);
+      setQuantity(String(qty));
+    }
+  }
+
+  function handleMaxQuantity() {
+    if (maxBuyQuantity !== null && maxBuyQuantity > 0) {
+      setQuantity(String(maxBuyQuantity));
+    }
   }
 
   function handleSellAll() {
@@ -212,6 +253,14 @@ export function OrderDialog({
             <DialogTitle>주문 결과</DialogTitle>
           </DialogHeader>
           <p className="text-sm py-4 whitespace-pre-line">{successMessage}</p>
+          {availableCash !== null && (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 py-2 mb-3">
+              잔여 예수금: <span className="font-medium text-foreground">{formatKRW(availableCash)}</span>
+              {pendingCash > 0 && (
+                <span className="ml-2 text-amber-600">(대기 중: {formatKRW(pendingCash)})</span>
+              )}
+            </div>
+          )}
           <Button onClick={() => handleClose(false)} className="w-full">
             닫기
           </Button>
@@ -365,9 +414,29 @@ export function OrderDialog({
 
               {/* 예수금 표시 */}
               {availableCash !== null && (
-                <div className="text-xs text-muted-foreground flex justify-between">
-                  <span>사용가능 예수금</span>
-                  <span className="font-medium">{formatKRW(availableCash)}</span>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <div className="flex justify-between">
+                    <span>사용가능 예수금</span>
+                    <span className="font-medium">{formatKRW(availableCash)}</span>
+                  </div>
+                  {pendingCash > 0 && (
+                    <div className="flex justify-between text-amber-600">
+                      <span>체결 대기 중</span>
+                      <span className="font-medium">{formatKRW(pendingCash)}</span>
+                    </div>
+                  )}
+                  {tab === "BUY" && maxBuyQuantity !== null && maxBuyQuantity > 0 && parsedPrice > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span>최대 매수 가능</span>
+                      <button
+                        type="button"
+                        onClick={handleMaxQuantity}
+                        className="font-medium text-red-600 hover:text-red-800 underline underline-offset-2"
+                      >
+                        {maxBuyQuantity.toLocaleString()}주
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -393,6 +462,16 @@ export function OrderDialog({
                   <label className="text-xs text-muted-foreground">
                     수량 (주)
                   </label>
+                  {/* 매수: 최대 수량 버튼 */}
+                  {tab === "BUY" && maxBuyQuantity !== null && maxBuyQuantity > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleMaxQuantity}
+                      className="text-xs text-red-600 hover:text-red-800 font-medium"
+                    >
+                      최대 ({maxBuyQuantity.toLocaleString()}주)
+                    </button>
+                  )}
                   {/* 전량 매도 버튼 (매도 탭 + 보유 있을 때만) */}
                   {tab === "SELL" && heldQuantity > 0 && (
                     <button
