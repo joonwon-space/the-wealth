@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 71 API endpoints (17 routers)                          │
+│   ├── 74 API endpoints (17 routers)                          │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (60/min)                          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -267,7 +267,7 @@ backend/app/
 │   ├── portfolios.py          # 포트폴리오/보유종목/거래내역 CRUD + KIS 체결내역
 │   ├── portfolio_export.py    # CSV 내보내기 (보유종목 + 거래내역)
 │   ├── dashboard.py           # 대시보드 요약
-│   ├── analytics.py           # 수익률 분석, 월별 수익률, 섹터 배분
+│   ├── analytics.py           # 수익률 분석, 월별 수익률, 섹터 배분, 환차익 분석, 원화 자산 추이
 │   ├── alerts.py              # 가격 알림 CRUD + 활성화/비활성화
 │   ├── notifications.py       # 인앱 알림 센터 (목록, 읽음 처리)
 │   ├── stocks.py              # 종목 검색/상세
@@ -292,7 +292,7 @@ backend/app/
 ├── db/
 │   ├── base.py                # SQLAlchemy Base
 │   └── session.py             # AsyncSession 팩토리
-├── models/                    # SQLAlchemy ORM 모델 (11 테이블)
+├── models/                    # SQLAlchemy ORM 모델 (12 테이블)
 │   ├── user.py
 │   ├── portfolio.py
 │   ├── holding.py
@@ -302,6 +302,7 @@ backend/app/
 │   ├── notification.py
 │   ├── watchlist.py
 │   ├── price_snapshot.py
+│   ├── fx_rate_snapshot.py
 │   ├── order.py
 │   └── sync_log.py
 ├── schemas/                   # Pydantic 검증 스키마
@@ -444,7 +445,7 @@ Request
 
 ---
 
-## 4. 데이터베이스 스키마 (11 테이블)
+## 4. 데이터베이스 스키마 (12 테이블)
 
 ### 4.1 ERD 다이어그램
 
@@ -530,6 +531,17 @@ Request
          │ message      │
          │ synced_at    │
          └──────────────┘
+
+┌──────────────────┐
+│ fx_rate_snapshots│
+├──────────────────┤
+│ id (PK)          │
+│ currency_pair    │ (String, INDEX)
+│ rate             │ (Numeric, NOT NULL)
+│ snapshot_date    │ (Date)
+│ created_at       │
+│ UQ(pair, date)   │
+└──────────────────┘
 
 ┌──────────────┐
 │   orders     │
@@ -662,6 +674,16 @@ Request
 | created_at | DateTime | default=now | 생성일시 |
 | | | UNIQUE(ticker, snapshot_date) | 종목+날짜 유니크 |
 
+#### fx_rate_snapshots
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|---------|------|
+| id | Integer | PK, auto | 스냅샷 ID |
+| currency_pair | String(10) | NOT NULL, INDEX | 통화쌍 (예: USDKRW) |
+| rate | Numeric(18,6) | NOT NULL | 환율 |
+| snapshot_date | Date | NOT NULL | 스냅샷 날짜 |
+| created_at | DateTime | default=now | 생성일시 |
+| | | UNIQUE(currency_pair, snapshot_date) | 통화쌍+날짜 유니크 |
+
 #### sync_logs
 | 컬럼 | 타입 | 제약조건 | 설명 |
 |------|------|---------|------|
@@ -746,8 +768,8 @@ slowapi 기반 IP별 레이트 리미팅:
 | 포트폴리오 CRUD | 완료 | CSV/Excel export, 보유종목 일괄등록, 거래내역 cursor 페이지네이션, soft delete 포함 |
 | 대시보드 | 완료 | SSE 실시간, 30초 폴링, 자산 배분 도넛, 해외주식 USD 가격 표시, KIS 장애 감지 배너 |
 | KIS API 연동 | 완료 | 국내/해외 현재가, OHLCV, 잔고 동기화, 장애 감지 (kis_status: degraded) |
-| 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리 |
-| 투자 일지 | 완료 | 전용 페이지 (/dashboard/journal) |
+| 분석 페이지 | 완료 | 월별 히트맵, 섹터 배분, 포트폴리오 히스토리, 환차익/환차손 분리, 원화 환산 총 자산 추이 |
+| 투자 일지 | 완료 | 전용 페이지 (/dashboard/journal), 월별/종목별 필터링, 메모 키워드 검색, 최근 30일 매수 회고 위젯 |
 | 종목 검색 | 완료 | Cmd+K, 초성 검색, KRX+NYSE+NASDAQ |
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
@@ -768,7 +790,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: 730 passed, 46 failed (2026-04-01 기준)
+전체: 730 passed, 46 failed (2026-04-01 기준; asyncpg Connection._cancel 및 Redis analytics 캐시 미초기화 flaky 테스트 2건 이후 수정됨)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
@@ -828,6 +850,10 @@ slowapi 기반 IP별 레이트 리미팅:
 - 테스트 일괄 실행 안정성 개선: 294 ERROR -> 0 ERROR (async DB session 격리 문제 해결)
 - holdings 동기화 + 가격 캐시 워밍을 KST 08:00, 16:00 두 번 실행 (장 전/후 최신화)
 - FX 환율 히스토리 API + 평일 KST 16:30 환율 스냅샷 자동 저장
+- 해외주식 환차익/환차손 분리 분석: GET /analytics/fx-gain-loss (주가 수익 vs 환율 효과 분리)
+- 원화 환산 총 자산 추이 스택 영역 차트: GET /analytics/krw-asset-history (국내+해외 KRW 환산)
+- 투자 일지 월별/종목별 필터링 및 메모 키워드 검색
+- 투자 일지 최근 30일 매수 회고 위젯
 - 포트폴리오 비교 페이지 (/dashboard/compare)
 - 디스크 모니터링 헬스 엔드포인트 (GET /health/disk)
 - docker-compose.dev.yml: 로컬 인프라 전용 개발 환경 구성

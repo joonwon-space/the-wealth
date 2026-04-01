@@ -211,6 +211,17 @@ Rate-limited endpoints for brute force protection.
 - **Response** (200): USD/KRW exchange rate history from `fx_rate_snapshots` table
 - **Notes**: Returns time-series FX rate data used for overseas holdings valuation
 
+### GET /analytics/fx-gain-loss
+- **Auth**: Required
+- **Response** (200): `[{ "ticker": string, "name": string, "stock_gain_usd": decimal, "fx_gain_krw": decimal, "quantity": decimal, "avg_price": decimal }]`
+- **Description**: For each overseas holding, separates stock price gain (USD-denominated) from FX gain/loss (KRW impact of exchange rate change since purchase). Purchase-date FX rate is sourced from the nearest `fx_rate_snapshots.rate` entry (matched by `currency_pair = "USDKRW"` and `snapshot_date`); current price falls back to `avg_price` if Redis cache miss.
+
+### GET /analytics/krw-asset-history
+- **Auth**: Required
+- **Query params**: `period: string` (default "ALL"; accepts 1M, 3M, 6M, 1Y, ALL)
+- **Response** (200): `[{ "date": string (YYYY-MM-DD), "value": decimal, "domestic_value": decimal, "overseas_value_krw": decimal }]`
+- **Description**: Time-series total asset value in KRW, combining domestic holdings (KRW) and overseas holdings (USD converted at the day's FX rate from `fx_rate_snapshots`, forward-filled when missing). Sourced from `price_snapshots` joined with `fx_rate_snapshots`.
+
 ---
 
 ## Alerts (`/alerts`)
@@ -285,6 +296,12 @@ Rate-limited endpoints for brute force protection.
 - **Auth**: Required (ownership verified)
 - **Query params**: `is_overseas: bool` (default false)
 - **Response** (200): `PendingOrderResponse[]` -- list of unfilled orders from KIS API
+
+### POST /portfolios/{portfolio_id}/orders/settle
+- **Auth**: Required (ownership verified)
+- **Response** (200): `{ "settled": int, "failed": int }` — counts of orders checked against KIS API and updated in DB
+- **Description**: Manually triggers a check of all pending orders for the portfolio against KIS API. Updates order status to "filled" or "partial" where applicable. Useful when auto-settle has not yet run.
+- **Errors**: 400 (no KIS account linked), 502 (KIS API failure)
 
 ### DELETE /portfolios/{portfolio_id}/orders/{order_no}
 - **Auth**: Required (ownership verified)

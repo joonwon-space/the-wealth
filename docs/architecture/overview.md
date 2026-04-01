@@ -48,7 +48,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 포트폴리오 순서 변경 | 드래그 앤 드롭으로 포트폴리오 표시 순서 변경 |
 | KIS 체결내역 조회 | KIS API 국내/해외 체결 내역 조회 |
 | 주식 매매 주문 | KIS API 국내/해외 매수/매도 주문 실행, 주문 취소 |
-| 미체결 주문 조회 | KIS API 미체결 주문 목록 조회 + 체결 알림 |
+| 미체결 주문 조회/체결 확인 | KIS API 미체결 주문 목록 조회, 수동 체결 확인 트리거, 체결 알림 |
 | 예수금 조회 | 국내+해외 합산 예수금/총 평가금액 조회 (Redis 캐시 30초) |
 | 주문 가능 수량 조회 | 종목별 주문 가능 수량/금액 조회 |
 
@@ -74,6 +74,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 일별 OHLCV 차트 | KIS API 일별 시가/고가/저가/종가/거래량 |
 | 환율 히스토리 | USD/KRW 환율 변동 이력 조회 |
 | 포트폴리오 비교 | 복수 포트폴리오 성과 비교 페이지 |
+| 해외주식 환차익/환차손 분리 | 주가 수익(USD 기준)과 환율 효과(KRW 기준) 분리 표시 |
+| 원화 환산 총 자산 추이 | 국내+해외 원화 환산 스택 영역 차트 (기간 필터 1M/3M/6M/1Y/ALL) |
 
 ### 2.5 종목 검색 및 관심종목
 
@@ -171,7 +173,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 71개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 74개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 ### 인증 (5)
 | Method | Path | 설명 |
@@ -206,12 +208,13 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/portfolios/{id}/export/xlsx` | 포트폴리오 Excel 내보내기 |
 | GET | `/portfolios/{id}/kis-transactions` | KIS 체결내역 조회 (국내+해외) |
 
-### 주문 (5)
+### 주문 (6)
 | Method | Path | 설명 |
 |--------|------|------|
 | POST | `/portfolios/{id}/orders` | 매수/매도 주문 실행 (국내+해외) |
 | GET | `/portfolios/{id}/orders/orderable` | 주문 가능 수량/금액 조회 |
 | GET | `/portfolios/{id}/orders/pending` | 미체결 주문 목록 |
+| POST | `/portfolios/{id}/orders/settle` | 미체결 주문 수동 체결 확인 |
 | DELETE | `/portfolios/{id}/orders/{order_no}` | 주문 취소 |
 | GET | `/portfolios/{id}/cash-balance` | 예수금 및 총 평가금액 (국내+해외 합산) |
 
@@ -220,7 +223,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 |--------|------|------|
 | GET | `/dashboard/summary` | 대시보드 요약 (kis_status: "ok" / "degraded" 포함) |
 
-### 분석 (5)
+### 분석 (7)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/analytics/metrics` | 수익률 지표 |
@@ -228,6 +231,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/analytics/portfolio-history` | 포트폴리오 히스토리 |
 | GET | `/analytics/sector-allocation` | 섹터별 배분 |
 | GET | `/analytics/fx-history` | USD/KRW 환율 히스토리 |
+| GET | `/analytics/fx-gain-loss` | 해외주식 종목별 환차익/환차손 분리 |
+| GET | `/analytics/krw-asset-history` | 환율 반영 원화 환산 총 자산 추이 |
 
 ### 알림 (4)
 | Method | Path | 설명 |
