@@ -72,8 +72,8 @@ Current actionable work is in `tasks.md`.
 
 ### 11-2. Analytics Page Enhancement
 - [x] Portfolio performance period filter (1w / 1m / 3m / 6m / 1y / all 탭)
-- [ ] KOSPI200 / S&P500 benchmark overlay (KIS index API `FHKUP03500100`)
-- [ ] Dividend income tracking (calendar + yield chart)
+- [ ] KOSPI200 / S&P500 benchmark overlay (국내: `FHKUP03500100`, 해외: `FHKST03030100` `.SPX`/`.DJI`/`.IXIC`)
+- [ ] Dividend income tracking (calendar + yield chart) — KIS `HHKDB669102C0` 배당일정, `HHKDB13470100` 배당률 상위
 - [ ] Investment performance metrics: Sharpe ratio, MDD, CAGR (`backend/app/services/metrics.py`)
 - [ ] Monthly/annual return heatmap (GitHub contribution chart style)
 
@@ -85,7 +85,7 @@ Current actionable work is in `tasks.md`.
 - [x] Fundamental data (market cap, PER, PBR, dividend yield) via KIS master API — stocks.py에서 FHKST01010100 조회 구현 완료
 - [ ] Moving averages overlay (5/20/60/120 day)
 - [ ] Volume analysis chart
-- [ ] News/disclosure feed (KIS news API or Naver Finance)
+- [ ] News/disclosure feed (KIS `FHKST01011800` 국내 시황/공시, `HHPSTH60100C1` 해외뉴스 — 제목 수준, 본문은 네이버 금융 등 보조 소스 필요)
 - [ ] My holdings overlay (average purchase price horizontal line on candlestick chart)
 
 ### 11-5. UX Convenience
@@ -128,9 +128,9 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ## Milestone 13: Data Pipeline & Analysis
 
 ### 13-1. External Data Collection
-- [ ] KOSPI200 / S&P500 daily index data collection (benchmark 전제 조건)
+- [ ] KOSPI200 / S&P500 daily index data collection — 국내 `FHKUP03500100`, 해외 `FHKST03030100` (benchmark 전제 조건)
 - [ ] Stock metadata table (sector, industry, market_cap)
-- [ ] Dividend data collection (KIS or KRX)
+- [ ] Dividend data collection — KIS `HHKDB669102C0` 배당일정 + `HHKDB13470100` 배당률 상위
 
 ### 13-2. Portfolio Analysis Engine
 - [ ] TWR (time-weighted return) / MWR (money-weighted return) calculation
