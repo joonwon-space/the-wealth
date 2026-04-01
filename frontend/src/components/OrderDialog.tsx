@@ -105,20 +105,20 @@ export function OrderDialog({
 
   // 최대 매수 가능 수량
   // 1순위: orderable API 응답
-  // 2순위(fallback): 클라이언트 계산 (API 실패 또는 해외주식)
+  // 2순위(fallback): 클라이언트 계산 (API 실패, 로딩 중, 해외주식)
+  const effectivePrice = isMarketOrder ? (currentPrice ?? 0) : parsedPrice;
   const orderableQty = orderable
     ? Math.floor(parseFloat(orderable.orderable_quantity))
-    : null;
+    : 0;
   const clientFallbackQty =
-    availableCash !== null && parsedPrice > 0
-      ? Math.floor(availableCash / parsedPrice)
-      : null;
+    availableCash !== null && effectivePrice > 0
+      ? Math.floor(availableCash / effectivePrice)
+      : 0;
 
-  // orderable API 응답이 있으면 우선 사용, 없으면 클라이언트 계산 fallback
   const maxBuyQuantity =
-    orderableQty !== null && orderableQty > 0
-      ? orderableQty
-      : clientFallbackQty;
+    activeTab === "BUY" && (orderableQty > 0 || clientFallbackQty > 0)
+      ? Math.max(orderableQty, clientFallbackQty)
+      : null;
 
   // ─── Existing holding data ────────────────────────────────────────────────
 
