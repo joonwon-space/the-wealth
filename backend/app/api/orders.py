@@ -203,30 +203,10 @@ async def place_order(
     )
     db.add(db_order)
 
-    # If order was placed successfully (pending), create transaction record
-    if order_result.status == "pending" and order_result.order_no:
-        transaction = Transaction(
-            portfolio_id=portfolio_id,
-            ticker=body.ticker,
-            type=body.order_type,
-            quantity=Decimal(body.quantity),
-            price=body.price or Decimal("0"),
-            memo=body.memo,
-            order_no=order_result.order_no,
-            order_source="kis",
-        )
-        db.add(transaction)
-
-        # Update holdings
-        await _update_holdings(
-            db=db,
-            portfolio_id=portfolio_id,
-            ticker=body.ticker,
-            name=body.name or body.ticker,
-            order_type=body.order_type,
-            quantity=Decimal(body.quantity),
-            price=body.price or Decimal("0"),
-        )
+    # NOTE: pending 주문은 KIS 접수일 뿐 체결이 아니므로
+    # transaction/holding을 생성하지 않는다.
+    # 체결 확인은 스케줄러(settle_pending_orders)가 담당하며,
+    # reconcile_holdings(sync)가 KIS 잔고 기준으로 holdings를 보정한다.
 
     await db.commit()
     await db.refresh(db_order)

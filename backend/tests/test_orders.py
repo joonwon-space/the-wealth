@@ -208,6 +208,85 @@ class TestPlaceOrder:
         assert data["status"] == "pending"
         assert data["order_no"] == "0000000001"
 
+    async def test_pending_order_does_not_create_transaction(
+        self, client: AsyncClient
+    ) -> None:
+        """미체결(pending) 주문은 transaction을 생성하지 않아야 한다."""
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "order_no_txn@test.com"
+        )
+
+        mock_result = _make_order_result()
+        with patch(
+            "app.api.orders.place_domestic_order", new_callable=AsyncMock
+        ) as mock_order:
+            mock_order.return_value = mock_result
+            await client.post(
+                f"/portfolios/{pid}/orders",
+                json={
+                    "ticker": "005930",
+                    "name": "삼성전자",
+                    "order_type": "BUY",
+                    "order_class": "limit",
+                    "quantity": 10,
+                    "price": 70000,
+                },
+                headers=_auth(token),
+            )
+
+        # pending 주문 후 transactions가 비어 있어야 한다
+        txn_resp = await client.get(
+            f"/portfolios/{pid}/transactions",
+            headers=_auth(token),
+        )
+        assert txn_resp.status_code == 200
+        assert txn_resp.json() == []
+
+    async def test_pending_order_does_not_update_holdings(
+        self, client: AsyncClient
+    ) -> None:
+        """미체결(pending) 주문은 holdings 수량을 변경하지 않아야 한다."""
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "order_no_hold@test.com"
+        )
+
+        # sync/balance로 005930 10주 보유 상태
+        holdings_before = await client.get(
+            f"/portfolios/{pid}/holdings",
+            headers=_auth(token),
+        )
+        before_qty = sum(
+            h["quantity"] for h in holdings_before.json() if h["ticker"] == "005930"
+        )
+
+        mock_result = _make_order_result()
+        with patch(
+            "app.api.orders.place_domestic_order", new_callable=AsyncMock
+        ) as mock_order:
+            mock_order.return_value = mock_result
+            await client.post(
+                f"/portfolios/{pid}/orders",
+                json={
+                    "ticker": "005930",
+                    "name": "삼성전자",
+                    "order_type": "BUY",
+                    "order_class": "limit",
+                    "quantity": 10,
+                    "price": 70000,
+                },
+                headers=_auth(token),
+            )
+
+        # holdings 수량이 변하지 않아야 한다
+        holdings_after = await client.get(
+            f"/portfolios/{pid}/holdings",
+            headers=_auth(token),
+        )
+        after_qty = sum(
+            h["quantity"] for h in holdings_after.json() if h["ticker"] == "005930"
+        )
+        assert before_qty == after_qty
+
     async def test_domestic_sell_order_success(self, client: AsyncClient) -> None:
         token, pid, _kis_id = await _setup_portfolio_with_kis(
             client, "order_sell@test.com"

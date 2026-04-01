@@ -185,15 +185,14 @@ export function usePlaceOrder(portfolioId: number) {
   return useMutation<Order, Error, OrderRequest>({
     mutationFn: (request) => placeOrder(portfolioId, request),
     onSuccess: () => {
+      // pending 주문은 holdings/평가금액에 영향을 주지 않으므로
+      // 미체결 목록과 예수금만 무효화한다.
       queryClient.invalidateQueries({
         queryKey: CASH_BALANCE_KEY(portfolioId),
       });
       queryClient.invalidateQueries({
         queryKey: PENDING_ORDERS_KEY(portfolioId),
       });
-      queryClient.invalidateQueries({ queryKey: ["portfolios", portfolioId, "holdings"] });
-      queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
