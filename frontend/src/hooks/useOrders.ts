@@ -125,6 +125,15 @@ async function placeOrder(
   return res.data;
 }
 
+async function settleOrders(portfolioId: number): Promise<{
+  settled: number;
+  partial: number;
+  unchanged: number;
+}> {
+  const res = await api.post(`/portfolios/${portfolioId}/orders/settle`);
+  return res.data;
+}
+
 async function cancelPendingOrder(
   portfolioId: number,
   orderNo: string,
@@ -228,6 +237,24 @@ export function useCancelOrder(portfolioId: number) {
       queryClient.invalidateQueries({
         queryKey: CASH_BALANCE_KEY(portfolioId),
       });
+    },
+  });
+}
+
+/** 미체결 주문 수동 체결 확인 mutation. */
+export function useSettleOrders(portfolioId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => settleOrders(portfolioId),
+    onSuccess: (data) => {
+      if (data.settled > 0 || data.partial > 0) {
+        queryClient.invalidateQueries({ queryKey: PENDING_ORDERS_KEY(portfolioId) });
+        queryClient.invalidateQueries({ queryKey: CASH_BALANCE_KEY(portfolioId) });
+        queryClient.invalidateQueries({ queryKey: ["portfolios", portfolioId, "holdings"] });
+        queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      }
     },
   });
 }

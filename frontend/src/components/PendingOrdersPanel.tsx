@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -23,6 +24,7 @@ export function PendingOrdersPanel({
   portfolioId,
   isOverseas = false,
 }: PendingOrdersPanelProps) {
+  const queryClient = useQueryClient();
   const { data: orders = [], isLoading, refetch } = usePendingOrders(
     portfolioId,
     isOverseas
@@ -38,15 +40,24 @@ export function PendingOrdersPanel({
 
     // If we had orders before and some have disappeared, they may be filled
     if (prevNos.size > 0) {
+      let filledCount = 0;
       for (const prevNo of prevNos) {
         if (!currentNos.has(prevNo)) {
           toast.success(`주문 체결 완료 (주문번호: ${prevNo})`);
+          filledCount++;
         }
+      }
+      // 체결 완료 감지 시 holdings/dashboard 캐시 무효화
+      if (filledCount > 0) {
+        queryClient.invalidateQueries({ queryKey: ["portfolios", portfolioId, "holdings"] });
+        queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["cash-balance", portfolioId] });
       }
     }
 
     prevOrderNosRef.current = currentNos;
-  }, [orders]);
+  }, [orders, portfolioId, queryClient]);
 
   function handleCancel(order: PendingOrder) {
     cancelMutation.mutate(

@@ -4,6 +4,7 @@
   POST   /portfolios/{id}/orders              - 매수/매도 주문 실행
   GET    /portfolios/{id}/orders/orderable    - 주문 가능 수량/금액 조회
   GET    /portfolios/{id}/orders/pending      - 미체결 주문 목록
+  POST   /portfolios/{id}/orders/settle       - 미체결 주문 체결 확인
   DELETE /portfolios/{id}/orders/{order_no}   - 주문 취소
   GET    /portfolios/{id}/cash-balance        - 예수금 및 총 평가금액
 """
@@ -45,6 +46,7 @@ from app.services.kis_order import (
     place_domestic_order,
     place_overseas_order,
 )
+from app.services.order_settlement import settle_pending_orders
 
 router = APIRouter(tags=["orders"])
 logger = get_logger(__name__)
@@ -391,6 +393,33 @@ async def cancel_order_endpoint(
     if db_order:
         db_order.status = "cancelled"
         await db.commit()
+
+
+@router.post("/portfolios/{portfolio_id}/orders/settle")
+async def settle_orders_endpoint(
+    portfolio_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """미체결 주문 수동 체결 확인. KIS API로 체결 상태를 조회하고 반영한다."""
+    _portfolio, acct, app_key, app_secret = await _get_portfolio_with_kis(
+        portfolio_id, current_user, db
+    )
+
+    try:
+        counts = await settle_pending_orders(
+            db=db,
+            portfolio_id=portfolio_id,
+            app_key=app_key,
+            app_secret=app_secret,
+            account_no=acct.account_no,
+            account_product_code=acct.acnt_prdt_cd,
+            is_paper_trading=acct.is_paper_trading,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return counts
 
 
 @router.get("/portfolios/{portfolio_id}/cash-balance", response_model=CashBalanceResponse)
