@@ -32,6 +32,7 @@ from app.services.kis_price import (
     save_fx_rate_snapshot,
 )
 from app.services.price_snapshot import OhlcvData, save_ohlcv_snapshots, save_snapshots
+from app.services.order_settlement import settle_pending_orders
 from app.services.reconciliation import reconcile_holdings
 
 logger = get_logger(__name__)
@@ -48,6 +49,7 @@ _consecutive_failures: dict[str, int] = {
     "fx_rate_snapshot": 0,
     "preload_prices_am": 0,
     "preload_prices_pm": 0,
+    "settle_orders": 0,
 }
 
 
@@ -327,6 +329,69 @@ async def _save_fx_rate_snapshot(job_id: str = "fx_rate_snapshot") -> None:
         _record_job_failure(job_id, exc)
 
 
+async def _settle_pending_orders(job_id: str = "settle_orders") -> None:
+    """미체결 주문의 체결 여부를 KIS API로 확인하고 반영.
+
+    장중(KST 09:05~15:35) 5분 간격 실행.
+    """
+    logger.info("[Scheduler] Starting pending order settlement check")
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(KisAccount))
+            kis_accounts = list(result.scalars().all())
+
+            if not kis_accounts:
+                _record_job_success(job_id)
+                return
+
+            for acct in kis_accounts:  # type: ignore[assignment]
+                portfolio_result = await db.execute(
+                    select(Portfolio)
+                    .where(Portfolio.kis_account_id == acct.id)
+                    .limit(1)
+                )
+                portfolio = portfolio_result.scalar_one_or_none()
+                if not portfolio:
+                    continue
+
+                try:
+                    app_key = decrypt(acct.app_key_enc)
+                    app_secret = decrypt(acct.app_secret_enc)
+
+                    counts = await settle_pending_orders(
+                        db=db,
+                        portfolio_id=portfolio.id,
+                        app_key=app_key,
+                        app_secret=app_secret,
+                        account_no=acct.account_no,
+                        account_product_code=acct.acnt_prdt_cd,
+                        is_paper_trading=acct.is_paper_trading,
+                    )
+
+                    if counts["settled"] > 0 or counts["partial"] > 0:
+                        logger.info(
+                            "[Scheduler] Settlement user=%d portfolio=%d: "
+                            "settled=%d partial=%d unchanged=%d",
+                            acct.user_id,
+                            portfolio.id,
+                            counts["settled"],
+                            counts["partial"],
+                            counts["unchanged"],
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "[Scheduler] Settlement failed user=%d: %s",
+                        acct.user_id,
+                        exc,
+                    )
+
+        _record_job_success(job_id)
+
+    except Exception as exc:
+        _record_job_failure(job_id, exc)
+
+
 def start_scheduler() -> None:
     # 미국 장 마감 후 동기화: EST 16:00 ≈ UTC 21:30 (= KST 06:30)
     scheduler.add_job(
@@ -386,12 +451,25 @@ def start_scheduler() -> None:
         kwargs={"job_id": "fx_rate_snapshot"},
         replace_existing=True,
     )
+    # 미체결 주문 체결 확인: KST 09:05~15:35 평일 5분 간격
+    scheduler.add_job(
+        _settle_pending_orders,
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour="9-15",
+        minute="*/5",
+        timezone="Asia/Seoul",
+        id="settle_orders",
+        kwargs={"job_id": "settle_orders"},
+        replace_existing=True,
+    )
     scheduler.start()
     logger.info(
         "[Scheduler] APScheduler started — "
         "holdings sync + price preload at KST 08:00 & 16:00, "
         "US close sync at KST 06:30, "
-        "daily close snapshot at KST 16:10, FX snapshot at KST 16:30"
+        "daily close snapshot at KST 16:10, FX snapshot at KST 16:30, "
+        "order settlement every 5min during market hours"
     )
 
 

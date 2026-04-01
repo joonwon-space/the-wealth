@@ -105,6 +105,19 @@ class PendingOrder:
     order_time: str
 
 
+@dataclass(frozen=True)
+class FilledOrderInfo:
+    """체결 확인 결과."""
+
+    order_no: str
+    ticker: str
+    order_type: str  # BUY | SELL
+    filled_quantity: Decimal
+    filled_price: Decimal
+    total_quantity: Decimal
+    is_fully_filled: bool
+
+
 def is_market_open() -> bool:
     """한국 주식 시장 운영 중 여부 (KST 평일 09:00~15:30)."""
     now = datetime.now(_KST)
@@ -668,3 +681,100 @@ async def cancel_order(
     except Exception as e:
         logger.warning("cancel_order error: order_no=%s error=%s", order_no, e)
         raise RuntimeError(f"주문 취소 요청 실패 ({order_no}): {e}") from e
+
+
+async def check_filled_orders(
+    app_key: str,
+    app_secret: str,
+    account_no: str,
+    account_product_code: str,
+    order_nos: list[str],
+    is_paper_trading: bool = False,
+) -> list[FilledOrderInfo]:
+    """당일 체결 내역을 조회하여 지정된 주문번호의 체결 정보를 반환.
+
+    국내: TTTC8001R (주식일별주문체결조회) — 체결분만 조회.
+    order_nos에 포함된 주문번호만 필터링하여 반환한다.
+    """
+    tr_id = "VTTC8001R" if is_paper_trading else "TTTC8001R"
+    today = datetime.now(_KST).strftime("%Y%m%d")
+
+    token = await get_kis_access_token(app_key, app_secret)
+    headers = {
+        "authorization": f"Bearer {token}",
+        "appkey": app_key,
+        "appsecret": app_secret,
+        "tr_id": tr_id,
+        "Content-Type": "application/json; charset=utf-8",
+    }
+    params = {
+        "CANO": account_no,
+        "ACNT_PRDT_CD": account_product_code,
+        "INQR_STRT_DT": today,
+        "INQR_END_DT": today,
+        "SLL_BUY_DVSN_CD": "00",  # 전체
+        "INQR_DVSN": "00",
+        "PDNO": "",
+        "CCLD_DVSN": "01",  # 체결분만
+        "ORD_GNO_BRNO": "",
+        "ODNO": "",
+        "INQR_DVSN_3": "00",
+        "INQR_DVSN_1": "",
+        "CTX_AREA_FK100": "",
+        "CTX_AREA_NK100": "",
+    }
+
+    order_no_set = set(order_nos)
+    results: list[FilledOrderInfo] = []
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
+                headers=headers,
+                params=params,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        rt_cd = data.get("rt_cd")
+        if rt_cd != "0":
+            msg = data.get("msg1", "Unknown KIS API error")
+            raise RuntimeError(f"KIS 체결조회 API 오류 (rt_cd={rt_cd}): {msg}")
+
+        for row in data.get("output1", []):
+            odno = row.get("odno", "")
+            if odno not in order_no_set:
+                continue
+
+            filled_qty_str = row.get("tot_ccld_qty", "0") or "0"
+            filled_price_str = row.get("avg_prvs", "0") or "0"
+            total_qty_str = row.get("ord_qty", "0") or "0"
+            filled_qty = Decimal(filled_qty_str)
+            total_qty = Decimal(total_qty_str)
+
+            if filled_qty <= 0:
+                continue
+
+            sll_buy = row.get("sll_buy_dvsn_cd", "")
+            order_type = "SELL" if sll_buy == "01" else "BUY"
+
+            results.append(
+                FilledOrderInfo(
+                    order_no=odno,
+                    ticker=row.get("pdno", ""),
+                    order_type=order_type,
+                    filled_quantity=filled_qty,
+                    filled_price=Decimal(filled_price_str),
+                    total_quantity=total_qty,
+                    is_fully_filled=filled_qty >= total_qty,
+                )
+            )
+
+        return results
+
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.warning("check_filled_orders error: %s", e)
+        raise RuntimeError(f"체결 확인 조회 실패: {e}") from e
