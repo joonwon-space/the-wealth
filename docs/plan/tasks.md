@@ -156,7 +156,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 비교 페이지 빈 상태 추가 [team-analysis: UX-004]
 
-- [ ] **fix: compare 페이지 — 포트폴리오 1개 이하일 때 empty state**
+- [x] **fix: compare 페이지 — 포트폴리오 1개 이하일 때 empty state**
   - `frontend/src/app/dashboard/compare/page.tsx` — `portfolios.length < 2` 조건 추가
   - 안내 카드: '포트폴리오 비교는 2개 이상의 포트폴리오가 필요합니다' + 생성 링크 버튼
   - 파일: `frontend/src/app/dashboard/compare/page.tsx`

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { GitCompare } from "lucide-react";
+import Link from "next/link";
+import { GitCompare, Plus } from "lucide-react";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import {
   CartesianGrid,
@@ -170,16 +171,24 @@ export default function ComparePage() {
     );
   }
 
-  if (portfolios.length === 0) {
+  if (portfolios.length < 2) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">포트폴리오 비교</h1>
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
           <GitCompare className="mb-3 h-12 w-12 text-muted-foreground/40" />
-          <p className="text-lg font-semibold">포트폴리오가 없습니다</p>
+          <p className="text-lg font-semibold">포트폴리오 비교는 2개 이상의 포트폴리오가 필요합니다</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            포트폴리오를 생성하고 종목을 추가하면 비교할 수 있습니다.
+            {portfolios.length === 0
+              ? "포트폴리오를 생성하고 종목을 추가하면 비교할 수 있습니다."
+              : "포트폴리오가 1개뿐입니다. 비교하려면 포트폴리오를 1개 더 만드세요."}
           </p>
+          <Link href="/dashboard/portfolios">
+            <button className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+              <Plus className="h-4 w-4" />
+              포트폴리오 만들기
+            </button>
+          </Link>
         </div>
       </div>
     );
