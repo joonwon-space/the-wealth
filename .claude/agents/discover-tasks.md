@@ -21,6 +21,7 @@ Analyze current project state and discover work items to refresh task lists.
 |-----|------|---------|
 | `docs/plan/tasks.md` | **Current work** | Immediately actionable tasks. Read by `/auto-task` and `/next-task` |
 | `docs/plan/todo.md` | **Future work** | Long-term backlog/roadmap. Not urgent but eventually needed |
+| `docs/plan/parked.md` | **Parked** | Indefinitely shelved items (complexity/ROI). **Do NOT discover or promote** |
 
 ## Steps
 
@@ -32,6 +33,7 @@ Read all of:
 - `docs/plan/tasks.md` — current task list
 - `docs/plan/todo.md` — future backlog
 - `docs/plan/manual-tasks.md` — manual items
+- `docs/plan/parked.md` — **read-only reference**. Do NOT add/remove/promote items from this file. It contains deliberately shelved items.
 
 ### 2. Codebase research
 
@@ -67,6 +69,11 @@ Classify discovered work into the appropriate doc:
 - Deployment/infrastructure
 - Performance optimization
 - Long-term roadmap items
+
+**Never touch `parked.md`:**
+- Items in `parked.md` are deliberately shelved by the user
+- Do NOT re-discover, promote, or duplicate parked items into tasks.md or todo.md
+- If you find a new item that overlaps with a parked item, skip it
 
 ### 5. tasks.md writing rules
 

@@ -78,12 +78,11 @@ Current actionable work is in `tasks.md`.
 - [ ] Monthly/annual return heatmap (GitHub contribution chart style)
 
 ### 11-3. Dashboard Enhancement
-- [ ] 52-week high/low position bar in holdings table
+- [x] 52-week high/low position bar in holdings table — HoldingsTable.tsx + 종목 상세 구현 완료
 - [x] Target asset progress widget -- `portfolios.target_value` + 달성률 프로그레스 바 (`PATCH /portfolios/{id}`)
-- [ ] Drag-and-drop widget layout (react-grid-layout)
 
 ### 11-4. Stock Detail Page Enhancement
-- [ ] Fundamental data (market cap, PER, PBR, dividend yield) via KIS master API
+- [x] Fundamental data (market cap, PER, PBR, dividend yield) via KIS master API — stocks.py에서 FHKST01010100 조회 구현 완료
 - [ ] Moving averages overlay (5/20/60/120 day)
 - [ ] Volume analysis chart
 - [ ] News/disclosure feed (KIS news API or Naver Finance)
@@ -122,7 +121,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ### 12-5. API Extension
 - [x] Cursor-based pagination for transactions
 - [x] Cursor-based pagination for sync_logs
-- [ ] Bulk operations API (`POST /portfolios/{id}/holdings/bulk`)
+- [x] Bulk operations API (`POST /portfolios/{id}/holdings/bulk`) — portfolios.py:398 구현 완료
 
 ---
 
@@ -136,11 +135,8 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ### 13-2. Portfolio Analysis Engine
 - [ ] TWR (time-weighted return) / MWR (money-weighted return) calculation
 - [ ] Risk metrics: volatility, Sharpe ratio, MDD, beta
-- [ ] Portfolio correlation analysis
-- [ ] Rebalancing suggestions (target vs current allocation)
 
 ### 13-3. AI Insights
-- [ ] Claude API integration — portfolio analysis natural language summary
 - [ ] News summarization (RSS + Claude)
 
 ### 13-4. DB Stability
@@ -208,8 +204,6 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [x] Portfolio list/detail page tests
 - [x] HoldingsTable unit tests (sort, PnLBadge color rules, overseas USD display)
 - [x] SSE connection tests (connect/reconnect, off-hours deactivation)
-- [ ] Visual regression testing (Chromatic or Percy)
-- [ ] Load testing (Locust or k6)
 
 ### 16-3. Code Quality Tools
 - [ ] Storybook 8 — component catalog (`PnLBadge`, `DayChangeBadge`, `AllocationDonut`, `HoldingsTable`)
@@ -274,9 +268,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [ ] 공유 페이지 — 인증 없이 열람 가능한 읽기 전용 대시보드
 
 ### 19-3. 데이터 내보내기 확장
-- [ ] Excel 내보내기 (openpyxl 기반, 서식 포함 xlsx)
-- [ ] PDF 리포트 생성 (월간/연간 투자 성과 보고서)
-- [ ] 세금 계산기 (국내 대주주 양도세, 해외 250만원 공제 후 22%)
+- [x] Excel 내보내기 (openpyxl 기반, 서식 포함 xlsx) — portfolio_export.py 구현 완료
 
 ---
 
@@ -289,7 +281,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - ~~npm 취약점 (yaml)~~ — `npm audit` 0 vulnerabilities
 - ~~미체결 주문 즉시 반영 버그~~ — pending 시 transaction/holding 생성 제거, 체결 확인 스케줄러 추가
 
-### P1 — 핵심 기능 + 인프라 안정성 (7개)
+### P1 — 핵심 기능 + 인프라 안정성 (5개)
 | # | Item | Milestone | Reason |
 |---|------|-----------|--------|
 | 1 | Sharpe ratio, MDD, CAGR 지표 | 11-2 | 투자 성과 핵심 분석 도구 |
@@ -297,10 +289,8 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 | 3 | 해외주식 환차익/환차손 분리 표시 | 17-2 | 사용자 요청 빈번, 해외투자 핵심 |
 | 4 | 원화 환산 총 자산 추이 차트 | 17-2 | 환율 변동 반영된 실질 자산 파악 |
 | 5 | Neon(PostgreSQL) + Upstash(Redis) 전환 | 18-2 | 단일 서버 리스크 해소 (4개 하위 항목) |
-| 6 | 종목 상세: 펀더멘털 데이터 (PER, PBR, 시가총액) | 11-4 | 종목 분석의 기본 정보 |
-| 7 | 내 보유가 오버레이 (캔들차트 평균매입가 수평선) | 11-4 | 현재가 vs 매입가 시각적 비교 |
 
-### P2 — 분석 고도화 + 사용자 경험 (28개)
+### P2 — 분석 고도화 + 사용자 경험 (24개)
 | # | Item | Milestone | Reason |
 |---|------|-----------|--------|
 | 1 | KOSPI200/S&P500 일별 인덱스 데이터 수집 | 13-1 | 벤치마크·분석 엔진의 선행 조건 |
@@ -308,31 +298,27 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 | 3 | 배당 데이터 수집 (KIS or KRX) | 13-1 | 배당 추적의 전제 조건 |
 | 4 | TWR/MWR 수익률 계산 | 13-2 | 정확한 투자 성과 측정 |
 | 5 | 리스크 지표: 변동성, Sharpe, MDD, 베타 | 13-2 | 포트폴리오 리스크 분석 |
-| 6 | 포트폴리오 상관관계 분석 | 13-2 | 분산투자 효과 시각화 |
-| 7 | 리밸런싱 제안 (목표 vs 현재 배분) | 13-2 | 자산 배분 관리 도구 |
-| 8 | 배당 수익 추적 (캘린더 + 수익률 차트) | 11-2 | 배당 투자자 핵심 기능 |
-| 9 | 월간/연간 수익률 히트맵 | 11-2 | 성과 시각화 (GitHub 스타일) |
-| 10 | 포트폴리오 비교: 기간별 필터 + date range picker | 17-1 | 비교 대시보드 사용성 개선 |
-| 11 | 포트폴리오별 섹터 비중 비교 (side-by-side donut) | 17-1 | 다중 포트폴리오 분석 |
-| 12 | 환율 알림 (목표 환율 도달 시) | 17-2 | 환전 타이밍 알림 |
-| 13 | 투자 일지 필터링 및 검색 (월별/종목별) | 17-3 | 거래 기록 탐색 편의성 |
-| 14 | 투자 결정 회고 (매수 시점 vs 현재가 비교 위젯) | 17-3 | 투자 학습 지원 |
-| 15 | 이메일 알림 (SendGrid/Resend) | 19-1 | 인앱 알림만으로는 실시간 대응 불가 |
-| 16 | 알림 채널 설정 UI (인앱/이메일/둘 다) | 19-1 | 알림 개인화 |
-| 17 | 일일 포트폴리오 요약 이메일 | 19-1 | 장 마감 후 자동 리포트 |
-| 18 | PWA Web Push 알림 | 19-1 | 모바일 실시간 알림 |
-| 19 | 2FA (TOTP, Google Authenticator) | 14-4 | 계정 보안 강화 |
-| 20 | 보안 감사 로그 (로그인, 설정 변경, 데이터 접근) | 14-4 | 보안 추적성 |
-| 21 | API key rotation 자동화 | 14-4 | KIS 키 관리 안전성 |
-| 22 | 52주 고저 포지션 바 (holdings table) | 11-3 | 현재가 위치 직관적 파악 |
-| 23 | 이동평균선 오버레이 (5/20/60/120일) | 11-4 | 기술적 분석 기본 도구 |
-| 24 | 거래량 분석 차트 | 11-4 | 종목 상세 분석 보완 |
-| 25 | 뉴스/공시 피드 (KIS or 네이버 금융) | 11-4 | 종목 관련 정보 통합 |
-| 26 | TLS 인증서 만료 체크 자동화 | 18-3 | 서비스 중단 예방 |
-| 27 | KIS API 가격 조회 실패율 추적 (30% 초과 시 alert) | 18-3 | 데이터 품질 모니터링 |
-| 28 | 백업 성공률 대시보드 (최근 30일) | 18-3 | 백업 신뢰성 확인 |
+| 6 | 배당 수익 추적 (캘린더 + 수익률 차트) | 11-2 | 배당 투자자 핵심 기능 |
+| 7 | 월간/연간 수익률 히트맵 | 11-2 | 성과 시각화 (GitHub 스타일) |
+| 8 | 내 보유가 오버레이 (캔들차트 평균매입가 수평선) | 11-4 | 현재가 vs 매입가 시각적 비교 |
+| 9 | 이동평균선 오버레이 (5/20/60/120일) | 11-4 | 기술적 분석 기본 도구 |
+| 10 | 거래량 분석 차트 | 11-4 | 종목 상세 분석 보완 |
+| 11 | 뉴스/공시 피드 (KIS or 네이버 금융) | 11-4 | 종목 관련 정보 통합 |
+| 12 | 포트폴리오 비교: 기간별 필터 + date range picker | 17-1 | 비교 대시보드 사용성 개선 |
+| 13 | 포트폴리오별 섹터 비중 비교 (side-by-side donut) | 17-1 | 다중 포트폴리오 분석 |
+| 14 | 환율 알림 (목표 환율 도달 시) | 17-2 | 환전 타이밍 알림 |
+| 15 | 투자 일지 필터링 및 검색 (월별/종목별) | 17-3 | 거래 기록 탐색 편의성 |
+| 16 | 투자 결정 회고 (매수 시점 vs 현재가 비교 위젯) | 17-3 | 투자 학습 지원 |
+| 17 | 이메일 알림 (SendGrid/Resend) | 19-1 | 인앱 알림만으로는 실시간 대응 불가 |
+| 18 | 알림 채널 설정 UI (인앱/이메일/둘 다) | 19-1 | 알림 개인화 |
+| 19 | 일일 포트폴리오 요약 이메일 | 19-1 | 장 마감 후 자동 리포트 |
+| 20 | PWA Web Push 알림 | 19-1 | 모바일 실시간 알림 |
+| 21 | 2FA (TOTP, Google Authenticator) | 14-4 | 계정 보안 강화 |
+| 22 | 보안 감사 로그 (로그인, 설정 변경, 데이터 접근) | 14-4 | 보안 추적성 |
+| 23 | API key rotation 자동화 | 14-4 | KIS 키 관리 안전성 |
+| 24 | TLS 인증서 만료 체크 자동화 | 18-3 | 서비스 중단 예방 |
 
-### P3 — 부가 기능 + DX (19개)
+### P3 — 부가 기능 + DX (12개)
 | # | Item | Milestone | Reason |
 |---|------|-----------|--------|
 | 1 | 운영 대시보드 (`/dashboard/admin`) | 18-1 | 관리 편의성, 규모 커지면 필수 |
@@ -342,23 +328,19 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 | 5 | ETag/If-None-Match (dashboard 304) | 12-3 | 대역폭 절약, 체감 속도 개선 |
 | 6 | 종목 검색 trie/Redis ZRANGEBYLEX 인덱싱 | 12-3 | 검색 성능 최적화 |
 | 7 | KIS batch price API 탐색 | 12-3 | API 호출 횟수 절감 |
-| 8 | Drag-and-drop 위젯 레이아웃 | 11-3 | 대시보드 개인화 |
-| 9 | Claude API 포트폴리오 분석 요약 | 13-3 | AI 인사이트 (API 비용 발생) |
+| 8 | KIS API 가격 조회 실패율 추적 | 18-3 | 데이터 품질 모니터링 |
+| 9 | 백업 성공률 대시보드 (최근 30일) | 18-3 | 백업 신뢰성 확인 |
 | 10 | 뉴스 요약 (RSS + Claude) | 13-3 | AI 부가 기능 |
-| 11 | Excel 내보내기 (xlsx, 서식 포함) | 19-3 | CSV 이미 있음, 추가 포맷 |
-| 12 | PDF 리포트 생성 (월간/연간) | 19-3 | 투자 성과 보고서 |
-| 13 | 세금 계산기 (양도세, 해외 250만원 공제) | 19-3 | 세법 복잡도 높음 |
-| 14 | 포트폴리오 성과 익명 공유 링크 | 19-2 | 바이럴 마케팅 |
-| 15 | 성과 스크린샷 공유 (html2canvas) | 19-2 | 간편 공유 |
-| 16 | 공유 페이지 (인증 없이 읽기 전용) | 19-2 | 공유 기능 완성 |
-| 17 | Visual regression testing (Chromatic/Percy) | 16-2 | UI 변경 감지 |
-| 18 | Load testing (Locust/k6) | 16-2 | 성능 한계 파악 |
-| 19 | Storybook 8 컴포넌트 카탈로그 | 16-3 | DX 개선 |
+| 11 | 포트폴리오 성과 익명 공유 링크 + 공유 페이지 | 19-2 | 바이럴 마케팅 |
+| 12 | Storybook 8 컴포넌트 카탈로그 | 16-3 | DX 개선 |
+
+> 보류(parked) 항목은 `docs/plan/parked.md` 참조
 
 ### 항목 수 요약
 | 우선순위 | 개수 | 설명 |
 |----------|------|------|
-| P1 | 7 | 핵심 기능 + 인프라 안정성 |
-| P2 | 28 | 분석 고도화 + 사용자 경험 |
-| P3 | 19 | 부가 기능 + DX |
-| **합계** | **54** | (중복 참조 14개 제거) |
+| P1 | 5 | 핵심 기능 + 인프라 안정성 |
+| P2 | 24 | 분석 고도화 + 사용자 경험 |
+| P3 | 12 | 부가 기능 + DX |
+| Parked | 8 | 보류 (`parked.md`) |
+| **합계** | **49** | |
