@@ -19,6 +19,18 @@ Located in `~/.claude/agents/`:
 | e2e-runner | E2E testing | Critical user flows |
 | refactor-cleaner | Dead code cleanup | Code maintenance |
 | doc-updater | Documentation | Updating docs |
+| **team-discover** | **Multi-agent project analysis** | **Milestone completion, direction planning** |
+
+### Team Discover Sub-Agents (`.claude/agents/team/`)
+
+| Agent | Perspective | Model |
+|-------|-------------|-------|
+| tech-debt-analyst | Code quality, dependencies, type safety | Sonnet |
+| ux-gap-analyst | UX gaps, a11y, responsive, error states | Sonnet |
+| security-posture-analyst | OWASP, auth, encryption, vulnerabilities | Sonnet |
+| perf-bottleneck-analyst | Bundle, API, DB, caching performance | Sonnet |
+| product-strategy-analyst | Roadmap, feature gaps, priorities | Sonnet |
+| strategy-synthesizer | Merge & prioritize all findings | **Opus** |
 
 ## Immediate Agent Usage
 
@@ -27,6 +39,7 @@ No user prompt needed:
 2. Code just written/modified - Use **code-reviewer** agent
 3. Bug fix or new feature - Use **tdd-guide** agent
 4. Architectural decision - Use **architect** agent
+5. Milestone completed, need next direction - Use **team-discover** agent
 
 ## Parallel Task Execution
 
