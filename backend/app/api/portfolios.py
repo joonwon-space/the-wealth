@@ -15,6 +15,7 @@ from app.models.transaction import Transaction
 from app.models.user import User
 from app.core.logging import get_logger
 from app.core.ticker import is_domestic
+from app.api.analytics import invalidate_analytics_cache
 import asyncio
 import httpx
 from app.services.kis_price import (
@@ -384,6 +385,7 @@ async def add_holding(
     db.add(holding)
     await db.commit()
     await db.refresh(holding)
+    await invalidate_analytics_cache(current_user.id)
     return holding
 
 
@@ -451,6 +453,7 @@ async def bulk_add_holdings(
             errors.append(f"{item.ticker}: {exc}")
 
     await db.commit()
+    await invalidate_analytics_cache(current_user.id)
     logger.info(
         "Bulk holdings upsert: portfolio=%d created=%d updated=%d errors=%d",
         portfolio_id, created, updated, len(errors),
@@ -506,6 +509,7 @@ async def delete_holding(
 
     await db.delete(holding)
     await db.commit()
+    await invalidate_analytics_cache(current_user.id)
 
 
 @router.get("/{portfolio_id}/transactions", response_model=list[TransactionResponse])

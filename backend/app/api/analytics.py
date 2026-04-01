@@ -59,11 +59,13 @@ def _analytics_key(user_id: int, endpoint: str) -> str:
 
 async def invalidate_analytics_cache(user_id: int) -> None:
     """sync 성공 후 호출 — 해당 유저의 분석 캐시 전체 삭제."""
-    for endpoint in ("metrics", "monthly-returns", "sector-allocation"):
+    for endpoint in ("metrics", "monthly-returns", "sector-allocation", "fx-gain-loss"):
         await _analytics_cache.delete(_analytics_key(user_id, endpoint))
-    # portfolio-history has period-specific keys
+    # period-specific keys for portfolio-history and krw-asset-history
     for period in ("1W", "1M", "3M", "6M", "1Y", "ALL"):
         await _analytics_cache.delete(_analytics_key(user_id, f"portfolio-history:{period}"))
+    for period in ("1M", "3M", "6M", "1Y", "ALL"):
+        await _analytics_cache.delete(_analytics_key(user_id, f"krw-asset-history:{period}"))
 
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])

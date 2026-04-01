@@ -125,7 +125,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- analytics cache invalidation 누락 엔드포인트 수정 [team-analysis: PERF-005]
 
-- [ ] **fix: fx-gain-loss, krw-asset-history 캐시 무효화 추가**
+- [x] **fix: fx-gain-loss, krw-asset-history 캐시 무효화 추가**
   - `backend/app/api/analytics.py` — `invalidate_analytics_cache()` 함수에 두 키 추가
   - `fx-gain-loss`, `krw-asset-history:{period}` (1M/3M/6M/1Y/ALL 각 기간) invalidation 추가
   - 보유종목 추가/삭제/bulk 성공 후에도 호출되도록 `portfolios.py`에 연결
