@@ -120,7 +120,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 해외주식 환차익/환차손 분리: 프론트엔드 UI (17-2)
 
-- [ ] **feat: 분석 페이지에 해외주식 환차익/환차손 섹션 추가**
+- [x] **feat: 분석 페이지에 해외주식 환차익/환차손 섹션 추가**
   - `frontend/src/app/dashboard/analytics/page.tsx` — 새 섹션 추가
   - `/analytics/fx-gain-loss` API 호출하여 해외주식별 환차익/환차손 표시
   - 테이블 형식: 종목명/티커, 주가 수익(USD), 환차익(KRW), 총 손익(KRW)

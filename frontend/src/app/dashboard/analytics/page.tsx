@@ -83,6 +83,20 @@ interface SectorAllocationItem {
   weight: number;
 }
 
+interface FxGainLossItem {
+  ticker: string;
+  name: string;
+  quantity: number;
+  avg_price_usd: number;
+  current_price_usd: number;
+  stock_pnl_usd: number;
+  fx_rate_at_buy: number;
+  fx_rate_current: number;
+  fx_gain_krw: number;
+  stock_gain_krw: number;
+  total_pnl_krw: number;
+}
+
 export default function AnalyticsPage() {
   const [historyPeriod, setHistoryPeriod] = useState<"1W" | "1M" | "3M" | "6M" | "1Y" | "ALL">("3M");
 
@@ -126,6 +140,13 @@ export default function AnalyticsPage() {
     queryKey: ["analytics", "sector-allocation"],
     queryFn: () =>
       api.get<SectorAllocationItem[]>("/analytics/sector-allocation").then((r) => r.data),
+    staleTime: 3_600_000,
+  });
+
+  const { data: fxGainLoss = [] } = useQuery<FxGainLossItem[]>({
+    queryKey: ["analytics", "fx-gain-loss"],
+    queryFn: () =>
+      api.get<FxGainLossItem[]>("/analytics/fx-gain-loss").then((r) => r.data),
     staleTime: 3_600_000,
   });
 
@@ -262,6 +283,47 @@ export default function AnalyticsPage() {
           <Card>
             <CardContent className="p-4">
               <SectorAllocationChart data={sectorAllocation} />
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* 해외주식 환차익/환차손 */}
+      {fxGainLoss.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">해외주식 환차익/환차손</h2>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {(["종목", "수량", "매입가(USD)", "현재가(USD)", "주가 수익(KRW)", "환차익(KRW)", "총 손익(KRW)"] as const).map((h) => (
+                        <th key={h} className="whitespace-nowrap px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fxGainLoss.map((item, i) => (
+                      <tr key={`${item.ticker}-${i}`} className="border-t">
+                        <td className="px-4 py-2">
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-muted-foreground">{item.ticker}</div>
+                        </td>
+                        <td className="px-4 py-2 tabular-nums">{item.quantity.toLocaleString("ko-KR")}</td>
+                        <td className="px-4 py-2 tabular-nums">${item.avg_price_usd.toFixed(2)}</td>
+                        <td className="px-4 py-2 tabular-nums">${item.current_price_usd.toFixed(2)}</td>
+                        <td className="px-4 py-2"><PnLBadge value={item.stock_gain_krw} /></td>
+                        <td className="px-4 py-2"><PnLBadge value={item.fx_gain_krw} /></td>
+                        <td className="px-4 py-2"><PnLBadge value={item.total_pnl_krw} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+                매입 시 환율: 보유 등록일 기준 / 현재 환율: {fxGainLoss[0]?.fx_rate_current.toLocaleString("ko-KR")}원/USD
+              </div>
             </CardContent>
           </Card>
         </section>
