@@ -86,6 +86,19 @@ Each item should be completable in a single commit.
 - [x] Milestone 12-5: sync_logs 커서 기반 페이지네이션
 - [x] feat: 로깅 시스템 개선 (RotatingFileHandler, Dozzle, Sentry DSN env 변수화)
 - [x] fix: 국내 주식 주문 버그 4건 (Decimal 타입, 지정가 검증, SELL 수량 검증, 에러 메시지)
+- [x] P1 -- 운영 안정성: 디스크 사용량 모니터링 (18-3)
+- [x] P1 -- 환율 히스토리 저장 (17-2)
+- [x] P2 -- 포트폴리오 비교 차트 (17-1)
+- [x] P2 -- 거래 태그 시스템 (17-3)
+- [x] P1 -- Excel 내보내기 (15-4 / 19-3)
+- [x] P1 -- Bulk Holdings API (12-5)
+- [x] P1 -- 투자 일지 페이지 (17-3)
+- [x] P0 -- 테스트 인프라 수정 (일괄 실행 시 294건 ERROR)
+- [x] P0 -- 중복 파일 정리
+- [x] P1 -- npm 취약점 해결
+- [x] P1 -- Trading Feature 테스트 커버리지 (27% -> 80%+) (all items)
+- [x] P1 -- 매수/매도 UX 개선 (Before/After 경험) (all items)
+- [x] P2 -- 저커버리지 라우터 테스트 보강 (all items)
 
 </details>
 
@@ -93,166 +106,63 @@ Each item should be completable in a single commit.
 
 ## Current work
 
-### P1 -- 운영 안정성: 디스크 사용량 모니터링 (18-3)
+### P1 -- 해외주식 환차익/환차손 분리: 백엔드 API (17-2)
 
-- [x] **chore: Docker 볼륨 디스크 사용량 모니터링 스크립트**
-  - `scripts/disk-check.sh` 생성 — Docker 볼륨 마운트 경로의 디스크 사용량 체크
-  - 80% 초과 시 CRITICAL 로그 (structlog 호환 JSON) + exit code 1
-  - 사용량 정상이면 INFO 로그 + exit code 0
-  - `docker-compose.yml` 에 cron-like health check label 주석 추가
-  - `backend/app/api/health.py` — `GET /health/disk` 엔드포인트 추가 (df -h 결과 파싱)
-  - 파일: `scripts/disk-check.sh`, `backend/app/api/health.py`
+- [ ] **feat: GET /analytics/fx-gain-loss 엔드포인트 추가**
+  - `backend/app/api/analytics.py` — 해외주식 보유 종목별 환차익/환차손 계산 엔드포인트
+  - 각 해외주식에 대해: 매입 시점 USD 가치 vs 현재 USD 가치(주가 수익), 매입 시점 환율 vs 현재 환율(환차익)
+  - 매입 시점 환율은 `fx_rate_snapshots` 테이블에서 보유 종목 `created_at` 날짜에 가장 가까운 환율 사용
+  - 응답: `[{ticker, name, quantity, avg_price_usd, current_price_usd, stock_pnl_usd, fx_rate_at_buy, fx_rate_current, fx_gain_krw, stock_gain_krw, total_pnl_krw}]`
+  - 해외주식 판별: ticker가 숫자 6자리가 아닌 경우 (기존 `_is_domestic()` 함수 활용)
+  - 현재가는 Redis 캐시 우선(`_get_cached_price`), 없으면 `avg_price` fallback
+  - 현재 환율은 `get_cached_fx_rate()` 사용
+  - 파일: `backend/app/api/analytics.py`
 
-### P1 -- 환율 히스토리 저장 (17-2)
+### P1 -- 해외주식 환차익/환차손 분리: 프론트엔드 UI (17-2)
 
-- [x] **feat: fx_rate_snapshots 테이블 + 일별 환율 스냅샷 저장**
-  - Alembic migration: `fx_rate_snapshots(id, currency_pair, rate, snapshot_date)` 테이블 생성
-  - `backend/app/models/fx_rate_snapshot.py` 모델 추가
-  - `backend/app/services/kis_price.py` — `save_fx_rate_snapshot()` 함수 추가 (USD/KRW KIS API → DB 저장)
-  - `backend/app/services/scheduler.py` — 장 마감 후(KST 16:30) 환율 저장 job 추가
-  - `backend/app/api/analytics.py` — `GET /analytics/fx-history` 엔드포인트 (최근 90일 USD/KRW)
-  - 파일: migration, `fx_rate_snapshot.py`, `kis_price.py`, `scheduler.py`, `analytics.py`
+- [ ] **feat: 분석 페이지에 해외주식 환차익/환차손 섹션 추가**
+  - `frontend/src/app/dashboard/analytics/page.tsx` — 새 섹션 추가
+  - `/analytics/fx-gain-loss` API 호출하여 해외주식별 환차익/환차손 표시
+  - 테이블 형식: 종목명/티커, 주가 수익(USD), 환차익(KRW), 총 손익(KRW)
+  - 보유 해외주식이 없으면 섹션 미표시
+  - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
 
-### P2 -- 포트폴리오 비교 차트 (17-1)
+### P1 -- 원화 환산 총 자산 추이: 백엔드 API (17-2)
 
-- [x] **feat: 포트폴리오 비교 페이지 (수익률 오버레이 차트)**
-  - `frontend/src/app/dashboard/compare/page.tsx` 생성
-  - 포트폴리오 목록에서 최대 3개 선택 → 기간별 누적 수익률 오버레이 라인 차트
-  - x축: 날짜, y축: 수익률(%) — 기준가 = 기간 시작일 가치
-  - 기간 탭: 1M / 3M / 6M / 1Y / ALL
-  - 포트폴리오별 색상 구분 (brand blue + 보조색 2가지)
-  - Sidebar/BottomNav에 "비교" 메뉴 항목 추가
-  - 파일: `compare/page.tsx`, `Sidebar.tsx`, `BottomNav.tsx`
+- [ ] **feat: GET /analytics/krw-asset-history 엔드포인트 추가**
+  - `backend/app/api/analytics.py` — 환율 변동 반영 원화 총 자산 추이 엔드포인트
+  - `price_snapshots` × `fx_rate_snapshots` JOIN으로 날짜별 원화 환산 총 자산 계산
+  - 국내주식: KRW 그대로, 해외주식: 해당 날짜 `fx_rate_snapshots` 환율 적용 (없으면 최근 환율 interpolation)
+  - `period` 쿼리 파라미터 지원: 1M / 3M / 6M / 1Y / ALL
+  - 응답: `[{date: "YYYY-MM-DD", value: float, domestic_value: float, overseas_value_krw: float}]`
+  - 파일: `backend/app/api/analytics.py`
 
-### P2 -- 거래 태그 시스템 (17-3)
+### P1 -- 원화 환산 총 자산 추이: 프론트엔드 차트 (17-2)
 
-- [x] **feat: transactions.tags 컬럼 + 태그 입력 UI**
-  - Alembic migration: `transactions` 테이블에 `tags text[] DEFAULT '{}'` 컬럼 추가
-  - `backend/app/models/transaction.py` — `tags: list[str]` 필드 추가
-  - `backend/app/schemas/transaction.py` — 스키마 업데이트
-  - `backend/app/api/portfolios.py` — PATCH transaction 엔드포인트에서 tags 업데이트 지원
-  - `frontend/src/app/dashboard/journal/page.tsx` — 태그 뱃지 표시 + 태그 필터 UI
-  - 사전 정의 태그: `#실적발표`, `#배당투자`, `#단기매매`, `#장기투자`, `#리밸런싱`
-  - 파일: migration, `transaction.py`, `transaction.py`(schema), `portfolios.py`, `journal/page.tsx`
+- [ ] **feat: 분석 페이지에 원화 환산 총 자산 추이 차트 추가**
+  - `frontend/src/app/dashboard/analytics/page.tsx` — 기존 포트폴리오 가치 추이 섹션 아래에 추가
+  - `/analytics/krw-asset-history` API 호출
+  - Recharts LineChart: 국내(KRW) + 해외(환산 KRW) 스택 영역 차트 (AreaChart, stacked)
+  - 기간 탭: 1M / 3M / 6M / 1Y / ALL (historyPeriod 상태 재사용)
+  - 해외주식 보유가 없으면 단순 라인 차트로 표시
+  - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
 
-### P1 -- Excel 내보내기 (15-4 / 19-3)
+### P2 -- 투자 일지 필터링 및 검색 (17-3)
 
-- [x] **feat: 포트폴리오 Excel(xlsx) 내보내기 API + UI**
-  - `backend/app/api/portfolio_export.py` — `GET /{portfolio_id}/export/xlsx` 엔드포인트 추가
-  - openpyxl 사용: 보유 종목 시트 + 거래내역 시트 (서식 포함)
-  - 열 너비 자동 조정, 헤더 볼드, 숫자 형식 적용
-  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — "Excel 내보내기" 버튼 추가 (CSV 버튼 옆)
-  - 파일: `backend/app/api/portfolio_export.py`, 포트폴리오 상세 페이지
+- [ ] **feat: 투자 일지 월별/종목별 필터링 + 키워드 검색**
+  - `frontend/src/app/dashboard/journal/page.tsx` — 검색/필터 기능 추가
+  - 월별 필터: 드롭다운 (거래 이력에서 유니크 월 목록 추출)
+  - 종목별 필터: 드롭다운 (보유 종목 + 거래 종목 합집합)
+  - 키워드 검색: 메모(memo) 내용 검색, debounce 300ms
+  - 검색/필터 결과 0건 시 "검색 결과 없음" empty state 표시
+  - 파일: `frontend/src/app/dashboard/journal/page.tsx`
 
-### P1 -- Bulk Holdings API (12-5)
+### P2 -- 투자 결정 회고 위젯 (17-3)
 
-- [x] **feat: 보유 종목 일괄 등록 API**
-  - `backend/app/api/portfolios.py` — `POST /portfolios/{id}/holdings/bulk` 엔드포인트 추가
-  - 요청: `[{ticker, name, quantity, avg_price}]` 배열 (최대 100건)
-  - 중복 ticker 처리: upsert (기존 보유 수량+평단가 가중평균 업데이트)
-  - 응답: `{created: N, updated: N, errors: [...]}`
-  - 파일: `backend/app/api/portfolios.py`, `backend/tests/test_portfolios.py`
-
-### P1 -- 투자 일지 페이지 (17-3)
-
-- [x] **feat: 투자 일지 타임라인 페이지**
-  - `frontend/src/app/dashboard/journal/page.tsx` 생성
-  - 거래 내역(transactions)을 날짜 역순으로 타임라인 형식으로 표시
-  - 메모가 있는 항목은 말풍선으로 강조 표시
-  - 종목별 필터, BUY/SELL 타입 필터 제공
-  - Sidebar/BottomNav에 "일지" 메뉴 항목 추가
-  - 파일: `frontend/src/app/dashboard/journal/page.tsx`, `Sidebar.tsx`, `BottomNav.tsx`
-
-### P0 -- 테스트 인프라 수정 (일괄 실행 시 294건 ERROR)
-
-- [x] **fix: conftest.py async DB session 격리 문제 해결**
-  - `backend/tests/conftest.py` -- async session fixture가 일괄 실행 시 세션 누수 발생
-  - 원인: `pytest-asyncio` + `asyncpg` 세션 cleanup이 불완전
-  - 해결: 테스트별 독립 DB session 생성 + 트랜잭션 rollback 패턴 적용
-  - 검증: `pytest -q` 일괄 실행 시 0 errors 확인
-
-### P0 -- 중복 파일 정리
-
-- [x] **chore: 공백 포함 중복 파일 삭제**
-  - `backend/.coverage 2`, `.coverage 3`, `.coverage 4` 삭제
-  - `backend/alembic/versions/61cd677d984b_add_sync_type_to_sync_logs 2.py` 삭제
-  - `backend/app/api/internal 2.py` 삭제
-  - `backend/app/services/backup_health 2.py` 삭제
-  - `backend/tests/test_backup_health 2.py`, `test_backup_health 3.py` 삭제
-  - `backend/tests/test_health 2.py`, `test_health 3.py` 삭제
-  - `backend/tests/test_health_data_integrity 2.py` 삭제
-  - `backend/tests/test_internal 2.py`, `test_internal 3.py` 삭제
-  - `docs/plan/todo 2.md`, `docs/runbooks/restore 2.md` 삭제
-  - `.coveragerc`에 `internal 2.py` 등 중복 파일 제외 패턴 추가
-
-### P1 -- npm 취약점 해결
-
-- [x] **chore: yaml 2.0.0-2.8.2 Stack Overflow 취약점 수정**
-  - `cd frontend && npm audit fix`
-  - 4건 (2 moderate, 2 high): yaml 패키지 deep nested YAML collections
-  - 빌드 확인 후 커밋
-
-### P1 -- Trading Feature 테스트 커버리지 (27% -> 80%+)
-
-- [x] **test: orders.py 라우터 테스트 확장** (27% -> 80%+)
-  - `backend/tests/test_orders.py` -- 매수/매도, 예수금 조회, 미체결, 취소 등 통합 테스트
-  - KIS API mock, Redis 락 mock
-  - 에러 케이스: 보유수량 부족, KIS API 실패, 장외시간
-  - 파일: `backend/tests/test_orders.py`
-
-- [x] **test: kis_transaction.py 서비스 테스트 추가** (0% -> 80%+)
-  - 국내(TTTC8001R) + 해외(TTTS3035R) 체결내역 조회 테스트
-  - httpx mock으로 KIS API 응답 모킹
-  - 파일: `backend/tests/test_kis_transaction.py`
-
-- [x] **test: kis_order.py 서비스 테스트 추가**
-  - place_domestic_order, place_overseas_order, cancel_order 단위 테스트
-  - 계좌 유형별 TR_ID 분기 검증 (일반/ISA/연금/IRP)
-  - 파일: `backend/tests/test_kis_order.py`
-
-- [x] **test: kis_balance.py 서비스 테스트 추가**
-  - 국내+해외 예수금 합산 로직 테스트
-  - KIS API 실패 시 에러 전파 검증
-  - 파일: `backend/tests/test_kis_balance.py`
-
-### P1 -- 매수/매도 UX 개선 (Before/After 경험)
-
-- [x] **feat: OrderDialog에 현재 보유 정보 표시**
-  - `frontend/src/components/OrderDialog.tsx` — `existingHolding` prop 추가
-  - 포트폴리오 페이지에서 holding 데이터를 OrderDialog에 전달
-  - 다이얼로그 상단에 "현재 보유: N주 @ 평단가" 표시 (보유 없으면 미표시)
-  - 파일: `OrderDialog.tsx`, `portfolios/[id]/page.tsx`
-
-- [x] **feat: 매수 폼 — 추가 매수 후 예상 평단가 실시간 계산**
-  - 수량/가격 입력 시 `(보유수량 × 평단가 + 매수수량 × 매수가) / (보유수량 + 매수수량)` 계산
-  - 기존 평단가 대비 변화 방향(↑↓)과 차이 표시
-  - 시장가 주문 시 현재가 기준으로 계산
-  - 파일: `OrderDialog.tsx`
-
-- [x] **feat: 매도 폼 — 현재 손익 + 실현손익 미리보기**
-  - 보유 중인 경우 현재 손익(₩)과 수익률(%) 표시
-  - 수량 입력 시 해당 수량 매도 기준 실현손익 실시간 계산
-    - `(매도가 - 평단가) × 매도수량`
-  - 전량 매도 버튼 추가 (보유 수량 자동 입력)
-  - 파일: `OrderDialog.tsx`
-
-- [x] **feat: 주문 완료 후 Before/After 변화 요약 표시**
-  - 주문 성공 toast에 포트폴리오 변화 요약 추가
-    - 매수: "평단가 50,000 → 48,500 (-3%)"
-    - 매도: "실현손익 +125,000원 (+5.0%)"
-  - 파일: `OrderDialog.tsx`, `useOrders.ts`
-
-### P2 -- 저커버리지 라우터 테스트 보강
-
-- [x] **test: health.py 라우터 테스트 보강** (39% -> 80%+)
-  - data-integrity, holdings-reconciliation, orphan-records 엔드포인트 테스트
-  - 파일: `backend/tests/test_health.py`
-
-- [x] **test: alerts.py 라우터 테스트 보강** (67% -> 80%+)
-  - 알림 CRUD + 활성화/비활성화 엔드포인트 테스트
-  - 파일: `backend/tests/test_alerts.py`
-
-- [x] **test: analytics.py 라우터 테스트 보강** (55% -> 80%+)
-  - sector-allocation, monthly-returns, metrics 엔드포인트 테스트
-  - 기간별 필터 (1W/1M/3M/6M/1Y/ALL) 케이스
-  - 파일: `backend/tests/test_analytics_api.py`
+- [ ] **feat: 투자 결정 회고 위젯 — 매수 시점 가격 vs 현재가 비교**
+  - `frontend/src/app/dashboard/journal/page.tsx` — 페이지 상단에 회고 요약 섹션 추가
+  - 최근 30일 이내 BUY 거래 종목에 대해: 매수가 vs 현재가 비교 카드
+  - 각 카드: 종목명, 매수가(avg), 현재가(from dashboard summary), 수익률(%)
+  - 현재가는 `/dashboard/summary` 데이터에서 가져옴 (별도 API 호출 없이)
+  - 최대 5개까지만 표시 (평가금액 큰 순)
+  - 파일: `frontend/src/app/dashboard/journal/page.tsx`
