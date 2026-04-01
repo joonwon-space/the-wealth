@@ -108,7 +108,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 해외주식 환차익/환차손 분리: 백엔드 API (17-2)
 
-- [ ] **feat: GET /analytics/fx-gain-loss 엔드포인트 추가**
+- [x] **feat: GET /analytics/fx-gain-loss 엔드포인트 추가**
   - `backend/app/api/analytics.py` — 해외주식 보유 종목별 환차익/환차손 계산 엔드포인트
   - 각 해외주식에 대해: 매입 시점 USD 가치 vs 현재 USD 가치(주가 수익), 매입 시점 환율 vs 현재 환율(환차익)
   - 매입 시점 환율은 `fx_rate_snapshots` 테이블에서 보유 종목 `created_at` 날짜에 가장 가까운 환율 사용
