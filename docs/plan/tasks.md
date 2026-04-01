@@ -129,7 +129,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 원화 환산 총 자산 추이: 백엔드 API (17-2)
 
-- [ ] **feat: GET /analytics/krw-asset-history 엔드포인트 추가**
+- [x] **feat: GET /analytics/krw-asset-history 엔드포인트 추가**
   - `backend/app/api/analytics.py` — 환율 변동 반영 원화 총 자산 추이 엔드포인트
   - `price_snapshots` × `fx_rate_snapshots` JOIN으로 날짜별 원화 환산 총 자산 계산
   - 국내주식: KRW 그대로, 해외주식: 해당 날짜 `fx_rate_snapshots` 환율 적용 (없으면 최근 환율 interpolation)

@@ -588,6 +588,132 @@ async def get_fx_gain_loss(
     return result_items
 
 
+@router.get("/krw-asset-history")
+async def get_krw_asset_history(
+    period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """환율 변동 반영 원화 환산 총 자산 추이.
+
+    price_snapshots와 fx_rate_snapshots를 결합하여 날짜별로
+    국내주식(KRW)과 해외주식(USD→KRW 환산)을 합산한 총 자산 추이를 반환한다.
+
+    해당 날짜의 fx_rate_snapshots 환율을 사용하며,
+    없으면 가장 최근 이전 날짜의 환율을 forward-fill한다.
+
+    응답 예시:
+    [
+      {"date": "2026-03-28", "value": 15000000, "domestic_value": 10000000, "overseas_value_krw": 5000000},
+      ...
+    ]
+    """
+    normalized_period = period.upper() if period.upper() in ("1W", "1M", "3M", "6M", "1Y") else "ALL"
+    cache_key = _analytics_key(current_user.id, f"krw-asset-history:{normalized_period}")
+    cached = await _analytics_cache.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    port_result = await db.execute(
+        select(Portfolio).where(Portfolio.user_id == current_user.id)
+    )
+    portfolio_ids = [p.id for p in port_result.scalars().all()]
+    if not portfolio_ids:
+        return []
+
+    hold_result = await db.execute(
+        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    )
+    holdings = hold_result.scalars().all()
+    if not holdings:
+        return []
+
+    tickers = list({h.ticker for h in holdings})
+    holding_map = {h.ticker: h for h in holdings}
+    domestic_tickers = [t for t in tickers if _is_domestic(t)]
+    overseas_tickers = [t for t in tickers if not _is_domestic(t)]
+
+    cutoff = _period_cutoff(normalized_period)
+
+    # 종가 스냅샷 조회
+    snap_query = (
+        select(PriceSnapshot)
+        .where(PriceSnapshot.ticker.in_(tickers))
+        .order_by(PriceSnapshot.snapshot_date)
+    )
+    if cutoff is not None:
+        snap_query = snap_query.where(PriceSnapshot.snapshot_date >= cutoff)
+    snap_result = await db.execute(snap_query)
+    snapshots = snap_result.scalars().all()
+    if not snapshots:
+        return []
+
+    # 날짜별 {ticker: close} 맵
+    date_ticker_map: dict[str, dict[str, float]] = {}
+    for snap in snapshots:
+        d = snap.snapshot_date.isoformat()
+        if d not in date_ticker_map:
+            date_ticker_map[d] = {}
+        date_ticker_map[d][snap.ticker] = float(snap.close)
+
+    all_dates = sorted(date_ticker_map.keys())
+
+    # 환율 스냅샷 조회 (기간 기준)
+    fx_cutoff = cutoff if cutoff is not None else (date_type.today() - timedelta(days=1825))
+    fx_result = await db.execute(
+        select(FxRateSnapshot)
+        .where(
+            FxRateSnapshot.currency_pair == "USDKRW",
+            FxRateSnapshot.snapshot_date >= fx_cutoff,
+        )
+        .order_by(FxRateSnapshot.snapshot_date)
+    )
+    fx_snapshots = fx_result.scalars().all()
+    fx_date_map: dict[str, float] = {
+        snap.snapshot_date.isoformat(): float(snap.rate)
+        for snap in fx_snapshots
+    }
+
+    # forward-fill 환율: 날짜별 가장 최근 환율 채우기
+    fallback_fx = await get_cached_fx_rate()
+    filled_fx: dict[str, float] = {}
+    last_known_fx: float = fallback_fx
+    for d in all_dates:
+        if d in fx_date_map:
+            last_known_fx = fx_date_map[d]
+        filled_fx[d] = last_known_fx
+
+    # 날짜별 원화 환산 총 자산 계산
+    history: list[dict] = []
+    for date_str in all_dates:
+        prices_on_date = date_ticker_map[date_str]
+        fx_rate = filled_fx.get(date_str, fallback_fx)
+
+        domestic_value = sum(
+            float(holding_map[t].quantity) * prices_on_date[t]
+            for t in domestic_tickers
+            if t in prices_on_date and t in holding_map
+        )
+        overseas_value_usd = sum(
+            float(holding_map[t].quantity) * prices_on_date[t]
+            for t in overseas_tickers
+            if t in prices_on_date and t in holding_map
+        )
+        overseas_value_krw = overseas_value_usd * fx_rate
+        total_value = domestic_value + overseas_value_krw
+
+        if total_value > 0:
+            history.append({
+                "date": date_str,
+                "value": round(total_value, 0),
+                "domestic_value": round(domestic_value, 0),
+                "overseas_value_krw": round(overseas_value_krw, 0),
+            })
+
+    await _analytics_cache.setex(cache_key, _ANALYTICS_CACHE_TTL, json.dumps(history))
+    return history
+
+
 @router.get("/fx-history")
 async def get_fx_history(
     currency_pair: str = Query(default="USDKRW", description="통화쌍 (예: USDKRW)"),
