@@ -108,7 +108,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- GZip 응답 압축 미들웨어 추가 [team-analysis: PERF-001 + TD-011]
 
-- [ ] **perf: FastAPI GZipMiddleware 추가**
+- [x] **perf: FastAPI GZipMiddleware 추가**
   - `backend/app/main.py` — `from fastapi.middleware.gzip import GZipMiddleware` 추가
   - `app.add_middleware(GZipMiddleware, minimum_size=1000)` — 1KB 이상 응답에 gzip 적용
   - dashboard/summary, analytics 엔드포인트 JSON 응답 40-70% 압축 예상
