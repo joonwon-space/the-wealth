@@ -116,7 +116,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- `_is_domestic()` 유틸리티 통합 [team-analysis: TD-001]
 
-- [ ] **refactor: `backend/app/core/ticker.py` 생성 — 중복 제거**
+- [x] **refactor: `backend/app/core/ticker.py` 생성 — 중복 제거**
   - `backend/app/core/ticker.py` 신규 생성: `DOMESTIC_TICKER_RE`, `is_domestic(ticker: str) -> bool`
   - 기존 5개 파일에서 중복 제거: `analytics.py`, `dashboard.py`, `portfolios.py`, `orders.py`, `chart.py`
   - 각 파일에서 `from app.core.ticker import is_domestic` 임포트로 교체

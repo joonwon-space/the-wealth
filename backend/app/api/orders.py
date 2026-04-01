@@ -9,7 +9,6 @@
   GET    /portfolios/{id}/cash-balance        - 예수금 및 총 평가금액
 """
 
-import re
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -46,6 +45,7 @@ from app.services.kis_order import (
     place_overseas_order,
 )
 from app.services.order_settlement import settle_pending_orders
+from app.core.ticker import is_domestic
 
 router = APIRouter(tags=["orders"])
 logger = get_logger(__name__)
@@ -54,13 +54,6 @@ _cache = RedisCache(settings.REDIS_URL)
 
 _CASH_BALANCE_CACHE_PREFIX = "cash_balance:{portfolio_id}"
 _CASH_BALANCE_CACHE_TTL = 30  # seconds
-
-# 국내 티커: 숫자+영문 혼합 6자리
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 async def _get_portfolio_with_kis(
@@ -126,7 +119,7 @@ async def place_order(
             body.ticker,
         )
 
-    is_overseas = not _is_domestic(body.ticker)
+    is_overseas = not is_domestic(body.ticker)
 
     # SELL 전 보유 수량 검증
     if body.order_type == "SELL":

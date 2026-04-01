@@ -1,4 +1,3 @@
-import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -15,6 +14,7 @@ from app.models.portfolio import Portfolio
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.core.logging import get_logger
+from app.core.ticker import is_domestic
 import asyncio
 import httpx
 from app.services.kis_price import (
@@ -40,13 +40,6 @@ from app.schemas.portfolio import (
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 logger = get_logger(__name__)
-
-# 국내 티커: 숫자+영문 혼합 6자리 (일반주 005930, ETF/ETN 0087F0 등)
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:
@@ -262,7 +255,7 @@ async def list_holdings_with_prices(
         "SEHK": "HKS", "TKSE": "TSE", "SHAA": "SHS",
         "SZAA": "SZS", "HASE": "HNX", "VNSE": "HSX",
     }
-    overseas_holdings = [h for h in holdings if not _is_domestic(h.ticker)]
+    overseas_holdings = [h for h in holdings if not is_domestic(h.ticker)]
     ticker_to_market = {
         h.ticker: _MARKET_MAP.get(h.market or "", h.market or "NAS")
         for h in overseas_holdings
@@ -277,7 +270,7 @@ async def list_holdings_with_prices(
             try:
                 app_key = decrypt(acct.app_key_enc)
                 app_secret = decrypt(acct.app_secret_enc)
-                domestic_tickers = list({h.ticker for h in holdings if _is_domestic(h.ticker)})
+                domestic_tickers = list({h.ticker for h in holdings if is_domestic(h.ticker)})
                 overseas_tickers = list({h.ticker for h in overseas_holdings})
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     # 국내주식 현재가 (캐시 우선)
@@ -317,7 +310,7 @@ async def list_holdings_with_prices(
 
     items = []
     for h in holdings:
-        is_overseas = not _is_domestic(h.ticker)
+        is_overseas = not is_domestic(h.ticker)
         cp = prices.get(h.ticker)
         invested = h.quantity * h.avg_price
 
