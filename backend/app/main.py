@@ -33,7 +33,7 @@ if settings.SENTRY_DSN:
         dsn=settings.SENTRY_DSN,
         traces_sample_rate=0.2,
         profiles_sample_rate=0.1,
-        environment="production",
+        environment=settings.ENVIRONMENT,
     )
 
 

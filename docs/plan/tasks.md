@@ -184,7 +184,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- Sentry environment 설정 환경변수화 [team-analysis: SEC-009]
 
-- [ ] **fix: Sentry init — environment hardcoding 제거**
+- [x] **fix: Sentry init — environment hardcoding 제거**
   - `backend/app/core/config.py` — `ENVIRONMENT: str = 'development'` 설정 추가
   - `backend/app/main.py` — `environment=settings.ENVIRONMENT` 사용
   - `backend/.env.example` — `ENVIRONMENT=production` 예시 추가
