@@ -280,27 +280,29 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
-## Priority Guide (2026-03-28 갱신)
+## Priority Guide (2026-04-01 갱신)
+
+### 해결 완료 (이전 P0/P1)
+- ~~테스트 일괄 실행 (294 ERROR)~~ — conftest.py async session 격리 수정, CI 전체 통과
+- ~~중복 파일 정리~~ — 이상 파일 없음, 구조 정상
+- ~~Trading Feature 테스트 커버리지~~ — 39개 테스트 추가 (orders 36 + settlement 3)
+- ~~npm 취약점 (yaml)~~ — `npm audit` 0 vulnerabilities
+- ~~미체결 주문 즉시 반영 버그~~ — pending 시 transaction/holding 생성 제거, 체결 확인 스케줄러 추가
 
 | Priority | Item | Reason |
 |----------|------|--------|
-| **P0** | 테스트 일괄 실행 수정 (294 ERROR) | CI false negative 위험, conftest.py async session 격리 |
-| **P0** | 중복 파일 정리 | 커버리지 측정 오염 (`internal 2.py` 0%) |
-| **P1** | Trading Feature 테스트 커버리지 | orders.py 27%, kis_transaction.py 0%, 80% 기준 미달 |
-| **P1** | npm 취약점 수정 (yaml) | 4건 moderate+high |
 | **P1** | 11-2 (Analytics: 고급 지표 + 벤치마크) | Sharpe ratio, MDD, CAGR, KOSPI/S&P 오버레이 |
-| **P1** | 17-2 (환율 관리 및 해외투자 분석) | 해외주식 환차익 분리 -- 사용자 요청 빈번 |
-| **P1** | 13-5a (Disk monitoring) | 운영 안정성, 장애 예방 |
-| **P1** | 18-2 (매니지드 인프라 전환) | 단일 서버 리스크 해소 |
-| **P2** | 저커버리지 라우터 테스트 보강 | health 39%, analytics 55%, alerts 67% |
-| **P2** | 17-1 (포트폴리오 비교 대시보드) | 다중 포트폴리오 사용자의 핵심 니즈 |
-| **P2** | 11-2 (Benchmark overlay) | 13-1 외부 데이터 수집 선행 필요 |
+| **P1** | 17-2 (환율 관리 및 해외투자 분석) | 해외주식 환차익 분리 — 사용자 요청 빈번 |
+| **P1** | 18-2 (매니지드 인프라 전환) | 단일 서버 리스크 해소 (Neon + Upstash) |
 | **P2** | 13-2 (분석 엔진: TWR/MWR, 리스크 지표) | price_snapshots 데이터 누적 전제 |
-| **P2** | 17-3 (투자 일지 대시보드) | 거래 메모 활용, 투자 학습 지원 |
-| **P2** | 15-4 (Excel export) | CSV 이미 있음, xlsx는 추가 가치 |
+| **P2** | 13-1 (외부 데이터 수집: KOSPI/S&P, 섹터) | 벤치마크 오버레이, 분석 엔진의 선행 조건 |
 | **P2** | 19-1 (이메일/푸시 알림) | 인앱 알림만으로는 실시간 대응 불가 |
+| **P2** | 17-1 (포트폴리오 비교 대시보드) | 다중 포트폴리오 사용자의 핵심 니즈 |
+| **P2** | 17-3 (투자 일지: 필터/검색, 회고 위젯) | 거래 메모 활용, 투자 학습 지원 |
+| **P2** | 저커버리지 라우터 테스트 보강 | health 39%, analytics 55%, alerts 67% |
+| **P2** | 14-4 (보안: 2FA, 감사 로그) | 보안 강화, 사용자 신뢰 |
 | **P3** | 18-1 (운영 대시보드) | 관리 편의성, 규모 커지면 필수 |
+| **P3** | 15-4 (Excel/PDF export, 세금 계산기) | CSV 이미 있음, 추가 포맷은 부가 가치 |
 | **P3** | 13-3 (Claude API 인사이트) | 재미있지만 API 비용 발생 |
-| **P3** | 16-3 (Storybook) | DX 개선 |
 | **P3** | 19-2 (소셜/공유 기능) | 바이럴 마케팅 가능성 |
-| **P3** | 15-4 (세금 계산기) | 세법 복잡도 높음 |
+| **P3** | 16-2/16-3 (Visual regression, Storybook) | DX 개선 |
