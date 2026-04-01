@@ -1,0 +1,149 @@
+{
+  "agent": "tech-debt-analyst",
+  "summary": "The codebase is mature and well-structured for a solo-maintained project, with strong test coverage (93%) and CI/CD in place. The most significant debt is widespread duplication of the _is_domestic() utility and _DOMESTIC_TICKER_RE across at least 5 API modules (analytics, dashboard, portfolios, orders, chart). Several files far exceed the 400-line guideline — portfolios/[id]/page.tsx at 1123 lines and settings/page.tsx at 901 lines represent the highest refactoring risk. TypeScript 'any' usage is minimal and mostly test-related. The largest backend concern is analytics.py at 748 lines with repeated query boilerplate that should be extracted to a shared query helper.",
+  "findings": [
+    {
+      "id": "TD-001",
+      "title": "_is_domestic() and _DOMESTIC_TICKER_RE duplicated across 5 backend modules",
+      "category": "code-smell",
+      "severity": "high",
+      "effort": "S",
+      "impact": "maintainability",
+      "location": "backend/app/api/analytics.py, dashboard.py, portfolios.py, orders.py, chart.py",
+      "detail": "The same regex pattern `^[0-9A-Z]{6}$` and `_is_domestic()` function are copy-pasted in 5 separate API files. A bug fix or rule change requires updating all 5 locations.",
+      "recommendation": "Extract to `backend/app/core/ticker.py` with `DOMESTIC_TICKER_RE` and `is_domestic(ticker: str) -> bool`, then import from there in all callers."
+    },
+    {
+      "id": "TD-002",
+      "title": "portfolios/[id]/page.tsx is 1123 lines — far exceeds 800-line limit",
+      "category": "code-smell",
+      "severity": "high",
+      "effort": "M",
+      "impact": "maintainability",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "At 1123 lines this file handles holdings display, transaction history (infinite scroll), KIS live transactions, add/edit/delete holdings, order dialog, pending orders, portfolio metadata editing, export, and target value. This is 7+ responsibilities in one file.",
+      "recommendation": "Extract into: HoldingsList.tsx, TransactionHistory.tsx, KisTransactionPanel.tsx, PortfolioMetaEditor.tsx — each under 200 lines. The page.tsx should become a thin orchestrator."
+    },
+    {
+      "id": "TD-003",
+      "title": "settings/page.tsx is 901 lines — multiple unrelated concerns",
+      "category": "code-smell",
+      "severity": "high",
+      "effort": "M",
+      "impact": "maintainability",
+      "location": "frontend/src/app/dashboard/settings/page.tsx",
+      "detail": "The settings page handles account info editing, KIS account CRUD, real-account balance verification, price alerts CRUD, theme switching, and account deletion. These are 6 distinct feature areas.",
+      "recommendation": "Split into: AccountInfoSection.tsx, KisAccountsSection.tsx, AlertsSection.tsx, AppearanceSection.tsx — composed in a thin settings page."
+    },
+    {
+      "id": "TD-004",
+      "title": "analytics.py at 748 lines repeats Portfolio+Holdings query pattern 7 times",
+      "category": "code-smell",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "maintainability",
+      "location": "backend/app/api/analytics.py",
+      "detail": "Every analytics endpoint fetches portfolios by user_id then holdings by portfolio_ids with nearly identical 3-step query pattern. This boilerplate appears 7+ times across the file.",
+      "recommendation": "Extract `async def get_user_holdings(user_id: int, db: AsyncSession) -> list[Holding]` into `backend/app/services/holdings_service.py`, eliminating repeated query code."
+    },
+    {
+      "id": "TD-005",
+      "title": "kis_order.py at 780 lines — single file for both domestic and overseas order logic",
+      "category": "code-smell",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "maintainability",
+      "location": "backend/app/services/kis_order.py",
+      "detail": "At 780 lines, this file contains domestic order placement, overseas order placement, order cancellation, pending order retrieval, orderable quantity check, and rate limiting all in one module.",
+      "recommendation": "Split into `kis_order_domestic.py` and `kis_order_overseas.py` with a shared `kis_order_common.py` for rate limiting and cancellation helpers."
+    },
+    {
+      "id": "TD-006",
+      "title": "lucide-react major version update available (0.577 → 1.7.0)",
+      "category": "dependency",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "developer-experience",
+      "location": "frontend/package.json",
+      "detail": "lucide-react is at 0.577.0 while 1.7.0 is available — a major version jump that may include breaking changes in icon names/APIs. Also typescript 5.9.3 vs latest 6.0.2 (major), and eslint 9 vs 10.",
+      "recommendation": "Create a dedicated dependency-update branch. Review lucide-react 1.x migration guide for renamed icons, then update. Pin typescript to 5.x until v6 compatibility is confirmed with Next.js."
+    },
+    {
+      "id": "TD-007",
+      "title": "Python packages cryptography, gunicorn, boto3 outdated",
+      "category": "dependency",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "security",
+      "location": "backend/requirements.txt",
+      "detail": "cryptography 46.0.5 (latest: 46.0.6 — patch with possible security fix), gunicorn 25.1.0 (latest: 25.3.0), boto3 1.42.57 (latest: 1.42.81). Minor patches often include security backports.",
+      "recommendation": "Run `pip install --upgrade cryptography gunicorn boto3 botocore` and update requirements.txt. Prioritize cryptography given it handles AES-256 encryption of KIS credentials."
+    },
+    {
+      "id": "TD-008",
+      "title": "PortfolioHistoryChart uses `any[]` for Recharts payload type",
+      "category": "type-safety",
+      "severity": "low",
+      "effort": "S",
+      "impact": "developer-experience",
+      "location": "frontend/src/components/PortfolioHistoryChart.tsx:45,156",
+      "detail": "Two uses of `any[]` in the Recharts custom tooltip — `payload?: any[]` and `payload={payload as any[]}`. This bypasses type checking for chart data.",
+      "recommendation": "Define `interface RechartsPayloadEntry { value: number; name: string; color: string; payload: Record<string, unknown> }` and use `payload?: RechartsPayloadEntry[]`."
+    },
+    {
+      "id": "TD-009",
+      "title": "transaction.ticker column lacks a database index",
+      "category": "architecture",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "reliability",
+      "location": "backend/app/models/transaction.py",
+      "detail": "The `transactions.ticker` column is used in queries (e.g., investment journal filtering) but has no index while `portfolio_id` does. As transaction volume grows, ticker-based queries will do full table scans.",
+      "recommendation": "Add `index=True` to the `ticker` mapped_column in Transaction model and create a corresponding Alembic migration."
+    },
+    {
+      "id": "TD-010",
+      "title": "portfolio delete uses browser confirm() — inconsistent with rest of UI",
+      "category": "code-smell",
+      "severity": "low",
+      "effort": "S",
+      "impact": "maintainability",
+      "location": "frontend/src/app/dashboard/portfolios/page.tsx:231",
+      "detail": "`if (!confirm('포트폴리오를 삭제하시겠습니까?')) return;` uses the native browser dialog while all other destructive actions in the app (account deletion) use the shadcn Dialog component for consistency.",
+      "recommendation": "Replace `confirm()` with a shadcn `AlertDialog` component matching the pattern used in settings/page.tsx for account deletion."
+    },
+    {
+      "id": "TD-011",
+      "title": "GZip/Brotli response compression not configured in FastAPI",
+      "category": "architecture",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "reliability",
+      "location": "backend/app/main.py",
+      "detail": "The FastAPI app adds SecurityHeadersMiddleware and MetricsMiddleware but no GZipMiddleware. Dashboard and analytics endpoints return JSON payloads that could be 40-70% smaller with compression.",
+      "recommendation": "Add `from fastapi.middleware.gzip import GZipMiddleware` and `app.add_middleware(GZipMiddleware, minimum_size=1000)` to main.py."
+    },
+    {
+      "id": "TD-012",
+      "title": "OrderDialog.tsx at 605 lines handles too many order states",
+      "category": "code-smell",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "maintainability",
+      "location": "frontend/src/components/OrderDialog.tsx",
+      "detail": "OrderDialog manages market vs limit order types, domestic vs overseas stock routing, orderable quantity fetch, live price display, order submission, and post-order confirmation — all in one 605-line component.",
+      "recommendation": "Extract an `OrderForm` (pure presentation), `useOrderSubmit` hook, and separate `DomesticOrderFields`/`OverseasOrderFields` — reduces component to ~200 lines."
+    },
+    {
+      "id": "TD-013",
+      "title": "price_snapshots missing composite index on (ticker, snapshot_date)",
+      "category": "architecture",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "reliability",
+      "location": "backend/app/models/price_snapshot.py",
+      "detail": "The `price_snapshots` table has a UniqueConstraint on (ticker, snapshot_date) and individual indexes on id and ticker, but no composite index. The analytics endpoint queries `WHERE ticker IN (...) AND snapshot_date >= cutoff` — this would benefit from a composite index.",
+      "recommendation": "Add `Index('ix_price_snapshot_ticker_date', 'ticker', 'snapshot_date')` to `__table_args__` and create Alembic migration."
+    }
+  ]
+}

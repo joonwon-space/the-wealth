@@ -1,0 +1,105 @@
+{
+  "agent": "security-posture-analyst",
+  "summary": "The project demonstrates strong security fundamentals: JWT access tokens are short-lived (30min) with HttpOnly cookie storage, KIS credentials are AES-256 encrypted at rest, all protected routes use get_current_user dependency, CORS is configured via environment variable, and security headers middleware is in place. The critical gap is missing rate limiting on high-value write endpoints (portfolios CRUD, holdings mutations, order placement). The second critical concern is no logout token invalidation mechanism — refresh tokens cannot be revoked server-side. The dependency audit shows no current CVEs after recent npm vulnerability fixes. Secondary concerns include insufficient audit logging for financial operations and the lack of 2FA for an application managing real brokerage accounts.",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "title": "Portfolio and holdings mutation endpoints lack rate limiting",
+      "category": "api-security",
+      "severity": "high",
+      "effort": "S",
+      "impact": "denial-of-service",
+      "location": "backend/app/api/portfolios.py",
+      "detail": "Only auth, dashboard, and sync endpoints have @limiter.limit decorators. The portfolios router (POST /portfolios, POST /holdings, DELETE /holdings/{id}, POST /transactions) has no rate limits. A malicious authenticated user could flood these endpoints creating thousands of records or triggering expensive N+1 KIS API calls. The orders router similarly lacks general rate limiting (only the kis_order service has internal Redis-based limits for order submission).",
+      "recommendation": "Add `@limiter.limit('60/minute')` to all portfolio/holdings write endpoints and `@limiter.limit('30/minute')` to the orders router endpoints. The existing slowapi limiter instance is available in `app.core.limiter`."
+    },
+    {
+      "id": "SEC-002",
+      "title": "No server-side refresh token revocation on logout",
+      "category": "auth",
+      "severity": "high",
+      "effort": "M",
+      "impact": "privilege-escalation",
+      "location": "backend/app/api/auth.py",
+      "detail": "The logout endpoint clears the HttpOnly cookie client-side but does not invalidate the refresh token server-side. If an attacker exfiltrates the refresh token before logout (e.g., via XSS, compromised device), they can continue to obtain new access tokens indefinitely until the refresh token's natural expiry. Exploitation: 1. Attacker captures refresh token, 2. User logs out, 3. Attacker uses captured token to `/auth/refresh` and gets new access tokens.",
+      "recommendation": "Store issued refresh tokens in Redis with TTL matching token expiry (`REFRESH_TOKEN_EXPIRE_DAYS`). On logout, delete the Redis key. On refresh, verify the token exists in Redis before issuing new tokens. Key pattern: `refresh_token:{user_id}:{token_hash}`."
+    },
+    {
+      "id": "SEC-003",
+      "title": "Security audit log missing for financial operations",
+      "category": "data-protection",
+      "severity": "high",
+      "effort": "L",
+      "impact": "information-disclosure",
+      "location": "backend/app/api/orders.py, portfolios.py, users.py",
+      "detail": "There is no structured audit trail for security-sensitive operations: order placement, KIS credential add/update/delete, account deletion, login success/failure, and bulk holdings import. For a financial application, this makes post-incident forensics impossible. This is also tracked in todo.md as 14-4 but worth elevating given the trading feature is now live.",
+      "recommendation": "Create a `security_audit_logs` table with columns: user_id, action, resource_type, resource_id, ip_address, user_agent, created_at. Log all order placements, auth events, and KIS credential changes. This directly addresses the 14-4 milestone item already in todo.md."
+    },
+    {
+      "id": "SEC-004",
+      "title": "CORS credentials=True with wildcard methods and headers",
+      "category": "api-security",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "data-breach",
+      "location": "backend/app/main.py:63-66",
+      "detail": "`allow_methods=['*']` and `allow_headers=['*']` with `allow_credentials=True` is overly permissive. While origins are restricted to `CORS_ORIGINS`, allowing all methods and headers means any CORS-compliant browser can send PATCH, DELETE with any custom header. This should be explicitly scoped.",
+      "recommendation": "Replace with `allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']` and `allow_headers=['Content-Type', 'Authorization', 'X-Request-ID']` to follow principle of least privilege."
+    },
+    {
+      "id": "SEC-005",
+      "title": "KIS app_key and app_secret visible in structlog output at DEBUG level",
+      "category": "data-protection",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "information-disclosure",
+      "location": "backend/app/services/kis_token.py, kis_order.py",
+      "detail": "KIS API calls construct httpx requests with app_key/app_secret in headers. If structlog is set to DEBUG level in production (possible via environment), the full request headers including decrypted credentials could appear in logs. Dozzle or any log aggregator would expose these.",
+      "recommendation": "Add a structlog processor that masks any key matching `app_key`, `app_secret`, `appkey`, `appsecret` patterns — replace value with `***REDACTED***`. Also explicitly set production log level to INFO in the logging configuration."
+    },
+    {
+      "id": "SEC-006",
+      "title": "Missing input length validation on memo and tag fields",
+      "category": "input-validation",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "denial-of-service",
+      "location": "backend/app/schemas/portfolio.py",
+      "detail": "The `memo` field on transactions has `String(500)` at the DB level but Pydantic schema validation should enforce this. Tags (ARRAY(Text)) have no length limit on the array or individual tag strings. An attacker could POST a transaction with a 10MB tags array bypassing the 500-char memo limit.",
+      "recommendation": "In `TransactionCreate` schema, add `memo: Optional[str] = Field(None, max_length=500)` and `tags: Optional[list[str]] = Field(None, max_length=20)` with individual tag `Field(max_length=50)` using a custom validator."
+    },
+    {
+      "id": "SEC-007",
+      "title": "No concurrent session control — unlimited active sessions per user",
+      "category": "auth",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "privilege-escalation",
+      "location": "backend/app/api/auth.py",
+      "detail": "The system allows unlimited simultaneous refresh tokens and sessions per user. A compromised account could have many active sessions running in parallel without the user being aware. There is no way to see or revoke active sessions from the settings page.",
+      "recommendation": "As part of implementing server-side refresh token storage (SEC-002), add a `GET /auth/sessions` endpoint showing active sessions and `DELETE /auth/sessions/{session_id}` for revocation. Store device info (user-agent, IP) with each token."
+    },
+    {
+      "id": "SEC-008",
+      "title": "Frontend StockSearchDialog stores recent searches in localStorage without sanitization",
+      "category": "frontend-security",
+      "severity": "low",
+      "effort": "S",
+      "impact": "information-disclosure",
+      "location": "frontend/src/components/StockSearchDialog.tsx:32,41,46",
+      "detail": "Recent stock search queries are persisted to localStorage. While this is non-sensitive ticker data, the read/write path has no sanitization — if localStorage is poisoned by a different vulnerability (e.g., XSS on another page), malformed data could cause JSON.parse errors that bubble to the UI.",
+      "recommendation": "Wrap `JSON.parse(localStorage.getItem(RECENT_KEY))` in a try-catch that defaults to empty array on parse error, and validate that each item in the array is a string before use."
+    },
+    {
+      "id": "SEC-009",
+      "title": "Sentry DSN hardcoded environment as 'production' regardless of actual environment",
+      "category": "data-protection",
+      "severity": "low",
+      "effort": "S",
+      "impact": "information-disclosure",
+      "location": "backend/app/main.py:36",
+      "detail": "`environment='production'` is hardcoded in the Sentry init call. If this code runs locally with a SENTRY_DSN set, all local development errors are tagged as 'production' in Sentry, making it impossible to filter out development noise from real production alerts.",
+      "recommendation": "Change to `environment=settings.ENVIRONMENT` and add `ENVIRONMENT: str = 'development'` to the config with appropriate values per deployment env."
+    }
+  ]
+}

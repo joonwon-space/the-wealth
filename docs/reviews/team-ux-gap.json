@@ -1,0 +1,138 @@
+{
+  "agent": "ux-gap-analyst",
+  "summary": "The UX is production-quality overall with consistent skeleton loading states, unified ErrorBoundary components, and proper Korean market color conventions. The primary gaps are: (1) most mutation endpoints lack optimistic updates and show no feedback during pending states, (2) the analytics page makes 7+ concurrent queries without a unified loading state making the page feel jumpy, (3) accessibility is incomplete — charts lack ARIA descriptions and several interactive elements lack keyboard navigation, (4) the holdings delete action uses inline icon button with no confirmation on the portfolio detail page, and (5) the compare page shows no empty state when only one portfolio exists.",
+  "findings": [
+    {
+      "id": "UX-001",
+      "title": "Analytics page fires 7+ queries independently — no unified loading state",
+      "category": "loading-state",
+      "severity": "high",
+      "effort": "M",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/analytics/page.tsx",
+      "detail": "The analytics page has separate useQuery calls for summary, metrics, monthly-returns, sector-allocation, portfolio-history, fx-gain-loss, and krw-asset-history. Each resolves independently causing the page to flash sections in at different times, producing a disjointed loading experience.",
+      "recommendation": "Wrap each section card in its own Suspense-like isLoading guard using the existing Skeleton pattern already used for portfolio-history. Alternatively use `useQueries` to batch and show a single page-level skeleton until all critical queries resolve."
+    },
+    {
+      "id": "UX-002",
+      "title": "Recharts charts have no accessible text for screen readers",
+      "category": "a11y",
+      "severity": "high",
+      "effort": "M",
+      "impact": "accessibility",
+      "location": "frontend/src/components/AllocationDonut.tsx, PortfolioHistoryChart.tsx, MonthlyHeatmap.tsx",
+      "detail": "All Recharts-based charts render SVG without ARIA labels, role attributes, or visually-hidden data tables as fallback. Screen reader users get zero information from all charts in the dashboard, analytics, and portfolio pages.",
+      "recommendation": "Add `role='img'` and `aria-label='자산 배분 도넛 차트 — 삼성전자 45%, ...'` to ResponsiveContainer wrappers. For data tables (HoldingsTable), the TanStack Table already renders semantic table elements — verify `scope` and `caption` are present."
+    },
+    {
+      "id": "UX-003",
+      "title": "Holdings delete button in portfolio detail has no confirmation",
+      "category": "feedback",
+      "severity": "high",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "The holding row delete action (Trash2 icon) calls the delete mutation immediately without any confirmation dialog or undo option. A mis-click permanently removes a holding and all associated transactions if soft-delete is not the default.",
+      "recommendation": "Replace the direct delete handler with a shadcn AlertDialog (matching the pattern already used for account deletion in settings/page.tsx). Title: '보유 종목 삭제', body: '{name} 보유 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'"
+    },
+    {
+      "id": "UX-004",
+      "title": "Compare page shows empty chart when only one portfolio exists",
+      "category": "empty-state",
+      "severity": "high",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/compare/page.tsx",
+      "detail": "When the user has only one portfolio, the compare page renders with an empty chart area and no guidance. A user unfamiliar with the feature would not know why the chart is empty or what action to take.",
+      "recommendation": "Add an early-return empty state: if `portfolios.length < 2`, show a Card with text '포트폴리오 비교는 2개 이상의 포트폴리오가 필요합니다' and a link button to /dashboard/portfolios to create a second one."
+    },
+    {
+      "id": "UX-005",
+      "title": "Stock detail page (/stocks/[ticker]) has no loading state for chart while fetching",
+      "category": "loading-state",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/stocks/[ticker]/page.tsx",
+      "detail": "The candlestick chart fetches data via useEffect but shows a blank canvas area until data arrives. The existing ChartSkeleton component is available but not used here.",
+      "recommendation": "Add `{isLoading && <ChartSkeleton />}` guard before the CandlestickChart component, using the `isLoading` state already tracked by the page's fetch logic."
+    },
+    {
+      "id": "UX-006",
+      "title": "WatchlistSection has no empty state when watchlist is empty",
+      "category": "empty-state",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/components/WatchlistSection.tsx",
+      "detail": "When a user has no watchlist items, the section renders nothing or a blank space. There is no call-to-action guiding users to add stocks to watch.",
+      "recommendation": "Add an empty state with PackageOpen icon and text '관심 종목을 추가하여 실시간 가격을 확인하세요' with an add button, following the pattern used in the holdings table."
+    },
+    {
+      "id": "UX-007",
+      "title": "Order dialog missing market-hours warning for overseas stocks",
+      "category": "feedback",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/components/OrderDialog.tsx",
+      "detail": "When placing orders for overseas stocks (e.g., AAPL on NASDAQ), there is no indication of current market status (open/closed/pre-market). The user may submit an order not knowing the foreign market is closed.",
+      "recommendation": "Display a badge showing overseas market hours status fetched from the existing `is_market_open` backend logic. For after-hours, show: '현재 해외 시장 마감 시간입니다. 다음 영업일 개장 시 체결됩니다.'"
+    },
+    {
+      "id": "UX-008",
+      "title": "Transaction delete action in portfolio detail lacks optimistic update",
+      "category": "feedback",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "Deleting a transaction row waits for the server round-trip before removing from the UI. With the infinite query in use, this causes a full refetch and visible list re-render on every delete.",
+      "recommendation": "Add `onMutate` optimistic update to the delete mutation using `queryClient.setQueryData` to remove the item from the infinite query cache immediately, with rollback in `onError`."
+    },
+    {
+      "id": "UX-009",
+      "title": "Journal page recall widget shows 'N/A' for current price on stale data",
+      "category": "error-handling",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/journal/page.tsx",
+      "detail": "The investment retrospective widget shows current price from `/dashboard/summary`. If the summary data is stale or a holding is no longer in the portfolio, the current price shows undefined/null which renders as 'N/A' without explanation.",
+      "recommendation": "When `current_price` is null, show a tooltip or inline text '현재 보유 중이지 않음' instead of a raw null/N/A display. Add a fallback price fetch from the stock detail API if not present in summary."
+    },
+    {
+      "id": "UX-010",
+      "title": "Settings KIS account test button has no progress indicator during API call",
+      "category": "loading-state",
+      "severity": "low",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/settings/page.tsx",
+      "detail": "The 'KIS API 연결 테스트' button triggers an API call to the backend but does not disable the button or show a Loader2 spinner during the 3-10 second KIS API response time. Users may click multiple times thinking it did not work.",
+      "recommendation": "Add `disabled={testMutation.isPending}` and show `<Loader2 className='animate-spin' />` inside the button while `isPending` is true — following the same pattern used in the account edit buttons."
+    },
+    {
+      "id": "UX-011",
+      "title": "Keyboard navigation: modal dialogs don't trap focus",
+      "category": "a11y",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "accessibility",
+      "location": "frontend/src/components/OrderDialog.tsx, StockSearchDialog.tsx",
+      "detail": "The Order and StockSearch dialogs are built on shadcn Dialog which should provide focus trap — verify this is working since OrderDialog uses `DialogContent` with complex inner forms. Tab order should cycle within the modal, not escape to the page behind.",
+      "recommendation": "Test with keyboard-only navigation: Tab should cycle within the dialog, Escape should close. If focus leaks out, ensure DialogContent from shadcn/ui has `onInteractOutside` and `onEscapeKeyDown` properly configured."
+    },
+    {
+      "id": "UX-012",
+      "title": "Mobile: holdings table horizontal scroll not clearly indicated",
+      "category": "responsive",
+      "severity": "low",
+      "effort": "S",
+      "impact": "mobile-usability",
+      "location": "frontend/src/components/HoldingsTable.tsx",
+      "detail": "On mobile viewports, the holdings table has many columns (ticker, name, quantity, avg_price, current_price, PnL %, 52w, etc.) that require horizontal scrolling. There is no scroll indicator or shadow to signal overflow to the user.",
+      "recommendation": "Add `className='relative'` wrapper with a right-edge gradient shadow: `after:absolute after:right-0 after:top-0 after:h-full after:w-8 after:bg-gradient-to-l after:from-background after:to-transparent` to indicate scrollable content."
+    }
+  ]
+}

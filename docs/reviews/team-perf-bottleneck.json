@@ -1,0 +1,116 @@
+{
+  "agent": "perf-bottleneck-analyst",
+  "summary": "The performance architecture is generally solid: asyncio.gather parallelizes all multi-holding price fetches, Redis caches KIS tokens and analytics results, TanStack Query manages client-side caching with appropriate staleTime, and dynamic imports are used for heavy chart components. The main bottlenecks are: (1) no GZip/Brotli middleware on FastAPI meaning all JSON payloads are uncompressed, (2) analytics.py runs 3-4 separate DB round-trips per endpoint that could be combined into 1-2 queries, (3) the dashboard page makes no use of server-side rendering despite being Next.js App Router — it is fully client-side, delaying initial paint, (4) `price_snapshots` lacks a composite (ticker, snapshot_date) index causing sequential scans for history queries.",
+  "findings": [
+    {
+      "id": "PERF-001",
+      "title": "No GZip compression on FastAPI responses",
+      "category": "network",
+      "severity": "high",
+      "effort": "S",
+      "impact": "load-time",
+      "location": "backend/app/main.py",
+      "detail": "The dashboard/summary endpoint returns a JSON payload with all holdings prices (~2-5KB uncompressed). Analytics endpoints with portfolio history can return 30-365 data points (~8-15KB uncompressed). Without GZip, mobile users on 4G connections experience unnecessary latency. FastAPI ships with GZipMiddleware built-in.",
+      "recommendation": "Add `from fastapi.middleware.gzip import GZipMiddleware; app.add_middleware(GZipMiddleware, minimum_size=1000)` to main.py. Expected improvement: 40-70% reduction in response payload for JSON-heavy endpoints."
+    },
+    {
+      "id": "PERF-002",
+      "title": "Analytics endpoints perform 3-4 sequential DB round-trips per request",
+      "category": "database",
+      "severity": "high",
+      "effort": "M",
+      "impact": "response-time",
+      "location": "backend/app/api/analytics.py",
+      "detail": "Each analytics endpoint (metrics, monthly-returns, sector-allocation, portfolio-history) follows the pattern: 1) SELECT portfolios WHERE user_id=X, 2) SELECT holdings WHERE portfolio_id IN (...), 3) SELECT price_snapshots WHERE ticker IN (...). These 3 queries run sequentially. For a user with 3 portfolios and 20 holdings, this is 3 serialized round-trips before any computation begins.",
+      "recommendation": "Combine into a single JOIN query: `SELECT h.*, ps.close, ps.snapshot_date FROM holdings h JOIN portfolios p ON h.portfolio_id=p.id LEFT JOIN price_snapshots ps ON ps.ticker=h.ticker WHERE p.user_id=:user_id`. Alternatively, use `asyncio.gather` for the independent portfolios+holdings queries since they do not depend on each other."
+    },
+    {
+      "id": "PERF-003",
+      "title": "Dashboard page is fully client-side rendered — no SSR for initial data",
+      "category": "rendering",
+      "severity": "high",
+      "effort": "L",
+      "impact": "load-time",
+      "location": "frontend/src/app/dashboard/page.tsx",
+      "detail": "The main dashboard page.tsx starts with `'use client'` and fetches all data via useQuery after hydration. This means: HTML arrives empty (just skeletons), then JS loads, then API calls fire. The Time to Content is at minimum 2 network round trips (page + API). Next.js App Router supports Server Components that could prefetch dashboard/summary data and pass it as initial props.",
+      "recommendation": "Convert the outer page.tsx to a Server Component that prefetches dashboard summary via the API on the server and passes it as `initialData` to a client `DashboardContent` component. This eliminates the first API round-trip from the critical path, reducing TTI by 300-800ms on typical connections."
+    },
+    {
+      "id": "PERF-004",
+      "title": "price_snapshots missing composite index on (ticker, snapshot_date)",
+      "category": "database",
+      "severity": "high",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "backend/app/models/price_snapshot.py",
+      "detail": "Analytics and portfolio history queries filter `WHERE ticker IN (...) AND snapshot_date >= cutoff`. The table has a UniqueConstraint on (ticker, snapshot_date) which may not be used as an index by PostgreSQL unless explicitly declared as one. As price_snapshots grows (daily snapshots for 20+ tickers over 1+ years = 7000+ rows), this scan becomes increasingly slow.",
+      "recommendation": "Add `Index('ix_price_snapshot_ticker_date', 'ticker', 'snapshot_date')` to `PriceSnapshot.__table_args__` and create an Alembic migration. PostgreSQL's index-only scan on this composite index will reduce analytics query time by an estimated 10x once the table exceeds 50K rows."
+    },
+    {
+      "id": "PERF-005",
+      "title": "Analytics cache invalidation only covers 3 of 7 endpoints",
+      "category": "caching",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "backend/app/api/analytics.py:65-71",
+      "detail": "The `invalidate_analytics_cache()` function invalidates keys for `metrics`, `monthly-returns`, `sector-allocation`, and `portfolio-history:{period}` — but not for `fx-gain-loss` and `krw-asset-history`. After a sync, stale FX gain/loss data could be displayed for up to 1 hour.",
+      "recommendation": "Add cache invalidation for `fx-gain-loss` and `krw-asset-history:{period}` to the `invalidate_analytics_cache()` function. Also call `invalidate_analytics_cache()` after successful holding add/delete/bulk operations, not only after sync."
+    },
+    {
+      "id": "PERF-006",
+      "title": "SSE stream sends full price data every 30s regardless of changes",
+      "category": "network",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "scalability",
+      "location": "backend/app/api/prices.py",
+      "detail": "The SSE price stream pushes updated prices for all holdings every 30 seconds unconditionally. If prices have not changed (e.g., market is closed, post-hours), the same payload is sent repeatedly. With 5+ concurrent users each with 20 holdings, this generates unnecessary network traffic and client-side re-render cycles.",
+      "recommendation": "Implement delta detection: cache the last-sent prices per user in Redis. Only send updated prices when `abs(new_price - cached_price) / cached_price > 0.001` (0.1% change threshold). Send a lightweight heartbeat-only event when no prices changed."
+    },
+    {
+      "id": "PERF-007",
+      "title": "Dashboard client re-fetches every 30s even during SSE connection",
+      "category": "network",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "response-time",
+      "location": "frontend/src/app/dashboard/page.tsx",
+      "detail": "The dashboard useQuery has `refetchInterval: REFRESH_INTERVAL_MS` (30 seconds) for the full summary, while simultaneously consuming an SSE stream for live price updates. This means both mechanisms are running in parallel — the SSE updates individual prices in the TanStack Query cache while the full refetch re-fetches everything including prices already streaming via SSE.",
+      "recommendation": "When SSE is connected (`isStreaming === true`), set `refetchInterval: false` on the dashboard query and rely solely on SSE updates. Re-enable the polling interval when SSE disconnects or during market-closed periods."
+    },
+    {
+      "id": "PERF-008",
+      "title": "settings/page.tsx and portfolios/[id]/page.tsx are >800 lines of client components",
+      "category": "bundle",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "load-time",
+      "location": "frontend/src/app/dashboard/settings/page.tsx (901 lines), portfolios/[id]/page.tsx (1123 lines)",
+      "detail": "Both files are 'use client' and extremely large. They are not code-split — the entire 1123-line portfolios detail page ships as a single JS chunk. Heavy components like OrderDialog (605 lines), PendingOrdersPanel, and TransactionChart could be lazy-loaded since they are only visible after user interaction.",
+      "recommendation": "Use `dynamic(() => import('@/components/OrderDialog'), { ssr: false })` for OrderDialog and PendingOrdersPanel. These components are only needed after the user clicks 'buy/sell' — lazy loading could save ~15KB from the initial chunk."
+    },
+    {
+      "id": "PERF-009",
+      "title": "scheduler.py price snapshot job fetches all active holdings every 30 minutes",
+      "category": "api",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "scalability",
+      "location": "backend/app/services/scheduler.py",
+      "detail": "The price snapshot scheduler queries all holdings across all users and portfolios to determine which tickers to fetch. As user count grows, this becomes an increasingly expensive operation. There is no deduplication of tickers across users — if 10 users hold Samsung (005930), the scheduler may fetch its price 10 times.",
+      "recommendation": "Deduplicate tickers before fetching: `unique_tickers = list(set(h.ticker for h in all_holdings))`. Use `asyncio.gather` with the unique ticker list rather than per-holding. This reduces KIS API calls proportionally to ticker overlap across users."
+    },
+    {
+      "id": "PERF-010",
+      "title": "No ETag/If-None-Match on dashboard endpoint",
+      "category": "caching",
+      "severity": "low",
+      "effort": "M",
+      "impact": "load-time",
+      "location": "backend/app/api/dashboard.py",
+      "detail": "The dashboard/summary endpoint is called every 30 seconds (polling interval). If the user is looking at the app with market closed, prices do not change but a full response is returned every time. ETag support would allow 304 Not Modified responses, saving 2-5KB of bandwidth per polling cycle.",
+      "recommendation": "Compute a lightweight ETag as `md5(json.dumps(response, sort_keys=True))` and return it in the `ETag` header. Check `If-None-Match` header on incoming requests and return 304 if matched. Already listed as P3 item in todo.md but worth prioritizing for mobile users."
+    }
+  ]
+}

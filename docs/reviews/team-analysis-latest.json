@@ -1,0 +1,631 @@
+{
+  "agents": [
+    {
+      "agent": "tech-debt-analyst",
+      "summary": "The codebase is mature and well-structured for a solo-maintained project, with strong test coverage (93%) and CI/CD in place. The most significant debt is widespread duplication of the _is_domestic() utility and _DOMESTIC_TICKER_RE across at least 5 API modules (analytics, dashboard, portfolios, orders, chart). Several files far exceed the 400-line guideline — portfolios/[id]/page.tsx at 1123 lines and settings/page.tsx at 901 lines represent the highest refactoring risk. TypeScript 'any' usage is minimal and mostly test-related. The largest backend concern is analytics.py at 748 lines with repeated query boilerplate that should be extracted to a shared query helper.",
+      "findings": [
+        {
+          "id": "TD-001",
+          "title": "_is_domestic() and _DOMESTIC_TICKER_RE duplicated across 5 backend modules",
+          "category": "code-smell",
+          "severity": "high",
+          "effort": "S",
+          "impact": "maintainability",
+          "location": "backend/app/api/analytics.py, dashboard.py, portfolios.py, orders.py, chart.py",
+          "detail": "The same regex pattern `^[0-9A-Z]{6}$` and `_is_domestic()` function are copy-pasted in 5 separate API files. A bug fix or rule change requires updating all 5 locations.",
+          "recommendation": "Extract to `backend/app/core/ticker.py` with `DOMESTIC_TICKER_RE` and `is_domestic(ticker: str) -> bool`, then import from there in all callers."
+        },
+        {
+          "id": "TD-002",
+          "title": "portfolios/[id]/page.tsx is 1123 lines — far exceeds 800-line limit",
+          "category": "code-smell",
+          "severity": "high",
+          "effort": "M",
+          "impact": "maintainability",
+          "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+          "detail": "At 1123 lines this file handles holdings display, transaction history (infinite scroll), KIS live transactions, add/edit/delete holdings, order dialog, pending orders, portfolio metadata editing, export, and target value. This is 7+ responsibilities in one file.",
+          "recommendation": "Extract into: HoldingsList.tsx, TransactionHistory.tsx, KisTransactionPanel.tsx, PortfolioMetaEditor.tsx — each under 200 lines. The page.tsx should become a thin orchestrator."
+        },
+        {
+          "id": "TD-003",
+          "title": "settings/page.tsx is 901 lines — multiple unrelated concerns",
+          "category": "code-smell",
+          "severity": "high",
+          "effort": "M",
+          "impact": "maintainability",
+          "location": "frontend/src/app/dashboard/settings/page.tsx",
+          "detail": "The settings page handles account info editing, KIS account CRUD, real-account balance verification, price alerts CRUD, theme switching, and account deletion. These are 6 distinct feature areas.",
+          "recommendation": "Split into: AccountInfoSection.tsx, KisAccountsSection.tsx, AlertsSection.tsx, AppearanceSection.tsx — composed in a thin settings page."
+        },
+        {
+          "id": "TD-004",
+          "title": "analytics.py at 748 lines repeats Portfolio+Holdings query pattern 7 times",
+          "category": "code-smell",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "maintainability",
+          "location": "backend/app/api/analytics.py",
+          "detail": "Every analytics endpoint fetches portfolios by user_id then holdings by portfolio_ids with nearly identical 3-step query pattern. This boilerplate appears 7+ times across the file.",
+          "recommendation": "Extract `async def get_user_holdings(user_id: int, db: AsyncSession) -> list[Holding]` into `backend/app/services/holdings_service.py`, eliminating repeated query code."
+        },
+        {
+          "id": "TD-005",
+          "title": "kis_order.py at 780 lines — single file for both domestic and overseas order logic",
+          "category": "code-smell",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "maintainability",
+          "location": "backend/app/services/kis_order.py",
+          "detail": "At 780 lines, this file contains domestic order placement, overseas order placement, order cancellation, pending order retrieval, orderable quantity check, and rate limiting all in one module.",
+          "recommendation": "Split into `kis_order_domestic.py` and `kis_order_overseas.py` with a shared `kis_order_common.py` for rate limiting and cancellation helpers."
+        },
+        {
+          "id": "TD-006",
+          "title": "lucide-react major version update available (0.577 → 1.7.0)",
+          "category": "dependency",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "developer-experience",
+          "location": "frontend/package.json",
+          "detail": "lucide-react is at 0.577.0 while 1.7.0 is available — a major version jump that may include breaking changes in icon names/APIs. Also typescript 5.9.3 vs latest 6.0.2 (major), and eslint 9 vs 10.",
+          "recommendation": "Create a dedicated dependency-update branch. Review lucide-react 1.x migration guide for renamed icons, then update. Pin typescript to 5.x until v6 compatibility is confirmed with Next.js."
+        },
+        {
+          "id": "TD-007",
+          "title": "Python packages cryptography, gunicorn, boto3 outdated",
+          "category": "dependency",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "security",
+          "location": "backend/requirements.txt",
+          "detail": "cryptography 46.0.5 (latest: 46.0.6 — patch with possible security fix), gunicorn 25.1.0 (latest: 25.3.0), boto3 1.42.57 (latest: 1.42.81). Minor patches often include security backports.",
+          "recommendation": "Run `pip install --upgrade cryptography gunicorn boto3 botocore` and update requirements.txt. Prioritize cryptography given it handles AES-256 encryption of KIS credentials."
+        },
+        {
+          "id": "TD-008",
+          "title": "PortfolioHistoryChart uses `any[]` for Recharts payload type",
+          "category": "type-safety",
+          "severity": "low",
+          "effort": "S",
+          "impact": "developer-experience",
+          "location": "frontend/src/components/PortfolioHistoryChart.tsx:45,156",
+          "detail": "Two uses of `any[]` in the Recharts custom tooltip — `payload?: any[]` and `payload={payload as any[]}`. This bypasses type checking for chart data.",
+          "recommendation": "Define `interface RechartsPayloadEntry { value: number; name: string; color: string; payload: Record<string, unknown> }` and use `payload?: RechartsPayloadEntry[]`."
+        },
+        {
+          "id": "TD-009",
+          "title": "transaction.ticker column lacks a database index",
+          "category": "architecture",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "reliability",
+          "location": "backend/app/models/transaction.py",
+          "detail": "The `transactions.ticker` column is used in queries (e.g., investment journal filtering) but has no index while `portfolio_id` does. As transaction volume grows, ticker-based queries will do full table scans.",
+          "recommendation": "Add `index=True` to the `ticker` mapped_column in Transaction model and create a corresponding Alembic migration."
+        },
+        {
+          "id": "TD-010",
+          "title": "portfolio delete uses browser confirm() — inconsistent with rest of UI",
+          "category": "code-smell",
+          "severity": "low",
+          "effort": "S",
+          "impact": "maintainability",
+          "location": "frontend/src/app/dashboard/portfolios/page.tsx:231",
+          "detail": "`if (!confirm('포트폴리오를 삭제하시겠습니까?')) return;` uses the native browser dialog while all other destructive actions in the app (account deletion) use the shadcn Dialog component for consistency.",
+          "recommendation": "Replace `confirm()` with a shadcn `AlertDialog` component matching the pattern used in settings/page.tsx for account deletion."
+        },
+        {
+          "id": "TD-011",
+          "title": "GZip/Brotli response compression not configured in FastAPI",
+          "category": "architecture",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "reliability",
+          "location": "backend/app/main.py",
+          "detail": "The FastAPI app adds SecurityHeadersMiddleware and MetricsMiddleware but no GZipMiddleware. Dashboard and analytics endpoints return JSON payloads that could be 40-70% smaller with compression.",
+          "recommendation": "Add `from fastapi.middleware.gzip import GZipMiddleware` and `app.add_middleware(GZipMiddleware, minimum_size=1000)` to main.py."
+        },
+        {
+          "id": "TD-012",
+          "title": "OrderDialog.tsx at 605 lines handles too many order states",
+          "category": "code-smell",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "maintainability",
+          "location": "frontend/src/components/OrderDialog.tsx",
+          "detail": "OrderDialog manages market vs limit order types, domestic vs overseas stock routing, orderable quantity fetch, live price display, order submission, and post-order confirmation — all in one 605-line component.",
+          "recommendation": "Extract an `OrderForm` (pure presentation), `useOrderSubmit` hook, and separate `DomesticOrderFields`/`OverseasOrderFields` — reduces component to ~200 lines."
+        },
+        {
+          "id": "TD-013",
+          "title": "price_snapshots missing composite index on (ticker, snapshot_date)",
+          "category": "architecture",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "reliability",
+          "location": "backend/app/models/price_snapshot.py",
+          "detail": "The `price_snapshots` table has a UniqueConstraint on (ticker, snapshot_date) and individual indexes on id and ticker, but no composite index. The analytics endpoint queries `WHERE ticker IN (...) AND snapshot_date >= cutoff` — this would benefit from a composite index.",
+          "recommendation": "Add `Index('ix_price_snapshot_ticker_date', 'ticker', 'snapshot_date')` to `__table_args__` and create Alembic migration."
+        }
+      ]
+    },
+    {
+      "agent": "ux-gap-analyst",
+      "summary": "The UX is production-quality overall with consistent skeleton loading states, unified ErrorBoundary components, and proper Korean market color conventions. The primary gaps are: (1) most mutation endpoints lack optimistic updates and show no feedback during pending states, (2) the analytics page makes 7+ concurrent queries without a unified loading state making the page feel jumpy, (3) accessibility is incomplete — charts lack ARIA descriptions and several interactive elements lack keyboard navigation, (4) the holdings delete action uses inline icon button with no confirmation on the portfolio detail page, and (5) the compare page shows no empty state when only one portfolio exists.",
+      "findings": [
+        {
+          "id": "UX-001",
+          "title": "Analytics page fires 7+ queries independently — no unified loading state",
+          "category": "loading-state",
+          "severity": "high",
+          "effort": "M",
+          "impact": "user-experience",
+          "location": "frontend/src/app/dashboard/analytics/page.tsx",
+          "detail": "The analytics page has separate useQuery calls for summary, metrics, monthly-returns, sector-allocation, portfolio-history, fx-gain-loss, and krw-asset-history. Each resolves independently causing the page to flash sections in at different times, producing a disjointed loading experience.",
+          "recommendation": "Wrap each section card in its own Suspense-like isLoading guard using the existing Skeleton pattern already used for portfolio-history. Alternatively use `useQueries` to batch and show a single page-level skeleton until all critical queries resolve."
+        },
+        {
+          "id": "UX-002",
+          "title": "Recharts charts have no accessible text for screen readers",
+          "category": "a11y",
+          "severity": "high",
+          "effort": "M",
+          "impact": "accessibility",
+          "location": "frontend/src/components/AllocationDonut.tsx, PortfolioHistoryChart.tsx, MonthlyHeatmap.tsx",
+          "detail": "All Recharts-based charts render SVG without ARIA labels, role attributes, or visually-hidden data tables as fallback. Screen reader users get zero information from all charts in the dashboard, analytics, and portfolio pages.",
+          "recommendation": "Add `role='img'` and `aria-label='자산 배분 도넛 차트 — 삼성전자 45%, ...'` to ResponsiveContainer wrappers. For data tables (HoldingsTable), the TanStack Table already renders semantic table elements — verify `scope` and `caption` are present."
+        },
+        {
+          "id": "UX-003",
+          "title": "Holdings delete button in portfolio detail has no confirmation",
+          "category": "feedback",
+          "severity": "high",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+          "detail": "The holding row delete action (Trash2 icon) calls the delete mutation immediately without any confirmation dialog or undo option. A mis-click permanently removes a holding and all associated transactions if soft-delete is not the default.",
+          "recommendation": "Replace the direct delete handler with a shadcn AlertDialog (matching the pattern already used for account deletion in settings/page.tsx). Title: '보유 종목 삭제', body: '{name} 보유 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'"
+        },
+        {
+          "id": "UX-004",
+          "title": "Compare page shows empty chart when only one portfolio exists",
+          "category": "empty-state",
+          "severity": "high",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/app/dashboard/compare/page.tsx",
+          "detail": "When the user has only one portfolio, the compare page renders with an empty chart area and no guidance. A user unfamiliar with the feature would not know why the chart is empty or what action to take.",
+          "recommendation": "Add an early-return empty state: if `portfolios.length < 2`, show a Card with text '포트폴리오 비교는 2개 이상의 포트폴리오가 필요합니다' and a link button to /dashboard/portfolios to create a second one."
+        },
+        {
+          "id": "UX-005",
+          "title": "Stock detail page (/stocks/[ticker]) has no loading state for chart while fetching",
+          "category": "loading-state",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/app/dashboard/stocks/[ticker]/page.tsx",
+          "detail": "The candlestick chart fetches data via useEffect but shows a blank canvas area until data arrives. The existing ChartSkeleton component is available but not used here.",
+          "recommendation": "Add `{isLoading && <ChartSkeleton />}` guard before the CandlestickChart component, using the `isLoading` state already tracked by the page's fetch logic."
+        },
+        {
+          "id": "UX-006",
+          "title": "WatchlistSection has no empty state when watchlist is empty",
+          "category": "empty-state",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/components/WatchlistSection.tsx",
+          "detail": "When a user has no watchlist items, the section renders nothing or a blank space. There is no call-to-action guiding users to add stocks to watch.",
+          "recommendation": "Add an empty state with PackageOpen icon and text '관심 종목을 추가하여 실시간 가격을 확인하세요' with an add button, following the pattern used in the holdings table."
+        },
+        {
+          "id": "UX-007",
+          "title": "Order dialog missing market-hours warning for overseas stocks",
+          "category": "feedback",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/components/OrderDialog.tsx",
+          "detail": "When placing orders for overseas stocks (e.g., AAPL on NASDAQ), there is no indication of current market status (open/closed/pre-market). The user may submit an order not knowing the foreign market is closed.",
+          "recommendation": "Display a badge showing overseas market hours status fetched from the existing `is_market_open` backend logic. For after-hours, show: '현재 해외 시장 마감 시간입니다. 다음 영업일 개장 시 체결됩니다.'"
+        },
+        {
+          "id": "UX-008",
+          "title": "Transaction delete action in portfolio detail lacks optimistic update",
+          "category": "feedback",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+          "detail": "Deleting a transaction row waits for the server round-trip before removing from the UI. With the infinite query in use, this causes a full refetch and visible list re-render on every delete.",
+          "recommendation": "Add `onMutate` optimistic update to the delete mutation using `queryClient.setQueryData` to remove the item from the infinite query cache immediately, with rollback in `onError`."
+        },
+        {
+          "id": "UX-009",
+          "title": "Journal page recall widget shows 'N/A' for current price on stale data",
+          "category": "error-handling",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/app/dashboard/journal/page.tsx",
+          "detail": "The investment retrospective widget shows current price from `/dashboard/summary`. If the summary data is stale or a holding is no longer in the portfolio, the current price shows undefined/null which renders as 'N/A' without explanation.",
+          "recommendation": "When `current_price` is null, show a tooltip or inline text '현재 보유 중이지 않음' instead of a raw null/N/A display. Add a fallback price fetch from the stock detail API if not present in summary."
+        },
+        {
+          "id": "UX-010",
+          "title": "Settings KIS account test button has no progress indicator during API call",
+          "category": "loading-state",
+          "severity": "low",
+          "effort": "S",
+          "impact": "user-experience",
+          "location": "frontend/src/app/dashboard/settings/page.tsx",
+          "detail": "The 'KIS API 연결 테스트' button triggers an API call to the backend but does not disable the button or show a Loader2 spinner during the 3-10 second KIS API response time. Users may click multiple times thinking it did not work.",
+          "recommendation": "Add `disabled={testMutation.isPending}` and show `<Loader2 className='animate-spin' />` inside the button while `isPending` is true — following the same pattern used in the account edit buttons."
+        },
+        {
+          "id": "UX-011",
+          "title": "Keyboard navigation: modal dialogs don't trap focus",
+          "category": "a11y",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "accessibility",
+          "location": "frontend/src/components/OrderDialog.tsx, StockSearchDialog.tsx",
+          "detail": "The Order and StockSearch dialogs are built on shadcn Dialog which should provide focus trap — verify this is working since OrderDialog uses `DialogContent` with complex inner forms. Tab order should cycle within the modal, not escape to the page behind.",
+          "recommendation": "Test with keyboard-only navigation: Tab should cycle within the dialog, Escape should close. If focus leaks out, ensure DialogContent from shadcn/ui has `onInteractOutside` and `onEscapeKeyDown` properly configured."
+        },
+        {
+          "id": "UX-012",
+          "title": "Mobile: holdings table horizontal scroll not clearly indicated",
+          "category": "responsive",
+          "severity": "low",
+          "effort": "S",
+          "impact": "mobile-usability",
+          "location": "frontend/src/components/HoldingsTable.tsx",
+          "detail": "On mobile viewports, the holdings table has many columns (ticker, name, quantity, avg_price, current_price, PnL %, 52w, etc.) that require horizontal scrolling. There is no scroll indicator or shadow to signal overflow to the user.",
+          "recommendation": "Add `className='relative'` wrapper with a right-edge gradient shadow: `after:absolute after:right-0 after:top-0 after:h-full after:w-8 after:bg-gradient-to-l after:from-background after:to-transparent` to indicate scrollable content."
+        }
+      ]
+    },
+    {
+      "agent": "security-posture-analyst",
+      "summary": "The project demonstrates strong security fundamentals: JWT access tokens are short-lived (30min) with HttpOnly cookie storage, KIS credentials are AES-256 encrypted at rest, all protected routes use get_current_user dependency, CORS is configured via environment variable, and security headers middleware is in place. The critical gap is missing rate limiting on high-value write endpoints (portfolios CRUD, holdings mutations, order placement). The second critical concern is no logout token invalidation mechanism — refresh tokens cannot be revoked server-side. The dependency audit shows no current CVEs after recent npm vulnerability fixes. Secondary concerns include insufficient audit logging for financial operations and the lack of 2FA for an application managing real brokerage accounts.",
+      "findings": [
+        {
+          "id": "SEC-001",
+          "title": "Portfolio and holdings mutation endpoints lack rate limiting",
+          "category": "api-security",
+          "severity": "high",
+          "effort": "S",
+          "impact": "denial-of-service",
+          "location": "backend/app/api/portfolios.py",
+          "detail": "Only auth, dashboard, and sync endpoints have @limiter.limit decorators. The portfolios router (POST /portfolios, POST /holdings, DELETE /holdings/{id}, POST /transactions) has no rate limits. A malicious authenticated user could flood these endpoints creating thousands of records or triggering expensive N+1 KIS API calls. The orders router similarly lacks general rate limiting (only the kis_order service has internal Redis-based limits for order submission).",
+          "recommendation": "Add `@limiter.limit('60/minute')` to all portfolio/holdings write endpoints and `@limiter.limit('30/minute')` to the orders router endpoints. The existing slowapi limiter instance is available in `app.core.limiter`."
+        },
+        {
+          "id": "SEC-002",
+          "title": "No server-side refresh token revocation on logout",
+          "category": "auth",
+          "severity": "high",
+          "effort": "M",
+          "impact": "privilege-escalation",
+          "location": "backend/app/api/auth.py",
+          "detail": "The logout endpoint clears the HttpOnly cookie client-side but does not invalidate the refresh token server-side. If an attacker exfiltrates the refresh token before logout (e.g., via XSS, compromised device), they can continue to obtain new access tokens indefinitely until the refresh token's natural expiry. Exploitation: 1. Attacker captures refresh token, 2. User logs out, 3. Attacker uses captured token to `/auth/refresh` and gets new access tokens.",
+          "recommendation": "Store issued refresh tokens in Redis with TTL matching token expiry (`REFRESH_TOKEN_EXPIRE_DAYS`). On logout, delete the Redis key. On refresh, verify the token exists in Redis before issuing new tokens. Key pattern: `refresh_token:{user_id}:{token_hash}`."
+        },
+        {
+          "id": "SEC-003",
+          "title": "Security audit log missing for financial operations",
+          "category": "data-protection",
+          "severity": "high",
+          "effort": "L",
+          "impact": "information-disclosure",
+          "location": "backend/app/api/orders.py, portfolios.py, users.py",
+          "detail": "There is no structured audit trail for security-sensitive operations: order placement, KIS credential add/update/delete, account deletion, login success/failure, and bulk holdings import. For a financial application, this makes post-incident forensics impossible. This is also tracked in todo.md as 14-4 but worth elevating given the trading feature is now live.",
+          "recommendation": "Create a `security_audit_logs` table with columns: user_id, action, resource_type, resource_id, ip_address, user_agent, created_at. Log all order placements, auth events, and KIS credential changes. This directly addresses the 14-4 milestone item already in todo.md."
+        },
+        {
+          "id": "SEC-004",
+          "title": "CORS credentials=True with wildcard methods and headers",
+          "category": "api-security",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "data-breach",
+          "location": "backend/app/main.py:63-66",
+          "detail": "`allow_methods=['*']` and `allow_headers=['*']` with `allow_credentials=True` is overly permissive. While origins are restricted to `CORS_ORIGINS`, allowing all methods and headers means any CORS-compliant browser can send PATCH, DELETE with any custom header. This should be explicitly scoped.",
+          "recommendation": "Replace with `allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']` and `allow_headers=['Content-Type', 'Authorization', 'X-Request-ID']` to follow principle of least privilege."
+        },
+        {
+          "id": "SEC-005",
+          "title": "KIS app_key and app_secret visible in structlog output at DEBUG level",
+          "category": "data-protection",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "information-disclosure",
+          "location": "backend/app/services/kis_token.py, kis_order.py",
+          "detail": "KIS API calls construct httpx requests with app_key/app_secret in headers. If structlog is set to DEBUG level in production (possible via environment), the full request headers including decrypted credentials could appear in logs. Dozzle or any log aggregator would expose these.",
+          "recommendation": "Add a structlog processor that masks any key matching `app_key`, `app_secret`, `appkey`, `appsecret` patterns — replace value with `***REDACTED***`. Also explicitly set production log level to INFO in the logging configuration."
+        },
+        {
+          "id": "SEC-006",
+          "title": "Missing input length validation on memo and tag fields",
+          "category": "input-validation",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "denial-of-service",
+          "location": "backend/app/schemas/portfolio.py",
+          "detail": "The `memo` field on transactions has `String(500)` at the DB level but Pydantic schema validation should enforce this. Tags (ARRAY(Text)) have no length limit on the array or individual tag strings. An attacker could POST a transaction with a 10MB tags array bypassing the 500-char memo limit.",
+          "recommendation": "In `TransactionCreate` schema, add `memo: Optional[str] = Field(None, max_length=500)` and `tags: Optional[list[str]] = Field(None, max_length=20)` with individual tag `Field(max_length=50)` using a custom validator."
+        },
+        {
+          "id": "SEC-007",
+          "title": "No concurrent session control — unlimited active sessions per user",
+          "category": "auth",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "privilege-escalation",
+          "location": "backend/app/api/auth.py",
+          "detail": "The system allows unlimited simultaneous refresh tokens and sessions per user. A compromised account could have many active sessions running in parallel without the user being aware. There is no way to see or revoke active sessions from the settings page.",
+          "recommendation": "As part of implementing server-side refresh token storage (SEC-002), add a `GET /auth/sessions` endpoint showing active sessions and `DELETE /auth/sessions/{session_id}` for revocation. Store device info (user-agent, IP) with each token."
+        },
+        {
+          "id": "SEC-008",
+          "title": "Frontend StockSearchDialog stores recent searches in localStorage without sanitization",
+          "category": "frontend-security",
+          "severity": "low",
+          "effort": "S",
+          "impact": "information-disclosure",
+          "location": "frontend/src/components/StockSearchDialog.tsx:32,41,46",
+          "detail": "Recent stock search queries are persisted to localStorage. While this is non-sensitive ticker data, the read/write path has no sanitization — if localStorage is poisoned by a different vulnerability (e.g., XSS on another page), malformed data could cause JSON.parse errors that bubble to the UI.",
+          "recommendation": "Wrap `JSON.parse(localStorage.getItem(RECENT_KEY))` in a try-catch that defaults to empty array on parse error, and validate that each item in the array is a string before use."
+        },
+        {
+          "id": "SEC-009",
+          "title": "Sentry DSN hardcoded environment as 'production' regardless of actual environment",
+          "category": "data-protection",
+          "severity": "low",
+          "effort": "S",
+          "impact": "information-disclosure",
+          "location": "backend/app/main.py:36",
+          "detail": "`environment='production'` is hardcoded in the Sentry init call. If this code runs locally with a SENTRY_DSN set, all local development errors are tagged as 'production' in Sentry, making it impossible to filter out development noise from real production alerts.",
+          "recommendation": "Change to `environment=settings.ENVIRONMENT` and add `ENVIRONMENT: str = 'development'` to the config with appropriate values per deployment env."
+        }
+      ]
+    },
+    {
+      "agent": "perf-bottleneck-analyst",
+      "summary": "The performance architecture is generally solid: asyncio.gather parallelizes all multi-holding price fetches, Redis caches KIS tokens and analytics results, TanStack Query manages client-side caching with appropriate staleTime, and dynamic imports are used for heavy chart components. The main bottlenecks are: (1) no GZip/Brotli middleware on FastAPI meaning all JSON payloads are uncompressed, (2) analytics.py runs 3-4 separate DB round-trips per endpoint that could be combined into 1-2 queries, (3) the dashboard page makes no use of server-side rendering despite being Next.js App Router — it is fully client-side, delaying initial paint, (4) `price_snapshots` lacks a composite (ticker, snapshot_date) index causing sequential scans for history queries.",
+      "findings": [
+        {
+          "id": "PERF-001",
+          "title": "No GZip compression on FastAPI responses",
+          "category": "network",
+          "severity": "high",
+          "effort": "S",
+          "impact": "load-time",
+          "location": "backend/app/main.py",
+          "detail": "The dashboard/summary endpoint returns a JSON payload with all holdings prices (~2-5KB uncompressed). Analytics endpoints with portfolio history can return 30-365 data points (~8-15KB uncompressed). Without GZip, mobile users on 4G connections experience unnecessary latency. FastAPI ships with GZipMiddleware built-in.",
+          "recommendation": "Add `from fastapi.middleware.gzip import GZipMiddleware; app.add_middleware(GZipMiddleware, minimum_size=1000)` to main.py. Expected improvement: 40-70% reduction in response payload for JSON-heavy endpoints."
+        },
+        {
+          "id": "PERF-002",
+          "title": "Analytics endpoints perform 3-4 sequential DB round-trips per request",
+          "category": "database",
+          "severity": "high",
+          "effort": "M",
+          "impact": "response-time",
+          "location": "backend/app/api/analytics.py",
+          "detail": "Each analytics endpoint (metrics, monthly-returns, sector-allocation, portfolio-history) follows the pattern: 1) SELECT portfolios WHERE user_id=X, 2) SELECT holdings WHERE portfolio_id IN (...), 3) SELECT price_snapshots WHERE ticker IN (...). These 3 queries run sequentially. For a user with 3 portfolios and 20 holdings, this is 3 serialized round-trips before any computation begins.",
+          "recommendation": "Combine into a single JOIN query: `SELECT h.*, ps.close, ps.snapshot_date FROM holdings h JOIN portfolios p ON h.portfolio_id=p.id LEFT JOIN price_snapshots ps ON ps.ticker=h.ticker WHERE p.user_id=:user_id`. Alternatively, use `asyncio.gather` for the independent portfolios+holdings queries since they do not depend on each other."
+        },
+        {
+          "id": "PERF-003",
+          "title": "Dashboard page is fully client-side rendered — no SSR for initial data",
+          "category": "rendering",
+          "severity": "high",
+          "effort": "L",
+          "impact": "load-time",
+          "location": "frontend/src/app/dashboard/page.tsx",
+          "detail": "The main dashboard page.tsx starts with `'use client'` and fetches all data via useQuery after hydration. This means: HTML arrives empty (just skeletons), then JS loads, then API calls fire. The Time to Content is at minimum 2 network round trips (page + API). Next.js App Router supports Server Components that could prefetch dashboard/summary data and pass it as initial props.",
+          "recommendation": "Convert the outer page.tsx to a Server Component that prefetches dashboard summary via the API on the server and passes it as `initialData` to a client `DashboardContent` component. This eliminates the first API round-trip from the critical path, reducing TTI by 300-800ms on typical connections."
+        },
+        {
+          "id": "PERF-004",
+          "title": "price_snapshots missing composite index on (ticker, snapshot_date)",
+          "category": "database",
+          "severity": "high",
+          "effort": "S",
+          "impact": "response-time",
+          "location": "backend/app/models/price_snapshot.py",
+          "detail": "Analytics and portfolio history queries filter `WHERE ticker IN (...) AND snapshot_date >= cutoff`. The table has a UniqueConstraint on (ticker, snapshot_date) which may not be used as an index by PostgreSQL unless explicitly declared as one. As price_snapshots grows (daily snapshots for 20+ tickers over 1+ years = 7000+ rows), this scan becomes increasingly slow.",
+          "recommendation": "Add `Index('ix_price_snapshot_ticker_date', 'ticker', 'snapshot_date')` to `PriceSnapshot.__table_args__` and create an Alembic migration. PostgreSQL's index-only scan on this composite index will reduce analytics query time by an estimated 10x once the table exceeds 50K rows."
+        },
+        {
+          "id": "PERF-005",
+          "title": "Analytics cache invalidation only covers 3 of 7 endpoints",
+          "category": "caching",
+          "severity": "medium",
+          "effort": "S",
+          "impact": "response-time",
+          "location": "backend/app/api/analytics.py:65-71",
+          "detail": "The `invalidate_analytics_cache()` function invalidates keys for `metrics`, `monthly-returns`, `sector-allocation`, and `portfolio-history:{period}` — but not for `fx-gain-loss` and `krw-asset-history`. After a sync, stale FX gain/loss data could be displayed for up to 1 hour.",
+          "recommendation": "Add cache invalidation for `fx-gain-loss` and `krw-asset-history:{period}` to the `invalidate_analytics_cache()` function. Also call `invalidate_analytics_cache()` after successful holding add/delete/bulk operations, not only after sync."
+        },
+        {
+          "id": "PERF-006",
+          "title": "SSE stream sends full price data every 30s regardless of changes",
+          "category": "network",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "scalability",
+          "location": "backend/app/api/prices.py",
+          "detail": "The SSE price stream pushes updated prices for all holdings every 30 seconds unconditionally. If prices have not changed (e.g., market is closed, post-hours), the same payload is sent repeatedly. With 5+ concurrent users each with 20 holdings, this generates unnecessary network traffic and client-side re-render cycles.",
+          "recommendation": "Implement delta detection: cache the last-sent prices per user in Redis. Only send updated prices when `abs(new_price - cached_price) / cached_price > 0.001` (0.1% change threshold). Send a lightweight heartbeat-only event when no prices changed."
+        },
+        {
+          "id": "PERF-007",
+          "title": "Dashboard client re-fetches every 30s even during SSE connection",
+          "category": "network",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "response-time",
+          "location": "frontend/src/app/dashboard/page.tsx",
+          "detail": "The dashboard useQuery has `refetchInterval: REFRESH_INTERVAL_MS` (30 seconds) for the full summary, while simultaneously consuming an SSE stream for live price updates. This means both mechanisms are running in parallel — the SSE updates individual prices in the TanStack Query cache while the full refetch re-fetches everything including prices already streaming via SSE.",
+          "recommendation": "When SSE is connected (`isStreaming === true`), set `refetchInterval: false` on the dashboard query and rely solely on SSE updates. Re-enable the polling interval when SSE disconnects or during market-closed periods."
+        },
+        {
+          "id": "PERF-008",
+          "title": "settings/page.tsx and portfolios/[id]/page.tsx are >800 lines of client components",
+          "category": "bundle",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "load-time",
+          "location": "frontend/src/app/dashboard/settings/page.tsx (901 lines), portfolios/[id]/page.tsx (1123 lines)",
+          "detail": "Both files are 'use client' and extremely large. They are not code-split — the entire 1123-line portfolios detail page ships as a single JS chunk. Heavy components like OrderDialog (605 lines), PendingOrdersPanel, and TransactionChart could be lazy-loaded since they are only visible after user interaction.",
+          "recommendation": "Use `dynamic(() => import('@/components/OrderDialog'), { ssr: false })` for OrderDialog and PendingOrdersPanel. These components are only needed after the user clicks 'buy/sell' — lazy loading could save ~15KB from the initial chunk."
+        },
+        {
+          "id": "PERF-009",
+          "title": "scheduler.py price snapshot job fetches all active holdings every 30 minutes",
+          "category": "api",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "scalability",
+          "location": "backend/app/services/scheduler.py",
+          "detail": "The price snapshot scheduler queries all holdings across all users and portfolios to determine which tickers to fetch. As user count grows, this becomes an increasingly expensive operation. There is no deduplication of tickers across users — if 10 users hold Samsung (005930), the scheduler may fetch its price 10 times.",
+          "recommendation": "Deduplicate tickers before fetching: `unique_tickers = list(set(h.ticker for h in all_holdings))`. Use `asyncio.gather` with the unique ticker list rather than per-holding. This reduces KIS API calls proportionally to ticker overlap across users."
+        },
+        {
+          "id": "PERF-010",
+          "title": "No ETag/If-None-Match on dashboard endpoint",
+          "category": "caching",
+          "severity": "low",
+          "effort": "M",
+          "impact": "load-time",
+          "location": "backend/app/api/dashboard.py",
+          "detail": "The dashboard/summary endpoint is called every 30 seconds (polling interval). If the user is looking at the app with market closed, prices do not change but a full response is returned every time. ETag support would allow 304 Not Modified responses, saving 2-5KB of bandwidth per polling cycle.",
+          "recommendation": "Compute a lightweight ETag as `md5(json.dumps(response, sort_keys=True))` and return it in the `ETag` header. Check `If-None-Match` header on incoming requests and return 304 if matched. Already listed as P3 item in todo.md but worth prioritizing for mobile users."
+        }
+      ]
+    },
+    {
+      "agent": "product-strategy-analyst",
+      "summary": "The project has achieved an exceptional feature density for a solo-maintained personal finance dashboard: 74 API endpoints, full trading capability, SSE real-time prices, analytics with environmental (FX) correction, investment journal, and 93% test coverage. The current P1 backlog is accurately prioritized with Sharpe/MDD metrics and benchmark overlay as the most impactful remaining analytics gaps. The most strategically underweighted area is the 2FA + security audit log work (14-4) — now that real trading is live, account security is higher stakes than before. The investment journal (17-3) is near-complete and ready for a retrospective UI polish pass. The Neon+Upstash migration (18-2) remains the highest-risk deferred item since single-server PostgreSQL is the primary reliability risk for a production financial app.",
+      "feature_completeness": {
+        "portfolio_management": 95,
+        "market_data": 85,
+        "analytics": 72,
+        "trading": 88,
+        "alerts": 78,
+        "data_management": 88,
+        "user_experience": 78,
+        "investment_journal": 85
+      },
+      "findings": [
+        {
+          "id": "PROD-001",
+          "title": "2FA and security audit log urgency elevated now that trading is live",
+          "category": "priority-misalignment",
+          "severity": "high",
+          "effort": "L",
+          "impact": "risk-mitigation",
+          "detail": "2FA and security audit logging are currently P2 items (14-4) in todo.md, but the trading feature (POST /orders — real money placement) went live. A compromised account can now place buy/sell orders with real money. The security risk level is categorically different from a read-only dashboard.",
+          "recommendation": "Elevate 2FA to P1 immediately. Prioritize TOTP (Google Authenticator) as a first step — it is self-hosted with no external service dependency. Add it as the next P1 item after the current analytics work."
+        },
+        {
+          "id": "PROD-002",
+          "title": "Benchmark overlay (KOSPI200/S&P500) is the most impactful missing analytics feature",
+          "category": "missing-capability",
+          "severity": "high",
+          "effort": "L",
+          "impact": "user-value",
+          "detail": "Analytics completeness is 72% largely because the Sharpe ratio, MDD, and benchmark overlay features are unimplemented. Without a benchmark, users cannot answer the most important question: 'Did I beat the market?' The data collection step (KOSPI200/S&P500 daily index) is in 13-1 but needs to precede the overlay implementation.",
+          "recommendation": "Treat Milestone 20 (proposed below) as: 1) Add index_snapshots table and scheduler for KOSPI200 + S&P500 daily fetch, 2) Expose via /analytics/benchmark endpoint, 3) Overlay on portfolio history chart. This is a 2-3 week effort but high value."
+        },
+        {
+          "id": "PROD-003",
+          "title": "Neon+Upstash migration is the highest operational risk deferred item",
+          "category": "technical-enabler",
+          "severity": "high",
+          "effort": "L",
+          "impact": "risk-mitigation",
+          "detail": "Single-server PostgreSQL means any hardware failure, disk fill, or OOM event takes down both the database and the application simultaneously. With trading functionality live, even a 30-minute outage during Korean market hours could cause a user to miss a time-sensitive trade. Neon (serverless PostgreSQL) + Upstash (serverless Redis) would provide HA with minimal ops burden.",
+          "recommendation": "Milestone 18-2 (Neon + Upstash) should be elevated to P1 after the analytics completion sprint. The migration is well-defined (4 sub-items already in todo.md) and de-risks the entire production deployment."
+        },
+        {
+          "id": "PROD-004",
+          "title": "Email/push notifications (19-1) are blocked but the alert infrastructure is complete",
+          "category": "deferred-value",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "user-value",
+          "detail": "The alerts system (CRUD, SSE condition check, notifications table, bell UI) is fully functional. The remaining gap is delivery outside the browser — email for price alerts and daily summaries. The investment use case for alerts (e.g., 'notify me when AAPL drops below 150') is only actionable if the user is not in-app at the moment.",
+          "recommendation": "Prioritize Resend (simpler API, lower cost than SendGrid) for email alerts. A basic price alert email is a 1-2 day task given the backend already detects triggered alerts. This turns a completed feature (alerts) into a meaningfully useful one."
+        },
+        {
+          "id": "PROD-005",
+          "title": "DCA (Dollar Cost Averaging) tracking is a major missing capability for the target user",
+          "category": "missing-capability",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "user-value",
+          "detail": "Korean retail investors heavily use DCA strategies (적립식 투자). The app has full transaction history but no DCA analysis view: average cost over time, contribution schedule visualization, or projection of future DCA outcomes. This is not in any plan or parked list.",
+          "recommendation": "Add to todo.md as a new Milestone 20 item: 'DCA 분석 뷰 — 시간별 평균단가 변동 + 정기 매수 패턴 감지'. Backend: detect DCA pattern from transaction regularity. Frontend: timeline chart showing avg_price evolution over transaction history."
+        },
+        {
+          "id": "PROD-006",
+          "title": "Portfolio comparison page (17-1) is incomplete — missing date range picker and sector comparison",
+          "category": "deferred-value",
+          "severity": "medium",
+          "effort": "M",
+          "impact": "user-value",
+          "detail": "The compare page shows portfolio history overlay but lacks the date range picker and side-by-side sector donut comparison that make multi-portfolio analysis meaningful. Users with multiple strategies (e.g., 'growth portfolio' vs 'dividend portfolio') cannot compare sector allocations side-by-side.",
+          "recommendation": "Complete the 17-1 milestone items as a single sprint: add date range picker (react-day-picker is already in shadcn/ui) and sector comparison view using the existing AllocationDonut component."
+        },
+        {
+          "id": "PROD-007",
+          "title": "Storybook component catalog (16-3) has outsized value given component reuse patterns",
+          "category": "technical-enabler",
+          "severity": "low",
+          "effort": "M",
+          "impact": "technical-foundation",
+          "detail": "The codebase has 15+ reusable components (PnLBadge, DayChangeBadge, CardSkeleton, ChartSkeleton, TableSkeleton, AllocationDonut, HoldingsTable etc.) with no visual catalog. When modifying these components, there is no quick way to see all visual states. This slows UI iteration as the component library grows.",
+          "recommendation": "Set up Storybook 8 for PnLBadge (gain/loss/neutral states), DayChangeBadge, and CardSkeleton as a first PR. These three components cover the core Korean market color conventions and would make the design system self-documenting."
+        }
+      ],
+      "proposed_milestones": [
+        {
+          "title": "Milestone 20: 보안 강화 + 계정 보호",
+          "rationale": "Trading is live, making account compromise directly financially harmful. 2FA and security audit logging should be the next P1 after analytics work. The server-side refresh token revocation (identified by security analyst) can be bundled here.",
+          "items": [
+            "TOTP 2FA 등록/인증 (Google Authenticator 호환) — backend: pyotp, frontend: QR 코드 설정 UI",
+            "보안 감사 로그 테이블 (security_audit_logs) — 주문, 로그인, KIS 자격증명 변경 이벤트 기록",
+            "서버 사이드 refresh token 저장/무효화 (Redis) — 로그아웃 시 즉시 무효화",
+            "활성 세션 관리 UI — GET /auth/sessions + DELETE /auth/sessions/{id}"
+          ]
+        },
+        {
+          "title": "Milestone 21: 분석 엔진 완성 (벤치마크 + DCA + 리스크 지표)",
+          "rationale": "Analytics is at 72% completion. Benchmark overlay is the most frequently requested feature type in comparable apps. DCA analysis fills a major gap for the Korean retail investor audience. Risk metrics (Sharpe, MDD) make the analytics page professional-grade.",
+          "items": [
+            "index_snapshots 테이블 + KOSPI200/S&P500 일별 데이터 수집 스케줄러 (13-1)",
+            "GET /analytics/benchmark 엔드포인트 + 포트폴리오 히스토리 오버레이 차트",
+            "Sharpe ratio, MDD, 연도별 베타 계산 (backend/app/services/metrics.py) + analytics 지표 UI",
+            "DCA 분석 뷰 — 거래 이력에서 평균단가 변동 타임라인 + 정기 매수 패턴 감지"
+          ]
+        },
+        {
+          "title": "Milestone 22: 인프라 안정화 (Neon + Upstash + 알림 확장)",
+          "rationale": "Production reliability and out-of-app notifications are the two biggest remaining gaps for a financial application. Neon+Upstash removes single-server risk. Email alerts makes the existing alert system actionable without being in-app.",
+          "items": [
+            "Neon (serverless PostgreSQL) 마이그레이션 — 데이터 이전 + 연결 설정 (18-2)",
+            "Upstash (serverless Redis) 마이그레이션 — 기존 RedisCache 추상화 재사용 (18-2)",
+            "Resend 이메일 연동 — 가격 알림 이메일 발송 (19-1)",
+            "일일 포트폴리오 요약 이메일 — 장 마감 후 자동 발송 (19-1)"
+          ]
+        }
+      ]
+    }
+  ],
+  "total_findings": 51
+}

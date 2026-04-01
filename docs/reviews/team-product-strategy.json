@@ -1,0 +1,118 @@
+{
+  "agent": "product-strategy-analyst",
+  "summary": "The project has achieved an exceptional feature density for a solo-maintained personal finance dashboard: 74 API endpoints, full trading capability, SSE real-time prices, analytics with environmental (FX) correction, investment journal, and 93% test coverage. The current P1 backlog is accurately prioritized with Sharpe/MDD metrics and benchmark overlay as the most impactful remaining analytics gaps. The most strategically underweighted area is the 2FA + security audit log work (14-4) — now that real trading is live, account security is higher stakes than before. The investment journal (17-3) is near-complete and ready for a retrospective UI polish pass. The Neon+Upstash migration (18-2) remains the highest-risk deferred item since single-server PostgreSQL is the primary reliability risk for a production financial app.",
+  "feature_completeness": {
+    "portfolio_management": 95,
+    "market_data": 85,
+    "analytics": 72,
+    "trading": 88,
+    "alerts": 78,
+    "data_management": 88,
+    "user_experience": 78,
+    "investment_journal": 85
+  },
+  "findings": [
+    {
+      "id": "PROD-001",
+      "title": "2FA and security audit log urgency elevated now that trading is live",
+      "category": "priority-misalignment",
+      "severity": "high",
+      "effort": "L",
+      "impact": "risk-mitigation",
+      "detail": "2FA and security audit logging are currently P2 items (14-4) in todo.md, but the trading feature (POST /orders — real money placement) went live. A compromised account can now place buy/sell orders with real money. The security risk level is categorically different from a read-only dashboard.",
+      "recommendation": "Elevate 2FA to P1 immediately. Prioritize TOTP (Google Authenticator) as a first step — it is self-hosted with no external service dependency. Add it as the next P1 item after the current analytics work."
+    },
+    {
+      "id": "PROD-002",
+      "title": "Benchmark overlay (KOSPI200/S&P500) is the most impactful missing analytics feature",
+      "category": "missing-capability",
+      "severity": "high",
+      "effort": "L",
+      "impact": "user-value",
+      "detail": "Analytics completeness is 72% largely because the Sharpe ratio, MDD, and benchmark overlay features are unimplemented. Without a benchmark, users cannot answer the most important question: 'Did I beat the market?' The data collection step (KOSPI200/S&P500 daily index) is in 13-1 but needs to precede the overlay implementation.",
+      "recommendation": "Treat Milestone 20 (proposed below) as: 1) Add index_snapshots table and scheduler for KOSPI200 + S&P500 daily fetch, 2) Expose via /analytics/benchmark endpoint, 3) Overlay on portfolio history chart. This is a 2-3 week effort but high value."
+    },
+    {
+      "id": "PROD-003",
+      "title": "Neon+Upstash migration is the highest operational risk deferred item",
+      "category": "technical-enabler",
+      "severity": "high",
+      "effort": "L",
+      "impact": "risk-mitigation",
+      "detail": "Single-server PostgreSQL means any hardware failure, disk fill, or OOM event takes down both the database and the application simultaneously. With trading functionality live, even a 30-minute outage during Korean market hours could cause a user to miss a time-sensitive trade. Neon (serverless PostgreSQL) + Upstash (serverless Redis) would provide HA with minimal ops burden.",
+      "recommendation": "Milestone 18-2 (Neon + Upstash) should be elevated to P1 after the analytics completion sprint. The migration is well-defined (4 sub-items already in todo.md) and de-risks the entire production deployment."
+    },
+    {
+      "id": "PROD-004",
+      "title": "Email/push notifications (19-1) are blocked but the alert infrastructure is complete",
+      "category": "deferred-value",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "user-value",
+      "detail": "The alerts system (CRUD, SSE condition check, notifications table, bell UI) is fully functional. The remaining gap is delivery outside the browser — email for price alerts and daily summaries. The investment use case for alerts (e.g., 'notify me when AAPL drops below 150') is only actionable if the user is not in-app at the moment.",
+      "recommendation": "Prioritize Resend (simpler API, lower cost than SendGrid) for email alerts. A basic price alert email is a 1-2 day task given the backend already detects triggered alerts. This turns a completed feature (alerts) into a meaningfully useful one."
+    },
+    {
+      "id": "PROD-005",
+      "title": "DCA (Dollar Cost Averaging) tracking is a major missing capability for the target user",
+      "category": "missing-capability",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "user-value",
+      "detail": "Korean retail investors heavily use DCA strategies (적립식 투자). The app has full transaction history but no DCA analysis view: average cost over time, contribution schedule visualization, or projection of future DCA outcomes. This is not in any plan or parked list.",
+      "recommendation": "Add to todo.md as a new Milestone 20 item: 'DCA 분석 뷰 — 시간별 평균단가 변동 + 정기 매수 패턴 감지'. Backend: detect DCA pattern from transaction regularity. Frontend: timeline chart showing avg_price evolution over transaction history."
+    },
+    {
+      "id": "PROD-006",
+      "title": "Portfolio comparison page (17-1) is incomplete — missing date range picker and sector comparison",
+      "category": "deferred-value",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "user-value",
+      "detail": "The compare page shows portfolio history overlay but lacks the date range picker and side-by-side sector donut comparison that make multi-portfolio analysis meaningful. Users with multiple strategies (e.g., 'growth portfolio' vs 'dividend portfolio') cannot compare sector allocations side-by-side.",
+      "recommendation": "Complete the 17-1 milestone items as a single sprint: add date range picker (react-day-picker is already in shadcn/ui) and sector comparison view using the existing AllocationDonut component."
+    },
+    {
+      "id": "PROD-007",
+      "title": "Storybook component catalog (16-3) has outsized value given component reuse patterns",
+      "category": "technical-enabler",
+      "severity": "low",
+      "effort": "M",
+      "impact": "technical-foundation",
+      "detail": "The codebase has 15+ reusable components (PnLBadge, DayChangeBadge, CardSkeleton, ChartSkeleton, TableSkeleton, AllocationDonut, HoldingsTable etc.) with no visual catalog. When modifying these components, there is no quick way to see all visual states. This slows UI iteration as the component library grows.",
+      "recommendation": "Set up Storybook 8 for PnLBadge (gain/loss/neutral states), DayChangeBadge, and CardSkeleton as a first PR. These three components cover the core Korean market color conventions and would make the design system self-documenting."
+    }
+  ],
+  "proposed_milestones": [
+    {
+      "title": "Milestone 20: 보안 강화 + 계정 보호",
+      "rationale": "Trading is live, making account compromise directly financially harmful. 2FA and security audit logging should be the next P1 after analytics work. The server-side refresh token revocation (identified by security analyst) can be bundled here.",
+      "items": [
+        "TOTP 2FA 등록/인증 (Google Authenticator 호환) — backend: pyotp, frontend: QR 코드 설정 UI",
+        "보안 감사 로그 테이블 (security_audit_logs) — 주문, 로그인, KIS 자격증명 변경 이벤트 기록",
+        "서버 사이드 refresh token 저장/무효화 (Redis) — 로그아웃 시 즉시 무효화",
+        "활성 세션 관리 UI — GET /auth/sessions + DELETE /auth/sessions/{id}"
+      ]
+    },
+    {
+      "title": "Milestone 21: 분석 엔진 완성 (벤치마크 + DCA + 리스크 지표)",
+      "rationale": "Analytics is at 72% completion. Benchmark overlay is the most frequently requested feature type in comparable apps. DCA analysis fills a major gap for the Korean retail investor audience. Risk metrics (Sharpe, MDD) make the analytics page professional-grade.",
+      "items": [
+        "index_snapshots 테이블 + KOSPI200/S&P500 일별 데이터 수집 스케줄러 (13-1)",
+        "GET /analytics/benchmark 엔드포인트 + 포트폴리오 히스토리 오버레이 차트",
+        "Sharpe ratio, MDD, 연도별 베타 계산 (backend/app/services/metrics.py) + analytics 지표 UI",
+        "DCA 분석 뷰 — 거래 이력에서 평균단가 변동 타임라인 + 정기 매수 패턴 감지"
+      ]
+    },
+    {
+      "title": "Milestone 22: 인프라 안정화 (Neon + Upstash + 알림 확장)",
+      "rationale": "Production reliability and out-of-app notifications are the two biggest remaining gaps for a financial application. Neon+Upstash removes single-server risk. Email alerts makes the existing alert system actionable without being in-app.",
+      "items": [
+        "Neon (serverless PostgreSQL) 마이그레이션 — 데이터 이전 + 연결 설정 (18-2)",
+        "Upstash (serverless Redis) 마이그레이션 — 기존 RedisCache 추상화 재사용 (18-2)",
+        "Resend 이메일 연동 — 가격 알림 이메일 발송 (19-1)",
+        "일일 포트폴리오 요약 이메일 — 장 마감 후 자동 발송 (19-1)"
+      ]
+    }
+  ]
+}

@@ -106,6 +106,99 @@ Each item should be completable in a single commit.
 
 ## Current work
 
+### P0 -- GZip 응답 압축 미들웨어 추가 [team-analysis: PERF-001 + TD-011]
+
+- [ ] **perf: FastAPI GZipMiddleware 추가**
+  - `backend/app/main.py` — `from fastapi.middleware.gzip import GZipMiddleware` 추가
+  - `app.add_middleware(GZipMiddleware, minimum_size=1000)` — 1KB 이상 응답에 gzip 적용
+  - dashboard/summary, analytics 엔드포인트 JSON 응답 40-70% 압축 예상
+  - 파일: `backend/app/main.py`
+
+### P0 -- `_is_domestic()` 유틸리티 통합 [team-analysis: TD-001]
+
+- [ ] **refactor: `backend/app/core/ticker.py` 생성 — 중복 제거**
+  - `backend/app/core/ticker.py` 신규 생성: `DOMESTIC_TICKER_RE`, `is_domestic(ticker: str) -> bool`
+  - 기존 5개 파일에서 중복 제거: `analytics.py`, `dashboard.py`, `portfolios.py`, `orders.py`, `chart.py`
+  - 각 파일에서 `from app.core.ticker import is_domestic` 임포트로 교체
+  - 테스트: `tests/unit/test_ticker.py` 신규 생성 (국내/해외 판별 엣지 케이스)
+  - 파일: `backend/app/core/ticker.py`, 5개 API 파일
+
+### P0 -- analytics cache invalidation 누락 엔드포인트 수정 [team-analysis: PERF-005]
+
+- [ ] **fix: fx-gain-loss, krw-asset-history 캐시 무효화 추가**
+  - `backend/app/api/analytics.py` — `invalidate_analytics_cache()` 함수에 두 키 추가
+  - `fx-gain-loss`, `krw-asset-history:{period}` (1M/3M/6M/1Y/ALL 각 기간) invalidation 추가
+  - 보유종목 추가/삭제/bulk 성공 후에도 호출되도록 `portfolios.py`에 연결
+  - 파일: `backend/app/api/analytics.py`, `backend/app/api/portfolios.py`
+
+### P1 -- transactions.ticker DB 인덱스 추가 [team-analysis: TD-009]
+
+- [ ] **perf: transactions 테이블 ticker 컬럼 인덱스 추가**
+  - `backend/app/models/transaction.py` — `ticker` mapped_column에 `index=True` 추가
+  - Alembic migration 생성: `alembic revision --autogenerate -m "add_index_transactions_ticker"`
+  - 파일: `backend/app/models/transaction.py`, `backend/alembic/versions/`
+
+### P1 -- price_snapshots 복합 인덱스 추가 [team-analysis: PERF-004 + TD-013]
+
+- [ ] **perf: price_snapshots (ticker, snapshot_date) 복합 인덱스**
+  - `backend/app/models/price_snapshot.py` — `__table_args__`에 `Index('ix_price_snapshot_ticker_date', 'ticker', 'snapshot_date')` 추가
+  - Alembic migration 생성
+  - analytics 쿼리 `WHERE ticker IN (...) AND snapshot_date >= cutoff` 성능 개선
+  - 파일: `backend/app/models/price_snapshot.py`, `backend/alembic/versions/`
+
+### P1 -- 포트폴리오 삭제 확인 다이얼로그 교체 [team-analysis: TD-010 + UX-003]
+
+- [ ] **fix: portfolios/page.tsx — confirm() → shadcn AlertDialog**
+  - `frontend/src/app/dashboard/portfolios/page.tsx` — `confirm()` 제거, AlertDialog 적용
+  - 제목: '포트폴리오 삭제', 본문: '{name} 포트폴리오를 영구 삭제하시겠습니까?'
+  - 보유종목 삭제도 동일 패턴으로 AlertDialog 적용 (`portfolios/[id]/page.tsx`)
+  - 파일: `frontend/src/app/dashboard/portfolios/page.tsx`, `portfolios/[id]/page.tsx`
+
+### P1 -- 비교 페이지 빈 상태 추가 [team-analysis: UX-004]
+
+- [ ] **fix: compare 페이지 — 포트폴리오 1개 이하일 때 empty state**
+  - `frontend/src/app/dashboard/compare/page.tsx` — `portfolios.length < 2` 조건 추가
+  - 안내 카드: '포트폴리오 비교는 2개 이상의 포트폴리오가 필요합니다' + 생성 링크 버튼
+  - 파일: `frontend/src/app/dashboard/compare/page.tsx`
+
+### P1 -- API 엔드포인트 Rate Limiting 추가 [team-analysis: SEC-001]
+
+- [ ] **security: portfolios/holdings/orders 엔드포인트 rate limit 추가**
+  - `backend/app/api/portfolios.py` — 주요 write 엔드포인트에 `@limiter.limit('60/minute')` 추가
+  - `backend/app/api/orders.py` — order 엔드포인트에 `@limiter.limit('30/minute')` 추가
+  - 파일: `backend/app/api/portfolios.py`, `backend/app/api/orders.py`
+
+### P1 -- CORS allow_methods/allow_headers 명시적 스코프 [team-analysis: SEC-004]
+
+- [ ] **security: CORS wildcard → 명시적 허용 목록**
+  - `backend/app/main.py` — `allow_methods=['GET','POST','PUT','PATCH','DELETE','OPTIONS']`
+  - `allow_headers=['Content-Type','Authorization','X-Request-ID']` 명시
+  - 파일: `backend/app/main.py`
+
+### P2 -- localStorage.getItem() 방어 처리 [team-analysis: SEC-008]
+
+- [ ] **fix: StockSearchDialog localStorage read try-catch 추가**
+  - `frontend/src/components/StockSearchDialog.tsx` — JSON.parse() try-catch 추가
+  - 파싱 실패 시 빈 배열 반환, 각 항목 string 유효성 검사
+  - 파일: `frontend/src/components/StockSearchDialog.tsx`
+
+### P2 -- Sentry environment 설정 환경변수화 [team-analysis: SEC-009]
+
+- [ ] **fix: Sentry init — environment hardcoding 제거**
+  - `backend/app/core/config.py` — `ENVIRONMENT: str = 'development'` 설정 추가
+  - `backend/app/main.py` — `environment=settings.ENVIRONMENT` 사용
+  - `backend/.env.example` — `ENVIRONMENT=production` 예시 추가
+  - 파일: `backend/app/main.py`, `backend/app/core/config.py`, `backend/.env.example`
+
+### P2 -- 종목 상세 페이지 차트 스켈레톤 추가 [team-analysis: UX-005]
+
+- [ ] **fix: stocks/[ticker]/page.tsx — 차트 로딩 중 ChartSkeleton 표시**
+  - `frontend/src/app/dashboard/stocks/[ticker]/page.tsx` — 기존 ChartSkeleton 컴포넌트 활용
+  - candlestick 데이터 fetching 동안 `<ChartSkeleton />` 렌더링
+  - 파일: `frontend/src/app/dashboard/stocks/[ticker]/page.tsx`
+
+### 이전 완료 작업
+
 ### P1 -- 해외주식 환차익/환차손 분리: 백엔드 API (17-2)
 
 - [x] **feat: GET /analytics/fx-gain-loss 엔드포인트 추가**
