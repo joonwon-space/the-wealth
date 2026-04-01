@@ -139,7 +139,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 원화 환산 총 자산 추이: 프론트엔드 차트 (17-2)
 
-- [ ] **feat: 분석 페이지에 원화 환산 총 자산 추이 차트 추가**
+- [x] **feat: 분석 페이지에 원화 환산 총 자산 추이 차트 추가**
   - `frontend/src/app/dashboard/analytics/page.tsx` — 기존 포트폴리오 가치 추이 섹션 아래에 추가
   - `/analytics/krw-asset-history` API 호출
   - Recharts LineChart: 국내(KRW) + 해외(환산 KRW) 스택 영역 차트 (AreaChart, stacked)
