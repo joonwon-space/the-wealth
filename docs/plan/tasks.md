@@ -170,7 +170,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- CORS allow_methods/allow_headers 명시적 스코프 [team-analysis: SEC-004]
 
-- [ ] **security: CORS wildcard → 명시적 허용 목록**
+- [x] **security: CORS wildcard → 명시적 허용 목록**
   - `backend/app/main.py` — `allow_methods=['GET','POST','PUT','PATCH','DELETE','OPTIONS']`
   - `allow_headers=['Content-Type','Authorization','X-Request-ID']` 명시
   - 파일: `backend/app/main.py`
