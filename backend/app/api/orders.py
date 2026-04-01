@@ -11,7 +11,7 @@
 
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +46,7 @@ from app.services.kis_order import (
 )
 from app.services.order_settlement import settle_pending_orders
 from app.core.ticker import is_domestic
+from app.core.limiter import limiter
 
 router = APIRouter(tags=["orders"])
 logger = get_logger(__name__)
@@ -96,7 +97,9 @@ async def _get_portfolio_with_kis(
 
 
 @router.post("/portfolios/{portfolio_id}/orders", response_model=OrderResult)
+@limiter.limit("30/minute")
 async def place_order(
+    request: Request,
     portfolio_id: int,
     body: OrderRequest,
     current_user: User = Depends(get_current_user),
@@ -341,7 +344,9 @@ async def list_pending_orders(
 
 
 @router.delete("/portfolios/{portfolio_id}/orders/{order_no}", status_code=204)
+@limiter.limit("30/minute")
 async def cancel_order_endpoint(
+    request: Request,
     portfolio_id: int,
     order_no: str,
     ticker: str = Query(...),

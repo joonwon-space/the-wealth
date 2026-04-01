@@ -163,7 +163,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- API 엔드포인트 Rate Limiting 추가 [team-analysis: SEC-001]
 
-- [ ] **security: portfolios/holdings/orders 엔드포인트 rate limit 추가**
+- [x] **security: portfolios/holdings/orders 엔드포인트 rate limit 추가**
   - `backend/app/api/portfolios.py` — 주요 write 엔드포인트에 `@limiter.limit('60/minute')` 추가
   - `backend/app/api/orders.py` — order 엔드포인트에 `@limiter.limit('30/minute')` 추가
   - 파일: `backend/app/api/portfolios.py`, `backend/app/api/orders.py`

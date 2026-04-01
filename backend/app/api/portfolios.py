@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from app.models.portfolio import Portfolio
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.core.logging import get_logger
+from app.core.limiter import limiter
 from app.core.ticker import is_domestic
 from app.api.analytics import invalidate_analytics_cache
 import asyncio
@@ -100,7 +101,9 @@ async def list_portfolios(
 
 
 @router.post("", response_model=PortfolioResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("60/minute")
 async def create_portfolio(
+    request: Request,
     body: PortfolioCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -195,7 +198,9 @@ async def update_portfolio(
 
 
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("60/minute")
 async def delete_portfolio(
+    request: Request,
     portfolio_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -361,7 +366,9 @@ async def list_holdings_with_prices(
     response_model=HoldingResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("60/minute")
 async def add_holding(
+    request: Request,
     portfolio_id: int,
     body: HoldingCreate,
     current_user: User = Depends(get_current_user),
@@ -394,7 +401,9 @@ async def add_holding(
     response_model=BulkHoldingResult,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("60/minute")
 async def bulk_add_holdings(
+    request: Request,
     portfolio_id: int,
     body: BulkHoldingRequest,
     current_user: User = Depends(get_current_user),
@@ -462,7 +471,9 @@ async def bulk_add_holdings(
 
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingResponse)
+@limiter.limit("60/minute")
 async def update_holding(
+    request: Request,
     holding_id: int,
     body: HoldingUpdate,
     current_user: User = Depends(get_current_user),
@@ -490,7 +501,9 @@ async def update_holding(
 
 
 @router.delete("/holdings/{holding_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("60/minute")
 async def delete_holding(
+    request: Request,
     holding_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
