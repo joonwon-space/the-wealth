@@ -14,6 +14,7 @@ from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+import redis.asyncio as aioredis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -22,6 +23,19 @@ TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://joonwon@localhost:5432/the_wealth_test",
 )
+TEST_REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+
+
+async def _flush_redis_cache() -> None:
+    """테스트 간 Redis analytics/price 캐시를 제거하여 캐시 오염을 방지한다."""
+    try:
+        r = aioredis.from_url(TEST_REDIS_URL)
+        keys = await r.keys("analytics:*")
+        if keys:
+            await r.delete(*keys)
+        await r.aclose()
+    except Exception:
+        pass  # Redis 미사용 환경에서는 무시
 
 
 def _make_engine():
@@ -105,6 +119,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     from app.main import app
 
     await _clean_all_data()
+    await _flush_redis_cache()
 
     # Reset in-memory rate limit counters before each test
     try:
