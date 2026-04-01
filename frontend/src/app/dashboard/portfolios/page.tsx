@@ -30,6 +30,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Portfolio {
   id: number;
@@ -175,6 +185,7 @@ export default function PortfoliosPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Portfolio | null>(null);
 
   const { data: portfolios = [], isLoading } = useQuery<Portfolio[]>({
     queryKey: PORTFOLIOS_QUERY_KEY,
@@ -228,8 +239,15 @@ export default function PortfoliosPage() {
   };
 
   const handleDelete = (id: number) => {
-    if (!confirm("포트폴리오를 삭제하시겠습니까?")) return;
-    deleteMutation.mutate(id);
+    const portfolio = portfolios.find((p) => p.id === id) ?? null;
+    setDeleteTarget(portfolio);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget.id);
+    }
+    setDeleteTarget(null);
   };
 
   return (
@@ -314,6 +332,27 @@ export default function PortfoliosPage() {
           setShowModal(false);
         }}
       />
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>포트폴리오 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.name} 포트폴리오를 영구 삭제하시겠습니까?
+              이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

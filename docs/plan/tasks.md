@@ -148,7 +148,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- 포트폴리오 삭제 확인 다이얼로그 교체 [team-analysis: TD-010 + UX-003]
 
-- [ ] **fix: portfolios/page.tsx — confirm() → shadcn AlertDialog**
+- [x] **fix: portfolios/page.tsx — confirm() → shadcn AlertDialog**
   - `frontend/src/app/dashboard/portfolios/page.tsx` — `confirm()` 제거, AlertDialog 적용
   - 제목: '포트폴리오 삭제', 본문: '{name} 포트폴리오를 영구 삭제하시겠습니까?'
   - 보유종목 삭제도 동일 패턴으로 AlertDialog 적용 (`portfolios/[id]/page.tsx`)
