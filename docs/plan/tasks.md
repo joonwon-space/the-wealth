@@ -133,7 +133,7 @@ Each item should be completable in a single commit.
 
 ### P1 -- transactions.ticker DB 인덱스 추가 [team-analysis: TD-009]
 
-- [ ] **perf: transactions 테이블 ticker 컬럼 인덱스 추가**
+- [x] **perf: transactions 테이블 ticker 컬럼 인덱스 추가**
   - `backend/app/models/transaction.py` — `ticker` mapped_column에 `index=True` 추가
   - Alembic migration 생성: `alembic revision --autogenerate -m "add_index_transactions_ticker"`
   - 파일: `backend/app/models/transaction.py`, `backend/alembic/versions/`
