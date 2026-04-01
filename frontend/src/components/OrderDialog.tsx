@@ -88,22 +88,40 @@ export function OrderDialog({
   // 가격 입력 debounce (500ms) → orderable API 호출 빈도 제한
   const debouncedPrice = useDebounce(parsedPrice, 500);
 
-  // 국내 매수 + 가격 입력 시에만 orderable API 호출
+  // 국내 매수 시 orderable API 호출
+  // - 지정가: debouncedPrice > 0 일 때
+  // - 시장가: price=0으로 호출 (KIS가 시장가 기준 수량 반환)
   const isDomestic = !exchangeCode;
-  const orderableEnabled = isDomestic && activeTab === "BUY" && debouncedPrice > 0;
-  const { data: orderable } = useOrderableQuantity(
+  const isMarketOrder = orderClass === "market";
+  const orderablePrice = isMarketOrder ? 0 : debouncedPrice;
+  const orderableEnabled =
+    isDomestic && activeTab === "BUY" && (isMarketOrder || debouncedPrice > 0);
+  const { data: orderable, isError: orderableError } = useOrderableQuantity(
     portfolioId,
     ticker,
-    orderableEnabled ? debouncedPrice : 0,
+    orderableEnabled ? orderablePrice : -1,
     "BUY"
   );
 
-  // 최대 매수 가능 수량 (orderable API 우선, fallback: 클라이언트 계산)
-  const maxBuyQuantity = orderableEnabled && orderable
+  // 최대 매수 가능 수량
+  // 1순위: orderable API 응답
+  // 2순위(fallback): 클라이언트 계산 (API 실패 또는 해외주식)
+  const orderableQty = orderable
     ? Math.floor(parseFloat(orderable.orderable_quantity))
-    : availableCash !== null && parsedPrice > 0
+    : null;
+  const clientFallbackQty =
+    availableCash !== null && parsedPrice > 0
       ? Math.floor(availableCash / parsedPrice)
       : null;
+
+  const maxBuyQuantity =
+    orderableEnabled && orderableQty !== null && orderableQty > 0
+      ? orderableQty
+      : orderableEnabled && orderableError && clientFallbackQty !== null
+        ? clientFallbackQty
+        : !orderableEnabled && clientFallbackQty !== null
+          ? clientFallbackQty
+          : null;
 
   // ─── Existing holding data ────────────────────────────────────────────────
 
@@ -425,7 +443,7 @@ export function OrderDialog({
                       <span className="font-medium">{formatKRW(pendingCash)}</span>
                     </div>
                   )}
-                  {tab === "BUY" && maxBuyQuantity !== null && maxBuyQuantity > 0 && parsedPrice > 0 && (
+                  {tab === "BUY" && maxBuyQuantity !== null && maxBuyQuantity > 0 && (
                     <div className="flex justify-between items-center">
                       <span>최대 매수 가능</span>
                       <button
@@ -493,8 +511,8 @@ export function OrderDialog({
                 />
               </div>
 
-              {/* 퀵 수량 버튼 (매수, 지정가, 예수금 있을 때만) */}
-              {tab === "BUY" && orderClass === "limit" && availableCash !== null && parsedPrice > 0 && (
+              {/* 퀵 수량 버튼 (매수 + 최대 수량 있을 때) */}
+              {tab === "BUY" && maxBuyQuantity !== null && maxBuyQuantity > 0 && (
                 <div className="flex gap-1">
                   {QUICK_RATIOS.map((ratio) => (
                     <Button
