@@ -472,7 +472,7 @@ class TestSchedulerLifecycle:
         with patch("app.services.scheduler.scheduler", mock_scheduler):
             start_scheduler()
 
-        assert mock_scheduler.add_job.call_count == 5
+        assert mock_scheduler.add_job.call_count == 6
         job_ids = [c.kwargs.get("id") for c in mock_scheduler.add_job.call_args_list]
         # Verify all distinct jobs are registered
         assert "kis_sync_us" in job_ids
@@ -480,6 +480,7 @@ class TestSchedulerLifecycle:
         assert "fx_rate_snapshot" in job_ids
         assert "preload_prices_am" in job_ids
         assert "preload_prices_pm" in job_ids
+        assert "settle_orders" in job_ids
         assert mock_scheduler.start.called
 
     def test_stop_scheduler_calls_shutdown(self) -> None:

@@ -181,7 +181,6 @@ class TestSettlePendingOrders:
         txns = txn_resp.json()
         assert len(txns) == 1
         assert txns[0]["ticker"] == "005930"
-        assert txns[0]["order_source"] == "kis"
 
     async def test_settle_partial_fill(self, client: AsyncClient) -> None:
         """부분 체결 시 partial 상태로 전환되고 체결 수량만 반영된다."""

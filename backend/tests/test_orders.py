@@ -256,7 +256,7 @@ class TestPlaceOrder:
             headers=_auth(token),
         )
         before_qty = sum(
-            h["quantity"] for h in holdings_before.json() if h["ticker"] == "005930"
+            float(h["quantity"]) for h in holdings_before.json() if h["ticker"] == "005930"
         )
 
         mock_result = _make_order_result()
@@ -283,7 +283,7 @@ class TestPlaceOrder:
             headers=_auth(token),
         )
         after_qty = sum(
-            h["quantity"] for h in holdings_after.json() if h["ticker"] == "005930"
+            float(h["quantity"]) for h in holdings_after.json() if h["ticker"] == "005930"
         )
         assert before_qty == after_qty
 
