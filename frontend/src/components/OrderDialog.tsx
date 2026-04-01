@@ -114,14 +114,11 @@ export function OrderDialog({
       ? Math.floor(availableCash / parsedPrice)
       : null;
 
+  // orderable API 응답이 있으면 우선 사용, 없으면 클라이언트 계산 fallback
   const maxBuyQuantity =
-    orderableEnabled && orderableQty !== null && orderableQty > 0
+    orderableQty !== null && orderableQty > 0
       ? orderableQty
-      : orderableEnabled && orderableError && clientFallbackQty !== null
-        ? clientFallbackQty
-        : !orderableEnabled && clientFallbackQty !== null
-          ? clientFallbackQty
-          : null;
+      : clientFallbackQty;
 
   // ─── Existing holding data ────────────────────────────────────────────────
 
