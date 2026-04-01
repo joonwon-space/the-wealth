@@ -26,7 +26,6 @@ from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.order import Order
 from app.models.portfolio import Portfolio
-from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.order import (
     CashBalanceResponse,
