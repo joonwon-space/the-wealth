@@ -9,6 +9,7 @@ This eliminates ENUM type conflicts and table-not-found errors while keeping
 tests isolated from each other.
 """
 
+import asyncio
 import os
 from typing import AsyncGenerator
 
@@ -109,6 +110,7 @@ async def db() -> AsyncGenerator[AsyncSession, None]:
     async with factory() as session:
         yield session
     await engine.dispose()
+    await asyncio.sleep(0)  # asyncpg cancel 코루틴이 처리될 기회를 줌
 
 
 @pytest_asyncio.fixture
@@ -142,3 +144,4 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides.clear()
     await engine.dispose()
+    await asyncio.sleep(0)  # asyncpg cancel 코루틴이 처리될 기회를 줌
