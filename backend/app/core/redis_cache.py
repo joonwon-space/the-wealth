@@ -113,10 +113,11 @@ _redis_healthy: bool = True  # optimistic — assume Redis is up initially
 
 
 def reset_fallback_cache() -> None:
-    """테스트 격리를 위해 in-memory fallback 캐시를 초기화한다."""
-    global _redis_healthy
+    """테스트 격리를 위해 in-memory fallback 캐시와 ConnectionPool을 초기화한다."""
+    global _redis_healthy, _pool
     _fallback._store.clear()
     _redis_healthy = True
+    _pool = None  # force pool re-creation in tests to avoid cross-test state
 
 
 class RedisCache:

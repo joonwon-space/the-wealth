@@ -222,13 +222,9 @@ export default function PortfoliosPage() {
   const reorderMutation = useMutation({
     mutationFn: (items: { id: number; display_order: number }[]) =>
       api.patch("/portfolios/reorder", { items }),
-    onError: (_error, _items, context) => {
-      // Roll back optimistic UI update on failure
-      if (context) {
-        queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, context as Portfolio[]);
-      }
-      toast.error("순서 변경에 실패했습니다. 잠시 후 다시 시도해주세요.");
-    },
+    // Rollback and error toast are handled inline in handleDragEnd so that the
+    // saved snapshot is available. Do not add a mutation-level onError here to
+    // avoid duplicate toasts when the inline onError is also present.
   });
 
   const sensors = useSensors(
