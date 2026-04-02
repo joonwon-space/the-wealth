@@ -286,7 +286,8 @@ backend/app/
 │   ├── limiter.py             # slowapi 레이트 리미터 인스턴스
 │   ├── middleware.py          # SecurityHeadersMiddleware
 │   ├── redis_cache.py         # Redis 캐시 래퍼 (Redis 장애 시 in-memory 폴백)
-│   └── logging.py             # structlog 설정, request_id
+│   ├── logging.py             # structlog 설정, request_id
+│   └── ticker.py              # is_domestic() 유틸리티 (국내/해외 종목 판별)
 ├── middleware/
 │   └── metrics.py             # MetricsMiddleware (X-Process-Time 헤더 + structlog process_time_ms)
 ├── db/
@@ -430,6 +431,9 @@ Request
   │
   ▼ CORSMiddleware
   │   allow_origins: localhost:3000, joonwon.dev
+  │
+  ▼ GZipMiddleware
+  │   minimum_size: 1000 bytes (응답 압축)
   │
   ▼ Request ID Middleware
   │   X-Request-ID: uuid4 (structlog 연동)
@@ -754,11 +758,14 @@ slowapi 기반 IP별 레이트 리미팅:
 | POST /auth/register | 3/min |
 | POST /sync/* | 5/min |
 | GET /dashboard/* | 120/min |
+| POST/PATCH/DELETE /portfolios/* (쓰기) | 60/min |
+| POST /portfolios/{id}/orders | 30/min |
+| DELETE /portfolios/{id}/orders/* | 30/min |
 | 기타 | 60/min (기본값) |
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-04-01)
+## 6. 프로젝트 현황 분석 (2026-04-02)
 
 ### 6.1 완성도
 
@@ -785,12 +792,15 @@ slowapi 기반 IP별 레이트 리미팅:
 | DB 백업 | 완료 | 일일 pg_dump + 보존 정책 (7일/4주/3월), health endpoint 노출 |
 | 접근성 (a11y) | 완료 | aria-label, aria-current, 터치 타겟 44px, CSP 수정 |
 | TanStack Query | 완료 | 대시보드/포트폴리오 캐시, refetchInterval, SSE queryClient 연동 |
-| 모니터링 | 완료 | Sentry (백엔드+프론트), MetricsMiddleware (X-Process-Time) |
+| 모니터링 | 완료 | Sentry (백엔드+프론트, ENVIRONMENT 환경변수화), MetricsMiddleware (X-Process-Time) |
 | 로깅 시스템 | 완료 | structlog + RotatingFileHandler (10MB x5, JSON) + Dozzle 컨테이너 로그 뷰어 |
+| 응답 압축 | 완료 | GZipMiddleware (minimum_size=1000) |
+| 코드 품질 | 완료 | is_domestic() 공통 유틸리티 (app/core/ticker.py), 쓰기 엔드포인트 레이트 리밋 강화 |
+| DB 인덱스 최적화 | 완료 | transactions.ticker, price_snapshots(ticker, snapshot_date) 복합 인덱스 추가 |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: 730 passed, 46 failed (2026-04-01 기준; asyncpg Connection._cancel 및 Redis analytics 캐시 미초기화 flaky 테스트 2건 이후 수정됨)
+전체: 730 passed, 46 failed (2026-04-01 기준; asyncpg Connection._cancel flaky 테스트 1건 수정됨, analytics 캐시 미초기화 수정됨 — 2026-04-02 재실행 필요)
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
@@ -862,6 +872,16 @@ slowapi 기반 IP별 레이트 리미팅:
 - 주문 실패 시 KIS 실제 오류 메시지 표시 (이전: '알 수 없는 오류', 이후: KIS msg1 그대로 노출)
 - 매수 후 예수금 미갱신 수정: nxdy_excc_amt로 실질 잔액 반영 + 에러 시 상태 표시
 - CI 최적화: docker-build·codeql 워크플로우를 main push 제외 PR 전용으로 변경
+- GZipMiddleware 추가: minimum_size=1000 응답 압축으로 전송 크기 절감
+- is_domestic() 유틸리티 추출: app/core/ticker.py로 중복 코드 5개 제거
+- analytics.py fx-gain-loss/krw-asset-history 캐시 무효화 수정
+- DB 인덱스 추가: transactions.ticker, price_snapshots(ticker, snapshot_date) 복합
+- 포트폴리오/보유종목/주문 쓰기 엔드포인트에 레이트 리밋 추가 (60~30/분)
+- CORS 명시적 메서드/헤더 지정으로 와일드카드 대체 (보안 강화)
+- StockSearchDialog localStorage 파싱 타입 검증 강화
+- Sentry ENVIRONMENT 환경변수화 (settings.ENVIRONMENT 사용)
+- 비교 페이지 포트폴리오 2개 미만 시 빈 상태 표시
+- 종목 상세 캔들스틱 데이터 로딩 중 ChartSkeleton 표시
 
 ### 6.4 약점 및 개선 필요 사항
 

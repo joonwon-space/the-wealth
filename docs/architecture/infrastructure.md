@@ -366,8 +366,6 @@ KIS OpenAPI 자격증명(App Key, App Secret)을 데이터베이스에 안전하
 
 | 테이블 | 암호화 컬럼 | 내용 |
 |--------|-----------|------|
-| `users` | `kis_app_key_enc` | 레거시 KIS App Key |
-| `users` | `kis_app_secret_enc` | 레거시 KIS App Secret |
 | `kis_accounts` | `app_key_enc` | KIS App Key |
 | `kis_accounts` | `app_secret_enc` | KIS App Secret |
 
@@ -465,7 +463,16 @@ Docker Compose 헬스체크:
 | `KIS_BASE_URL` | - | KIS OpenAPI 기본 URL | `https://openapi.koreainvestment.com:9443` |
 | `INTERNAL_SECRET` | - | 내부 API 인증 시크릿 (백업 스크립트용) | `openssl rand -hex 16` |
 | `SENTRY_DSN` | - | Sentry 에러 트래킹 DSN (백엔드) | `https://xxx@sentry.io/xxx` |
-| `BACKUP_DIR` | - | 백업 파일 디렉토리 (기본: `/backups`) | `/backups` |
+| `ENVIRONMENT` | - | Sentry 환경 이름 (기본: `development`) | `production` |
+| `LOG_DIR` | - | 파일 로깅 디렉토리 (비어 있으면 stdout만) | `/var/log/the-wealth` |
+| `LOG_MAX_BYTES` | - | 로그 파일 최대 크기 (기본: 10MB) | `10485760` |
+| `LOG_BACKUP_COUNT` | - | 로그 파일 보존 개수 (기본: 5) | `5` |
+| `R2_ENDPOINT` | - | Cloudflare R2 엔드포인트 (비어 있으면 원격 업로드 비활성) | `https://<account-id>.r2.cloudflarestorage.com` |
+| `R2_BUCKET` | - | R2 버킷 이름 | `the-wealth-backup` |
+| `R2_ACCESS_KEY_ID` | - | R2 액세스 키 | |
+| `R2_SECRET_ACCESS_KEY` | - | R2 시크릿 키 | |
+| `VISUAL_QA_EMAIL` | - | E2E 테스트용 계정 이메일 | `qa@example.com` |
+| `VISUAL_QA_PASSWORD` | - | E2E 테스트용 계정 비밀번호 | |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
 
