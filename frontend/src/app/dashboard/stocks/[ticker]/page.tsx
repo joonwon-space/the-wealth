@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -63,7 +63,7 @@ export default function StockDetailPage() {
   const [detail, setDetail] = useState<StockDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [chartLoading, setChartLoading] = useState(false);
+  const [chartPending, startChartTransition] = useTransition();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("3M");
 
   useEffect(() => {
@@ -75,14 +75,14 @@ export default function StockDetailPage() {
 
   useEffect(() => {
     if (!ticker) return;
-    setChartLoading(true);
-    api
-      .get<{ candles: Candle[] }>("/chart/daily", {
-        params: { ticker, period, ...(detail?.market ? { market: detail.market } : {}) },
-      })
-      .then((r) => setCandles(r.data.candles))
-      .catch(() => setCandles([]))
-      .finally(() => setChartLoading(false));
+    startChartTransition(async () => {
+      await api
+        .get<{ candles: Candle[] }>("/chart/daily", {
+          params: { ticker, period, ...(detail?.market ? { market: detail.market } : {}) },
+        })
+        .then((r) => setCandles(r.data.candles))
+        .catch(() => setCandles([]));
+    });
   }, [ticker, period, detail?.market]);
 
   if (loading) {
@@ -170,7 +170,7 @@ export default function StockDetailPage() {
             </button>
           ))}
         </div>
-        {chartLoading ? (
+        {chartPending ? (
           <ChartSkeleton height={400} />
         ) : (
           <CandlestickChart
