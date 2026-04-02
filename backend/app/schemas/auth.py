@@ -1,11 +1,13 @@
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    # max_length=128 prevents bcrypt DoS (bcrypt truncates at 72 bytes; 128 chars
+    # is a safe upper bound that rejects absurdly long passwords before hashing).
+    password: str = Field(min_length=8, max_length=128)
 
     @field_validator("password")
     @classmethod
@@ -17,7 +19,7 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(max_length=128)
 
 
 class TokenResponse(BaseModel):

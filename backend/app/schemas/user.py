@@ -1,7 +1,7 @@
 # User schemas — profile read/update.
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class UserMe(BaseModel):
@@ -23,8 +23,8 @@ class UserUpdate(BaseModel):
 class ChangePasswordRequest(BaseModel):
     """Request schema for changing the current user's password."""
 
-    current_password: str
-    new_password: str
+    current_password: str = Field(max_length=128)
+    new_password: str = Field(max_length=128)
 
     @field_validator("new_password")
     @classmethod
@@ -44,4 +44,4 @@ class ChangeEmailRequest(BaseModel):
 class DeleteAccountRequest(BaseModel):
     """Request schema for deleting the current user's account."""
 
-    current_password: str
+    current_password: str = Field(max_length=128)
