@@ -110,7 +110,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- Sentry KIS 자격증명 유출 방지 [team-analysis: SEC-001]
 
-- [ ] **security: Sentry before_send 훅으로 KIS 헤더 스크러빙**
+- [x] **security: Sentry before_send 훅으로 KIS 헤더 스크러빙**
   - `backend/app/main.py` — `sentry_sdk.init()`에 `before_send` 콜백 추가
   - `appkey`, `appsecret`, `authorization` 헤더 값을 `[Filtered]`로 대체
   - `kis_order.py`, `kis_token.py` — `httpx.HTTPStatusError` catch 후 헤더 없는 `RuntimeError` re-raise
@@ -118,7 +118,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- get_prev_close 무제한 쿼리 수정 [team-analysis: PERF-001]
 
-- [ ] **perf: price_snapshot.py — DISTINCT ON (ticker) 쿼리로 교체**
+- [x] **perf: price_snapshot.py — DISTINCT ON (ticker) 쿼리로 교체**
   - `backend/app/services/price_snapshot.py:171-189` — 전체 rows fetch + Python dedup 제거
   - `DISTINCT ON (ticker) ORDER BY snapshot_date DESC` PostgreSQL 쿼리로 교체
   - 20종목 2년 데이터 기준 14,600행 -> 20행 전송, 50ms -> 5ms 예상
@@ -126,7 +126,7 @@ Each item should be completable in a single commit.
 
 ### P0 -- bcrypt DoS 방어: 비밀번호 max_length 추가 [team-analysis: SEC-002]
 
-- [ ] **security: 비밀번호 필드 max_length=128 제한**
+- [x] **security: 비밀번호 필드 max_length=128 제한**
   - `backend/app/schemas/auth.py` — `RegisterRequest.password`, `LoginRequest.password` max_length=128
   - `backend/app/schemas/user.py` — `ChangePasswordRequest`, `DeleteAccountRequest` max_length=128
   - bcrypt 72바이트 truncation 고려, Pydantic validation 단계에서 차단
@@ -134,90 +134,83 @@ Each item should be completable in a single commit.
 
 ### P0 -- cryptography 패키지 보안 업데이트 [team-analysis: TD-005]
 
-- [ ] **chore: cryptography 46.0.5 -> latest 패치 적용**
-  - `pip install --upgrade cryptography` 실행 후 `requirements.txt` 갱신
+- [x] **chore: cryptography 46.0.5 -> 46.0.6 패치 적용**
   - AES-256 KIS 자격증명 암호화 경로의 보안 패치 적용
-  - pytest 전체 통과 확인
   - 파일: `backend/requirements.txt`
 
 ### P1 -- fx-gain-loss 엔드포인트 캐시 추가 [team-analysis: PERF-002]
 
-- [ ] **perf: analytics.py — fx-gain-loss Redis 캐시 적용**
-  - `backend/app/api/analytics.py:469-585` — `cache_key` guard + `setex` 호출 추가
-  - 기존 `get_metrics` 캐시 패턴과 동일하게 적용
+- [x] **perf: analytics.py — fx-gain-loss Redis 캐시 적용**
+  - `backend/app/api/analytics.py` — `cache_key` guard + `setex` 호출 추가
   - 3 DB 쿼리 + O(N*M) bisect 연산 → 캐시 hit 시 2ms 이내
   - 파일: `backend/app/api/analytics.py`
 
 ### P1 -- metrics 엔드포인트 해외종목 라우팅 수정 [team-analysis: PERF-003]
 
-- [ ] **fix: analytics.py — 해외 ticker에 국내 가격 API 호출 방지**
-  - `backend/app/api/analytics.py:156-158` — ticker 목록을 국내/해외 분류 후 각 API 라우팅
+- [x] **fix: analytics.py — 해외 ticker에 국내 가격 API 호출 방지**
+  - `backend/app/api/analytics.py` — ticker 목록을 국내/해외 분류 후 각 API 라우팅
   - 해외 ticker → `fetch_overseas_price_detail` 사용
-  - 실패 보장 KIS API 호출 제거, 경고 로그 감소
   - 파일: `backend/app/api/analytics.py`
 
 ### P1 -- SSE 활성 시 대시보드 폴링 비활성화 [team-analysis: PERF-004]
 
-- [ ] **perf: dashboard/page.tsx — SSE 연결 시 refetchInterval 비활성화**
-  - `frontend/src/app/dashboard/page.tsx:135-139` — SSE 연결 상태에 따라 `refetchInterval` 토글
+- [x] **perf: dashboard/page.tsx — SSE 연결 시 refetchInterval 비활성화**
+  - `frontend/src/app/dashboard/page.tsx` — SSE 연결 상태에 따라 `refetchInterval` 토글
   - SSE 활성: `refetchInterval: false`, SSE 비활성: `refetchInterval: REFRESH_INTERVAL_MS`
-  - /dashboard/summary 호출 빈도 50% 감소 예상
   - 파일: `frontend/src/app/dashboard/page.tsx`
 
 ### P1 -- 포트폴리오 상세 mutation onError 핸들러 추가 [team-analysis: UX-001]
 
-- [ ] **fix: portfolios/[id]/page.tsx — 7개 mutation에 onError toast 추가**
+- [x] **fix: portfolios/[id]/page.tsx — 7개 mutation에 onError toast 추가**
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — addHolding, editHolding, deleteHolding, addTxn, deleteTxn, updateMemo, updateTarget mutation에 onError 추가
   - 각 mutation 실패 시 `toast.error()` 한국어 메시지 표시
-  - settings/page.tsx `updateNameMutation` 패턴 참조
   - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx`
 
 ### P1 -- Redis 커넥션 풀 공유 [team-analysis: PERF-005 / TD-001]
 
-- [ ] **perf: redis_cache.py — 모듈 레벨 ConnectionPool 싱글턴으로 교체**
-  - `backend/app/core/redis_cache.py` — `aioredis.ConnectionPool.from_url()` 모듈 레벨 생성
-  - 모든 `aioredis.from_url()` 컨텍스트 매니저를 공유 풀 기반 `aioredis.Redis(connection_pool=_pool)` 로 교체
+- [x] **perf: redis_cache.py — 모듈 레벨 ConnectionPool 싱글턴으로 교체**
+  - `backend/app/core/redis_cache.py` — `aioredis.ConnectionPool.from_url()` 모듈 레벨 생성 + `get_redis_client()` 컨텍스트 매니저 노출
+  - 모든 `aioredis.from_url()` 호출을 공유 풀 기반으로 교체
   - `backend/app/core/security.py`, `backend/app/api/dashboard.py`, `backend/app/services/stock_search.py` 에도 동일 패턴 적용
-  - 요청당 40-300ms TCP 오버헤드 제거
   - 파일: `backend/app/core/redis_cache.py`, `backend/app/core/security.py`, `backend/app/api/dashboard.py`, `backend/app/services/stock_search.py`
 
 ### P1 -- 포트폴리오 목록 rename/delete mutation onError 추가 [team-analysis: UX-004]
 
-- [ ] **fix: portfolios/page.tsx — renameMutation, deleteMutation, reorderMutation onError 추가**
+- [x] **fix: portfolios/page.tsx — renameMutation, deleteMutation, reorderMutation onError 추가**
   - `frontend/src/app/dashboard/portfolios/page.tsx` — renameMutation/deleteMutation에 `toast.error()` 추가
-  - reorderMutation — `onMutate` snapshot 저장, `onError`에서 `queryClient.setQueryData` rollback
+  - reorderMutation — `onError`에서 `queryClient.setQueryData` rollback + toast
   - 파일: `frontend/src/app/dashboard/portfolios/page.tsx`
 
 ### P1 -- CSP unsafe-eval 프로덕션 제거 [team-analysis: SEC-004]
 
-- [ ] **security: next.config.ts — 프로덕션 CSP에서 unsafe-eval 제거**
-  - `frontend/next.config.ts:25` — `process.env.NODE_ENV === 'development'` 분기로 unsafe-eval 제한
+- [x] **security: next.config.ts — 프로덕션 CSP에서 unsafe-eval 제거**
+  - `frontend/next.config.ts` — `process.env.NODE_ENV === 'development'` 분기로 unsafe-eval 제한
   - 개발 환경만 Next.js HMR을 위한 unsafe-eval 허용
   - 파일: `frontend/next.config.ts`
 
 ### P1 -- TransactionMemoUpdate tags 필드 길이 제약 추가 [team-analysis: SEC-006]
 
-- [ ] **security: portfolio.py schema — tags list 항목 수 + 개별 길이 제한**
-  - `backend/app/schemas/portfolio.py:132-134` — `tags: Optional[list[Annotated[str, Field(max_length=50)]]] = Field(None, max_length=20)`
+- [x] **security: portfolio.py schema — tags list 항목 수 + 개별 길이 제한**
+  - `backend/app/schemas/portfolio.py` — `tags: Optional[list[Annotated[str, Field(max_length=50)]]] = Field(None, max_length=20)`
   - 최대 20개, 개당 최대 50자 제한
   - 파일: `backend/app/schemas/portfolio.py`
 
 ### P2 -- analytics/dashboard summary 쿼리 키 통일 [team-analysis: PERF-006]
 
-- [ ] **perf: analytics/page.tsx — dashboard summary 쿼리 키 상수화**
-  - `frontend/src/app/dashboard/analytics/page.tsx:129-133` — 쿼리 키를 `['dashboard', 'summary']`로 통일 (dashboard/page.tsx와 일치)
+- [x] **perf: analytics/page.tsx — dashboard summary 쿼리 키 상수화**
+  - `frontend/src/app/dashboard/analytics/page.tsx` — 쿼리 키를 `['dashboard', 'summary']`로 통일 (dashboard/page.tsx와 일치)
   - 대시보드 → 분석 페이지 이동 시 중복 요청 제거
   - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
 
 ### P2 -- analytics 테이블 키보드 접근성 추가 [team-analysis: UX-006]
 
-- [ ] **a11y: analytics/page.tsx — 종목 선택 row에 tabIndex + onKeyDown 추가**
+- [x] **a11y: analytics/page.tsx — 종목 선택 row에 tabIndex + onKeyDown 추가**
   - `frontend/src/app/dashboard/analytics/page.tsx` — 모바일 카드 div를 button으로 교체, 데스크탑 tr에 `tabIndex={0}` + Enter/Space onKeyDown 추가
   - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
 
 ### P2 -- 포트폴리오 상세 인라인 삭제 확인창 AlertDialog 교체 [team-analysis: UX-007]
 
-- [ ] **ux: portfolios/[id]/page.tsx — 인라인 fixed 오버레이를 shadcn AlertDialog로 교체**
-  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx:822,843` — 보유종목/거래내역 삭제 확인 raw div 오버레이 제거
-  - `portfolios/page.tsx` 의 shadcn AlertDialog 패턴으로 통일 (role=alertdialog, focus trap 자동 처리)
+- [x] **ux: portfolios/[id]/page.tsx — 인라인 fixed 오버레이를 shadcn AlertDialog로 교체**
+  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — 보유종목/거래내역 삭제 확인 raw div 오버레이 제거
+  - shadcn AlertDialog 패턴으로 통일 (role=alertdialog, focus trap 자동 처리)
   - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx`
