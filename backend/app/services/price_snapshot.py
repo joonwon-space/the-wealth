@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -168,22 +168,20 @@ async def get_prev_close(
 
     today = ref_date or datetime.now(timezone.utc).date()
 
+    # DISTINCT ON (ticker) returns only the latest snapshot per ticker —
+    # PostgreSQL reads ~N rows (one per ticker) instead of the full history.
     result = await db.execute(
-        select(PriceSnapshot)
-        .where(
-            PriceSnapshot.ticker.in_(tickers),
-            PriceSnapshot.snapshot_date < today,
-        )
-        .order_by(PriceSnapshot.snapshot_date.desc())
+        text(
+            """
+            SELECT DISTINCT ON (ticker) ticker, close
+            FROM price_snapshots
+            WHERE ticker = ANY(:tickers)
+              AND snapshot_date < :today
+            ORDER BY ticker, snapshot_date DESC
+            """
+        ),
+        {"tickers": list(tickers), "today": today},
     )
-    snapshots = result.scalars().all()
+    rows = result.fetchall()
 
-    # 각 ticker에 대해 가장 최근 snapshot 선택
-    seen: set[str] = set()
-    prev_closes: dict[str, Decimal] = {}
-    for snap in snapshots:
-        if snap.ticker not in seen:
-            seen.add(snap.ticker)
-            prev_closes[snap.ticker] = Decimal(str(snap.close))
-
-    return prev_closes
+    return {row.ticker: Decimal(str(row.close)) for row in rows}
