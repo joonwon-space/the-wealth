@@ -296,7 +296,7 @@ async def place_domestic_order(
 
     except Exception as e:
         logger.warning("Domestic order exception: ticker=%s error=%s", ticker, e)
-        raise RuntimeError(f"국내 주식 주문 실패 ({ticker}): {e}") from e
+        raise RuntimeError(f"국내 주식 주문 실패 ({ticker}): {e}") from None
 
 
 async def place_overseas_order(
@@ -418,7 +418,7 @@ async def place_overseas_order(
 
     except Exception as e:
         logger.warning("Overseas order exception: ticker=%s error=%s", ticker, e)
-        raise RuntimeError(f"해외 주식 주문 실패 ({ticker}): {e}") from e
+        raise RuntimeError(f"해외 주식 주문 실패 ({ticker}): {e}") from None
 
 
 async def get_orderable_quantity(
@@ -478,7 +478,7 @@ async def get_orderable_quantity(
         raise
     except Exception as e:
         logger.warning("get_orderable_quantity error: ticker=%s error=%s", ticker, e)
-        raise RuntimeError(f"매수 가능 수량 조회 실패 ({ticker}): {e}") from e
+        raise RuntimeError(f"매수 가능 수량 조회 실패 ({ticker}): {e}") from None
 
 
 async def get_pending_orders(
@@ -591,7 +591,7 @@ async def get_pending_orders(
         raise
     except Exception as e:
         logger.warning("get_pending_orders error: %s", e)
-        raise RuntimeError(f"미체결 주문 조회 실패: {e}") from e
+        raise RuntimeError(f"미체결 주문 조회 실패: {e}") from None
 
 
 async def cancel_order(
@@ -680,7 +680,7 @@ async def cancel_order(
         raise
     except Exception as e:
         logger.warning("cancel_order error: order_no=%s error=%s", order_no, e)
-        raise RuntimeError(f"주문 취소 요청 실패 ({order_no}): {e}") from e
+        raise RuntimeError(f"주문 취소 요청 실패 ({order_no}): {e}") from None
 
 
 async def check_filled_orders(
@@ -777,4 +777,4 @@ async def check_filled_orders(
         raise
     except Exception as e:
         logger.warning("check_filled_orders error: %s", e)
-        raise RuntimeError(f"체결 확인 조회 실패: {e}") from e
+        raise RuntimeError(f"체결 확인 조회 실패: {e}") from None

@@ -51,8 +51,15 @@ async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
         "appsecret": app_secret,
     }
     async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
+        try:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            # Re-raise without request/response objects to prevent KIS credentials
+            # from leaking into Sentry via the httpx exception chain.
+            raise RuntimeError(
+                f"KIS token endpoint returned HTTP {exc.response.status_code}"
+            ) from None
         data = resp.json()
 
     token: Optional[str] = data.get("access_token")

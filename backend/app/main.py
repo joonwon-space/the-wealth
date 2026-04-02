@@ -28,12 +28,31 @@ from app.services.stock_search import _load_stock_list
 configure_logging()
 logger = get_logger(__name__)
 
+def _sentry_before_send(event: dict, hint: dict) -> dict:
+    """Scrub KIS API credentials from Sentry events before they are sent.
+
+    Removes appkey, appsecret, and authorization values from request headers
+    to prevent KIS credentials from appearing in Sentry error reports.
+    """
+    request = event.get("request", {})
+    headers = request.get("headers", {})
+    _SENSITIVE_HEADERS = {"appkey", "appsecret", "authorization"}
+    scrubbed = {
+        k: "[Filtered]" if k.lower() in _SENSITIVE_HEADERS else v
+        for k, v in headers.items()
+    }
+    if scrubbed != headers:
+        event.setdefault("request", {})["headers"] = scrubbed
+    return event
+
+
 if settings.SENTRY_DSN:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         traces_sample_rate=0.2,
         profiles_sample_rate=0.1,
         environment=settings.ENVIRONMENT,
+        before_send=_sentry_before_send,
     )
 
 
