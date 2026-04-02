@@ -6,7 +6,15 @@ alwaysApply: true
 
 > This file extends [common/git-workflow.md](./git-workflow.md) with the full feature development process that happens before git operations.
 
-The Feature Implementation Workflow describes the development pipeline: research, planning, TDD, code review, and then committing to git.
+## Recommended Entry Points
+
+For most work, start with a workflow command that chains the full pipeline:
+- `/sprint` — full iteration when you need to discover what to work on
+- `/feature "description"` — when you know what feature to build
+- `/fix "bug description"` — when you have a bug to fix
+- `/quick` — fast cleanup cycle for small improvements
+
+These chain the individual steps below automatically.
 
 ## Feature Implementation Workflow
 

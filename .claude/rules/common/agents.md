@@ -76,18 +76,31 @@ Located in `~/.claude/agents/`:
 | env-config-analyst | Environment, KIS API, Redis, config | Sonnet |
 | debug-synthesizer | Root cause + fix plan | **Opus** |
 
+### Workflow Orchestrators (`.claude/agents/workflow-*.md`)
+
+| Agent | Chains | User Gates |
+|-------|--------|------------|
+| workflow-sprint | discover → implement → review → release → docs | 2 (priorities, deploy) |
+| workflow-feature | design → implement → review → release → docs | 1 (PRD approval) |
+| workflow-fix | diagnose → fix → review → release → docs | 0 (auto, stops on block) |
+| workflow-quick | discover-tasks → auto-task → docs | 0 (refuses sensitive work) |
+
 ## Immediate Agent Usage
 
 No user prompt needed:
-1. Complex feature requests - Use **planner** agent
-2. Code just written/modified - Use **code-reviewer** agent
-3. Bug fix or new feature - Use **tdd-guide** agent
-4. Architectural decision - Use **architect** agent
-5. Milestone completed, need next direction - Use **team-discover** agent
-6. New feature design needed - Use **team-feature** agent
-7. Large code changes to review - Use **team-review** agent
-8. Before deployment - Use **team-release** agent
-9. Complex bug with unknown cause - Use **team-debug** agent
+1. Full development iteration - Use **/sprint** command
+2. User describes a new feature - Use **/feature** command
+3. Bug report received - Use **/fix** command
+4. Quick maintenance/cleanup - Use **/quick** command
+5. Complex feature requests - Use **planner** agent
+6. Code just written/modified - Use **code-reviewer** agent
+7. Bug fix or new feature - Use **tdd-guide** agent
+8. Architectural decision - Use **architect** agent
+9. Milestone completed, need next direction - Use **team-discover** agent
+10. New feature design needed - Use **team-feature** agent
+11. Large code changes to review - Use **team-review** agent
+12. Before deployment - Use **team-release** agent
+13. Complex bug with unknown cause - Use **team-debug** agent
 
 ## Parallel Task Execution
 

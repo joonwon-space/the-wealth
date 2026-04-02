@@ -66,14 +66,20 @@ Migrations managed with Alembic.
 
 ## Development Workflow
 
-Follow this order for every feature:
+### Workflow Commands (recommended entry points)
 
-1. **Plan** (`/plan`) — Use planner agent, wait for confirmation before coding
-2. **TDD** (`/tdd`) — Write tests first (RED), implement (GREEN), refactor
-3. **Review** (`/code-review` or `/python-review`) — Run after writing code
-4. **Commit** — Follow conventional commit format (see below)
+For most work, start with a workflow command that chains the full pipeline automatically:
 
-## Slash Commands (`.claude/commands/`)
+| Command | Purpose | User Gates |
+|---------|---------|------------|
+| `/sprint` | Full cycle: discover → implement → review → release → docs | 2 (priorities, deploy) |
+| `/feature <desc>` | Feature pipeline: design → implement → review → release | 1 (PRD approval) |
+| `/fix <desc>` | Bug fix pipeline: diagnose → fix → review → release | 0 (auto, stops on block) |
+| `/quick` | Fast maintenance: discover-tasks → auto-task → docs | 0 (refuses sensitive work) |
+
+### Individual Commands
+
+For granular control, use individual commands:
 
 | Command | Purpose |
 |---------|---------|
@@ -82,6 +88,20 @@ Follow this order for every feature:
 | `/code-review` | Security + quality review via code-reviewer agent |
 | `/python-review` | Python-specific review (ruff, mypy, bandit) |
 | `/build-fix` | Incrementally fix build/type errors |
+| `/auto-task` | Batch execute all tasks.md items |
+| `/next-task` | Execute single next task |
+| `/discover-tasks` | Refresh tasks.md and todo.md |
+| `/update-docs` | Sync docs with codebase |
+
+### Team Commands (multi-agent analysis)
+
+| Command | Purpose |
+|---------|---------|
+| `/team-discover` | 5 analysts → prioritized tasks and roadmap |
+| `/team-feature` | 4 designers → PRD and task list |
+| `/team-review` | 4 reviewers → unified code review verdict |
+| `/team-release` | 4 validators → go/no-go release decision |
+| `/team-debug` | 4 analysts → root cause diagnosis |
 
 ## Agents (`.claude/agents/`)
 
