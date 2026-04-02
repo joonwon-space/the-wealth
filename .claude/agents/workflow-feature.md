@@ -66,10 +66,10 @@ Extract the task list from `docs/reviews/feature/prd.md` and write to `docs/plan
 
 ### Phase 3: IMPLEMENT
 
-Launch the `auto-task` agent:
+Launch the `team-implement` agent (3 workers in parallel via worktree isolation):
 
 ```
-Agent(subagent_type="auto-task", prompt="Execute all incomplete tasks in docs/plan/tasks.md...")
+Agent(subagent_type="team-implement", prompt="Execute all incomplete tasks in docs/plan/tasks.md using parallel workers...")
 ```
 
 Wait for completion. Record the branch name, PR number, and completed task count.
