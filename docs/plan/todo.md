@@ -462,11 +462,35 @@ tasks.md에 즉시 실행 가능 항목 8개 추가 (P0/P1):
 
 > 보류(parked) 항목은 `docs/plan/parked.md` 참조
 
-### 항목 수 요약 (2026-04-02 2차 갱신)
+### team-analysis 3차 sprint (2026-04-03)
+
+tasks.md에 즉시 실행 가능 항목 8개 추가 (P1/P2):
+- P1: Redis 커넥션 풀 공유 (PERF-005), portfolios/page.tsx onError (UX-004), CSP unsafe-eval 제거 (SEC-004), tags 길이 제약 (SEC-006)
+- P2: analytics 쿼리 키 통일 (PERF-006), analytics 테이블 키보드 접근성 (UX-006), 인라인 삭제 확인창 AlertDialog 교체 (UX-007)
+
+신규 P2/P3 백로그 추가:
+- analytics/metrics 날짜 커트오프 (PERF-007)
+- 리스크 지표 최소 히스토리 가드 (PROD-005)
+- UX 품질: 설정 KIS 테스트 버튼 로딩 상태, 일지 BUY/SELL 배지 텍스트, 보유종목 추가 인라인 에러
+- stocks.py _is_domestic 잔존 제거 (TD-001)
+- forward_fill_rates fx_utils.py 추출 (TD-011)
+- PortfolioHistoryChart any[] 타입 제거 (TD-013)
+
+신규 P2 항목 (P2 표에 추가):
+| 38 | analytics metrics 날짜 커트오프 (1Y window) | -- | 14,600행 불필요 전송 제거 | PERF-007 |
+| 39 | 리스크 지표 최소 히스토리 가드 (30일 미만 시 placeholder) | 21-3 | 오해의 소지 있는 Sharpe/MDD 출력 방지 | PROD-005 |
+| 40 | 설정 KIS API 테스트 버튼 로딩 상태 추가 | -- | 3-10초 호출 중 버튼 무반응 해소 | UX-013 |
+| 41 | 투자 일지 BUY/SELL 배지 색상 외 텍스트 추가 | -- | WCAG 1.4.1 색상 단독 의존 방지 | UX-012 |
+| 42 | 보유종목 추가 폼 인라인 에러 메시지 (zero/negative) | -- | 서버 422 무시 해소 | UX-011 |
+| 43 | stocks.py _is_domestic() 제거 (is_domestic 임포트로 교체) | -- | is_domestic 통합 잔존 버그 | TD-001 |
+| 44 | forward_fill_rates() 함수 fx_utils.py 추출 (Milestone 21 재사용 준비) | -- | 분기 로직 재사용 가능하게 분리 | TD-011 |
+| 45 | PortfolioHistoryChart payload any[] 타입 제거 | -- | 알려진 타입으로 교체 | TD-013 |
+
+### 항목 수 요약 (2026-04-03 3차 갱신)
 | 우선순위 | 개수 | 설명 |
 |----------|------|------|
 | P1 | 10 | 핵심 기능 + 보안 + 인프라 안정성 |
-| P2 | 37 | 분석 고도화 + 사용자 경험 + 코드 품질 |
+| P2 | 45 | 분석 고도화 + 사용자 경험 + 코드 품질 |
 | P3 | 18 | 부가 기능 + DX + 접근성 |
 | Parked | 8 | 보류 (`parked.md`) |
-| **합계** | **73** | |
+| **합계** | **81** | |
