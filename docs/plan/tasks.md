@@ -192,7 +192,7 @@ Each item should be completable in a single commit.
 
 ### P2 -- 종목 상세 페이지 차트 스켈레톤 추가 [team-analysis: UX-005]
 
-- [ ] **fix: stocks/[ticker]/page.tsx — 차트 로딩 중 ChartSkeleton 표시**
+- [x] **fix: stocks/[ticker]/page.tsx — 차트 로딩 중 ChartSkeleton 표시**
   - `frontend/src/app/dashboard/stocks/[ticker]/page.tsx` — 기존 ChartSkeleton 컴포넌트 활용
   - candlestick 데이터 fetching 동안 `<ChartSkeleton />` 렌더링
   - 파일: `frontend/src/app/dashboard/stocks/[ticker]/page.tsx`
