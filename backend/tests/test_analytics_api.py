@@ -59,6 +59,7 @@ class TestGetMetricsEmpty:
     ) -> None:
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         token = await _register_and_get_token(client, "metrics_empty1@example.com")
         resp = await client.get("/analytics/metrics", headers=_auth(token))
         assert resp.status_code == 200
@@ -74,6 +75,7 @@ class TestGetMetricsEmpty:
     ) -> None:
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         token = await _register_and_get_token(client, "metrics_empty2@example.com")
         await client.post("/portfolios", json={"name": "빈 포트폴리오"}, headers=_auth(token))
         resp = await client.get("/analytics/metrics", headers=_auth(token))
@@ -94,6 +96,7 @@ class TestGetMetricsEmpty:
         """No snapshots → total_return_rate is 0 (current price falls back to avg_price)."""
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         token = await _register_and_get_token(client, "metrics_nosnap@example.com")
         # No KIS account → won't call fetch; no snapshots → uses avg_price as current price
         await _setup_portfolio_with_holdings(
@@ -146,6 +149,7 @@ class TestGetPortfolioHistory:
 
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         token = await _register_and_get_token(client, "history_data@example.com")
         await _setup_portfolio_with_holdings(
             client,
@@ -342,6 +346,7 @@ class TestGetMonthlyReturns:
 
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         token = await _register_and_get_token(client, "monthly_twoMonth@example.com")
         await _setup_portfolio_with_holdings(
             client,
@@ -377,6 +382,7 @@ class TestGetSectorAllocation:
     ) -> None:
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         token = await _register_and_get_token(client, "sector_empty1@example.com")
         resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
         assert resp.status_code == 200
@@ -388,6 +394,7 @@ class TestGetSectorAllocation:
     ) -> None:
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         token = await _register_and_get_token(client, "sector_empty2@example.com")
         await client.post("/portfolios", json={"name": "빈"}, headers=_auth(token))
         resp = await client.get("/analytics/sector-allocation", headers=_auth(token))
@@ -449,6 +456,7 @@ class TestGetSectorAllocation:
         mock_fx.return_value = 1300.0
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         mock_cache.delete = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "sector_sorted@example.com")
         # 두 종목, 명확한 금액 차이
@@ -479,6 +487,7 @@ class TestGetSectorAllocation:
         mock_fx.return_value = 1300.0
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         mock_cache.delete = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "sector_single2@example.com")
         await _setup_portfolio_with_holdings(
@@ -505,6 +514,7 @@ class TestGetSectorAllocation:
         mock_fx.return_value = 1300.0
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
         mock_cache.delete = AsyncMock(return_value=True)
         token = await _register_and_get_token(client, "sector_overseas@example.com")
         # 해외 ticker (6자리 숫자 아님)
@@ -529,20 +539,20 @@ class TestGetSectorAllocation:
 
 class TestIsDomestic:
     def test_six_digit_ticker_is_domestic(self) -> None:
-        from app.api.analytics import _is_domestic
-        assert _is_domestic("005930") is True
-        assert _is_domestic("035720") is True
-        assert _is_domestic("000660") is True
+        from app.core.ticker import is_domestic
+        assert is_domestic("005930") is True
+        assert is_domestic("035720") is True
+        assert is_domestic("000660") is True
 
     def test_us_ticker_is_not_domestic(self) -> None:
-        from app.api.analytics import _is_domestic
-        assert _is_domestic("AAPL") is False
-        assert _is_domestic("NVDA") is False
+        from app.core.ticker import is_domestic
+        assert is_domestic("AAPL") is False
+        assert is_domestic("NVDA") is False
 
     def test_7_char_ticker_not_domestic(self) -> None:
         """7자리 이상 ticker는 국내 주식이 아님."""
-        from app.api.analytics import _is_domestic
-        assert _is_domestic("0059300") is False  # 7 chars
+        from app.core.ticker import is_domestic
+        assert is_domestic("0059300") is False  # 7 chars
 
 
 class TestPeriodCutoff:

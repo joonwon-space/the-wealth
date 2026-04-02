@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Sentry DSN for error tracking. Leave empty to disable.
     SENTRY_DSN: str = ""
 
+    # Deployment environment name sent to Sentry (e.g. "production", "staging", "development").
+    ENVIRONMENT: str = "development"
+
     # File logging (RotatingFileHandler). Leave LOG_DIR empty to disable file logging.
     LOG_DIR: str = ""
     LOG_MAX_BYTES: int = 10_485_760  # 10 MB

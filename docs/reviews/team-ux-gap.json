@@ -1,0 +1,149 @@
+{
+  "agent": "ux-gap-analyst",
+  "summary": "The application has a solid UX foundation with unified skeleton loading states, per-widget ErrorBoundary isolation, and consistent Korean market color conventions in PnLBadge and CandlestickChart. The primary remaining gaps are: (1) seven mutations on the portfolio detail page lack onError handlers; (2) the analytics page has no error state for its 7 independent queries; (3) OrderDialog and the KIS cash balance cards use hardcoded Tailwind red/blue bypassing --rise/--fall CSS variables; (4) interactive div/tr elements in the analytics performance table lack keyboard accessibility; (5) the two custom inline delete confirmation modals are inconsistent with the shadcn AlertDialog pattern; and (6) CSV/XLSX download functions silently fail on network error.",
+  "findings": [
+    {
+      "id": "UX-001",
+      "title": "Portfolio detail mutations have no onError handlers",
+      "category": "error-handling",
+      "severity": "high",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "Seven mutations (addHoldingMutation, editHoldingMutation, deleteHoldingMutation, addTxnMutation, deleteTxnMutation, updateMemoMutation, updateTargetMutation) have onSuccess handlers only. When any fail the UI silently stays in its prior state with no indication that the action failed.",
+      "recommendation": "Add onError to each mutation calling toast.error with an action-specific Korean message, following the pattern in settings/page.tsx updateNameMutation."
+    },
+    {
+      "id": "UX-002",
+      "title": "Analytics page has no error state for its 7 independent queries",
+      "category": "error-handling",
+      "severity": "high",
+      "effort": "M",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/analytics/page.tsx",
+      "detail": "The analytics page fires 7 useQuery calls but only guards on summaryLoading. If any secondary query fails its section silently renders nothing. Users cannot distinguish missing data from a failed request.",
+      "recommendation": "Destructure isError from each useQuery and show inline error banners with retry buttons per section. For summary failure add a top-level isError guard using the PageError component from dashboard/page.tsx."
+    },
+    {
+      "id": "UX-003",
+      "title": "OrderDialog and KIS cash balance use hardcoded red/blue bypassing --rise/--fall variables",
+      "category": "convention",
+      "severity": "high",
+      "effort": "S",
+      "impact": "consistency",
+      "location": "frontend/src/components/OrderDialog.tsx, frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "OrderDialog uses bg-red-500 text-red-600 bg-blue-600 text-blue-600 (lines 259-261 325 334 389 400). Portfolio detail KIS cash balance at lines 468-477 uses text-red-500 and text-blue-500. These bypass --rise (#E31F26) and --fall (#1A56DB) CSS variables so dark mode overrides produce wrong shades.",
+      "recommendation": "Replace all gain/loss text-red-{n}/text-blue-{n} with text-rise/text-fall utilities and bg-rise/bg-fall for button backgrounds. This ensures dark-mode theming is respected."
+    },
+    {
+      "id": "UX-004",
+      "title": "Portfolios page rename and delete mutations have no onError feedback",
+      "category": "error-handling",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/portfolios/page.tsx",
+      "detail": "renameMutation (line 195) and deleteMutation (line 206) have no onError handler. When rename or delete fails the edit field stays open or the portfolio reappears on next refetch. reorderMutation has no handlers and performs an optimistic update with no rollback.",
+      "recommendation": "Add onError toast handlers to renameMutation and deleteMutation. For reorderMutation add onMutate snapshot and rollback in onError using queryClient.setQueryData to restore previous order."
+    },
+    {
+      "id": "UX-005",
+      "title": "CSV and XLSX download functions silently fail on network error",
+      "category": "error-handling",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "downloadCsv (line 345) and downloadXlsx (line 355) are async functions with no try/catch on button onClick. If the export API fails the button appears to do nothing with no error toast and no visual state change.",
+      "recommendation": "Wrap both functions in try/catch and call toast.error on failure. Add a local isPending boolean to disable the button and show Loader2 spinner during download to prevent duplicate clicks."
+    },
+    {
+      "id": "UX-006",
+      "title": "Analytics performance table rows are not keyboard accessible",
+      "category": "a11y",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "accessibility",
+      "location": "frontend/src/app/dashboard/analytics/page.tsx",
+      "detail": "Mobile card view (line 502) and desktop table rows (line 555) use div and tr elements with onClick and cursor-pointer but no tabIndex or keyboard handler. Keyboard-only users cannot select a stock for charting.",
+      "recommendation": "For mobile cards change the outer div to a button element. For desktop tr elements add tabIndex={0} and an onKeyDown handler triggering handleSelectStock on Enter or Space."
+    },
+    {
+      "id": "UX-007",
+      "title": "Custom inline delete confirmations are inconsistent with shadcn AlertDialog",
+      "category": "feedback",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "Holding delete (line 822) and transaction delete (line 843) use raw fixed-inset-0 div overlays with manual z-index. portfolios/page.tsx uses shadcn AlertDialog for portfolio deletion. The raw overlays lack role=alertdialog aria-labelledby and focus trap.",
+      "recommendation": "Replace both raw overlay divs with shadcn AlertDialog components matching the pattern in portfolios/page.tsx."
+    },
+    {
+      "id": "UX-008",
+      "title": "Recharts charts lack ARIA labels -- screen readers receive no chart information",
+      "category": "a11y",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "accessibility",
+      "location": "frontend/src/components/AllocationDonut.tsx, frontend/src/components/PortfolioHistoryChart.tsx, frontend/src/app/dashboard/analytics/page.tsx",
+      "detail": "All Recharts ResponsiveContainer wrappers render SVG without role or aria-label attributes. AllocationDonut, PortfolioHistoryChart, KRW asset history AreaChart, and sector allocation chart provide zero information to screen readers.",
+      "recommendation": "Add role=img and a descriptive aria-label to each ResponsiveContainer. For AllocationDonut compute a summary string listing top N holdings by ratio. For time-series charts include the period in the label."
+    },
+    {
+      "id": "UX-009",
+      "title": "WatchlistSection icon buttons use title= only -- not a reliable accessible name",
+      "category": "a11y",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "accessibility",
+      "location": "frontend/src/components/WatchlistSection.tsx",
+      "detail": "The ExternalLink icon Link (line 99) and Trash2 delete button (line 106) rely solely on title= for their accessible name. title= is not reliably announced by screen readers and is inaccessible without hover for keyboard users, violating WCAG 2.1 SC 4.1.2.",
+      "recommendation": "Add aria-label for the stock detail view to the Link and aria-label with ticker and watchlist-remove action to the delete button."
+    },
+    {
+      "id": "UX-010",
+      "title": "Analytics page 7 independent queries cause staggered section pop-in",
+      "category": "loading-state",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/analytics/page.tsx",
+      "detail": "The page renders a full loading skeleton only while summaryLoading is true. Once summary resolves all 6 remaining sections individually pop in as queries settle, producing visible layout shift on slower connections.",
+      "recommendation": "Add per-section loading guards using each query isLoading flag. Render ChartSkeleton or CardSkeleton placeholders until data arrives. Both components already exist in the codebase."
+    },
+    {
+      "id": "UX-011",
+      "title": "Add-holding form has no inline error feedback on server validation failure",
+      "category": "error-handling",
+      "severity": "low",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/page.tsx",
+      "detail": "The manual add-holding form disables submit for empty fields but shows no inline messages for zero/negative values. addHoldingMutation has no onError so server 422 responses (duplicate ticker, invalid format) are silently ignored.",
+      "recommendation": "Add onError to addHoldingMutation to display server error via toast. Add inline error state for quantity and avg_price fields showing messages when values are zero or negative."
+    },
+    {
+      "id": "UX-012",
+      "title": "Journal transaction type badge relies solely on color to convey BUY vs SELL",
+      "category": "convention",
+      "severity": "low",
+      "effort": "S",
+      "impact": "accessibility",
+      "location": "frontend/src/app/dashboard/journal/page.tsx",
+      "detail": "Transaction cards show type using a colored badge at lines 104-105 with no visible text. Only color differentiates BUY from SELL, failing WCAG 1.4.1 for color-blind users even though the arrow icons have aria-label set.",
+      "recommendation": "Add visible text content inside the badge span in addition to color, matching the non-color indicator pattern in PnLBadge which pairs directional icons with formatted text."
+    },
+    {
+      "id": "UX-013",
+      "title": "Settings KIS API test button lacks loading state during multi-second call",
+      "category": "loading-state",
+      "severity": "low",
+      "effort": "S",
+      "impact": "user-experience",
+      "location": "frontend/src/app/dashboard/settings/page.tsx",
+      "detail": "The KIS API connection test button triggers a backend call that can take 3-10 seconds. The button appears static with no visual change, leading users to think the click did not register and potentially clicking multiple times.",
+      "recommendation": "Track pending state and add disabled plus a Loader2 animate-spin icon while pending, following the portfolio sync button pattern which already uses isSyncing and animate-spin."
+    }
+  ]
+}

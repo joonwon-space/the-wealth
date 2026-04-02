@@ -9,10 +9,9 @@
   GET    /portfolios/{id}/cash-balance        - 예수금 및 총 평가금액
 """
 
-import re
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +45,8 @@ from app.services.kis_order import (
     place_overseas_order,
 )
 from app.services.order_settlement import settle_pending_orders
+from app.core.ticker import is_domestic
+from app.core.limiter import limiter
 
 router = APIRouter(tags=["orders"])
 logger = get_logger(__name__)
@@ -54,13 +55,6 @@ _cache = RedisCache(settings.REDIS_URL)
 
 _CASH_BALANCE_CACHE_PREFIX = "cash_balance:{portfolio_id}"
 _CASH_BALANCE_CACHE_TTL = 30  # seconds
-
-# 국내 티커: 숫자+영문 혼합 6자리
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 async def _get_portfolio_with_kis(
@@ -103,7 +97,9 @@ async def _get_portfolio_with_kis(
 
 
 @router.post("/portfolios/{portfolio_id}/orders", response_model=OrderResult)
+@limiter.limit("30/minute")
 async def place_order(
+    request: Request,
     portfolio_id: int,
     body: OrderRequest,
     current_user: User = Depends(get_current_user),
@@ -126,7 +122,7 @@ async def place_order(
             body.ticker,
         )
 
-    is_overseas = not _is_domestic(body.ticker)
+    is_overseas = not is_domestic(body.ticker)
 
     # SELL 전 보유 수량 검증
     if body.order_type == "SELL":
@@ -348,7 +344,9 @@ async def list_pending_orders(
 
 
 @router.delete("/portfolios/{portfolio_id}/orders/{order_no}", status_code=204)
+@limiter.limit("30/minute")
 async def cancel_order_endpoint(
+    request: Request,
     portfolio_id: int,
     order_no: str,
     ticker: str = Query(...),

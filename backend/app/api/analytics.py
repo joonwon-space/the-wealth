@@ -3,7 +3,6 @@
 import asyncio
 import json
 import math
-import re
 from datetime import date as date_type, timedelta
 from decimal import Decimal
 from typing import Literal, Optional
@@ -26,20 +25,16 @@ from app.models.user import User
 from app.core.encryption import decrypt
 from app.core.logging import get_logger
 from app.services.kis_price import _cache_price, _get_cached_price, get_cached_fx_rate
+from app.core.ticker import is_domestic
 from app.services.price_snapshot import fetch_domestic_price_detail
 from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
 
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
 _analytics_cache = RedisCache(settings.REDIS_URL)
 _ANALYTICS_CACHE_TTL = 3600  # 1시간; sync 시 무효화
 
 
 HistoryPeriod = Literal["1W", "1M", "3M", "6M", "1Y", "ALL"]
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 def _period_cutoff(period: str) -> Optional[date_type]:
@@ -64,11 +59,13 @@ def _analytics_key(user_id: int, endpoint: str) -> str:
 
 async def invalidate_analytics_cache(user_id: int) -> None:
     """sync 성공 후 호출 — 해당 유저의 분석 캐시 전체 삭제."""
-    for endpoint in ("metrics", "monthly-returns", "sector-allocation"):
+    for endpoint in ("metrics", "monthly-returns", "sector-allocation", "fx-gain-loss"):
         await _analytics_cache.delete(_analytics_key(user_id, endpoint))
-    # portfolio-history has period-specific keys
+    # period-specific keys for portfolio-history and krw-asset-history
     for period in ("1W", "1M", "3M", "6M", "1Y", "ALL"):
         await _analytics_cache.delete(_analytics_key(user_id, f"portfolio-history:{period}"))
+    for period in ("1M", "3M", "6M", "1Y", "ALL"):
+        await _analytics_cache.delete(_analytics_key(user_id, f"krw-asset-history:{period}"))
 
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -447,7 +444,7 @@ async def get_sector_allocation(
         sector = get_sector(h.ticker)
         value_local = float(h.quantity) * float(h.avg_price)
         # 해외주식(6자리 숫자가 아닌 ticker)은 USD → KRW 환산
-        value = value_local * usd_krw if not _is_domestic(h.ticker) else value_local
+        value = value_local * usd_krw if not is_domestic(h.ticker) else value_local
         sector_values[sector] = sector_values.get(sector, 0.0) + value
 
     total = sum(sector_values.values())
@@ -497,7 +494,7 @@ async def get_fx_gain_loss(
     all_holdings = hold_result.scalars().all()
 
     # 해외주식만 필터링 (ticker가 숫자 6자리가 아닌 경우)
-    overseas = [h for h in all_holdings if not _is_domestic(h.ticker)]
+    overseas = [h for h in all_holdings if not is_domestic(h.ticker)]
     if not overseas:
         return []
 
@@ -630,8 +627,8 @@ async def get_krw_asset_history(
 
     tickers = list({h.ticker for h in holdings})
     holding_map = {h.ticker: h for h in holdings}
-    domestic_tickers = [t for t in tickers if _is_domestic(t)]
-    overseas_tickers = [t for t in tickers if not _is_domestic(t)]
+    domestic_tickers = [t for t in tickers if is_domestic(t)]
+    overseas_tickers = [t for t in tickers if not is_domestic(t)]
 
     cutoff = _period_cutoff(normalized_period)
 

@@ -18,7 +18,7 @@ class Transaction(Base):
     portfolio_id: Mapped[int] = mapped_column(
         ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    ticker: Mapped[str] = mapped_column(String(20), nullable=False)
+    ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     type: Mapped[str] = mapped_column(String(10), nullable=False)  # BUY | SELL
     quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     price: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)

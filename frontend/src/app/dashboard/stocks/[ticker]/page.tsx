@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PnLBadge } from "@/components/PnLBadge";
 import { CandlestickChart } from "@/components/DynamicCharts";
+import { ChartSkeleton } from "@/components/ChartSkeleton";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
 
@@ -62,6 +63,7 @@ export default function StockDetailPage() {
   const [detail, setDetail] = useState<StockDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [candles, setCandles] = useState<Candle[]>([]);
+  const [chartPending, startChartTransition] = useTransition();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("3M");
 
   useEffect(() => {
@@ -73,12 +75,14 @@ export default function StockDetailPage() {
 
   useEffect(() => {
     if (!ticker) return;
-    api
-      .get<{ candles: Candle[] }>("/chart/daily", {
-        params: { ticker, period, ...(detail?.market ? { market: detail.market } : {}) },
-      })
-      .then((r) => setCandles(r.data.candles))
-      .catch(() => setCandles([]));
+    startChartTransition(async () => {
+      await api
+        .get<{ candles: Candle[] }>("/chart/daily", {
+          params: { ticker, period, ...(detail?.market ? { market: detail.market } : {}) },
+        })
+        .then((r) => setCandles(r.data.candles))
+        .catch(() => setCandles([]));
+    });
   }, [ticker, period, detail?.market]);
 
   if (loading) {
@@ -166,10 +170,14 @@ export default function StockDetailPage() {
             </button>
           ))}
         </div>
-        <CandlestickChart
-          candles={candles}
-          avgPrice={detail.my_holding?.avg_price}
-        />
+        {chartPending ? (
+          <ChartSkeleton height={400} />
+        ) : (
+          <CandlestickChart
+            candles={candles}
+            avgPrice={detail.my_holding?.avg_price}
+          />
+        )}
       </section>
 
       {/* Fundamental & 52-week */}

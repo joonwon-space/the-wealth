@@ -1,0 +1,152 @@
+{
+  "agent": "product-strategy-analyst",
+  "summary": "As of 2026-04-02, The Wealth has reached a strong feature-complete baseline: 74 API endpoints, full trading (KIS domestic and overseas), SSE real-time prices, investment journal with retrospective widget, FX gain/loss analytics, and 93% backend test coverage. The 2026-04-02 team-analysis sprint flushed all immediate P0/P1 tactical tasks (GZip, is_domestic() consolidation, cache invalidation, rate limiting, CORS hardening, DB indexes, AlertDialog replacements). The previous product-strategy proposed milestones were formally adopted as Milestones 20-22 in todo.md. Remaining strategic gaps: (1) security uplift -- server-side refresh token invalidation and TOTP 2FA are critical now that live trading is active; (2) analytics engine completion -- benchmark overlay and risk metrics (Sharpe, MDD) are the last major gaps against competitor-grade functionality; (3) infrastructure resilience -- single-server PostgreSQL is the primary unmitigated reliability risk. The priority ordering Milestones 20 then 21 then 22 is correct: security before features, features before infra migration.",
+  "feature_completeness": {
+    "portfolio_management": 96,
+    "market_data": 85,
+    "analytics": 74,
+    "trading": 88,
+    "alerts": 80,
+    "data_management": 90,
+    "user_experience": 80,
+    "investment_journal": 88
+  },
+  "findings": [
+    {
+      "id": "PROD-001",
+      "title": "Server-side refresh token revocation is the highest unmitigated auth risk",
+      "category": "priority-misalignment",
+      "severity": "critical",
+      "effort": "M",
+      "impact": "risk-mitigation",
+      "detail": "Milestone 20-1 (server-side refresh token storage and revocation via Redis) is listed as P1 in todo.md but has not been started. Currently, logout only removes the client-side cookie -- the refresh token remains valid until expiry. With live order placement active (POST /orders executes real trades), a stolen refresh token can place orders for up to 7 days after the user believes they have logged out. The Redis infrastructure is already in place.",
+      "recommendation": "Implement Milestone 20-1 before 2FA. Lower effort (M vs L for TOTP) and closes a higher-severity hole. Pattern: store refresh_token in Redis with TTL matching the refresh window; check existence on every /auth/refresh call; delete on logout and password change."
+    },
+    {
+      "id": "PROD-002",
+      "title": "Benchmark overlay is the highest-value remaining analytics feature",
+      "category": "missing-capability",
+      "severity": "high",
+      "effort": "L",
+      "impact": "user-value",
+      "detail": "Analytics completeness is 74%. The core remaining gap is the KOSPI200/S&P500 benchmark overlay on the portfolio history chart. Without a market benchmark, users cannot determine whether their returns outperform passive index investing -- the fundamental question every self-directed investor asks. The index_snapshots table and scheduler (Milestone 21-1) are prerequisites.",
+      "recommendation": "Implement Milestone 21-1 and 21-2 as a single sprint: add index_snapshots table with KOSPI200/S&P500 daily snapshots via existing APScheduler, expose GET /analytics/benchmark endpoint, overlay benchmark line on existing portfolio history Recharts AreaChart."
+    },
+    {
+      "id": "PROD-003",
+      "title": "Single-server PostgreSQL is the primary unmitigated production risk",
+      "category": "technical-enabler",
+      "severity": "high",
+      "effort": "L",
+      "impact": "risk-mitigation",
+      "detail": "Milestone 22-1 (Neon PostgreSQL) and 22-2 (Upstash Redis) have been in the plan since the 2026-04-02 team-analysis but remain unstarted. With database and application on the same server, a disk-full event or OOM kill takes down the entire system. With trading active, this is a P1 risk. DATABASE_URL and REDIS_URL are already environment-variable-driven, making code changes minimal.",
+      "recommendation": "Schedule Milestone 22 immediately after Milestone 21. The main effort is the pg_dump data migration and connection validation. Decouple Resend email (22-3) from the infra migration and ship it earlier as a standalone 1-2 day task."
+    },
+    {
+      "id": "PROD-004",
+      "title": "Email alerts complete the existing alert system with minimal additional work",
+      "category": "deferred-value",
+      "severity": "high",
+      "effort": "S",
+      "impact": "user-value",
+      "detail": "The alert system is fully functional (CRUD, SSE condition detection, notifications table, bell UI, cooldown logic). The only missing delivery channel is out-of-browser notification. Price alerts are only actionable if the user is notified when not viewing the dashboard. Currently bundled with Milestone 22 infra migration, which could delay it by weeks.",
+      "recommendation": "Decouple Resend email from the Neon/Upstash sprint. Implement as standalone: add RESEND_API_KEY env var, call Resend API from the SSE alert trigger handler, add email opt-in to user settings. Estimated effort: 1-2 days."
+    },
+    {
+      "id": "PROD-005",
+      "title": "Risk metrics require a minimum history depth guard to avoid misleading output",
+      "category": "technical-enabler",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "technical-foundation",
+      "detail": "Milestone 21-3 plans Sharpe ratio, MDD, and volatility via backend/app/services/metrics.py. Sharpe ratio requires at least 30 daily data points to be statistically meaningful. A recently onboarded user would see zero-denominator calculations that misrepresent portfolio risk. There is no guard against this in the current analytics API.",
+      "recommendation": "Before implementing metrics.py, add a minimum_history_days check. If price_snapshots coverage is less than 30 days, return has_sufficient_history: false in the API response and show an informational placeholder rather than a misleading metric value."
+    },
+    {
+      "id": "PROD-006",
+      "title": "Chart skeleton on stock detail page is the only remaining tasks.md item",
+      "category": "deferred-value",
+      "severity": "low",
+      "effort": "S",
+      "impact": "user-value",
+      "detail": "The P2 chart skeleton task (UX-005: stocks/[ticker]/page.tsx ChartSkeleton during candlestick load) is the only unchecked item in tasks.md. All P0 and P1 tasks have been completed. This polish item removes a visible loading flash on the stock detail page.",
+      "recommendation": "Complete immediately as it is the smallest remaining item (S effort) and clears tasks.md to create a clean slate for starting Milestone 20."
+    },
+    {
+      "id": "PROD-007",
+      "title": "DCA analysis is a high-value capability achievable from existing transaction data",
+      "category": "missing-capability",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "competitive-advantage",
+      "detail": "Milestone 21-4 (DCA analysis view) is important for Korean retail investors using dollar-cost averaging but is the last item in Milestone 21. The app already has complete transaction history. A DCA view showing average cost over time as a step-function chart is achievable from existing data with no new API calls.",
+      "recommendation": "Implement the DCA view as a section on /dashboard/journal, reusing transaction data already fetched. Backend: aggregation-only query on existing transactions table. Frontend: Recharts LineChart with BUY markers showing avg_price evolution over time."
+    },
+    {
+      "id": "PROD-008",
+      "title": "Monthly return heatmap backend is done but frontend was never scheduled",
+      "category": "deferred-value",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "user-value",
+      "detail": "The monthly/annual return heatmap (Milestone 11-2, GitHub contribution-chart style) is listed as P2 in todo.md but has never appeared in tasks.md. GET /analytics/monthly-returns already exists. The only missing piece is a CSS Grid heatmap component on the analytics page.",
+      "recommendation": "After Milestone 21 benchmark work, add the return heatmap as a standalone 1-day sprint using CSS Grid. Effort is S since the backend is already done."
+    },
+    {
+      "id": "PROD-009",
+      "title": "Two large frontend pages exceed the 800-line maintainability limit",
+      "category": "technical-enabler",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "technical-foundation",
+      "detail": "portfolios/[id]/page.tsx (1123 lines, TD-002) and settings/page.tsx (901 lines, TD-003) both exceed the 800-line limit in CLAUDE.md. These are P2 in todo.md but unscheduled. As Milestones 20 and 21 add more UI, both files will continue to grow. The portfolio detail page mixes holdings management, trading dialog, and transaction history.",
+      "recommendation": "Schedule portfolios/[id]/page.tsx split as Milestone 21 prep work. Extract TradingPanel and TransactionHistory as separate components. settings/page.tsx follows in the same sprint. Both are mechanical refactors with no behavior change."
+    },
+    {
+      "id": "PROD-010",
+      "title": "TOTP 2FA has high UX complexity that should be phased to ship security earlier",
+      "category": "priority-misalignment",
+      "severity": "medium",
+      "effort": "L",
+      "impact": "risk-mitigation",
+      "detail": "TOTP 2FA (Milestone 20-2) is correctly P1 post-trading, but the full flow -- QR code generation, authenticator enrollment, login step-up, backup codes, disable/reset -- is a significant UX surface beyond the backend work. A large UI sprint risks delaying the security enhancement entirely.",
+      "recommendation": "Phase the implementation: Phase 1 ships backend endpoints and login step-up check (2-3 days). Phase 2 adds settings enrollment UI and backup code management. This allows the behavioral security change to ship before the full UI polish is complete."
+    }
+  ],
+  "proposed_milestones": [
+    {
+      "title": "Milestone 20: Security hardening -- trading account protection",
+      "rationale": "This milestone was correctly formulated in the prior team-analysis and adopted in todo.md. The ordering should prioritize 20-1 (server-side refresh token revocation) before 20-2 (TOTP 2FA): 20-1 has lower effort and higher immediate security value. Both are necessary since trading is live. 20-3 (audit log) and 20-4 (session management) follow as sequential smaller sprints.",
+      "items": [
+        "Clear tasks.md: complete chart skeleton task in stocks/[ticker]/page.tsx (S effort)",
+        "20-1: Redis-backed refresh token storage and revocation on logout (M effort)",
+        "20-2 Phase 1: TOTP 2FA backend -- pyotp, totp_enabled column, setup/verify endpoints, login step-up",
+        "20-2 Phase 2: 2FA settings enrollment UI and QR code flow",
+        "20-3: security_audit_logs table -- login, order execution, KIS credential changes",
+        "20-4: Active session list UI -- GET /auth/sessions, DELETE /auth/sessions/{id}"
+      ]
+    },
+    {
+      "title": "Milestone 21: Analytics engine completion -- benchmark + risk metrics + DCA",
+      "rationale": "Analytics at 74% is the largest remaining feature gap. Benchmark overlay is the single most impactful missing feature. Risk metrics (Sharpe, MDD) make the analytics page professional-grade. DCA analysis completes the investment journal story for Korean retail investors. Large page refactoring should be bundled as prep work. The minimum history guard should precede metrics.py.",
+      "items": [
+        "Prep: portfolios/[id]/page.tsx extraction -- TradingPanel + TransactionHistory components",
+        "21-1: index_snapshots table + KOSPI200/S&P500 APScheduler daily fetch + GET /analytics/benchmark",
+        "21-2: Benchmark overlay Line on portfolio history Recharts AreaChart with KOSPI200/S&P500 toggle",
+        "21-3: metrics.py -- Sharpe, MDD, volatility + minimum_history guard + analytics UI metric cards",
+        "21-4: DCA analysis view on journal page -- avg_price step-function chart from transaction history",
+        "Bonus: Monthly return heatmap frontend -- CSS Grid component for existing /analytics/monthly-returns data"
+      ]
+    },
+    {
+      "title": "Milestone 22: Infrastructure stabilization + notification expansion",
+      "rationale": "Single-server PostgreSQL is the primary unmitigated operational risk. Neon and Upstash migration removes this risk with minimal code changes given the existing environment-variable-driven configuration. Email alert delivery should be decoupled and shipped first. After Milestones 20 and 21, this completes the app security, analytics, and reliability story.",
+      "items": [
+        "22-3 first: Resend email -- price alert emails decoupled from infra migration (1-2 day standalone task)",
+        "22-1: Neon PostgreSQL migration -- pg_dump, Neon import, DATABASE_URL update, connection tests",
+        "22-2: Upstash Redis migration -- REDIS_URL update, existing RedisCache abstraction reused",
+        "22-3 remainder: Daily portfolio summary email -- KST 16:30 auto-send with opt-in user setting"
+      ]
+    }
+  ]
+}
