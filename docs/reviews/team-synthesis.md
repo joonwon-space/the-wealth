@@ -1,90 +1,96 @@
-# Team Analysis Synthesis — 2026-04-02
+# Team Analysis Synthesis -- 2026-04-02 (2nd Sprint)
 
 ## Executive Summary
 
-The KIS personal asset management dashboard is in excellent shape for a solo-maintained project: 74 API endpoints, full trading capability, SSE real-time prices, 93% test coverage, and CI/CD. The 5-analyst review produced 51 raw findings that reduced to 42 unique items after deduplication. The most critical gaps are: (1) **security** — missing rate limits on write endpoints and no server-side refresh token revocation now that real trading is live, (2) **performance** — no GZip compression on any API responses and analytics endpoints run 3-4 sequential DB round-trips, and (3) **code structure** — `_is_domestic()` is copy-pasted across 5 backend modules, and 3 frontend files exceed 800 lines. Strategically, the analytics completeness sits at 72% (Sharpe/MDD, benchmark overlay unimplemented) and 2FA has been underweighted relative to the trading risk level. Three new milestones (20/21/22) and 12 immediate tasks were added.
+The first sprint's 12 tasks are fully complete: GZip compression, `_is_domestic()` consolidation, cache invalidation fixes, DB indexes, AlertDialog replacements, rate limiting, CORS hardening, and UX polish. The second analysis run surfaced 58 raw findings across 5 analysts, reducing to 45 unique items after deduplication. The most critical new finding is **SEC-001: KIS API credentials (appkey, appsecret) leak verbatim into Sentry error events** when httpx raises exceptions -- a direct brokerage credential exposure risk. The second critical gap is **PERF-001: get_prev_close loads all historical price_snapshots without LIMIT**, transferring ~14,600 rows per dashboard request. Eight items were promoted to tasks.md for immediate execution. The P1/P2/P3 backlog grew from 46 to 65 items as the analysis uncovered SSE inefficiencies (new DB session + httpx client every 30 seconds per connected client), missing error handlers across 7 portfolio mutations, and input validation gaps enabling bcrypt DoS via unbounded password length.
 
 ---
 
 ## Impact x Effort Matrix
 
-### Do First — added to tasks.md (12 items)
+### Do First (tasks.md) -- 8 items
 
 | ID | Title | Source Agents | Impact | Effort |
 |----|-------|--------------|--------|--------|
-| PERF-001 / TD-011 | GZip middleware on FastAPI | perf + tech-debt | High | S |
-| TD-001 | Extract `_is_domestic()` to `core/ticker.py` | tech-debt | High | S |
-| PERF-005 | Fix analytics cache invalidation (fx/krw missing) | perf | High | S |
-| TD-009 | Add index to `transactions.ticker` | tech-debt | Med-High | S |
-| PERF-004 / TD-013 | Composite index on `price_snapshots(ticker, date)` | perf + tech-debt | High | S |
-| TD-010 / UX-003 | Replace `confirm()` with AlertDialog for deletions | tech-debt + UX | Med | S |
-| UX-004 | Compare page empty state (< 2 portfolios) | UX | Med | S |
-| SEC-001 | Rate limiting on portfolios/holdings/orders endpoints | security | High | S |
-| SEC-004 | CORS allow_methods/allow_headers explicit scope | security | Med | S |
-| SEC-008 | localStorage JSON.parse() try-catch defense | security | Low | S |
-| SEC-009 | Sentry environment config via env variable | security | Low | S |
-| UX-005 | ChartSkeleton for stock detail page | UX | Low | S |
+| SEC-001 | Sentry KIS credential leakage -- before_send scrubber | security | Critical | S |
+| PERF-001 | get_prev_close unbounded query -- DISTINCT ON | perf | Critical | S |
+| SEC-002 | Password max_length=128 for bcrypt DoS prevention | security | High | S |
+| TD-005 | cryptography package security update (46.0.5 -> latest) | tech-debt | High | S |
+| PERF-002 | fx-gain-loss endpoint missing Redis cache | perf | High | S |
+| PERF-003 | metrics calls domestic KIS API for overseas tickers | perf | High | S |
+| PERF-004 | Dashboard polling runs concurrently with SSE | perf | High | S |
+| UX-001 | Portfolio detail 7 mutations lack onError handlers | ux-gap | High | S |
 
-### Plan Carefully — added to todo.md P1 (8 items)
+### Plan Carefully (todo.md P1) -- 2 new items
 
 | ID | Title | Source Agents | Impact | Effort |
 |----|-------|--------------|--------|--------|
-| SEC-002 / PROD-001 | Server-side refresh token revocation | security + product | Critical | M |
-| PROD-001 | TOTP 2FA for trading account protection | product | Critical | M |
-| PROD-002 / TD-004 | Analytics engine: Sharpe/MDD + benchmark | product + perf | High | L |
-| PROD-003 | Neon + Upstash migration (single server risk) | product | High | L |
-| SEC-003 | Security audit log (trading events) | security | High | L |
-| PROD-004 | Email alerts via Resend | product | Med-High | M |
-| PERF-006 | SSE delta detection (only send changed prices) | perf | Med | M |
-| PROD-005 | DCA analysis view | product | Med | M |
+| SEC-003 | SSE access token in URL query string -- migrate to HttpOnly cookie | security | High | M |
+| PERF-005 | RedisCache creates new TCP connection per operation | perf | High | M |
 
-### Nice to Have — added to todo.md P2-P3 (14 items)
+### Nice to Have (todo.md P2) -- 12 new items
 
 | ID | Title | Source Agents | Impact | Effort |
 |----|-------|--------------|--------|--------|
-| TD-002 | portfolios/[id]/page.tsx split (1123 lines) | tech-debt | Med | M |
-| TD-003 | settings/page.tsx split (901 lines) | tech-debt | Med | M |
-| TD-005 | kis_order.py split (780 lines) | tech-debt | Med | M |
-| TD-006 | lucide-react v1.x migration | tech-debt | Low | M |
-| TD-004 | analytics.py holdings query helper | tech-debt | Med | M |
-| PERF-008 | OrderDialog lazy loading | perf | Med | M |
-| PERF-003 | Dashboard SSR initial data prefetch | perf | Med | L |
-| PERF-007 | Disable dashboard polling when SSE active | perf | Med | M |
-| UX-001 | Analytics unified loading state | UX | Med | M |
-| UX-002 | Chart ARIA labels (screen reader support) | UX | Med | M |
-| UX-007 | Market hours warning in OrderDialog | UX | Med | S |
-| UX-008 | Transaction delete optimistic update | UX | Low | S |
-| UX-011 | Keyboard focus trap in dialogs | UX | Med | M |
-| PROD-006 | Portfolio compare date range picker | product | Med | M |
+| TD-004 | OrderDialog.tsx 605 lines with zero tests | tech-debt | High | M |
+| TD-003 | analytics/journal/compare pages have no tests | tech-debt | High | L |
+| UX-003 | OrderDialog/KIS cash balance hardcoded red/blue | ux-gap | High | S |
+| UX-002+010 | Analytics page error states + per-section loading | ux-gap | High | M |
+| SEC-005+006 | Missing max_length on name/ticker/tags fields | security | Medium | S |
+| UX-005 | CSV/XLSX download silent failure | ux-gap | Medium | S |
+| PERF-008 | SSE DB session opened every 30 seconds | perf | Medium | S |
+| PERF-009 | SSE httpx client created every 30 seconds | perf | Medium | S |
+| PERF-010 | SSE skips overseas holdings (frozen prices) | perf | Medium | M |
+| PERF-012 | Analytics sequential DB queries -- asyncio.gather | perf | Medium | M |
+| TD-007 | 3 analytics endpoints missing response_model | tech-debt | Medium | S |
+| TD-008 | Alert business logic in api layer instead of services | tech-debt | Medium | M |
 
-### Skipped / Parked (8 items)
+### Nice to Have (todo.md P3) -- 5 new items
+
+| ID | Title | Source Agents | Impact | Effort |
+|----|-------|--------------|--------|--------|
+| PERF-013 | SQLAlchemy pool_recycle not configured | perf | Low | S |
+| UX-008 | Recharts charts lack ARIA labels | ux-gap | Medium | M |
+| UX-009 | WatchlistSection icon buttons lack aria-label | ux-gap | Medium | S |
+| SEC-009 | No pip-audit in CI for Python dependencies | security | Low | S |
+| SEC-008 | Backend SecurityHeadersMiddleware missing HSTS | security | Low | S |
+
+### Skipped/Parked -- 6 items
 
 | ID | Title | Reason |
 |----|-------|--------|
-| TD-007 | Python minor package updates (cryptography etc.) | Already tracked in CI dependency updates |
-| TD-008 | PortfolioHistoryChart `any[]` type fix | Low risk, test-adjacent code |
-| UX-006 | WatchlistSection empty state | Low impact, watchlist is secondary feature |
-| UX-009 | Journal recall widget null price | Corner case, low user impact |
-| UX-010 | KIS test button loading state | Minor polish |
-| UX-012 | Holdings table mobile scroll indicator | CSS-only, low risk |
-| PERF-009 | Scheduler ticker deduplication | Premature optimization for current scale |
-| PERF-010 | ETag on dashboard endpoint | Already P3 in todo.md |
-| SEC-007 | Concurrent session limit | Partially addressed by SEC-002 (refresh token store) |
+| TD-010 | Inline import bisect in analytics.py | Trivial code smell, negligible impact |
+| TD-011 | forward_fill_rates extraction from analytics.py | Useful for M21 but premature extraction now |
+| TD-013 | PortfolioHistoryChart any[] Recharts payload | Low impact type cosmetic fix |
+| UX-011 | Add-holding form inline error feedback | Low priority -- already has submit disable |
+| UX-012 | Journal BUY/SELL badge color-only distinction | Arrow icons already provide non-color info |
+| UX-013 | Settings KIS test button loading state | Low frequency interaction |
+| TD-006 | Hardcoded Decimal(1450) in portfolios.py | Existing P2 tracking sufficient |
+| SEC-004 | CSP nonce-based for production | High effort, Next.js nonce integration complex |
 
 ---
 
 ## Cross-Cutting Themes
 
-Three themes appeared consistently across multiple analysts:
+### 1. SSE Stream Inefficiency (PERF-008, PERF-009, PERF-010, PERF-004)
 
-**1. Security escalation due to trading feature**
-- SEC-001 (rate limits), SEC-002 (refresh token revocation), SEC-003 (audit log), PROD-001 (2FA) all relate to the same root cause: the trading feature changed the risk profile from "data privacy" to "direct financial harm". This is the highest-priority cross-cutting concern.
+Four findings converge on the SSE price stream: it opens a new DB session every 30 seconds, creates a new httpx TLS client every 30 seconds, silently drops overseas tickers, and the dashboard polls in parallel making SSE partially redundant. Collectively these represent the single largest backend performance improvement opportunity. Fixing all four would reduce per-user backend load by approximately 60%.
 
-**2. Backend code consolidation**
-- TD-001 (_is_domestic duplication), TD-004 (analytics query pattern), TD-005 (kis_order size), PERF-002 (analytics DB round-trips) all point to the same pattern: the backend grew feature-first without periodic refactoring. A "code consolidation sprint" would address all four simultaneously.
+### 2. Missing Error Handlers Across Mutations (UX-001, UX-004, UX-005)
 
-**3. Performance through infrastructure, not optimization**
-- PERF-001 (GZip), PERF-003 (SSR), PERF-004/TD-013 (DB indexes), PROD-003 (Neon/Upstash) all require infrastructure changes rather than algorithmic optimization. These are high-leverage, low-complexity wins.
+Three analysts independently flagged silent failure on mutations. Portfolio detail has 7 handlers without onError, the portfolios page has 2 more, and CSV/XLSX downloads swallow network errors. The pattern is consistent: onSuccess toast exists but onError is omitted. A single sweep applying the settings/page.tsx pattern would resolve all.
+
+### 3. Redis Operations Architecture (PERF-005, SEC-007/PERF-011)
+
+Redis is used for caching, KIS token storage, SSE session tracking, and refresh token management. Two structural problems: (a) every operation opens a new TCP connection (40-300ms overhead per request), and (b) logout scans the entire keyspace. Both require the same fix direction -- connection pooling and per-user key sets.
+
+### 4. Input Validation Gaps (SEC-002, SEC-005, SEC-006)
+
+Multiple Pydantic schemas accept unbounded input. Password fields have no max_length (enabling bcrypt DoS), holding names and tags have no length limits. These are all S-effort fixes with Field constraints.
+
+### 5. Credential Exposure Risk (SEC-001, SEC-003)
+
+KIS API credentials appear in two unexpected places: Sentry error events (via httpx exception headers) and server access logs (via SSE query parameter JWT). Both are high-severity leaks that could enable unauthorized trading.
 
 ---
 
@@ -92,103 +98,76 @@ Three themes appeared consistently across multiple analysts:
 
 From product-strategy-analyst:
 
-| Feature Area | Completeness | Key Gap |
-|---|---|---|
-| Portfolio Management | 95% | Minor UX polish |
-| Market Data | 85% | Moving avg overlays, volume charts |
-| Analytics | 72% | Benchmark overlay, Sharpe/MDD unimplemented |
-| Trading | 88% | Market hours indicator, overseas order UX |
-| Alerts | 78% | Email delivery channel missing |
-| Data Management | 88% | PDF reports (parked) |
-| User Experience | 78% | A11y gaps, some empty states missing |
-| Investment Journal | 85% | Retrospective widget could be richer |
+| Area | Completeness | Key Gap |
+|------|-------------|---------|
+| Portfolio Management | 96% | -- |
+| Data Management | 90% | -- |
+| Trading | 88% | Order history view |
+| Investment Journal | 88% | DCA analysis |
+| Market Data | 85% | Benchmark index data |
+| Alerts | 80% | Email delivery channel |
+| User Experience | 80% | Error handling consistency |
+| Analytics | 74% | Benchmark overlay, risk metrics |
+
+**Overall: ~85% feature-complete** for a personal asset management dashboard with trading capability.
 
 ---
 
 ## Recommended Next Milestones
 
-1. **Milestone 20: 보안 강화 — 트레이딩 계정 보호** — Rationale: trading is live; account compromise = financial harm. Server-side refresh token revocation (SEC-002) and TOTP 2FA (PROD-001) are the two items that reduce the most critical risk. The security audit log completes the picture for a financial-grade app.
+### 1. Immediate Sprint: Security + Performance Quick Wins (tasks.md, 1-2 days)
 
-2. **Milestone 21: 분석 엔진 완성 — 벤치마크 + DCA + 리스크 지표** — Rationale: analytics at 72% is the largest visible gap from a user perspective. The benchmark overlay is the single most-asked question in portfolio apps ("did I beat the market?"). Building on the index data collection and metrics.py already partially present, this is achievable in 2-3 sprints.
+Complete the 8 tasks.md items. All are S-effort and address critical/high severity findings. This sprint eliminates the Sentry credential leak, fixes the dashboard's worst query, and prevents bcrypt DoS.
 
-3. **Milestone 22: 인프라 안정화 — Neon + Upstash + 이메일 알림** — Rationale: single-server PostgreSQL is a production risk for a trading app. Neon+Upstash gives HA with minimal ops burden. Bundling email alerts here converts the already-complete alert system into a genuinely useful out-of-app notification mechanism.
+### 2. Milestone 20: Security Hardening (P1, 2-3 weeks)
+
+Order: 20-1 (server-side refresh tokens) first, then 20-2 Phase 1 (TOTP backend), then 20-3 (audit log), then 20-2 Phase 2 (2FA settings UI), then 20-4 (session management). Security before features because trading is live.
+
+### 3. Milestone 21: Analytics Engine Completion (P1, 2-3 weeks)
+
+Order: Prep (portfolio page split) -> 21-1 (index data collection) -> 21-2 (benchmark overlay) -> 21-3 (risk metrics with minimum history guard) -> 21-4 (DCA analysis) -> monthly return heatmap bonus. This raises analytics from 74% to ~95%.
+
+### 4. Milestone 22: Infrastructure + Email (P2, 1-2 weeks)
+
+Decouple Resend email from infra migration. Ship email alerts first (1-2 days standalone). Then Neon PostgreSQL migration, then Upstash Redis migration. This ordering delivers user value (email alerts) before the riskier infrastructure changes.
 
 ---
 
 ## Detailed Findings
 
-### Tech Debt (13 findings)
+### Merged Findings (SEC-007 + PERF-011)
 
-| ID | Severity | Category | Location | Effort |
-|----|----------|----------|----------|--------|
-| TD-001 | High | code-smell | analytics/dashboard/portfolios/orders/chart.py | S |
-| TD-002 | High | code-smell | portfolios/[id]/page.tsx (1123 lines) | M |
-| TD-003 | High | code-smell | settings/page.tsx (901 lines) | M |
-| TD-004 | Med | code-smell | analytics.py (748 lines, 7x repeated pattern) | M |
-| TD-005 | Med | code-smell | kis_order.py (780 lines) | M |
-| TD-006 | Med | dependency | lucide-react 0.577 vs 1.7, typescript 5.9 vs 6.0 | M |
-| TD-007 | Med | dependency | cryptography, gunicorn, boto3 minor updates | S |
-| TD-008 | Low | type-safety | PortfolioHistoryChart.tsx:45,156 (any[]) | S |
-| TD-009 | Med | architecture | transactions.ticker missing index | S |
-| TD-010 | Low | code-smell | portfolios/page.tsx:231 uses confirm() | S |
-| TD-011 | Med | architecture | FastAPI GZipMiddleware not configured | S |
-| TD-012 | Med | code-smell | OrderDialog.tsx (605 lines) | M |
-| TD-013 | Med | architecture | price_snapshots composite index missing | S |
+**Redis SCAN on logout** -- Both security-posture-analyst and perf-bottleneck-analyst independently identified that `revoke_all_refresh_tokens_for_user` scans the entire `refresh_jti:*` keyspace. Security framed it as a DoS vector; performance framed it as O(N) scalability concern. Resolution: per-user Redis set `user_jtis:{user_id}` for O(1) user-scoped revocation.
 
-### UX Gaps (12 findings)
+### Already Tracked in todo.md (not duplicated)
 
-| ID | Severity | Category | Location | Effort |
-|----|----------|----------|----------|--------|
-| UX-001 | High | loading-state | analytics/page.tsx (7 independent queries) | M |
-| UX-002 | High | a11y | AllocationDonut, PortfolioHistoryChart, MonthlyHeatmap | M |
-| UX-003 | High | feedback | portfolios/[id]/page.tsx holding delete | S |
-| UX-004 | High | empty-state | compare/page.tsx (<2 portfolios) | S |
-| UX-005 | Med | loading-state | stocks/[ticker]/page.tsx chart blank | S |
-| UX-006 | Med | empty-state | WatchlistSection.tsx (no items) | S |
-| UX-007 | Med | feedback | OrderDialog overseas market hours | S |
-| UX-008 | Med | feedback | Transaction delete optimistic update | S |
-| UX-009 | Med | error-handling | Journal recall null current price | S |
-| UX-010 | Low | loading-state | Settings KIS test button no spinner | S |
-| UX-011 | Med | a11y | OrderDialog/StockSearchDialog focus trap | M |
-| UX-012 | Low | responsive | HoldingsTable horizontal scroll indicator | S |
+- TD-012 (lucide-react v1.x) -> P2 #24
+- PROD-001 (server-side refresh token) -> Milestone 20-1
+- PROD-002 (benchmark overlay) -> Milestone 21-1/21-2
+- PROD-003 (Neon/Upstash) -> Milestone 22-1/22-2
+- PROD-009 (page splits) -> P2 #19-20
 
-### Security (9 findings)
+### Findings from Previous Sprint (completed)
 
-| ID | Severity | Category | Location | Effort |
-|----|----------|----------|----------|--------|
-| SEC-001 | High | api-security | portfolios.py, orders.py (no rate limits) | S |
-| SEC-002 | High | auth | auth.py (no server-side token revocation) | M |
-| SEC-003 | High | data-protection | orders.py, portfolios.py, users.py | L |
-| SEC-004 | Med | api-security | main.py (wildcard CORS methods/headers) | S |
-| SEC-005 | Med | data-protection | kis_token.py, kis_order.py (log masking) | S |
-| SEC-006 | Med | input-validation | portfolio schemas (memo/tags length) | S |
-| SEC-007 | Med | auth | Unlimited concurrent sessions | M |
-| SEC-008 | Low | frontend-security | StockSearchDialog.tsx localStorage | S |
-| SEC-009 | Low | data-protection | main.py Sentry environment hardcoded | S |
+All 12 items from the 2026-04-02 first sprint are resolved:
+- PERF-001 (old): GZip middleware
+- TD-001 (old): _is_domestic() consolidation (5/6 files -- stocks.py now flagged as TD-001 new)
+- PERF-005 (old): analytics cache invalidation
+- TD-009/PERF-004 (old): DB indexes
+- TD-010/UX-003 (old): AlertDialog replacements
+- UX-004 (old): Compare page empty state
+- SEC-001 (old): Rate limiting
+- SEC-004 (old): CORS methods/headers scoping
+- SEC-008 (old): localStorage defense
+- SEC-009 (old): Sentry environment variable
+- UX-005 (old): Chart skeleton
 
-### Performance (10 findings)
+### Full Finding Index
 
-| ID | Severity | Category | Location | Effort |
-|----|----------|----------|----------|--------|
-| PERF-001 | High | network | main.py (no GZip middleware) | S |
-| PERF-002 | High | database | analytics.py (3-4 sequential DB trips) | M |
-| PERF-003 | High | rendering | dashboard/page.tsx (fully client-side) | L |
-| PERF-004 | High | database | price_snapshots composite index | S |
-| PERF-005 | Med | caching | analytics.py invalidate_analytics_cache() | S |
-| PERF-006 | Med | network | prices.py SSE (unconditional 30s push) | M |
-| PERF-007 | Med | network | dashboard/page.tsx (polling + SSE parallel) | M |
-| PERF-008 | Med | bundle | OrderDialog.tsx not lazy-loaded | M |
-| PERF-009 | Med | api | scheduler.py ticker deduplication | M |
-| PERF-010 | Low | caching | dashboard.py (no ETag support) | M |
+**Tech-Debt (13):** TD-001 through TD-013
+**UX-Gap (13):** UX-001 through UX-013
+**Security (9):** SEC-001 through SEC-009
+**Performance (13):** PERF-001 through PERF-013
+**Product-Strategy (10):** PROD-001 through PROD-010
 
-### Product Strategy (7 findings + 3 proposed milestones)
-
-| ID | Severity | Category | Impact |
-|----|----------|----------|--------|
-| PROD-001 | High | priority-misalignment | 2FA urgency elevated (trading live) |
-| PROD-002 | High | missing-capability | Benchmark overlay (highest UX value) |
-| PROD-003 | High | technical-enabler | Neon+Upstash (reliability) |
-| PROD-004 | Med | deferred-value | Email alerts (alert infra complete) |
-| PROD-005 | Med | missing-capability | DCA analysis (Korean investor pattern) |
-| PROD-006 | Med | deferred-value | Portfolio compare completion |
-| PROD-007 | Low | technical-enabler | Storybook component catalog |
+Total: 58 raw -> 45 unique after deduplication and overlap with existing backlog.

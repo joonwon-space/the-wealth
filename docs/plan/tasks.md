@@ -99,6 +99,8 @@ Each item should be completable in a single commit.
 - [x] P1 -- Trading Feature 테스트 커버리지 (27% -> 80%+) (all items)
 - [x] P1 -- 매수/매도 UX 개선 (Before/After 경험) (all items)
 - [x] P2 -- 저커버리지 라우터 테스트 보강 (all items)
+- [x] Team analysis sprint 2026-04-02: GZip, is_domestic 통합, cache fix, DB 인덱스, AlertDialog, compare empty state, rate limiting, CORS, localStorage 방어, Sentry env, chart skeleton (all items)
+- [x] Milestone 17 complete: 환율 분석 (17-2), 투자 일지 (17-3), 포트폴리오 비교 (17-1)
 
 </details>
 
@@ -106,156 +108,66 @@ Each item should be completable in a single commit.
 
 ## Current work
 
-### P0 -- GZip 응답 압축 미들웨어 추가 [team-analysis: PERF-001 + TD-011]
+### P0 -- Sentry KIS 자격증명 유출 방지 [team-analysis: SEC-001]
 
-- [x] **perf: FastAPI GZipMiddleware 추가**
-  - `backend/app/main.py` — `from fastapi.middleware.gzip import GZipMiddleware` 추가
-  - `app.add_middleware(GZipMiddleware, minimum_size=1000)` — 1KB 이상 응답에 gzip 적용
-  - dashboard/summary, analytics 엔드포인트 JSON 응답 40-70% 압축 예상
-  - 파일: `backend/app/main.py`
+- [ ] **security: Sentry before_send 훅으로 KIS 헤더 스크러빙**
+  - `backend/app/main.py` — `sentry_sdk.init()`에 `before_send` 콜백 추가
+  - `appkey`, `appsecret`, `authorization` 헤더 값을 `[Filtered]`로 대체
+  - `kis_order.py`, `kis_token.py` — `httpx.HTTPStatusError` catch 후 헤더 없는 `RuntimeError` re-raise
+  - 파일: `backend/app/main.py`, `backend/app/services/kis_order.py`, `backend/app/services/kis_token.py`
 
-### P0 -- `_is_domestic()` 유틸리티 통합 [team-analysis: TD-001]
+### P0 -- get_prev_close 무제한 쿼리 수정 [team-analysis: PERF-001]
 
-- [x] **refactor: `backend/app/core/ticker.py` 생성 — 중복 제거**
-  - `backend/app/core/ticker.py` 신규 생성: `DOMESTIC_TICKER_RE`, `is_domestic(ticker: str) -> bool`
-  - 기존 5개 파일에서 중복 제거: `analytics.py`, `dashboard.py`, `portfolios.py`, `orders.py`, `chart.py`
-  - 각 파일에서 `from app.core.ticker import is_domestic` 임포트로 교체
-  - 테스트: `tests/unit/test_ticker.py` 신규 생성 (국내/해외 판별 엣지 케이스)
-  - 파일: `backend/app/core/ticker.py`, 5개 API 파일
+- [ ] **perf: price_snapshot.py — DISTINCT ON (ticker) 쿼리로 교체**
+  - `backend/app/services/price_snapshot.py:171-189` — 전체 rows fetch + Python dedup 제거
+  - `DISTINCT ON (ticker) ORDER BY snapshot_date DESC` PostgreSQL 쿼리로 교체
+  - 20종목 2년 데이터 기준 14,600행 -> 20행 전송, 50ms -> 5ms 예상
+  - 파일: `backend/app/services/price_snapshot.py`
 
-### P0 -- analytics cache invalidation 누락 엔드포인트 수정 [team-analysis: PERF-005]
+### P0 -- bcrypt DoS 방어: 비밀번호 max_length 추가 [team-analysis: SEC-002]
 
-- [x] **fix: fx-gain-loss, krw-asset-history 캐시 무효화 추가**
-  - `backend/app/api/analytics.py` — `invalidate_analytics_cache()` 함수에 두 키 추가
-  - `fx-gain-loss`, `krw-asset-history:{period}` (1M/3M/6M/1Y/ALL 각 기간) invalidation 추가
-  - 보유종목 추가/삭제/bulk 성공 후에도 호출되도록 `portfolios.py`에 연결
-  - 파일: `backend/app/api/analytics.py`, `backend/app/api/portfolios.py`
+- [ ] **security: 비밀번호 필드 max_length=128 제한**
+  - `backend/app/schemas/auth.py` — `RegisterRequest.password`, `LoginRequest.password` max_length=128
+  - `backend/app/schemas/user.py` — `ChangePasswordRequest`, `DeleteAccountRequest` max_length=128
+  - bcrypt 72바이트 truncation 고려, Pydantic validation 단계에서 차단
+  - 파일: `backend/app/schemas/auth.py`, `backend/app/schemas/user.py`
 
-### P1 -- transactions.ticker DB 인덱스 추가 [team-analysis: TD-009]
+### P0 -- cryptography 패키지 보안 업데이트 [team-analysis: TD-005]
 
-- [x] **perf: transactions 테이블 ticker 컬럼 인덱스 추가**
-  - `backend/app/models/transaction.py` — `ticker` mapped_column에 `index=True` 추가
-  - Alembic migration 생성: `alembic revision --autogenerate -m "add_index_transactions_ticker"`
-  - 파일: `backend/app/models/transaction.py`, `backend/alembic/versions/`
+- [ ] **chore: cryptography 46.0.5 -> latest 패치 적용**
+  - `pip install --upgrade cryptography` 실행 후 `requirements.txt` 갱신
+  - AES-256 KIS 자격증명 암호화 경로의 보안 패치 적용
+  - pytest 전체 통과 확인
+  - 파일: `backend/requirements.txt`
 
-### P1 -- price_snapshots 복합 인덱스 추가 [team-analysis: PERF-004 + TD-013]
+### P1 -- fx-gain-loss 엔드포인트 캐시 추가 [team-analysis: PERF-002]
 
-- [x] **perf: price_snapshots (ticker, snapshot_date) 복합 인덱스**
-  - `backend/app/models/price_snapshot.py` — `__table_args__`에 `Index('ix_price_snapshot_ticker_date', 'ticker', 'snapshot_date')` 추가
-  - Alembic migration 생성
-  - analytics 쿼리 `WHERE ticker IN (...) AND snapshot_date >= cutoff` 성능 개선
-  - 파일: `backend/app/models/price_snapshot.py`, `backend/alembic/versions/`
-
-### P1 -- 포트폴리오 삭제 확인 다이얼로그 교체 [team-analysis: TD-010 + UX-003]
-
-- [x] **fix: portfolios/page.tsx — confirm() → shadcn AlertDialog**
-  - `frontend/src/app/dashboard/portfolios/page.tsx` — `confirm()` 제거, AlertDialog 적용
-  - 제목: '포트폴리오 삭제', 본문: '{name} 포트폴리오를 영구 삭제하시겠습니까?'
-  - 보유종목 삭제도 동일 패턴으로 AlertDialog 적용 (`portfolios/[id]/page.tsx`)
-  - 파일: `frontend/src/app/dashboard/portfolios/page.tsx`, `portfolios/[id]/page.tsx`
-
-### P1 -- 비교 페이지 빈 상태 추가 [team-analysis: UX-004]
-
-- [x] **fix: compare 페이지 — 포트폴리오 1개 이하일 때 empty state**
-  - `frontend/src/app/dashboard/compare/page.tsx` — `portfolios.length < 2` 조건 추가
-  - 안내 카드: '포트폴리오 비교는 2개 이상의 포트폴리오가 필요합니다' + 생성 링크 버튼
-  - 파일: `frontend/src/app/dashboard/compare/page.tsx`
-
-### P1 -- API 엔드포인트 Rate Limiting 추가 [team-analysis: SEC-001]
-
-- [x] **security: portfolios/holdings/orders 엔드포인트 rate limit 추가**
-  - `backend/app/api/portfolios.py` — 주요 write 엔드포인트에 `@limiter.limit('60/minute')` 추가
-  - `backend/app/api/orders.py` — order 엔드포인트에 `@limiter.limit('30/minute')` 추가
-  - 파일: `backend/app/api/portfolios.py`, `backend/app/api/orders.py`
-
-### P1 -- CORS allow_methods/allow_headers 명시적 스코프 [team-analysis: SEC-004]
-
-- [x] **security: CORS wildcard → 명시적 허용 목록**
-  - `backend/app/main.py` — `allow_methods=['GET','POST','PUT','PATCH','DELETE','OPTIONS']`
-  - `allow_headers=['Content-Type','Authorization','X-Request-ID']` 명시
-  - 파일: `backend/app/main.py`
-
-### P2 -- localStorage.getItem() 방어 처리 [team-analysis: SEC-008]
-
-- [x] **fix: StockSearchDialog localStorage read try-catch 추가**
-  - `frontend/src/components/StockSearchDialog.tsx` — JSON.parse() try-catch 추가
-  - 파싱 실패 시 빈 배열 반환, 각 항목 string 유효성 검사
-  - 파일: `frontend/src/components/StockSearchDialog.tsx`
-
-### P2 -- Sentry environment 설정 환경변수화 [team-analysis: SEC-009]
-
-- [x] **fix: Sentry init — environment hardcoding 제거**
-  - `backend/app/core/config.py` — `ENVIRONMENT: str = 'development'` 설정 추가
-  - `backend/app/main.py` — `environment=settings.ENVIRONMENT` 사용
-  - `backend/.env.example` — `ENVIRONMENT=production` 예시 추가
-  - 파일: `backend/app/main.py`, `backend/app/core/config.py`, `backend/.env.example`
-
-### P2 -- 종목 상세 페이지 차트 스켈레톤 추가 [team-analysis: UX-005]
-
-- [x] **fix: stocks/[ticker]/page.tsx — 차트 로딩 중 ChartSkeleton 표시**
-  - `frontend/src/app/dashboard/stocks/[ticker]/page.tsx` — 기존 ChartSkeleton 컴포넌트 활용
-  - candlestick 데이터 fetching 동안 `<ChartSkeleton />` 렌더링
-  - 파일: `frontend/src/app/dashboard/stocks/[ticker]/page.tsx`
-
-### 이전 완료 작업
-
-### P1 -- 해외주식 환차익/환차손 분리: 백엔드 API (17-2)
-
-- [x] **feat: GET /analytics/fx-gain-loss 엔드포인트 추가**
-  - `backend/app/api/analytics.py` — 해외주식 보유 종목별 환차익/환차손 계산 엔드포인트
-  - 각 해외주식에 대해: 매입 시점 USD 가치 vs 현재 USD 가치(주가 수익), 매입 시점 환율 vs 현재 환율(환차익)
-  - 매입 시점 환율은 `fx_rate_snapshots` 테이블에서 보유 종목 `created_at` 날짜에 가장 가까운 환율 사용
-  - 응답: `[{ticker, name, quantity, avg_price_usd, current_price_usd, stock_pnl_usd, fx_rate_at_buy, fx_rate_current, fx_gain_krw, stock_gain_krw, total_pnl_krw}]`
-  - 해외주식 판별: ticker가 숫자 6자리가 아닌 경우 (기존 `_is_domestic()` 함수 활용)
-  - 현재가는 Redis 캐시 우선(`_get_cached_price`), 없으면 `avg_price` fallback
-  - 현재 환율은 `get_cached_fx_rate()` 사용
+- [ ] **perf: analytics.py — fx-gain-loss Redis 캐시 적용**
+  - `backend/app/api/analytics.py:469-585` — `cache_key` guard + `setex` 호출 추가
+  - 기존 `get_metrics` 캐시 패턴과 동일하게 적용
+  - 3 DB 쿼리 + O(N*M) bisect 연산 → 캐시 hit 시 2ms 이내
   - 파일: `backend/app/api/analytics.py`
 
-### P1 -- 해외주식 환차익/환차손 분리: 프론트엔드 UI (17-2)
+### P1 -- metrics 엔드포인트 해외종목 라우팅 수정 [team-analysis: PERF-003]
 
-- [x] **feat: 분석 페이지에 해외주식 환차익/환차손 섹션 추가**
-  - `frontend/src/app/dashboard/analytics/page.tsx` — 새 섹션 추가
-  - `/analytics/fx-gain-loss` API 호출하여 해외주식별 환차익/환차손 표시
-  - 테이블 형식: 종목명/티커, 주가 수익(USD), 환차익(KRW), 총 손익(KRW)
-  - 보유 해외주식이 없으면 섹션 미표시
-  - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
-
-### P1 -- 원화 환산 총 자산 추이: 백엔드 API (17-2)
-
-- [x] **feat: GET /analytics/krw-asset-history 엔드포인트 추가**
-  - `backend/app/api/analytics.py` — 환율 변동 반영 원화 총 자산 추이 엔드포인트
-  - `price_snapshots` × `fx_rate_snapshots` JOIN으로 날짜별 원화 환산 총 자산 계산
-  - 국내주식: KRW 그대로, 해외주식: 해당 날짜 `fx_rate_snapshots` 환율 적용 (없으면 최근 환율 interpolation)
-  - `period` 쿼리 파라미터 지원: 1M / 3M / 6M / 1Y / ALL
-  - 응답: `[{date: "YYYY-MM-DD", value: float, domestic_value: float, overseas_value_krw: float}]`
+- [ ] **fix: analytics.py — 해외 ticker에 국내 가격 API 호출 방지**
+  - `backend/app/api/analytics.py:156-158` — ticker 목록을 국내/해외 분류 후 각 API 라우팅
+  - 해외 ticker → `fetch_overseas_price_detail` 사용
+  - 실패 보장 KIS API 호출 제거, 경고 로그 감소
   - 파일: `backend/app/api/analytics.py`
 
-### P1 -- 원화 환산 총 자산 추이: 프론트엔드 차트 (17-2)
+### P1 -- SSE 활성 시 대시보드 폴링 비활성화 [team-analysis: PERF-004]
 
-- [x] **feat: 분석 페이지에 원화 환산 총 자산 추이 차트 추가**
-  - `frontend/src/app/dashboard/analytics/page.tsx` — 기존 포트폴리오 가치 추이 섹션 아래에 추가
-  - `/analytics/krw-asset-history` API 호출
-  - Recharts LineChart: 국내(KRW) + 해외(환산 KRW) 스택 영역 차트 (AreaChart, stacked)
-  - 기간 탭: 1M / 3M / 6M / 1Y / ALL (historyPeriod 상태 재사용)
-  - 해외주식 보유가 없으면 단순 라인 차트로 표시
-  - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
+- [ ] **perf: dashboard/page.tsx — SSE 연결 시 refetchInterval 비활성화**
+  - `frontend/src/app/dashboard/page.tsx:135-139` — SSE 연결 상태에 따라 `refetchInterval` 토글
+  - SSE 활성: `refetchInterval: false`, SSE 비활성: `refetchInterval: REFRESH_INTERVAL_MS`
+  - /dashboard/summary 호출 빈도 50% 감소 예상
+  - 파일: `frontend/src/app/dashboard/page.tsx`
 
-### P2 -- 투자 일지 필터링 및 검색 (17-3)
+### P1 -- 포트폴리오 상세 mutation onError 핸들러 추가 [team-analysis: UX-001]
 
-- [x] **feat: 투자 일지 월별/종목별 필터링 + 키워드 검색**
-  - `frontend/src/app/dashboard/journal/page.tsx` — 검색/필터 기능 추가
-  - 월별 필터: 드롭다운 (거래 이력에서 유니크 월 목록 추출)
-  - 종목별 필터: 드롭다운 (보유 종목 + 거래 종목 합집합)
-  - 키워드 검색: 메모(memo) 내용 검색, debounce 300ms
-  - 검색/필터 결과 0건 시 "검색 결과 없음" empty state 표시
-  - 파일: `frontend/src/app/dashboard/journal/page.tsx`
-
-### P2 -- 투자 결정 회고 위젯 (17-3)
-
-- [x] **feat: 투자 결정 회고 위젯 — 매수 시점 가격 vs 현재가 비교**
-  - `frontend/src/app/dashboard/journal/page.tsx` — 페이지 상단에 회고 요약 섹션 추가
-  - 최근 30일 이내 BUY 거래 종목에 대해: 매수가 vs 현재가 비교 카드
-  - 각 카드: 종목명, 매수가(avg), 현재가(from dashboard summary), 수익률(%)
-  - 현재가는 `/dashboard/summary` 데이터에서 가져옴 (별도 API 호출 없이)
-  - 최대 5개까지만 표시 (평가금액 큰 순)
-  - 파일: `frontend/src/app/dashboard/journal/page.tsx`
+- [ ] **fix: portfolios/[id]/page.tsx — 7개 mutation에 onError toast 추가**
+  - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — addHolding, editHolding, deleteHolding, addTxn, deleteTxn, updateMemo, updateTarget mutation에 onError 추가
+  - 각 mutation 실패 시 `toast.error()` 한국어 메시지 표시
+  - settings/page.tsx `updateNameMutation` 패턴 참조
+  - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx`
