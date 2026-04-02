@@ -24,6 +24,7 @@ Located in `~/.claude/agents/`:
 | **team-review** | **Multi-agent code review** | **Large PRs, core module changes** |
 | **team-release** | **Multi-agent release validation** | **Before deploy, PR merge** |
 | **team-debug** | **Multi-agent bug diagnosis** | **Complex bugs, unknown root cause** |
+| **team-implement** | **Multi-agent parallel implementation** | **Batch task execution (backend/frontend/infra 병렬)** |
 
 ### Team Discover Sub-Agents (`.claude/agents/team/`)
 
@@ -76,6 +77,15 @@ Located in `~/.claude/agents/`:
 | env-config-analyst | Environment, KIS API, Redis, config | Sonnet |
 | debug-synthesizer | Root cause + fix plan | **Opus** |
 
+### Team Implement Sub-Agents (`.claude/agents/team/implement/`)
+
+| Agent | Role | Model |
+|-------|------|-------|
+| backend-worker | Python backend tasks (API, services, schemas) | Sonnet |
+| frontend-worker | TypeScript frontend tasks (pages, components, hooks) | Sonnet |
+| infra-worker | Dependencies, config, security, cross-cutting | Sonnet |
+| implement-synthesizer | Merge worktrees, resolve conflicts, verify build | **Opus** |
+
 ### Workflow Orchestrators (`.claude/agents/workflow-*.md`)
 
 | Agent | Chains | User Gates |
@@ -101,6 +111,7 @@ No user prompt needed:
 11. Large code changes to review - Use **team-review** agent
 12. Before deployment - Use **team-release** agent
 13. Complex bug with unknown cause - Use **team-debug** agent
+14. Batch implement tasks in parallel - Use **team-implement** agent
 
 ## Parallel Task Execution
 

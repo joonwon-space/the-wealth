@@ -102,6 +102,7 @@ For granular control, use individual commands:
 | `/team-review` | 4 reviewers → unified code review verdict |
 | `/team-release` | 4 validators → go/no-go release decision |
 | `/team-debug` | 4 analysts → root cause diagnosis |
+| `/team-implement` | 3 workers (backend/frontend/infra) → parallel task execution |
 
 ## Agents (`.claude/agents/`)
 
