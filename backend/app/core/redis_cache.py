@@ -3,22 +3,77 @@
 Redis 연결에 실패하면 in-memory dict + TTL 기반 캐시로 자동 전환하여
 서비스 가용성을 유지한다. 폴백 시 경고 로그를 남긴다.
 
+모듈 레벨 ConnectionPool 싱글턴을 통해 모든 캐시 작업이 동일한 TCP 연결
+풀을 재사용한다. 이로 인해 요청마다 발생하는 40–300ms TCP 오버헤드가
+제거된다.
+
 사용 예시:
     cache = RedisCache(settings.REDIS_URL)
     await cache.get("key")
     await cache.setex("key", ttl_seconds, "value")
     await cache.delete("key")
+
+    # 풀 공유 클라이언트 직접 사용 (security.py, dashboard.py 등):
+    async with get_redis_client() as r:
+        await r.set("key", "value")
 """
 
 import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Optional
+from typing import AsyncIterator, Optional
 
 import redis.asyncio as aioredis
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level ConnectionPool singleton — created once, shared across all
+# callers in this process.  Initialized lazily on first use so that import
+# order and test isolation are not affected.
+# ---------------------------------------------------------------------------
+_pool: Optional[aioredis.ConnectionPool] = None
+
+
+def _get_pool(redis_url: str) -> aioredis.ConnectionPool:
+    """Return the module-level pool, creating it on first call."""
+    global _pool
+    if _pool is None:
+        _pool = aioredis.ConnectionPool.from_url(
+            redis_url,
+            decode_responses=True,
+            max_connections=20,
+        )
+    return _pool
+
+
+@asynccontextmanager
+async def get_redis_client(redis_url: str = "") -> AsyncIterator[aioredis.Redis]:
+    """Yield a Redis client backed by the shared ConnectionPool.
+
+    Callers do NOT need to close the client — the context manager handles it.
+    Importing this avoids the per-request TCP handshake overhead of
+    ``aioredis.from_url()``.
+
+    Example::
+
+        from app.core.redis_cache import get_redis_client
+        from app.core.config import settings
+
+        async with get_redis_client(settings.REDIS_URL) as r:
+            await r.set("key", "value")
+    """
+    from app.core.config import settings  # avoid circular import at module level
+
+    url = redis_url or settings.REDIS_URL
+    pool = _get_pool(url)
+    client = aioredis.Redis(connection_pool=pool)
+    try:
+        yield client
+    finally:
+        await client.aclose()
 
 
 @dataclass
@@ -65,7 +120,11 @@ def reset_fallback_cache() -> None:
 
 
 class RedisCache:
-    """Redis-backed cache with automatic in-memory fallback on connection failure."""
+    """Redis-backed cache with automatic in-memory fallback on connection failure.
+
+    Uses the module-level ConnectionPool singleton so all instances share the
+    same pool — no new TCP connection per operation.
+    """
 
     def __init__(self, redis_url: str) -> None:
         self._url = redis_url
@@ -74,7 +133,7 @@ class RedisCache:
         """캐시에서 값 조회. Redis 실패 시 in-memory 폴백."""
         global _redis_healthy
         try:
-            async with aioredis.from_url(self._url, decode_responses=True) as r:
+            async with get_redis_client(self._url) as r:
                 value = await r.get(key)
                 if not _redis_healthy:
                     logger.info("Redis connection restored")
@@ -92,7 +151,7 @@ class RedisCache:
         """TTL을 지정하여 캐시에 값 저장. Redis 실패 시 in-memory 폴백."""
         global _redis_healthy
         try:
-            async with aioredis.from_url(self._url, decode_responses=True) as r:
+            async with get_redis_client(self._url) as r:
                 await r.setex(key, ttl, value)
                 if not _redis_healthy:
                     logger.info("Redis connection restored")
@@ -109,7 +168,7 @@ class RedisCache:
         """캐시에서 키 삭제. Redis 실패 시 in-memory 폴백."""
         global _redis_healthy
         try:
-            async with aioredis.from_url(self._url, decode_responses=True) as r:
+            async with get_redis_client(self._url) as r:
                 await r.delete(key)
                 if not _redis_healthy:
                     logger.info("Redis connection restored")

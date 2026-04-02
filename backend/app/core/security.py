@@ -2,12 +2,12 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
-import redis.asyncio as aioredis
 import bcrypt
 import jwt
 from jwt.exceptions import InvalidTokenError
 
 from app.core.config import settings
+from app.core.redis_cache import get_redis_client
 
 _REFRESH_TOKEN_PREFIX = "refresh_jti:"
 
@@ -47,13 +47,13 @@ def create_refresh_token(user_id: int) -> tuple[str, str]:
 async def store_refresh_jti(jti: str, user_id: int) -> None:
     """Store refresh token jti in Redis with TTL matching token lifetime."""
     ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
-    async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
+    async with get_redis_client(settings.REDIS_URL) as r:
         await r.setex(f"{_REFRESH_TOKEN_PREFIX}{jti}", ttl, str(user_id))
 
 
 async def verify_and_consume_refresh_jti(jti: str) -> Optional[int]:
     """Verify jti exists in Redis, consume it (delete), return user_id or None."""
-    async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
+    async with get_redis_client(settings.REDIS_URL) as r:
         user_id_str = await r.get(f"{_REFRESH_TOKEN_PREFIX}{jti}")
         if user_id_str is None:
             return None
@@ -63,7 +63,7 @@ async def verify_and_consume_refresh_jti(jti: str) -> Optional[int]:
 
 async def revoke_all_refresh_tokens_for_user(user_id: int) -> None:
     """Revoke all refresh tokens for a user (on logout/password change)."""
-    async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
+    async with get_redis_client(settings.REDIS_URL) as r:
         cursor = 0
         while True:
             cursor, keys = await r.scan(

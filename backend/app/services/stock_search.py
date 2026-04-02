@@ -11,10 +11,9 @@ import json
 from pathlib import Path
 from typing import TypedDict
 
-import redis.asyncio as aioredis
-
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.redis_cache import get_redis_client
 
 logger = get_logger(__name__)
 
@@ -120,7 +119,7 @@ def _load_all_from_files() -> list[StockInfo]:
 
 async def _load_stock_list() -> list[StockInfo]:
     """Redis 캐시에서 로드, 없으면 MST 파일에서 파싱 후 캐싱."""
-    async with aioredis.from_url(settings.REDIS_URL, decode_responses=True) as r:
+    async with get_redis_client(settings.REDIS_URL) as r:
         cached = await r.get(_CACHE_KEY)
         if cached:
             return json.loads(cached)
