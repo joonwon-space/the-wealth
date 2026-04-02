@@ -124,6 +124,11 @@ export default function DashboardPage() {
     }
   }, [accessToken, refreshAccessToken]);
 
+  // streamStatus is hoisted here so the query can react to SSE state.
+  // The actual usePriceStream call is below after handleStreamPrices is defined;
+  // we track it via a ref updated in an effect to avoid circular dependency.
+  const streamActiveRef = useRef(false);
+
   const {
     data: summary,
     isLoading,
@@ -135,7 +140,9 @@ export default function DashboardPage() {
   } = useQuery<Summary>({
     queryKey: DASHBOARD_QUERY_KEY,
     queryFn: () => fetchSummary(),
-    refetchInterval: REFRESH_INTERVAL_MS,
+    // Disable polling when SSE is active — SSE already provides live prices,
+    // so polling /dashboard/summary would be redundant. Re-enable on disconnect.
+    refetchInterval: streamActiveRef.current ? false : REFRESH_INTERVAL_MS,
   });
 
   // Show toast for triggered alerts when data refreshes
@@ -198,6 +205,11 @@ export default function DashboardPage() {
     onPrices: handleStreamPrices,
     enabled: !isLoading,
   });
+
+  // Keep ref in sync with SSE connection status so refetchInterval reacts.
+  useEffect(() => {
+    streamActiveRef.current = streamStatus === "connected";
+  }, [streamStatus]);
 
   const handleManualRefresh = async () => {
     const result = await api.get<Summary>("/dashboard/summary", { params: { refresh: true } });

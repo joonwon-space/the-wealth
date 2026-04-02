@@ -19,6 +19,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatKRW } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -201,6 +202,9 @@ export default function PortfoliosPage() {
       );
       setEditingId(null);
     },
+    onError: () => {
+      toast.error("포트폴리오 이름 변경에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    },
   });
 
   const deleteMutation = useMutation({
@@ -210,11 +214,21 @@ export default function PortfoliosPage() {
         prev ? prev.filter((p) => p.id !== id) : []
       );
     },
+    onError: () => {
+      toast.error("포트폴리오 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    },
   });
 
   const reorderMutation = useMutation({
     mutationFn: (items: { id: number; display_order: number }[]) =>
       api.patch("/portfolios/reorder", { items }),
+    onError: (_error, _items, context) => {
+      // Roll back optimistic UI update on failure
+      if (context) {
+        queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, context as Portfolio[]);
+      }
+      toast.error("순서 변경에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    },
   });
 
   const sensors = useSensors(
@@ -229,12 +243,19 @@ export default function PortfoliosPage() {
     const newIndex = portfolios.findIndex((p) => p.id === over.id);
     const reordered = arrayMove(portfolios, oldIndex, newIndex);
 
+    // Save snapshot for rollback before applying optimistic update
+    const snapshot = queryClient.getQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY);
+
     // Optimistic update
     queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, reordered);
 
-    // Persist to backend
+    // Persist to backend — snapshot passed as context for rollback on error
     reorderMutation.mutate(
-      reordered.map((p, i) => ({ id: p.id, display_order: i }))
+      reordered.map((p, i) => ({ id: p.id, display_order: i })),
+      { onError: (_err, _items, _ctx) => {
+        queryClient.setQueryData<Portfolio[]>(PORTFOLIOS_QUERY_KEY, snapshot);
+        toast.error("순서 변경에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      }}
     );
   };
 

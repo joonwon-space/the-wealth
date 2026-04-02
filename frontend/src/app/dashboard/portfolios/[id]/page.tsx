@@ -8,6 +8,16 @@ import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
 import { TransactionChart } from "@/components/DynamicCharts";
@@ -230,6 +240,9 @@ export default function PortfolioDetailPage() {
       );
       setAddForm(null);
     },
+    onError: () => {
+      toast.error("보유종목 추가에 실패했습니다. 입력 내용을 확인해주세요.");
+    },
   });
 
   const editHoldingMutation = useMutation({
@@ -241,6 +254,9 @@ export default function PortfolioDetailPage() {
       );
       setEditId(null);
     },
+    onError: () => {
+      toast.error("보유종목 수정에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    },
   });
 
   const deleteHoldingMutation = useMutation({
@@ -250,6 +266,9 @@ export default function PortfolioDetailPage() {
         prev ? prev.filter((h) => h.id !== holdingId) : []
       );
       setDeleteConfirmId(null);
+    },
+    onError: () => {
+      toast.error("보유종목 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.");
     },
   });
 
@@ -267,6 +286,9 @@ export default function PortfolioDetailPage() {
       setShowTxnForm(false);
       void queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
     },
+    onError: () => {
+      toast.error("거래내역 추가에 실패했습니다. 입력 내용을 확인해주세요.");
+    },
   });
 
   const deleteTxnMutation = useMutation({
@@ -275,6 +297,9 @@ export default function PortfolioDetailPage() {
       void queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
       setDeleteTxnId(null);
     },
+    onError: () => {
+      toast.error("거래내역 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    },
   });
 
   const updateMemoMutation = useMutation({
@@ -282,6 +307,9 @@ export default function PortfolioDetailPage() {
       api.patch<TxnRow>(`/portfolios/${portfolioId}/transactions/${txnId}`, { memo }).then((r) => r.data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: transactionsKey(portfolioId) });
+    },
+    onError: () => {
+      toast.error("메모 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
     },
     onSettled: () => {
       setEditMemoId(null);
@@ -294,6 +322,9 @@ export default function PortfolioDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
       setEditingTarget(false);
+    },
+    onError: () => {
+      toast.error("목표 금액 설정에 실패했습니다. 잠시 후 다시 시도해주세요.");
     },
   });
 
@@ -818,47 +849,61 @@ export default function PortfolioDetailPage() {
         </div>
       )}
 
-      {/* 삭제 확인 모달 */}
-      {deleteConfirmId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-xs rounded-xl border bg-background p-6 shadow-lg text-center space-y-4">
-            <p className="font-semibold">종목을 삭제하시겠습니까?</p>
-            <p className="text-sm text-muted-foreground">이 작업은 되돌릴 수 없습니다.</p>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirmId(null)}>취소</Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                disabled={deleteHoldingMutation.isPending}
-                onClick={() => deleteHoldingMutation.mutate(deleteConfirmId)}
-              >
-                삭제
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 보유종목 삭제 확인 — shadcn AlertDialog (role=alertdialog, focus trap) */}
+      <AlertDialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>종목을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              이 작업은 되돌릴 수 없습니다. 관련 거래내역도 모두 삭제됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId !== null) {
+                  deleteHoldingMutation.mutate(deleteConfirmId);
+                }
+              }}
+            >
+              {deleteHoldingMutation.isPending ? "삭제 중..." : "삭제"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* 거래 삭제 확인 */}
-      {deleteTxnId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-xs rounded-xl border bg-background p-6 shadow-lg text-center space-y-4">
-            <p className="font-semibold">거래를 삭제하시겠습니까?</p>
-            <p className="text-sm text-muted-foreground">이 작업은 되돌릴 수 없습니다.</p>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setDeleteTxnId(null)}>취소</Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                disabled={deleteTxnMutation.isPending}
-                onClick={() => deleteTxnMutation.mutate(deleteTxnId)}
-              >
-                삭제
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 거래내역 삭제 확인 — shadcn AlertDialog */}
+      <AlertDialog
+        open={deleteTxnId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTxnId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>거래를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTxnId !== null) {
+                  deleteTxnMutation.mutate(deleteTxnId);
+                }
+              }}
+            >
+              {deleteTxnMutation.isPending ? "삭제 중..." : "삭제"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 수동 거래 이력 (DB) */}
       <section className="space-y-2">

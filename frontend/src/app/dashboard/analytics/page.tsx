@@ -126,8 +126,10 @@ export default function AnalyticsPage() {
   const [chartLoading, setChartLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
+  // Use the same query key as dashboard/page.tsx so TanStack Query serves
+  // the cached response instead of making a duplicate network request.
   const { data: summary, isLoading: summaryLoading } = useQuery<Summary>({
-    queryKey: ["analytics", "summary"],
+    queryKey: ["dashboard", "summary"],
     queryFn: () => api.get<Summary>("/dashboard/summary").then((r) => r.data),
     staleTime: 60_000,
   });
@@ -499,9 +501,9 @@ export default function AnalyticsPage() {
           {/* Mobile card view */}
           <div className="space-y-3 md:hidden">
             {sortedByMarketValue.map((h, i) => (
-              <div
+              <button
                 key={`${h.ticker}-${i}`}
-                className="cursor-pointer rounded-lg border p-3 space-y-2 active:bg-accent/50"
+                className="w-full text-left rounded-lg border p-3 space-y-2 active:bg-accent/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => handleSelectStock(h.ticker, h.name)}
               >
                 <div className="flex items-center justify-between">
@@ -533,7 +535,7 @@ export default function AnalyticsPage() {
                     <PnLBadge value={h.pnl_amount ?? 0} />
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -552,8 +554,15 @@ export default function AnalyticsPage() {
                 {sortedByMarketValue.map((h, i) => (
                   <tr
                     key={`${h.ticker}-${i}`}
-                    className="border-t cursor-pointer hover:bg-accent/50"
+                    className="border-t cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:bg-accent/50"
+                    tabIndex={0}
                     onClick={() => handleSelectStock(h.ticker, h.name)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleSelectStock(h.ticker, h.name);
+                      }
+                    }}
                   >
                     <td className="px-4 py-2">
                       <div className="font-medium">{h.name}</div>

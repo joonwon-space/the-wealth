@@ -33,9 +33,11 @@ const securityHeaders = [
   },
   {
     key: "Content-Security-Policy",
+    // unsafe-eval is required by Next.js HMR in development only.
+    // In production it is omitted to prevent arbitrary script execution.
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com", // unsafe-eval needed for Next.js dev HMR
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com`,
       "style-src 'self' 'unsafe-inline'", // inline styles used by Tailwind + shadcn
       "img-src 'self' data: blob:",
       "font-src 'self'",
