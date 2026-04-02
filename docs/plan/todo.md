@@ -274,6 +274,31 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
+## Sprint-3 완료 항목 (2026-04-03)
+
+### 보안
+- [x] SEC-001: Sentry KIS 자격증명 스크러빙 (before_send 훅, kis_order/kis_token from-None chain)
+- [x] SEC-002: bcrypt DoS 방어 (password max_length=128, auth.py/user.py)
+- [x] SEC-004: 프로덕션 CSP unsafe-eval 제거 (next.config.ts 빌드 환경 분기)
+- [x] SEC-006: TransactionMemoUpdate tags 최대 20개, 개당 50자 제한
+- [x] TD-005: cryptography 46.0.5 → 46.0.6 패치 업그레이드
+
+### 성능
+- [x] PERF-001: get_prev_close DISTINCT ON 쿼리 (14,600행 → 20행)
+- [x] PERF-002: fx-gain-loss Redis 캐시 가드
+- [x] PERF-003: analytics/metrics 해외 ticker → fetch_overseas_price_detail 라우팅
+- [x] PERF-004: SSE 활성 시 dashboard polling 비활성화 (streamActiveRef)
+- [x] PERF-005/TD-001: Redis ConnectionPool 싱글턴 (요청당 TCP 오버헤드 40-300ms 제거)
+- [x] PERF-006: analytics/page.tsx 쿼리 키 `["dashboard", "summary"]`로 통일
+
+### UX/접근성
+- [x] UX-001: 포트폴리오 상세 7개 mutation onError toast
+- [x] UX-004: 포트폴리오 목록 rename/delete onError + reorder rollback
+- [x] UX-006: analytics 테이블 키보드 접근성 (tabIndex, Enter/Space)
+- [x] UX-007: 인라인 삭제 오버레이 → shadcn AlertDialog 교체
+
+---
+
 ## Milestone 20: 보안 강화 — 트레이딩 계정 보호 (team-analysis 2026-04-02)
 
 거래 기능 활성화 이후 계정 보안 리스크가 재무 피해로 직결되므로 P1 우선순위.
