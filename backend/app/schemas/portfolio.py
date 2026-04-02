@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -131,7 +131,10 @@ class TransactionCreate(BaseModel):
 
 class TransactionMemoUpdate(BaseModel):
     memo: Optional[str] = Field(None, max_length=500)
-    tags: Optional[list[str]] = None
+    # max 20 tags, each tag max 50 chars — prevents unbounded list/string DoS
+    tags: Optional[list[Annotated[str, Field(max_length=50)]]] = Field(
+        None, max_length=20
+    )
 
 
 class TransactionResponse(BaseModel):
