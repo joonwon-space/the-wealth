@@ -1,8 +1,7 @@
-import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +14,9 @@ from app.models.portfolio import Portfolio
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.core.logging import get_logger
+from app.core.limiter import limiter
+from app.core.ticker import is_domestic
+from app.api.analytics import invalidate_analytics_cache
 import asyncio
 import httpx
 from app.services.kis_price import (
@@ -40,13 +42,6 @@ from app.schemas.portfolio import (
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 logger = get_logger(__name__)
-
-# 국내 티커: 숫자+영문 혼합 6자리 (일반주 005930, ETF/ETN 0087F0 등)
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:
@@ -106,7 +101,9 @@ async def list_portfolios(
 
 
 @router.post("", response_model=PortfolioResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("60/minute")
 async def create_portfolio(
+    request: Request,
     body: PortfolioCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -201,7 +198,9 @@ async def update_portfolio(
 
 
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("60/minute")
 async def delete_portfolio(
+    request: Request,
     portfolio_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -262,7 +261,7 @@ async def list_holdings_with_prices(
         "SEHK": "HKS", "TKSE": "TSE", "SHAA": "SHS",
         "SZAA": "SZS", "HASE": "HNX", "VNSE": "HSX",
     }
-    overseas_holdings = [h for h in holdings if not _is_domestic(h.ticker)]
+    overseas_holdings = [h for h in holdings if not is_domestic(h.ticker)]
     ticker_to_market = {
         h.ticker: _MARKET_MAP.get(h.market or "", h.market or "NAS")
         for h in overseas_holdings
@@ -277,7 +276,7 @@ async def list_holdings_with_prices(
             try:
                 app_key = decrypt(acct.app_key_enc)
                 app_secret = decrypt(acct.app_secret_enc)
-                domestic_tickers = list({h.ticker for h in holdings if _is_domestic(h.ticker)})
+                domestic_tickers = list({h.ticker for h in holdings if is_domestic(h.ticker)})
                 overseas_tickers = list({h.ticker for h in overseas_holdings})
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     # 국내주식 현재가 (캐시 우선)
@@ -317,7 +316,7 @@ async def list_holdings_with_prices(
 
     items = []
     for h in holdings:
-        is_overseas = not _is_domestic(h.ticker)
+        is_overseas = not is_domestic(h.ticker)
         cp = prices.get(h.ticker)
         invested = h.quantity * h.avg_price
 
@@ -367,7 +366,9 @@ async def list_holdings_with_prices(
     response_model=HoldingResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("60/minute")
 async def add_holding(
+    request: Request,
     portfolio_id: int,
     body: HoldingCreate,
     current_user: User = Depends(get_current_user),
@@ -391,6 +392,7 @@ async def add_holding(
     db.add(holding)
     await db.commit()
     await db.refresh(holding)
+    await invalidate_analytics_cache(current_user.id)
     return holding
 
 
@@ -399,7 +401,9 @@ async def add_holding(
     response_model=BulkHoldingResult,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("60/minute")
 async def bulk_add_holdings(
+    request: Request,
     portfolio_id: int,
     body: BulkHoldingRequest,
     current_user: User = Depends(get_current_user),
@@ -458,6 +462,7 @@ async def bulk_add_holdings(
             errors.append(f"{item.ticker}: {exc}")
 
     await db.commit()
+    await invalidate_analytics_cache(current_user.id)
     logger.info(
         "Bulk holdings upsert: portfolio=%d created=%d updated=%d errors=%d",
         portfolio_id, created, updated, len(errors),
@@ -466,7 +471,9 @@ async def bulk_add_holdings(
 
 
 @router.patch("/holdings/{holding_id}", response_model=HoldingResponse)
+@limiter.limit("60/minute")
 async def update_holding(
+    request: Request,
     holding_id: int,
     body: HoldingUpdate,
     current_user: User = Depends(get_current_user),
@@ -494,7 +501,9 @@ async def update_holding(
 
 
 @router.delete("/holdings/{holding_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("60/minute")
 async def delete_holding(
+    request: Request,
     holding_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -513,6 +522,7 @@ async def delete_holding(
 
     await db.delete(holding)
     await db.commit()
+    await invalidate_analytics_cache(current_user.id)
 
 
 @router.get("/{portfolio_id}/transactions", response_model=list[TransactionResponse])

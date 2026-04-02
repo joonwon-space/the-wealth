@@ -1,6 +1,5 @@
 """Stock chart data API — KIS daily OHLCV for candlestick charts."""
 
-import re
 from datetime import date, timedelta
 from typing import Optional
 
@@ -17,15 +16,10 @@ from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.user import User
 from app.services.kis_token import get_kis_access_token
+from app.core.ticker import is_domestic
 
 router = APIRouter(prefix="/chart", tags=["chart"])
 logger = get_logger(__name__)
-
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 @router.get("/daily")
@@ -55,7 +49,7 @@ async def get_daily_chart(
     app_secret = decrypt(acct.app_secret_enc)
     token = await get_kis_access_token(app_key, app_secret)
 
-    if _is_domestic(ticker):
+    if is_domestic(ticker):
         return await _fetch_domestic_candles(ticker, period, app_key, app_secret, token)
     else:
         excd = market or "NAS"

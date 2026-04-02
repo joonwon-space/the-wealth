@@ -1,0 +1,105 @@
+{
+  "agent": "security-posture-analyst",
+  "summary": "The project has materially strengthened its security posture since the last audit: server-side refresh token revocation with Redis JTI rotation is fully implemented, rate limiting now covers portfolio and order write endpoints, CORS methods/headers are explicitly scoped, and HttpOnly cookies are used for token storage. The most significant remaining gap is KIS API credentials (app_key, app_secret) being sent as plain HTTP headers in httpx requests. When httpx.HTTPStatusError propagates through Sentry with no before_send scrubber configured, the full request including those headers is captured, leaking live brokerage credentials to the error tracking service. Secondary concerns include unbounded password input enabling a bcrypt denial-of-service, the SSE access token exposed in the URL query string appearing in all server and proxy access logs, and missing max_length constraints on multiple input fields.",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "title": "KIS API credentials captured unredacted in Sentry via httpx exception chain",
+      "category": "secrets",
+      "severity": "critical",
+      "effort": "S",
+      "impact": "data-breach",
+      "location": "backend/app/services/kis_order.py, backend/app/services/kis_token.py, backend/app/main.py",
+      "detail": "Every KIS API request sends appkey and appsecret as HTTP request headers inside httpx.AsyncClient. When resp.raise_for_status() raises httpx.HTTPStatusError, the exception embeds the full httpx.Request including all headers. This propagates to global_exception_handler which logs it and Sentry captures it. The Sentry FastAPI integration has no before_send hook to scrub request headers, so decrypted KIS app_key and app_secret appear verbatim in Sentry error events. An attacker with read access to the Sentry project obtains live brokerage credentials usable to place or cancel real securities orders.",
+      "recommendation": "Add a before_send callback to sentry_sdk.init() in backend/app/main.py that scrubs sensitive headers by replacing values for keys matching appkey, appsecret, and authorization with [Filtered]. Additionally in kis_order.py and kis_token.py, catch httpx.HTTPStatusError explicitly and re-raise a sanitized RuntimeError without chaining the original exception."
+    },
+    {
+      "id": "SEC-002",
+      "title": "Unbounded password input enables bcrypt denial-of-service",
+      "category": "input-validation",
+      "severity": "high",
+      "effort": "S",
+      "impact": "denial-of-service",
+      "location": "backend/app/schemas/auth.py, backend/app/schemas/user.py",
+      "detail": "RegisterRequest.password and LoginRequest.password have only a minimum length of 8 with no maximum. bcrypt.hashpw() passes raw password bytes to bcrypt. A single POST to /auth/login with a 1 MB password string consumes several seconds of CPU time. With 5/min rate limit per IP, five concurrent requests from different IPs each submitting a 1 MB password can saturate server CPU. Bcrypt also silently truncates input at 72 bytes, making passwords over 72 bytes effectively equivalent.",
+      "recommendation": "Add max_length=128 to all password fields in RegisterRequest, LoginRequest, ChangePasswordRequest, and DeleteAccountRequest schemas. Pydantic validation will reject overlength passwords before they reach bcrypt.hashpw()."
+    },
+    {
+      "id": "SEC-003",
+      "title": "SSE access token exposed in server and proxy access logs via URL query parameter",
+      "category": "api-security",
+      "severity": "high",
+      "effort": "M",
+      "impact": "privilege-escalation",
+      "location": "backend/app/api/deps.py:50-64, backend/app/api/prices.py:171-174, frontend/src/hooks/usePriceStream.ts:52",
+      "detail": "The SSE endpoint /api/v1/prices/stream?token=ACCESS_TOKEN accepts the JWT as a query parameter because the browser EventSource API does not support custom headers. The 30-minute JWT appears in nginx/Cloudflare access logs in plaintext, browser history, referrer headers, and any reverse-proxy or CDN logs. An attacker monitoring server logs can obtain valid tokens to authenticate as any connected user.",
+      "recommendation": "Modify get_current_user_sse in backend/app/api/deps.py to read the HttpOnly access_token cookie via request.cookies.get() instead of requiring a query parameter. The browser EventSource connection automatically sends same-origin cookies. The only frontend change is removing the token query string from usePriceStream.ts line 52."
+    },
+    {
+      "id": "SEC-004",
+      "title": "CSP unsafe-inline and unsafe-eval in script-src neutralize XSS protections in production",
+      "category": "frontend-security",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "data-breach",
+      "location": "frontend/next.config.ts:25",
+      "detail": "script-src includes both unsafe-eval and unsafe-inline. The comment notes unsafe-eval is for Next.js dev HMR but production builds do not require it. unsafe-inline allows arbitrary inline script execution. If any XSS vector exists in user-controlled content, these directives allow full script execution enabling exfiltration of in-memory access tokens and portfolio data.",
+      "recommendation": "Conditionally include unsafe-eval only in development by checking process.env.NODE_ENV in next.config.ts. For production, replace unsafe-inline with a nonce-based CSP using Next.js middleware that injects a per-request nonce into both the CSP header and all inline script/style tags."
+    },
+    {
+      "id": "SEC-005",
+      "title": "Missing max_length on HoldingCreate.name, BulkHoldingItem.name, and AlertCreate.ticker",
+      "category": "input-validation",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "denial-of-service",
+      "location": "backend/app/schemas/portfolio.py:61, backend/app/schemas/portfolio.py:81, backend/app/api/alerts.py:25",
+      "detail": "Three fields written to the database have no upper bound on string length: HoldingCreate.name (line 61), BulkHoldingItem.name (line 81), and AlertCreate.ticker in alerts.py (the validator only checks non-empty). BulkHoldingItem allows up to 100 items per request but each name could be 10 MB resulting in 1 GB per bulk request. PostgreSQL String columns without explicit length use TEXT internally.",
+      "recommendation": "Add Field constraints: name: str = Field(min_length=1, max_length=100) on HoldingCreate and BulkHoldingItem. For AlertCreate use ticker: str = Field(min_length=1, max_length=20). Also add max_length constraints to KisAccountCreate in users.py: label max_length=100, account_no max_length=20, app_key max_length=100, app_secret max_length=200."
+    },
+    {
+      "id": "SEC-006",
+      "title": "TransactionMemoUpdate tags list lacks per-item and list-count constraints",
+      "category": "input-validation",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "denial-of-service",
+      "location": "backend/app/schemas/portfolio.py:132-134",
+      "detail": "TransactionMemoUpdate.tags is Optional[list[str]] with no constraints on list length or individual tag string length. The memo field correctly enforces max_length=500 but tags is stored in a PostgreSQL ARRAY(Text) column with no limit. An authenticated user can submit a tags list containing a single 10 MB string per transaction update with no cap on the number of tags.",
+      "recommendation": "Use Annotated types with Field constraints: tags: Optional[list[Annotated[str, Field(max_length=50)]]] = Field(None, max_length=20). This enforces a maximum of 20 tags each no longer than 50 characters. Import Annotated from typing."
+    },
+    {
+      "id": "SEC-007",
+      "title": "revoke_all_refresh_tokens_for_user performs full-keyspace Redis SCAN on every logout",
+      "category": "auth",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "denial-of-service",
+      "location": "backend/app/core/security.py:64-77",
+      "detail": "revoke_all_refresh_tokens_for_user iterates the entire refresh_jti:* keyspace with Redis SCAN to find tokens belonging to a specific user. On a Redis instance with thousands of JTI keys, each logout or password change performs O(N) work proportional to total active tokens across all users. Concurrent logouts could degrade Redis performance for price caching and KIS token storage.",
+      "recommendation": "Add a reverse-lookup Redis set per user named user_jtis:{user_id} containing all active JTI values. On store_refresh_jti SADD the JTI with the same TTL. On revoke_all_refresh_tokens_for_user SMEMBERS the set, delete all refresh_jti keys in a pipeline, then DELETE the user_jtis set. This reduces revocation from O(N keyspace) to O(sessions per user) and enables efficient single-session revocation for Milestone 20-4."
+    },
+    {
+      "id": "SEC-008",
+      "title": "Backend SecurityHeadersMiddleware missing Strict-Transport-Security header",
+      "category": "api-security",
+      "severity": "low",
+      "effort": "S",
+      "impact": "data-breach",
+      "location": "backend/app/core/middleware.py",
+      "detail": "The backend SecurityHeadersMiddleware sets X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, and X-XSS-Protection but omits Strict-Transport-Security. The frontend next.config.ts correctly includes HSTS but API responses consumed via the API subdomain lack HSTS. If the API is served over HTTP via a misconfigured reverse proxy, browsers will not automatically upgrade future API requests to HTTPS.",
+      "recommendation": "Add Strict-Transport-Security with value max-age=63072000; includeSubDomains; preload to _SECURITY_HEADERS in backend/app/core/middleware.py. Gate it on settings.ENVIRONMENT == production to avoid HSTS on localhost development."
+    },
+    {
+      "id": "SEC-009",
+      "title": "No automated pip dependency vulnerability scanning in CI",
+      "category": "dependency",
+      "severity": "low",
+      "effort": "S",
+      "impact": "information-disclosure",
+      "location": "backend/requirements.txt",
+      "detail": "Frontend npm audit reports 0 vulnerabilities. However there is no automated backend Python dependency vulnerability check in CI. The backend uses PyJWT, cryptography, httpx, sentry-sdk, and sqlalchemy which receive periodic CVE disclosures. Without automated scanning a new CVE in a transitive dependency would not be caught until manual review.",
+      "recommendation": "Add a CI step running pip install pip-audit followed by pip-audit -r requirements.txt. Alternatively ensure the existing GitHub Dependabot configuration covers the backend/ directory with package-ecosystem: pip. The frontend already benefits from Dependabot for npm."
+    }
+  ]
+}

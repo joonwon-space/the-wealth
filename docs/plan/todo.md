@@ -272,75 +272,201 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
-## Priority Guide (2026-04-01 갱신)
+---
 
-### 해결 완료 (이전 P0/P1)
-- ~~테스트 일괄 실행 (294 ERROR)~~ — conftest.py async session 격리 수정, CI 전체 통과
-- ~~중복 파일 정리~~ — 이상 파일 없음, 구조 정상
-- ~~Trading Feature 테스트 커버리지~~ — 39개 테스트 추가 (orders 36 + settlement 3)
-- ~~npm 취약점 (yaml)~~ — `npm audit` 0 vulnerabilities
-- ~~미체결 주문 즉시 반영 버그~~ — pending 시 transaction/holding 생성 제거, 체결 확인 스케줄러 추가
+## Milestone 20: 보안 강화 — 트레이딩 계정 보호 (team-analysis 2026-04-02)
 
-### P1 — 핵심 기능 + 인프라 안정성 (5개)
-| # | Item | Milestone | Reason |
-|---|------|-----------|--------|
-| 1 | Sharpe ratio, MDD, CAGR 지표 | 11-2 | 투자 성과 핵심 분석 도구 |
-| 2 | KOSPI200/S&P500 벤치마크 오버레이 | 11-2 | 수익률 비교 기준선 (13-1 선행 필요) |
-| 3 | 해외주식 환차익/환차손 분리 표시 | 17-2 | 사용자 요청 빈번, 해외투자 핵심 |
-| 4 | 원화 환산 총 자산 추이 차트 | 17-2 | 환율 변동 반영된 실질 자산 파악 |
-| 5 | Neon(PostgreSQL) + Upstash(Redis) 전환 | 18-2 | 단일 서버 리스크 해소 (4개 하위 항목) |
+거래 기능 활성화 이후 계정 보안 리스크가 재무 피해로 직결되므로 P1 우선순위.
 
-### P2 — 분석 고도화 + 사용자 경험 (24개)
-| # | Item | Milestone | Reason |
-|---|------|-----------|--------|
-| 1 | KOSPI200/S&P500 일별 인덱스 데이터 수집 | 13-1 | 벤치마크·분석 엔진의 선행 조건 |
-| 2 | 종목 메타데이터 테이블 (섹터, 업종, 시가총액) | 13-1 | 섹터 분석 정확도 향상 |
-| 3 | 배당 데이터 수집 (KIS or KRX) | 13-1 | 배당 추적의 전제 조건 |
-| 4 | TWR/MWR 수익률 계산 | 13-2 | 정확한 투자 성과 측정 |
-| 5 | 리스크 지표: 변동성, Sharpe, MDD, 베타 | 13-2 | 포트폴리오 리스크 분석 |
-| 6 | 배당 수익 추적 (캘린더 + 수익률 차트) | 11-2 | 배당 투자자 핵심 기능 |
-| 7 | 월간/연간 수익률 히트맵 | 11-2 | 성과 시각화 (GitHub 스타일) |
-| 8 | 내 보유가 오버레이 (캔들차트 평균매입가 수평선) | 11-4 | 현재가 vs 매입가 시각적 비교 |
-| 9 | 이동평균선 오버레이 (5/20/60/120일) | 11-4 | 기술적 분석 기본 도구 |
-| 10 | 거래량 분석 차트 | 11-4 | 종목 상세 분석 보완 |
-| 11 | 뉴스/공시 피드 (KIS or 네이버 금융) | 11-4 | 종목 관련 정보 통합 |
-| 12 | 포트폴리오 비교: 기간별 필터 + date range picker | 17-1 | 비교 대시보드 사용성 개선 |
-| 13 | 포트폴리오별 섹터 비중 비교 (side-by-side donut) | 17-1 | 다중 포트폴리오 분석 |
-| 14 | 환율 알림 (목표 환율 도달 시) | 17-2 | 환전 타이밍 알림 |
-| 15 | 투자 일지 필터링 및 검색 (월별/종목별) | 17-3 | 거래 기록 탐색 편의성 |
-| 16 | 투자 결정 회고 (매수 시점 vs 현재가 비교 위젯) | 17-3 | 투자 학습 지원 |
-| 17 | 이메일 알림 (SendGrid/Resend) | 19-1 | 인앱 알림만으로는 실시간 대응 불가 |
-| 18 | 알림 채널 설정 UI (인앱/이메일/둘 다) | 19-1 | 알림 개인화 |
-| 19 | 일일 포트폴리오 요약 이메일 | 19-1 | 장 마감 후 자동 리포트 |
-| 20 | PWA Web Push 알림 | 19-1 | 모바일 실시간 알림 |
-| 21 | 2FA (TOTP, Google Authenticator) | 14-4 | 계정 보안 강화 |
-| 22 | 보안 감사 로그 (로그인, 설정 변경, 데이터 접근) | 14-4 | 보안 추적성 |
-| 23 | API key rotation 자동화 | 14-4 | KIS 키 관리 안전성 |
-| 24 | TLS 인증서 만료 체크 자동화 | 18-3 | 서비스 중단 예방 |
+### 20-1. 서버 사이드 Refresh Token 관리
 
-### P3 — 부가 기능 + DX (12개)
-| # | Item | Milestone | Reason |
-|---|------|-----------|--------|
-| 1 | 운영 대시보드 (`/dashboard/admin`) | 18-1 | 관리 편의성, 규모 커지면 필수 |
-| 2 | 동기화 상태 모니터링 (sync_logs 시각화) | 18-1 | 운영 가시성 |
-| 3 | KIS API 응답시간 추이 차트 | 18-1 | 성능 추적 |
-| 4 | Redis 키 현황 모니터링 | 18-1 | 캐시/락 상태 파악 |
-| 5 | ETag/If-None-Match (dashboard 304) | 12-3 | 대역폭 절약, 체감 속도 개선 |
-| 6 | 종목 검색 trie/Redis ZRANGEBYLEX 인덱싱 | 12-3 | 검색 성능 최적화 |
-| 7 | KIS batch price API 탐색 | 12-3 | API 호출 횟수 절감 |
-| 8 | KIS API 가격 조회 실패율 추적 | 18-3 | 데이터 품질 모니터링 |
-| 9 | 백업 성공률 대시보드 (최근 30일) | 18-3 | 백업 신뢰성 확인 |
-| 10 | 뉴스 요약 (RSS + Claude) | 13-3 | AI 부가 기능 |
-| 11 | 포트폴리오 성과 익명 공유 링크 + 공유 페이지 | 19-2 | 바이럴 마케팅 |
-| 12 | Storybook 8 컴포넌트 카탈로그 | 16-3 | DX 개선 |
+- [ ] Redis에 refresh token 저장 — `refresh_token:{user_id}:{jti}` 키, TTL = refresh 만료일
+- [ ] 로그아웃 시 Redis 키 삭제 (현재는 클라이언트 쿠키만 제거)
+- [ ] `/auth/refresh` 검증 시 Redis 존재 여부 확인 — 없으면 401 반환
+- [ ] 비밀번호 변경 시 전체 refresh token 무효화 (기존 로직 강화)
+
+### 20-2. 2FA (TOTP)
+
+- [ ] `pyotp` 패키지 + TOTP 시크릿 생성/저장 API (`POST /users/me/2fa/setup`)
+- [ ] QR 코드 URI 반환 → 프론트 설정 UI (Google Authenticator 등록)
+- [ ] 2FA 활성화 확인 (`POST /users/me/2fa/verify`) + users 테이블 `totp_enabled`, `totp_secret_enc` 컬럼
+- [ ] 로그인 플로우: 2FA 활성화 계정은 TOTP 코드 추가 입력 단계
+
+### 20-3. 보안 감사 로그
+
+- [ ] `security_audit_logs` 테이블: user_id, action, resource_type, resource_id, ip_address, user_agent, created_at
+- [ ] 기록 대상: 로그인 성공/실패, 주문 실행/취소, KIS 자격증명 등록/수정/삭제, 회원 탈퇴
+- [ ] `GET /users/me/security-logs` 엔드포인트 (최근 50건)
+- [ ] 설정 페이지 '보안 로그' 탭 추가
+
+### 20-4. 활성 세션 관리
+
+- [ ] 각 refresh token에 device info (user-agent hash, IP, created_at) 저장
+- [ ] `GET /auth/sessions` — 활성 세션 목록 조회
+- [ ] `DELETE /auth/sessions/{session_id}` — 특정 세션 강제 종료
+- [ ] 설정 페이지 '활성 세션' 섹션 추가
+
+---
+
+## Milestone 21: 분석 엔진 완성 — 벤치마크 + 리스크 지표 (team-analysis 2026-04-02)
+
+현재 analytics 완성도 72%. 벤치마크 오버레이와 리스크 지표가 핵심 잔여 갭.
+
+### 21-1. 시장 지수 데이터 수집 (13-1 선행 작업)
+
+- [ ] `index_snapshots` 테이블: index_code (KOSPI200/SPX), snapshot_date, close, open, high, low
+- [ ] 스케줄러: 평일 KST 16:15 KOSPI200 (`FHKUP03500100`) + S&P500 (`FHKST03030100 .SPX`) 일별 데이터 저장
+- [ ] `GET /analytics/benchmark` 엔드포인트 — 기간별 벤치마크 수익률 반환
+
+### 21-2. 벤치마크 오버레이 차트
+
+- [ ] 포트폴리오 히스토리 차트에 KOSPI200/S&P500 기준선 오버레이 (Recharts 추가 Line)
+- [ ] 벤치마크 선택 토글 (국내 포트폴리오 → KOSPI200, 해외 포함 → S&P500)
+- [ ] 기간 필터와 동기화 (1M/3M/6M/1Y/ALL)
+
+### 21-3. 리스크 지표 계산
+
+- [ ] `backend/app/services/metrics.py` — Sharpe ratio, MDD, 연환산 베타, 변동성 계산
+- [ ] `GET /analytics/metrics` 응답에 sharpe_ratio, mdd, volatility 추가
+- [ ] 분석 페이지 지표 카드 UI 업데이트
+
+### 21-4. DCA 분석 뷰 (신규 기능)
+
+- [ ] 거래 이력에서 정기 매수 패턴 감지 (월별 BUY 트랜잭션 집계)
+- [ ] 종목별 평균매입단가 시계열 차트 (매수 거래 시점별 avg_price 변화)
+- [ ] 투자 일지 페이지 또는 분석 페이지 내 'DCA 분석' 섹션 추가
+
+---
+
+## Milestone 22: 인프라 안정화 — Neon + Upstash + 이메일 알림 (team-analysis 2026-04-02)
+
+단일 서버 PostgreSQL은 트레이딩 기능이 있는 프로덕션 앱의 주요 리스크.
+
+### 22-1. Neon (서버리스 PostgreSQL) 전환 (18-2)
+
+- [ ] Neon 프로젝트 생성 및 스키마 마이그레이션 (`alembic upgrade head`)
+- [ ] 데이터 이전: `pg_dump` → Neon import
+- [ ] `DATABASE_URL` 환경변수 업데이트 + 연결 테스트
+- [ ] Docker Compose는 로컬 개발용으로만 유지
+
+### 22-2. Upstash (서버리스 Redis) 전환 (18-2)
+
+- [ ] Upstash Redis 인스턴스 생성 (TLS 연결)
+- [ ] `REDIS_URL` 환경변수 업데이트
+- [ ] 기존 RedisCache 추상화 재사용 — 코드 변경 최소화
+- [ ] 스테이징 환경 검증 (KIS 토큰 캐싱, analytics 캐시, SSE)
+
+### 22-3. 이메일 알림 (Resend) (19-1)
+
+- [ ] `resend` Python 패키지 + `RESEND_API_KEY` 환경변수
+- [ ] 가격 알림 이메일 발송 — 알림 조건 충족 시 triggered_alert에서 호출
+- [ ] 알림 채널 설정 UI — 인앱 / 이메일 / 둘 다 선택
+- [ ] 일일 포트폴리오 요약 이메일 — 평일 KST 16:30 자동 발송 (장 마감 후)
+
+---
+
+## Priority Guide (2026-04-02 2차 갱신)
+
+### team-analysis 2차 sprint (2026-04-02)
+
+tasks.md에 즉시 실행 가능 항목 8개 추가 (P0/P1):
+- P0: Sentry KIS 자격증명 스크러빙, get_prev_close DISTINCT ON, bcrypt DoS 방어, cryptography 업데이트
+- P1: fx-gain-loss 캐시, metrics 해외종목 라우팅, SSE 활성 시 폴링 비활성화, mutation onError
+
+1차 sprint 항목 전체 완료:
+- ~~GZip 미들웨어, is_domestic 통합, analytics cache 누락 수정~~
+- ~~DB 인덱스 2건, 삭제 확인 다이얼로그, compare 빈 상태, rate limiting, CORS 스코프~~
+- ~~localStorage 방어 처리, Sentry env 설정, 차트 스켈레톤~~
+
+신규 마일스톤:
+- **Milestone 20** (P1): 보안 강화 -- 2FA, 서버사이드 refresh token, 감사 로그
+- **Milestone 21** (P1): 분석 엔진 완성 -- 벤치마크, 리스크 지표, DCA 분석
+- **Milestone 22** (P2): 인프라 안정화 -- Neon, Upstash, 이메일 알림
+
+### P1 -- 핵심 기능 + 보안 + 인프라 안정성 (10개)
+| # | Item | Milestone | Reason | Source |
+|---|------|-----------|--------|--------|
+| 1 | SSE 토큰 쿼리 파라미터 -> HttpOnly 쿠키 | 보안 | 서버 로그에 JWT 노출 방지 | SEC-003 |
+| 2 | Redis 커넥션 풀링 (per-call -> shared pool) | 성능 | 요청당 40-300ms 오버헤드 제거 | PERF-005 |
+| 3 | TOTP 2FA (Google Authenticator 호환) | 20-2 | 트레이딩 기능 활성화 후 계정 보안 필수 | PROD-010 |
+| 4 | 서버사이드 Refresh Token 무효화 | 20-1 | 로그아웃 후 토큰 재사용 방지 | PROD-001 |
+| 5 | 시장 지수 데이터 수집 + Sharpe/MDD 지표 | 21-1/21-3 | 투자 성과 핵심 분석 도구 | PROD-002 |
+| 6 | KOSPI200/S&P500 벤치마크 오버레이 | 21-2 | 수익률 비교 기준선 | PROD-002 |
+| 7 | Neon(PostgreSQL) + Upstash(Redis) 전환 | 22-1/22-2 | 단일 서버 리스크 해소 | PROD-003 |
+| 8 | 이메일 알림 (Resend) -- 인프라와 분리 | 22-3 | 인앱 알림만으로는 실시간 대응 불가 | PROD-004 |
+| 9 | 보안 감사 로그 | 20-3 | 재무 앱 필수 추적성 | -- |
+| 10 | DCA 분석 뷰 | 21-4 | 한국 개인투자자 핵심 패턴 | PROD-007 |
+
+### P2 -- 분석 고도화 + 사용자 경험 (37개)
+| # | Item | Milestone | Reason | Source |
+|---|------|-----------|--------|--------|
+| 1 | 종목 메타데이터 테이블 (섹터, 업종, 시가총액) | 13-1 | 섹터 분석 정확도 향상 | -- |
+| 2 | 배당 데이터 수집 (KIS or KRX) | 13-1 | 배당 추적의 전제 조건 | -- |
+| 3 | TWR/MWR 수익률 계산 | 13-2 | 정확한 투자 성과 측정 | -- |
+| 4 | 배당 수익 추적 (캘린더 + 수익률 차트) | 11-2 | 배당 투자자 핵심 기능 | -- |
+| 5 | 월간/연간 수익률 히트맵 | 11-2 | 성과 시각화 (GitHub 스타일) | PROD-008 |
+| 6 | 내 보유가 오버레이 (캔들차트 평균매입가 수평선) | 11-4 | 현재가 vs 매입가 시각적 비교 | -- |
+| 7 | 이동평균선 오버레이 (5/20/60/120일) | 11-4 | 기술적 분석 기본 도구 | -- |
+| 8 | 거래량 분석 차트 | 11-4 | 종목 상세 분석 보완 | -- |
+| 9 | 뉴스/공시 피드 (KIS or 네이버 금융) | 11-4 | 종목 관련 정보 통합 | -- |
+| 10 | 포트폴리오 비교: 기간별 필터 + date range picker | 17-1 | 비교 대시보드 사용성 개선 | -- |
+| 11 | 포트폴리오별 섹터 비중 비교 (side-by-side donut) | 17-1 | 다중 포트폴리오 분석 | -- |
+| 12 | 환율 알림 (목표 환율 도달 시) | 17-2 | 환전 타이밍 알림 | -- |
+| 13 | 알림 채널 설정 UI (인앱/이메일/둘 다) | 22-3 | 알림 개인화 | -- |
+| 14 | 일일 포트폴리오 요약 이메일 | 22-3 | 장 마감 후 자동 리포트 | -- |
+| 15 | PWA Web Push 알림 | 19-1 | 모바일 실시간 알림 | -- |
+| 16 | API key rotation 자동화 | 14-4 | KIS 키 관리 안전성 | -- |
+| 17 | TLS 인증서 만료 체크 자동화 | 18-3 | 서비스 중단 예방 | -- |
+| 18 | 활성 세션 관리 UI | 20-4 | 계정 보안 투명성 | -- |
+| 19 | portfolios/[id]/page.tsx 컴포넌트 분리 (1123줄) | -- | 유지보수성 | TD-002/PROD-009 |
+| 20 | settings/page.tsx 컴포넌트 분리 (901줄) | -- | 유지보수성 | TD-003/PROD-009 |
+| 21 | OrderDialog lazy loading (dynamic import) | -- | 초기 번들 크기 절감 | PERF-008 |
+| 22 | analytics.py holdings 쿼리 공통 서비스 추출 | -- | 코드 중복 제거 | TD-004 |
+| 23 | SSE delta 감지 -- 변경 없으면 heartbeat만 전송 | -- | 네트워크 + 렌더링 효율 | PERF-006 |
+| 24 | lucide-react v1.x 마이그레이션 | -- | 메이저 버전 업데이트 | TD-012 |
+| 25 | kis_order.py 함수 추출 (place_order 128줄) | -- | 유지보수성 | TD-002 |
+| 26 | OrderDialog.tsx 테스트 추가 (605줄, 무테스트) | -- | 트레이딩 UI 회귀 방지 | TD-004 |
+| 27 | analytics/journal/compare 페이지 테스트 | -- | 비즈니스 로직 커버리지 확보 | TD-003 |
+| 28 | OrderDialog/KIS cash balance --rise/--fall 변수 통일 | -- | 다크모드 색상 일관성 | UX-003 |
+| 29 | CSV/XLSX 다운로드 에러 핸들링 + 로딩 상태 | -- | 네트워크 에러 시 무반응 해소 | UX-005 |
+| 30 | analytics 페이지 에러 상태 + per-section 로딩 | -- | 7개 쿼리 에러/로딩 미처리 | UX-002/UX-010 |
+| 31 | 입력 필드 max_length 제약 (name, ticker, tags) | -- | DoS 방어 | SEC-005/SEC-006 |
+| 32 | SSE DB 세션 재사용 (30초마다 새 세션 불필요) | -- | DB 부하 97% 감소 | PERF-008 |
+| 33 | SSE httpx 클라이언트 루프 외부로 이동 | -- | TLS 핸드셰이크 반복 제거 | PERF-009 |
+| 34 | SSE 해외종목 실시간 가격 지원 | -- | 해외 보유종목 가격 고정 해소 | PERF-010 |
+| 35 | analytics 순차 DB 쿼리 asyncio.gather 병렬화 | -- | 라운드트립 1회 절약 (5-15ms) | PERF-012 |
+| 36 | response_model 누락 3개 엔드포인트 추가 | -- | openapi-typescript 타입 생성 | TD-007 |
+| 37 | alert 비즈니스 로직 services 레이어 이동 | -- | api 레이어 횡단 의존성 해소 | TD-008 |
+
+### P3 -- 부가 기능 + DX (18개)
+| # | Item | Milestone | Reason | Source |
+|---|------|-----------|--------|--------|
+| 1 | 운영 대시보드 (`/dashboard/admin`) | 18-1 | 관리 편의성, 규모 커지면 필수 | -- |
+| 2 | 동기화 상태 모니터링 (sync_logs 시각화) | 18-1 | 운영 가시성 | -- |
+| 3 | KIS API 응답시간 추이 차트 | 18-1 | 성능 추적 | -- |
+| 4 | Redis 키 현황 모니터링 | 18-1 | 캐시/락 상태 파악 | -- |
+| 5 | ETag/If-None-Match (dashboard 304) | 12-3 | 대역폭 절약, 체감 속도 개선 | -- |
+| 6 | 종목 검색 trie/Redis ZRANGEBYLEX 인덱싱 | 12-3 | 검색 성능 최적화 | -- |
+| 7 | KIS batch price API 탐색 | 12-3 | API 호출 횟수 절감 | -- |
+| 8 | KIS API 가격 조회 실패율 추적 | 18-3 | 데이터 품질 모니터링 | -- |
+| 9 | 백업 성공률 대시보드 (최근 30일) | 18-3 | 백업 신뢰성 확인 | -- |
+| 10 | 뉴스 요약 (RSS + Claude) | 13-3 | AI 부가 기능 | -- |
+| 11 | 포트폴리오 성과 익명 공유 링크 + 공유 페이지 | 19-2 | 바이럴 마케팅 | -- |
+| 12 | Storybook 8 컴포넌트 카탈로그 | 16-3 | DX 개선 | -- |
+| 13 | SSR 초기 데이터 prefetch (dashboard Server Component) | -- | TTI 개선 | PERF-003 |
+| 14 | SQLAlchemy pool_recycle=1800 설정 | -- | 야간 유휴 연결 에러 방지 | PERF-013 |
+| 15 | Recharts ARIA label 추가 | -- | 스크린 리더 차트 정보 제공 | UX-008 |
+| 16 | WatchlistSection 아이콘 aria-label 추가 | -- | 접근성 개선 | UX-009 |
+| 17 | pip-audit CI 단계 추가 | -- | Python 의존성 취약점 자동 검출 | SEC-009 |
+| 18 | backend HSTS 헤더 추가 (프로덕션 전용) | -- | API 도메인 HTTPS 강제 | SEC-008 |
 
 > 보류(parked) 항목은 `docs/plan/parked.md` 참조
 
-### 항목 수 요약
+### 항목 수 요약 (2026-04-02 2차 갱신)
 | 우선순위 | 개수 | 설명 |
 |----------|------|------|
-| P1 | 5 | 핵심 기능 + 인프라 안정성 |
-| P2 | 24 | 분석 고도화 + 사용자 경험 |
-| P3 | 12 | 부가 기능 + DX |
+| P1 | 10 | 핵심 기능 + 보안 + 인프라 안정성 |
+| P2 | 37 | 분석 고도화 + 사용자 경험 + 코드 품질 |
+| P3 | 18 | 부가 기능 + DX + 접근성 |
 | Parked | 8 | 보류 (`parked.md`) |
-| **합계** | **49** | |
+| **합계** | **73** | |

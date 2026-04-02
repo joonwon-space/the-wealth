@@ -1,0 +1,149 @@
+{
+  "agent": "perf-bottleneck-analyst",
+  "summary": "The application has one critical database bottleneck in get_prev_close that loads unbounded historical rows on every dashboard request, and four high-severity issues: the fx-gain-loss analytics endpoint lacks caching despite being the most computation-heavy analytics path; the metrics endpoint wastes KIS API quota calling the domestic price endpoint for overseas tickers; the dashboard SSE stream and 30-second polling coexist redundantly doubling backend load; and the RedisCache class creates a new TCP connection per operation causing 40-300ms overhead per request. Nine medium and low findings cover SSE session management, duplicate query keys across pages, missing date cutoffs on snapshot queries, and an unconfigured SQLAlchemy connection pool recycle interval.",
+  "findings": [
+    {
+      "id": "PERF-001",
+      "title": "get_prev_close loads all historical price_snapshots without LIMIT",
+      "category": "database",
+      "severity": "critical",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "backend/app/services/price_snapshot.py:171-189",
+      "detail": "get_prev_close fetches all rows from price_snapshots for the requested tickers with no date window or LIMIT, then deduplicates in Python. For a portfolio with 20 tickers and 2 years of daily data this transfers roughly 14600 rows per call. This function is called on every /api/v1/dashboard/summary request.",
+      "recommendation": "Replace the Python deduplication loop with a single DISTINCT ON (ticker) PostgreSQL query ordered by snapshot_date DESC. Expected: reduces this step from 50ms to under 5ms."
+    },
+    {
+      "id": "PERF-002",
+      "title": "fx-gain-loss analytics endpoint has no cache despite being the most expensive path",
+      "category": "caching",
+      "severity": "high",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "backend/app/api/analytics.py:469-585",
+      "detail": "get_fx_gain_loss runs 3 DB queries plus loads up to 730 rows of FX snapshots with O(N*M) bisect lookups on every call. invalidate_analytics_cache() already lists this endpoint confirming intent to cache it, but the handler has no cache_key guard at entry and no setex call at exit.",
+      "recommendation": "Add a cache_key guard at the top of the handler and a setex call before returning, matching the pattern used in get_metrics. Expected: cache hit rate 95 percent, reducing repeated calls from 80ms to under 2ms."
+    },
+    {
+      "id": "PERF-003",
+      "title": "analytics/metrics calls domestic KIS price endpoint for overseas tickers",
+      "category": "api",
+      "severity": "high",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "backend/app/api/analytics.py:156-158",
+      "detail": "get_metrics calls asyncio.gather over all tickers using fetch_domestic_price_detail, which uses the FHKST01010100 endpoint (domestic only). Overseas tickers such as AAPL and TSLA always return an error response, triggering warning log lines and consuming a KIS API call slot.",
+      "recommendation": "Partition the tickers list by market type before the gather call, routing domestic tickers to fetch_domestic_price_detail and overseas tickers to the overseas detail endpoint. Expected: eliminates all guaranteed-failure KIS API calls."
+    },
+    {
+      "id": "PERF-004",
+      "title": "Dashboard 30-second polling runs concurrently with SSE that already pushes price updates",
+      "category": "network",
+      "severity": "high",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "frontend/src/app/dashboard/page.tsx:135-139",
+      "detail": "The dashboard summary useQuery has refetchInterval set to REFRESH_INTERVAL_MS unconditionally. The SSE stream at /prices/stream also fires every 30 seconds and patches the TanStack Query cache via queryClient.setQueryData. Both run in parallel so the backend receives two /dashboard/summary calls per 30-second window per connected user.",
+      "recommendation": "Set refetchInterval to false when the SSE connection is active. Only fall back to polling when SSE is disconnected. Expected: halves /dashboard/summary call frequency under normal conditions."
+    },
+    {
+      "id": "PERF-005",
+      "title": "RedisCache creates a new TCP connection for every single cache operation",
+      "category": "memory",
+      "severity": "high",
+      "effort": "M",
+      "impact": "response-time",
+      "location": "backend/app/core/redis_cache.py:74-123",
+      "detail": "Every get(), setex(), and delete() call in RedisCache opens a new aioredis connection, executes one command, then closes the connection. A single /dashboard/summary request triggers 40 to 60 Redis operations meaning 40 to 60 TCP handshakes per request, adding an estimated 40 to 300ms of pure connection overhead.",
+      "recommendation": "Replace the per-call connection with a module-level aioredis.ConnectionPool initialized at startup and injected into RedisCache. Expected: reduces Redis overhead from 40-300ms to under 2ms per request."
+    },
+    {
+      "id": "PERF-006",
+      "title": "Analytics page uses a different query key for dashboard summary causing duplicate fetches",
+      "category": "network",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "frontend/src/app/dashboard/analytics/page.tsx:129-133",
+      "detail": "The analytics page fetches /dashboard/summary under the query key [analytics, summary] while the main dashboard uses [dashboard, summary]. TanStack Query treats these as separate cache entries so navigating from the dashboard to the analytics page always triggers a fresh network request.",
+      "recommendation": "Align both pages on the same query key constant exported from a shared constants file. Expected: eliminates the redundant /dashboard/summary call on analytics page load for users who visited the dashboard first."
+    },
+    {
+      "id": "PERF-007",
+      "title": "analytics/metrics loads entire price_snapshots history with no date cutoff",
+      "category": "database",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "backend/app/api/analytics.py:184-189",
+      "detail": "The metrics endpoint queries price_snapshots WHERE ticker IN (...) ORDER BY snapshot_date with no date filter. For a portfolio with 20 tickers and 2 years of history this transfers the full 14600 rows even though metrics only needs recent close prices and a 1-year window for volatility calculations.",
+      "recommendation": "Add a WHERE snapshot_date >= cutoff filter (cutoff = today minus 1 year for volatility). Expected: reduces rows transferred by up to 50 percent for 2-year portfolios; savings grow as history accumulates."
+    },
+    {
+      "id": "PERF-008",
+      "title": "SSE price stream opens a new DB session every 30 seconds per connected client",
+      "category": "database",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "scalability",
+      "location": "backend/app/api/prices.py:233-240",
+      "detail": "Inside the while loop of the SSE generator, a fresh AsyncSessionLocal() is opened every 30 seconds to query portfolio holdings. This data changes only when the user manually adds or removes holdings. With 10 concurrent SSE connections this generates 20 DB queries per minute for effectively static data.",
+      "recommendation": "Fetch the ticker list once before entering the while loop and refresh it only when a holdings-change event is received or after a long interval such as 5 minutes. Expected: reduces SSE-driven DB queries by 97 percent under typical usage."
+    },
+    {
+      "id": "PERF-009",
+      "title": "SSE price stream creates and destroys an httpx client on every 30-second tick",
+      "category": "memory",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "response-time",
+      "location": "backend/app/api/prices.py:245-249",
+      "detail": "The httpx.AsyncClient context manager is nested inside the while loop so a new TLS connection to the KIS API is established and torn down every 30 seconds per connected client. For 10 concurrent users this creates 20 TLS handshakes per minute against the KIS API.",
+      "recommendation": "Move httpx.AsyncClient instantiation outside the while loop or use a module-level shared client with connection pooling. Expected: eliminates repeated TLS handshake overhead, saving 20-100ms per KIS call."
+    },
+    {
+      "id": "PERF-010",
+      "title": "SSE stream silently skips overseas holdings showing stale prices for non-KRX stocks",
+      "category": "api",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "response-time",
+      "location": "backend/app/api/prices.py:246-247",
+      "detail": "The SSE loop calls fetch_and_cache_domestic_price for all tickers regardless of market. Overseas tickers return None from the domestic endpoint, are silently filtered out by the isinstance check, and never appear in SSE price update events. Users with overseas holdings see frozen prices in the real-time dashboard until a full page reload.",
+      "recommendation": "Route overseas tickers to fetch_and_cache_overseas_price inside the SSE loop and include their prices in the emitted event payload. Expected: real-time price updates work correctly for mixed domestic and overseas portfolios."
+    },
+    {
+      "id": "PERF-011",
+      "title": "revoke_all_refresh_tokens_for_user scans all active tokens across all users",
+      "category": "memory",
+      "severity": "medium",
+      "effort": "S",
+      "impact": "scalability",
+      "location": "backend/app/core/security.py:64-77",
+      "detail": "On logout or password change, revoke_all_refresh_tokens_for_user runs SCAN 0 MATCH refresh_jti:* and then fetches each matching key to find those belonging to the target user. The scan touches every active refresh token in the system regardless of owner, making the operation O(total_active_sessions_all_users).",
+      "recommendation": "Store refresh JTIs in a per-user Redis set keyed by user_sessions:{user_id} alongside the individual keys. On logout use SMEMBERS to get only that user tokens, delete them, then delete the set. Expected: logout complexity drops from O(all users) to O(target user session count)."
+    },
+    {
+      "id": "PERF-012",
+      "title": "All analytics endpoints run 3 sequential DB queries instead of batching",
+      "category": "database",
+      "severity": "medium",
+      "effort": "M",
+      "impact": "response-time",
+      "location": "backend/app/api/analytics.py",
+      "detail": "Every analytics handler follows the pattern: await get_portfolio(), then await get_holdings(), then await get_price_snapshots(). These are three sequential round-trips where the second and third could be issued in parallel once the portfolio_id is known from the first.",
+      "recommendation": "After fetching the portfolio_id, use asyncio.gather to run the holdings and price_snapshots queries concurrently. Expected: reduces analytics endpoint DB round-trips from 3 sequential to 2, saving one round-trip latency (5-15ms) per analytics call."
+    },
+    {
+      "id": "PERF-013",
+      "title": "SQLAlchemy connection pool has no recycle interval risking stale connections",
+      "category": "database",
+      "severity": "low",
+      "effort": "S",
+      "impact": "scalability",
+      "location": "backend/app/db/session.py:7-11",
+      "detail": "create_async_engine is called with only echo=False and pool_pre_ping=True. There is no pool_recycle setting. On PostgreSQL deployments with a server-side idle connection timeout, connections idle longer than the server timeout are closed server-side but remain in the pool, causing errors until pool_pre_ping detects and replaces them.",
+      "recommendation": "Add pool_recycle=1800 and pool_size=10, max_overflow=20 to the engine kwargs. Expected: eliminates intermittent connection errors on low-traffic overnight periods and supports higher concurrent request volume."
+    }
+  ]
+}

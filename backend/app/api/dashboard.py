@@ -1,7 +1,6 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 
 import asyncio
-import re
 from decimal import Decimal
 from typing import Optional
 
@@ -33,13 +32,12 @@ from app.services.price_snapshot import fetch_domestic_price_detail
 from app.models.alert import Alert
 from app.api.alerts import check_triggered_alerts
 from app.services.price_snapshot import get_prev_close
+from app.core.ticker import is_domestic
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = get_logger(__name__)
 
 _ZERO = Decimal("0")
-# 국내 티커: 숫자+영문 혼합 6자리 (일반주 005930, ETF/ETN 0087F0 등)
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
 # KIS 잔고 API ovrs_excg_cd (4자) → 가격 API EXCD (3자) 매핑
 _MARKET_CODE_MAP = {
     "NASD": "NAS",
@@ -52,10 +50,6 @@ _MARKET_CODE_MAP = {
     "HASE": "HNX",
     "VNSE": "HSX",
 }
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 def _normalize_market(code: str) -> str:
@@ -115,13 +109,13 @@ async def get_summary(
 
     # Ticker 분류: 국내(6자리 숫자) vs 해외
     tickers = list({h.ticker for h in holdings})
-    domestic_tickers = [t for t in tickers if _is_domestic(t)]
-    overseas_tickers = [t for t in tickers if not _is_domestic(t)]
+    domestic_tickers = [t for t in tickers if is_domestic(t)]
+    overseas_tickers = [t for t in tickers if not is_domestic(t)]
 
     # 해외주식 ticker → market 코드 매핑 (Holding.market 에서)
     ticker_to_market: dict[str, str] = {}
     for h in holdings:
-        if not _is_domestic(h.ticker) and h.market:
+        if not is_domestic(h.ticker) and h.market:
             ticker_to_market[h.ticker] = _normalize_market(h.market)
 
     prices: dict[str, Optional[Decimal]] = {}
@@ -226,7 +220,7 @@ async def get_summary(
     total_invested = _ZERO
 
     for h in holdings:
-        is_overseas = not _is_domestic(h.ticker)
+        is_overseas = not is_domestic(h.ticker)
         current_price = prices.get(h.ticker)
 
         if is_overseas:
