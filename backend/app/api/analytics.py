@@ -27,6 +27,7 @@ from app.core.logging import get_logger
 from app.services.kis_price import _cache_price, _get_cached_price, get_cached_fx_rate
 from app.core.ticker import is_domestic
 from app.services.price_snapshot import fetch_domestic_price_detail
+from app.services.kis_price import fetch_overseas_price_detail
 from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
 
@@ -140,9 +141,17 @@ async def get_metrics(
     if not holdings:
         return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
 
-    tickers = list({h.ticker for h in holdings})
+    # ticker → market 매핑 (해외주식 routing용)
+    ticker_to_market: dict[str, str] = {
+        h.ticker: (h.market or "NAS")
+        for h in holdings
+        if not is_domestic(h.ticker)
+    }
+    domestic_tickers = [t for t in {h.ticker for h in holdings} if is_domestic(t)]
+    overseas_tickers = [t for t in {h.ticker for h in holdings} if not is_domestic(t)]
+    tickers = domestic_tickers + overseas_tickers
 
-    # 현재가 조회
+    # 현재가 조회 — 국내/해외 각각 올바른 API 라우팅
     acct_result = await db.execute(
         select(KisAccount).where(KisAccount.user_id == current_user.id).limit(1)
     )
@@ -153,11 +162,20 @@ async def get_metrics(
             app_key = decrypt(acct.app_key_enc)
             app_secret = decrypt(acct.app_secret_enc)
             async with httpx.AsyncClient(timeout=10.0) as client:
-                details = await asyncio.gather(
-                    *[fetch_domestic_price_detail(t, app_key, app_secret, client) for t in tickers],
+                domestic_coros = [
+                    fetch_domestic_price_detail(t, app_key, app_secret, client)
+                    for t in domestic_tickers
+                ]
+                overseas_coros = [
+                    fetch_overseas_price_detail(t, ticker_to_market[t], app_key, app_secret, client)
+                    for t in overseas_tickers
+                ]
+                all_details = await asyncio.gather(
+                    *domestic_coros,
+                    *overseas_coros,
                     return_exceptions=True,
                 )
-            for ticker, detail in zip(tickers, details):
+            for ticker, detail in zip(tickers, all_details):
                 if detail and not isinstance(detail, Exception):
                     current_prices[ticker] = detail.current
                     await _cache_price(ticker, detail.current)
@@ -481,6 +499,11 @@ async def get_fx_gain_loss(
     현재가: Redis 캐시 우선, 없으면 avg_price fallback.
     현재 환율: Redis 캐시(get_cached_fx_rate) 사용.
     """
+    cache_key = f"analytics:fx_gain_loss:{current_user.id}"
+    cached = await _analytics_cache.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
@@ -582,6 +605,7 @@ async def get_fx_gain_loss(
             "total_pnl_krw": round(total_pnl_krw, 0),
         })
 
+    await _analytics_cache.setex(cache_key, _ANALYTICS_CACHE_TTL, json.dumps(result_items))
     return result_items
 
 
