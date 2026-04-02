@@ -20,6 +20,10 @@ Located in `~/.claude/agents/`:
 | refactor-cleaner | Dead code cleanup | Code maintenance |
 | doc-updater | Documentation | Updating docs |
 | **team-discover** | **Multi-agent project analysis** | **Milestone completion, direction planning** |
+| **team-feature** | **Multi-agent feature design** | **New feature design, PRD generation** |
+| **team-review** | **Multi-agent code review** | **Large PRs, core module changes** |
+| **team-release** | **Multi-agent release validation** | **Before deploy, PR merge** |
+| **team-debug** | **Multi-agent bug diagnosis** | **Complex bugs, unknown root cause** |
 
 ### Team Discover Sub-Agents (`.claude/agents/team/`)
 
@@ -32,6 +36,46 @@ Located in `~/.claude/agents/`:
 | product-strategy-analyst | Roadmap, feature gaps, priorities | Sonnet |
 | strategy-synthesizer | Merge & prioritize all findings | **Opus** |
 
+### Team Feature Sub-Agents (`.claude/agents/team/feature/`)
+
+| Agent | Perspective | Model |
+|-------|-------------|-------|
+| product-analyst | User needs, MVP scope, competitive analysis | Sonnet |
+| ux-designer | UI structure, user flows, accessibility | Sonnet |
+| backend-architect | API, database, KIS integration design | Sonnet |
+| frontend-architect | Components, state, data fetching | Sonnet |
+| feature-synthesizer | Unified PRD + task list | **Opus** |
+
+### Team Review Sub-Agents (`.claude/agents/team/review/`)
+
+| Agent | Perspective | Model |
+|-------|-------------|-------|
+| correctness-reviewer | Logic errors, edge cases, data integrity | Sonnet |
+| security-reviewer | Vulnerabilities, auth, injection | Sonnet |
+| performance-reviewer | N+1, re-renders, memory leaks | Sonnet |
+| maintainability-reviewer | Readability, conventions, architecture | Sonnet |
+| review-synthesizer | Unified verdict + prioritized fixes | **Opus** |
+
+### Team Release Sub-Agents (`.claude/agents/team/release/`)
+
+| Agent | Perspective | Model |
+|-------|-------------|-------|
+| build-validator | Build success, lint, bundle size | Sonnet |
+| test-runner | Test suite, coverage analysis | Sonnet |
+| migration-checker | Alembic safety, reversibility | Sonnet |
+| api-contract-checker | Breaking changes, contract consistency | Sonnet |
+| release-synthesizer | Go/no-go decision + release notes | **Opus** |
+
+### Team Debug Sub-Agents (`.claude/agents/team/debug/`)
+
+| Agent | Perspective | Model |
+|-------|-------------|-------|
+| error-trace-analyst | Error origin, stack trace, call chain | Sonnet |
+| data-flow-analyst | Data flow trace, transformations | Sonnet |
+| regression-analyst | Git history, suspected commits | Sonnet |
+| env-config-analyst | Environment, KIS API, Redis, config | Sonnet |
+| debug-synthesizer | Root cause + fix plan | **Opus** |
+
 ## Immediate Agent Usage
 
 No user prompt needed:
@@ -40,6 +84,10 @@ No user prompt needed:
 3. Bug fix or new feature - Use **tdd-guide** agent
 4. Architectural decision - Use **architect** agent
 5. Milestone completed, need next direction - Use **team-discover** agent
+6. New feature design needed - Use **team-feature** agent
+7. Large code changes to review - Use **team-review** agent
+8. Before deployment - Use **team-release** agent
+9. Complex bug with unknown cause - Use **team-debug** agent
 
 ## Parallel Task Execution
 
