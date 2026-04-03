@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -298,3 +299,70 @@ async def logout(
     await log_event(db, AuditAction.LOGOUT, user_id=current_user.id, request=request)
     await db.commit()
     _clear_auth_cookies(response)
+
+
+class SessionInfo(BaseModel):
+    jti: str
+    created_at: str
+
+
+@router.get("/sessions", response_model=list[SessionInfo])
+async def list_sessions(
+    current_user: User = Depends(get_current_user),
+) -> list[SessionInfo]:
+    """List all active sessions for the current user."""
+    from app.core.redis_cache import get_redis_client  # noqa: PLC0415
+    from app.core.config import settings  # noqa: PLC0415
+    sessions: list[SessionInfo] = []
+    prefix = f"refresh:{current_user.id}:"
+    async with get_redis_client(settings.REDIS_URL) as r:
+        cursor = 0
+        while True:
+            cursor, keys = await r.scan(cursor, match=f"{prefix}*", count=100)
+            for key in keys:
+                jti = key.split(":")[-1] if isinstance(key, str) else key.decode().split(":")[-1]
+                raw = await r.get(key)
+                if raw is None:
+                    continue
+                try:
+                    data = json.loads(raw)
+                    created_at = data.get("created_at", "")
+                except Exception:
+                    created_at = ""
+                sessions.append(SessionInfo(jti=jti, created_at=created_at))
+            if cursor == 0:
+                break
+    return sessions
+
+
+@router.delete("/sessions/{jti}", status_code=204)
+async def revoke_session(
+    jti: str,
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Revoke a single session by JTI."""
+    from app.core.redis_cache import get_redis_client  # noqa: PLC0415
+    from app.core.config import settings  # noqa: PLC0415
+    key = f"refresh:{current_user.id}:{jti}"
+    async with get_redis_client(settings.REDIS_URL) as r:
+        deleted = await r.delete(key)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+class SseTicketResponse(BaseModel):
+    ticket: str
+
+
+@router.post("/sse-ticket", response_model=SseTicketResponse)
+async def create_sse_ticket(
+    current_user: User = Depends(get_current_user),
+) -> SseTicketResponse:
+    """Issue a single-use 30-second SSE ticket to avoid JWT in URL query params."""
+    import uuid  # noqa: PLC0415
+    from app.core.redis_cache import get_redis_client  # noqa: PLC0415
+    from app.core.config import settings  # noqa: PLC0415
+    ticket = str(uuid.uuid4())
+    async with get_redis_client(settings.REDIS_URL) as r:
+        await r.setex(f"sse-ticket:{ticket}", 30, str(current_user.id))
+    return SseTicketResponse(ticket=ticket)

@@ -313,3 +313,89 @@ Each item should be completable in a single commit.
   - isExporting 상태 추가, 내보내기 중 버튼 disabled + Loader2 스피너
   - 실패 시 toast.error()
   - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx`
+
+---
+
+## Sprint 6 work (team-analysis 2026-04-03, 6th sprint)
+
+### P0 -- portfolios/[id]/page.tsx 분리 (1,226→~400 lines) [team-analysis: TD-001]
+
+- [x] **refactor: portfolios/[id]/page.tsx — HoldingsSection + TransactionSection + PortfolioHeader 추출**
+  - `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx` — mutation hooks (addHolding, editHolding, deleteHolding) + 보유종목 테이블 + AlertDialog + 인라인 add/edit 폼 (~350 lines)
+  - `frontend/src/app/dashboard/portfolios/[id]/TransactionSection.tsx` — useInfiniteQuery + 거래내역 테이블 + add/delete + memo 편집 (~300 lines)
+  - `frontend/src/app/dashboard/portfolios/[id]/PortfolioHeader.tsx` — target widget + KIS sync 버튼 + export 버튼 (~150 lines)
+  - 메인 page.tsx는 포트폴리오 데이터 fetch + 세 섹션 조합으로 ~400 lines 이하
+  - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx` (분리 후 ~400 lines)
+
+### P0 -- settings/page.tsx 분리 + 보안 탭 추가 (901→~150 lines) [team-analysis: TD-002, UX-001, UX-002, SEC-003]
+
+- [x] **refactor: settings/page.tsx — 4개 섹션 컴포넌트 + Security/Sessions 탭 추가**
+  - `frontend/src/app/dashboard/settings/AccountSection.tsx` — 프로필(이름), 비밀번호 변경, 이메일 변경, 계정 삭제 다이얼로그 (~200 lines)
+  - `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx` — KIS 계좌 CRUD + 연결 테스트 버튼(isPending) + 실계좌 잔고 조회 (~250 lines)
+  - `frontend/src/app/dashboard/settings/SecurityLogsSection.tsx` — `GET /users/me/security-logs` 조회 + 이벤트 테이블(시간/액션/IP/UA) + 한국어 레이블 매핑 (~100 lines)
+  - `frontend/src/app/dashboard/settings/ActiveSessionsSection.tsx` — `GET /auth/sessions` 조회 + 세션 목록 + 개별 'Revoke' 버튼 (~100 lines)
+  - 메인 settings/page.tsx — 탭 컨테이너(계정/KIS 계좌/보안 로그/세션) ~150 lines
+  - 파일: `frontend/src/app/dashboard/settings/page.tsx` (분리 후 ~150 lines)
+
+### P0 -- GET/DELETE /auth/sessions 엔드포인트 추가 [team-analysis: SEC-001]
+
+- [x] **feat: auth.py — 활성 세션 조회 및 개별 취소 API**
+  - `backend/app/api/auth.py` — `GET /auth/sessions`: Redis SCAN `refresh:{user_id}:*` → JSON 파싱 → `[{jti, created_at}]` 반환
+  - `DELETE /auth/sessions/{jti}`: `refresh:{user_id}:{jti}` 키 삭제 (단일 세션 취소)
+  - 두 엔드포인트 모두 `Depends(get_current_user)` 적용
+  - 파일: `backend/app/api/auth.py`
+
+### P1 -- SSE httpx client 루프 외부 이동 (1-line fix) [team-analysis: TD-003, PERF-001]
+
+- [x] **perf: prices.py — httpx.AsyncClient를 while 루프 외부로 이동**
+  - `backend/app/api/prices.py:245` — `async with httpx.AsyncClient(timeout=10.0) as client:` 블록을 `while elapsed < _SSE_TIMEOUT:` 루프 밖으로 이동
+  - 30초마다 TCP/TLS 재연결 → SSE 연결 수명(최대 2시간) 동안 1회 연결로 변경
+  - 파일: `backend/app/api/prices.py`
+
+### P1 -- Dashboard ETag + 304 Not Modified [team-analysis: PERF-002]
+
+- [x] **perf: dashboard.py — ETag 기반 304 Not Modified 지원**
+  - `backend/app/api/dashboard.py` — JSON 응답 직렬화 후 SHA-256(앞 16자) ETag 계산
+  - `If-None-Match` 헤더 확인 → 일치 시 `Response(status_code=304)` 반환
+  - 장 마감 후 30초 폴링 시 payload 90% 감소 예상
+  - 파일: `backend/app/api/dashboard.py`
+
+### P1 -- OrderDialog.test.tsx (0% → 80%+) [team-analysis: UX-003]
+
+- [x] **test: OrderDialog — vitest + MSW 테스트 커버리지 80%+ 달성**
+  - `frontend/src/components/OrderDialog.test.tsx` 신규 생성
+  - 테스트 항목: (1) 수량 0/음수 → 제출 차단, (2) LIMIT 주문 시 가격 필수, (3) BUY/SELL 탭 전환 UI, (4) 국내/해외 주문 라우팅, (5) mutation 로딩 시 버튼 비활성, (6) 성공 → 다이얼로그 닫힘, (7) 실패 → toast.error()
+  - 파일: `frontend/src/components/OrderDialog.test.tsx`
+
+### P1 -- SSE JWT URL 노출 제거 (SSE 티켓 시스템) [team-analysis: SEC-002]
+
+- [x] **security: SSE 단기 티켓으로 ?token= 쿼리 파라미터 제거**
+  - `backend/app/api/auth.py` — `POST /auth/sse-ticket` (인증 필요): Redis에 `sse-ticket:{uuid4}` → `user_id`, TTL 30초 저장 후 티켓 UUID 반환
+  - `backend/app/api/prices.py` — `?ticket=` 파라미터로 인증: Redis에서 티켓 조회 후 즉시 삭제(단일 사용), user_id 획득
+  - `frontend/src/hooks/usePriceStream.ts` — EventSource 생성 전 POST /auth/sse-ticket 호출 후 ticket을 쿼리 파라미터로 사용
+  - JWT가 서버 접근 로그에 노출되는 문제 해결
+  - 파일: `backend/app/api/auth.py`, `backend/app/api/prices.py`, `frontend/src/hooks/usePriceStream.ts`
+
+### P2 -- HoldingsTable aria-sort ARIA 수정 [team-analysis: TD-007]
+
+- [x] **fix: HoldingsTable.tsx — role=button 제거, th 기본 columnheader 역할 사용**
+  - `frontend/src/components/HoldingsTable.tsx:297` — `role='button'` 속성 제거
+  - `th` 요소의 암묵적 role인 `columnheader`가 `aria-sort`를 올바르게 지원
+  - `tabIndex={0}` 및 `onKeyDown` 키보드 핸들러는 유지
+  - 파일: `frontend/src/components/HoldingsTable.tsx`
+
+### P2 -- Icon-only 버튼 aria-label 추가 [team-analysis: UX-004]
+
+- [x] **fix: journal/compare/watchlist — 아이콘 전용 버튼 aria-label 추가**
+  - `frontend/src/app/dashboard/journal/page.tsx` — 월 이동 화살표 버튼: `aria-label='이전 달'`, `aria-label='다음 달'`; 삭제 버튼: `aria-label='거래 삭제'`
+  - `frontend/src/app/dashboard/compare/page.tsx` — `aria-label='포트폴리오 추가'`, `aria-label='비교 목록에서 제거'`
+  - `frontend/src/components/WatchlistSection.tsx` — `aria-label='관심종목 삭제'`
+  - 파일: `frontend/src/app/dashboard/journal/page.tsx`, `compare/page.tsx`, `components/WatchlistSection.tsx`
+
+### P2 -- npm 패치 업데이트 [team-analysis: TD-006]
+
+- [x] **chore: frontend npm 패치/마이너 업데이트**
+  - `@playwright/test` 1.58.2 → 1.59.1, `@sentry/nextjs` 10.45.0 → 10.47.0, `next` 16.2.0 → 16.2.2, `eslint-config-next` 16.2.0 → 16.2.2
+  - `cd frontend && npm update @playwright/test @sentry/nextjs next eslint-config-next`
+  - CI 통과 확인 후 완료
+  - 파일: `frontend/package.json`, `frontend/package-lock.json`

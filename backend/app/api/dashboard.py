@@ -1,11 +1,14 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 
 import asyncio
+import hashlib
+import json
 from decimal import Decimal
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,14 +71,14 @@ def _calc_pnl(
     return pnl_amount, pnl_rate
 
 
-@router.get("/summary", response_model=DashboardSummary)
+@router.get("/summary")
 @limiter.limit("120/minute")
 async def get_summary(
     request: Request,
     refresh: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DashboardSummary:
+) -> DashboardSummary | FastAPIResponse:
     # 사용자 포트폴리오 및 홀딩 조회
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
@@ -374,7 +377,7 @@ async def get_summary(
     triggered_raw = check_triggered_alerts(active_alerts, prices)
     triggered_alerts = [TriggeredAlert(**a) for a in triggered_raw]
 
-    return DashboardSummary(
+    summary = DashboardSummary(
         total_asset=total_asset,
         total_invested=total_invested,
         total_pnl_amount=total_pnl_amount,
@@ -388,3 +391,18 @@ async def get_summary(
         usd_krw_rate=exchange_rate if overseas_tickers else None,
         kis_status=kis_status,
     )
+
+    # ETag / 304 Not Modified — skip during force-refresh to always return fresh data
+    if not refresh:
+        body = json.dumps(summary.model_dump(mode="json"), default=str, sort_keys=True)
+        etag = hashlib.sha256(body.encode()).hexdigest()[:16]
+        if_none_match = request.headers.get("if-none-match", "")
+        if if_none_match == etag:
+            return FastAPIResponse(status_code=304, headers={"ETag": etag})
+        return FastAPIResponse(
+            content=body,
+            media_type="application/json",
+            headers={"ETag": etag},
+        )
+
+    return summary

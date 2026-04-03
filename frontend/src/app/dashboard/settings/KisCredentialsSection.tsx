@@ -1,0 +1,516 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Bell, CheckCircle, Eye, Loader2, Pencil, Plus, Trash2, Wifi, XCircle } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
+import { formatKRW, formatNumber, formatUSD } from "@/lib/format";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+interface BalanceHolding {
+  ticker: string;
+  name: string;
+  quantity: string;
+  avg_price: string;
+  currency: "KRW" | "USD";
+}
+
+interface AccountBalance {
+  label: string;
+  account_no: string;
+  portfolio_id?: number;
+  deposit: string;
+  total_eval: string;
+  stock_eval: string;
+  pnl: string;
+  usd_krw_rate?: number | null;
+  synced?: { inserted: number; updated: number; deleted: number };
+  holdings: BalanceHolding[];
+  error?: string;
+}
+
+interface AlertItem {
+  id: number;
+  ticker: string;
+  name: string;
+  condition: "above" | "below";
+  threshold: number;
+  is_active: boolean;
+}
+
+interface KisAccount {
+  id: number;
+  label: string;
+  account_no: string;
+  acnt_prdt_cd: string;
+  is_paper_trading: boolean;
+  account_type: string | null;
+}
+
+export function KisCredentialsSection() {
+  const [kisAccounts, setKisAccounts] = useState<KisAccount[]>([]);
+  const [editingAcctId, setEditingAcctId] = useState<number | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [newAcct, setNewAcct] = useState({
+    label: "",
+    account_no: "",
+    acnt_prdt_cd: "01",
+    app_key: "",
+    app_secret: "",
+    is_paper_trading: false,
+    account_type: "일반",
+  });
+  const [addingAcct, setAddingAcct] = useState(false);
+  const [testingAcctId, setTestingAcctId] = useState<number | null>(null);
+  const [testResults, setTestResults] = useState<Record<number, boolean | null>>({});
+
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceAccounts, setBalanceAccounts] = useState<AccountBalance[] | null>(null);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [newAlert, setNewAlert] = useState({ ticker: "", name: "", condition: "above" as "above" | "below", threshold: "" });
+  const [addingAlert, setAddingAlert] = useState(false);
+
+  const fetchKisAccounts = () => {
+    api.get<KisAccount[]>("/users/kis-accounts").then(({ data }) => setKisAccounts(data));
+  };
+
+  const fetchAlerts = () => {
+    api.get<AlertItem[]>("/alerts").then(({ data }) => setAlerts(data));
+  };
+
+  useEffect(() => {
+    fetchKisAccounts();
+    fetchAlerts();
+  }, []);
+
+  const handleTestAccount = async (id: number) => {
+    setTestingAcctId(id);
+    setTestResults((prev) => ({ ...prev, [id]: null }));
+    try {
+      const { data } = await api.post<{ success: boolean; message: string }>(`/users/kis-accounts/${id}/test`);
+      setTestResults((prev) => ({ ...prev, [id]: data.success }));
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.error(data.message);
+      }
+    } catch {
+      setTestResults((prev) => ({ ...prev, [id]: false }));
+      toast.error("연결 테스트에 실패했습니다");
+    } finally {
+      setTestingAcctId(null);
+    }
+  };
+
+  const handleAddAlert = async () => {
+    if (!newAlert.ticker || !newAlert.threshold) return;
+    setAddingAlert(true);
+    try {
+      await api.post("/alerts", {
+        ticker: newAlert.ticker.toUpperCase(),
+        name: newAlert.name,
+        condition: newAlert.condition,
+        threshold: Number(newAlert.threshold),
+      });
+      setNewAlert({ ticker: "", name: "", condition: "above", threshold: "" });
+      fetchAlerts();
+      toast.success("알림이 등록되었습니다");
+    } catch {
+      toast.error("알림 등록에 실패했습니다");
+    } finally {
+      setAddingAlert(false);
+    }
+  };
+
+  const handleDeleteAlert = async (id: number) => {
+    try {
+      await api.delete(`/alerts/${id}`);
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+      toast.success("알림이 삭제되었습니다");
+    } catch {
+      toast.error("삭제에 실패했습니다");
+    }
+  };
+
+  const handleAddAccount = async () => {
+    if (!newAcct.label || !newAcct.account_no || !newAcct.app_key || !newAcct.app_secret) return;
+    setAddingAcct(true);
+    try {
+      await api.post("/users/kis-accounts", newAcct);
+      setNewAcct({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "", is_paper_trading: false, account_type: "일반" });
+      setShowAddAccount(false);
+      fetchKisAccounts();
+      toast.success("KIS 계좌가 등록되었습니다. 보유 종목을 동기화하는 중...");
+      try {
+        const { data } = await api.post<{ accounts: AccountBalance[] }>("/sync/balance");
+        const synced = data.accounts[0]?.synced;
+        if (synced && (synced.inserted > 0 || synced.updated > 0)) {
+          toast.success(`동기화 완료: ${synced.inserted}개 종목이 포트폴리오에 추가됐습니다`);
+        } else {
+          toast.success("동기화 완료");
+        }
+        setBalanceAccounts(data.accounts);
+      } catch {
+        toast.warning("계좌는 등록됐지만 초기 동기화에 실패했습니다. 설정 > 실계좌 조회 & 동기화를 다시 시도해주세요.");
+      }
+    } catch {
+      toast.error("계좌 등록에 실패했습니다");
+    } finally {
+      setAddingAcct(false);
+    }
+  };
+
+  const handleSaveLabel = async (id: number) => {
+    if (!editLabel.trim()) return;
+    try {
+      await api.patch(`/users/kis-accounts/${id}`, { label: editLabel });
+      setKisAccounts((prev) => prev.map((a) => a.id === id ? { ...a, label: editLabel } : a));
+      setEditingAcctId(null);
+      toast.success("계좌 별칭이 변경되었습니다");
+    } catch {
+      toast.error("별칭 변경에 실패했습니다");
+    }
+  };
+
+  const handleDeleteAccount = async (id: number) => {
+    try {
+      await api.delete(`/users/kis-accounts/${id}`);
+      setKisAccounts((prev) => prev.filter((a) => a.id !== id));
+      toast.success("계좌가 삭제되었습니다");
+    } catch {
+      toast.error("계좌 삭제에 실패했습니다");
+    }
+  };
+
+  const handleBalanceInquiry = async () => {
+    setBalanceLoading(true);
+    setBalanceError(null);
+    setBalanceAccounts(null);
+    try {
+      const { data } = await api.post<{ accounts: AccountBalance[] }>("/sync/balance");
+      setBalanceAccounts(data.accounts);
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+        : null;
+      setBalanceError(msg ?? "조회에 실패했습니다");
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* KIS 계좌 관리 */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">KIS 계좌 목록</h2>
+            <Button size="sm" variant="outline" onClick={() => setShowAddAccount(!showAddAccount)} className="min-h-[44px] gap-1">
+              <Plus className="h-3.5 w-3.5" />
+              {showAddAccount ? "취소" : "계좌 추가"}
+            </Button>
+          </div>
+
+          {showAddAccount && (
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">별칭</label>
+                  <Input value={newAcct.label} onChange={(e) => setNewAcct((f) => ({ ...f, label: e.target.value }))} placeholder="연금저축" className="h-8" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">계좌번호</label>
+                  <Input value={newAcct.account_no} onChange={(e) => setNewAcct((f) => ({ ...f, account_no: e.target.value }))} placeholder="63853538" className="h-8 font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">상품코드</label>
+                  <Input value={newAcct.acnt_prdt_cd} onChange={(e) => setNewAcct((f) => ({ ...f, acnt_prdt_cd: e.target.value }))} placeholder="01" className="h-8 font-mono w-16" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">계좌 유형</label>
+                  <select
+                    value={newAcct.account_type}
+                    onChange={(e) => setNewAcct((f) => ({ ...f, account_type: e.target.value }))}
+                    className="h-8 w-full rounded border bg-background px-2 text-sm"
+                  >
+                    {["일반", "ISA", "연금저축", "IRP", "해외주식"].map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="paper-trading-new"
+                  type="checkbox"
+                  checked={newAcct.is_paper_trading}
+                  onChange={(e) => setNewAcct((f) => ({ ...f, is_paper_trading: e.target.checked }))}
+                  className="h-4 w-4 rounded border"
+                />
+                <label htmlFor="paper-trading-new" className="text-sm">
+                  모의투자 계좌
+                </label>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">App Key</label>
+                <Input value={newAcct.app_key} onChange={(e) => setNewAcct((f) => ({ ...f, app_key: e.target.value }))} placeholder="PS7yzJ..." className="h-8 font-mono" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">App Secret</label>
+                <Input type="password" value={newAcct.app_secret} onChange={(e) => setNewAcct((f) => ({ ...f, app_secret: e.target.value }))} placeholder="••••••••" className="h-8" />
+              </div>
+              <Button size="sm" onClick={handleAddAccount} disabled={addingAcct}>
+                {addingAcct ? "등록 중..." : "등록"}
+              </Button>
+            </div>
+          )}
+
+          {kisAccounts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">등록된 KIS 계좌가 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {kisAccounts.map((a) => (
+                <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                  {editingAcctId === a.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-7 w-32" autoFocus />
+                      <Button size="sm" onClick={() => handleSaveLabel(a.id)} className="h-7 px-2 text-xs">저장</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingAcctId(null)} className="h-7 px-2 text-xs">취소</Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">{a.label}</span>
+                      <button
+                        onClick={() => { setEditingAcctId(a.id); setEditLabel(a.label); }}
+                        aria-label={`${a.label} 계좌 별칭 편집`}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <span className="ml-1 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
+                      {a.account_type && (
+                        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">{a.account_type}</span>
+                      )}
+                      {a.is_paper_trading && (
+                        <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-300">모의</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleTestAccount(a.id)}
+                      disabled={testingAcctId === a.id}
+                      className="min-h-[44px] rounded border px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
+                      title="연결 테스트"
+                      aria-label="KIS 연결 테스트"
+                    >
+                      {testingAcctId === a.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : testResults[a.id] === true ? (
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                      ) : testResults[a.id] === false ? (
+                        <XCircle className="h-3 w-3 text-destructive" />
+                      ) : (
+                        <Wifi className="h-3 w-3" />
+                      )}
+                      테스트
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAccount(a.id)}
+                      aria-label={`${a.label} 계좌 삭제`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 실계좌 조회 + 동기화 */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-base font-semibold">실계좌 조회 & 동기화</h2>
+          <p className="text-sm text-muted-foreground">
+            등록된 KIS 계좌의 보유 종목을 조회하고 포트폴리오에 자동 동기화합니다.
+          </p>
+          <Button onClick={handleBalanceInquiry} disabled={balanceLoading} className="gap-2">
+            <Eye className="h-4 w-4" />
+            {balanceLoading ? "조회 중..." : "실계좌 조회 & 동기화"}
+          </Button>
+          {balanceError && (
+            <p className="text-sm text-destructive">{balanceError}</p>
+          )}
+          {balanceAccounts !== null && balanceAccounts.map((acct) => (
+            <div key={acct.account_no} className="space-y-3">
+              <h3 className="text-sm font-semibold">
+                {acct.label} <span className="font-normal text-muted-foreground">({acct.account_no})</span>
+              </h3>
+              {acct.error ? (
+                <p className="text-sm text-destructive">{acct.error}</p>
+              ) : (
+                <>
+                  {acct.synced && (acct.synced.inserted > 0 || acct.synced.updated > 0 || acct.synced.deleted > 0) && (
+                    <p className="text-xs text-green-600">
+                      동기화: +{acct.synced.inserted} ~{acct.synced.updated} -{acct.synced.deleted}
+                    </p>
+                  )}
+                  {acct.usd_krw_rate && (
+                    <p className="text-xs text-muted-foreground">
+                      기준 환율: <span className="tabular-nums font-medium">{formatKRW(acct.usd_krw_rate)}/USD</span>
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">예수금</p>
+                      <p className="font-semibold tabular-nums">{formatKRW(acct.deposit)}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">총 평가</p>
+                      <p className="font-semibold tabular-nums">{formatKRW(acct.total_eval)}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">주식 평가</p>
+                      <p className="font-semibold tabular-nums">{formatKRW(acct.stock_eval)}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">평가 손익</p>
+                      <p className="font-semibold tabular-nums">{formatKRW(acct.pnl)}</p>
+                    </div>
+                  </div>
+                  {acct.holdings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">보유 종목이 없습니다.</p>
+                  ) : (
+                    <div className="rounded-lg border overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            {["종목", "수량", "평균단가", "총 금액"].map((h) => (
+                              <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...acct.holdings]
+                            .sort((a, b) => {
+                              const rateA = a.currency === "USD" ? (acct.usd_krw_rate ?? 1350) : 1;
+                              const rateB = b.currency === "USD" ? (acct.usd_krw_rate ?? 1350) : 1;
+                              const totalA = Number(a.quantity) * Number(a.avg_price) * rateA;
+                              const totalB = Number(b.quantity) * Number(b.avg_price) * rateB;
+                              return totalB - totalA;
+                            })
+                            .map((h) => {
+                              const totalAmount = Number(h.quantity) * Number(h.avg_price);
+                              return (
+                                <tr key={h.ticker} className="border-t">
+                                  <td className="px-4 py-2">
+                                    <div className="font-medium">{h.name}</div>
+                                    <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                                  </td>
+                                  <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
+                                  <td className="px-4 py-2 tabular-nums">
+                                    {h.currency === "USD" ? formatUSD(Number(h.avg_price)) : formatKRW(h.avg_price)}
+                                  </td>
+                                  <td className="px-4 py-2 tabular-nums">
+                                    {h.currency === "USD" ? formatUSD(totalAmount) : formatKRW(totalAmount)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* 목표가 알림 */}
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            <h2 className="text-base font-semibold">목표가 알림</h2>
+          </div>
+
+          {/* 등록 폼 */}
+          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
+            <Input
+              aria-label="티커"
+              placeholder="티커 (예: 005930)"
+              value={newAlert.ticker}
+              onChange={(e) => setNewAlert((p) => ({ ...p, ticker: e.target.value }))}
+              className="uppercase h-11 sm:h-9"
+            />
+            <Input
+              aria-label="종목명"
+              placeholder="종목명 (선택)"
+              value={newAlert.name}
+              onChange={(e) => setNewAlert((p) => ({ ...p, name: e.target.value }))}
+              className="h-11 sm:h-9"
+            />
+            <select
+              aria-label="조건"
+              value={newAlert.condition}
+              onChange={(e) => setNewAlert((p) => ({ ...p, condition: e.target.value as "above" | "below" }))}
+              className="h-11 sm:h-9 rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <option value="above">이상 (≥)</option>
+              <option value="below">이하 (≤)</option>
+            </select>
+            <Input
+              aria-label="목표가"
+              type="number"
+              placeholder="목표가"
+              value={newAlert.threshold}
+              onChange={(e) => setNewAlert((p) => ({ ...p, threshold: e.target.value }))}
+              className="h-11 sm:h-9"
+            />
+            <Button onClick={handleAddAlert} disabled={addingAlert || !newAlert.ticker || !newAlert.threshold} className="h-11 sm:h-9 gap-1">
+              {addingAlert ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              추가
+            </Button>
+          </div>
+
+          {/* 알림 목록 */}
+          {alerts.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">등록된 알림이 없습니다.</p>
+          ) : (
+            <div className="divide-y rounded-lg border">
+              {alerts.map((a) => (
+                <div key={a.id} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="text-sm">
+                    <span className="font-medium">{a.name || a.ticker}</span>
+                    {a.name && <span className="ml-1 text-xs text-muted-foreground">({a.ticker})</span>}
+                    <span className="ml-2 text-muted-foreground">
+                      {a.condition === "above" ? "≥" : "≤"} {formatKRW(a.threshold)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteAlert(a.id)}
+                    aria-label={`${a.name || a.ticker} 알림 삭제`}
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

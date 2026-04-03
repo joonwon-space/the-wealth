@@ -294,7 +294,6 @@ export function HoldingsTable({ holdings }: Props) {
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    role="button"
                     tabIndex={0}
                     onClick={header.column.getToggleSortingHandler()}
                     onKeyDown={(e) => {
