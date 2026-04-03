@@ -249,7 +249,7 @@ frontend/src/
 | Pydantic | 2.12.5 | 스키마 검증 |
 | PyJWT | 2.12.1 | JWT 토큰 |
 | bcrypt | 5.0.0 | 비밀번호 해싱 |
-| cryptography | 46.0.5 | AES-256-GCM 암호화 |
+| cryptography | 46.0.6 | AES-256-GCM 암호화 |
 | redis | 7.3.0 | async Redis 클라이언트 |
 | httpx | 0.28.1 | async HTTP (KIS API) |
 | APScheduler | 3.11.2 | 백그라운드 스케줄러 |
@@ -765,7 +765,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-04-02)
+## 6. 프로젝트 현황 분석 (2026-04-03)
 
 ### 6.1 완성도
 
@@ -797,10 +797,19 @@ slowapi 기반 IP별 레이트 리미팅:
 | 응답 압축 | 완료 | GZipMiddleware (minimum_size=1000) |
 | 코드 품질 | 완료 | is_domestic() 공통 유틸리티 (app/core/ticker.py), 쓰기 엔드포인트 레이트 리밋 강화 |
 | DB 인덱스 최적화 | 완료 | transactions.ticker, price_snapshots(ticker, snapshot_date) 복합 인덱스 추가 |
+| 보안 강화 (sprint-3) | 완료 | bcrypt DoS 방지(max_length=128), Sentry 자격증명 스크러빙, CSP 수정, tags 길이 제한 |
+| 성능 최적화 (sprint-3) | 완료 | Redis ConnectionPool 싱글턴, DISTINCT ON prev_close 쿼리, fx-gain-loss 캐시, SSE React Compiler 호환 |
+| 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: 730 passed, 46 failed (2026-04-01 기준; asyncpg Connection._cancel flaky 테스트 1건 수정됨, analytics 캐시 미초기화 수정됨 — 2026-04-02 재실행 필요)
+전체: 730 passed (sprint-3 완료 후 기준; 2026-04-03)
+
+CI 수정 사항:
+- `test_kis_price.py` MagicMock import 누락 수정
+- Redis mock 경로를 `aioredis.from_url`에서 `get_redis_client`로 통일
+- conftest `client` fixture에서 Redis 풀 이벤트 루프 간 공유 문제 수정 (풀 리셋 추가)
+- portfolio-detail 테스트 중복 텍스트 매칭 수정
 
 | 모듈 | 커버리지 | 비고 |
 |------|---------|------|
@@ -812,8 +821,6 @@ slowapi 기반 IP별 레이트 리미팅:
 | api/ routers | 25-100% | 대부분 통합 테스트 통과 |
 | db/ | 75-100% | session.py 75% |
 | main.py | 85% | lifespan, 예외 핸들러 |
-
-현재 46건 실패 중 (확인된 실패: test_csv_export IDOR 2건, test_dashboard 2건 포함). 전체 통과 기준 미충족 — 수정 필요.
 
 ### 6.3 강점
 
@@ -843,6 +850,21 @@ slowapi 기반 IP별 레이트 리미팅:
 - 국내 주식 주문 버그 4건 수정: Decimal 타입 보존, 지정가 price 검증, SELL 보유수량 검증, KIS 에러 메시지 개선
 - 인앱 알림 센터: notifications 테이블 + 벨 아이콘 + 미읽음 배지 + 읽음 처리
 - 거래 메모 기능: transactions.memo 컬럼 + 인라인 편집 UI
+- **[PERF-001]** DISTINCT ON 쿼리로 prev_close 조회 최적화 (14600→20행 DB 스캔)
+- **[PERF-002/003]** fx-gain-loss Redis 캐시 추가 + 해외 티커 라우팅 수정
+- **[PERF-004]** SSE 연결 상태 추적 useRef→useState 변경 (React Compiler lint 대응)
+- **[PERF-005/TD-001]** Redis ConnectionPool 모듈 레벨 싱글턴으로 변경 (요청별 TCP 오버헤드 제거)
+- **[PERF-006]** mutation onError 중복 핸들러 제거
+- **[SEC-001]** Sentry before_send: KIS 자격증명(appkey, appsecret, authorization) 스크러빙
+- **[SEC-002]** password max_length=128 제한 (bcrypt DoS 방지)
+- **[SEC-004]** CSP 수정 (AlertDialog 등 접근성 개선)
+- **[SEC-006]** TransactionMemoUpdate tags 최대 20개, 각 50자 제한
+- **[TD-005]** cryptography 46.0.5 → 46.0.6 보안 패치
+- **[UX-001/004/006/007]** AlertDialog 접근성, query key 정규화, 불필요한 재렌더링 제거
+- 포트폴리오 이름 holding 응답에 포함 (dashboard 요약, analytics, journal 연동)
+- 거래내역 컬럼 KIS 체결내역 컬럼과 통일 (portfolio detail 페이지)
+- team-implement 멀티 에이전트 병렬 구현 시스템 (backend-worker + frontend-worker + infra-worker + implement-synthesizer)
+- worker/auto-task 빌드 검증을 CI와 동일하게 맞춤 (React Compiler 린트 포함)
 - 포트폴리오 순서 변경: display_order + 드래그 앤 드롭 (@dnd-kit)
 - KIS 체결내역 조회: 국내(TTTC8001R) + 해외(TTTS3035R) 체결 내역 API
 - Redis 장애 폴백: RedisCache 래퍼가 in-memory dict으로 자동 전환
@@ -885,8 +907,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ### 6.4 약점 및 개선 필요 사항
 
-- **[CRITICAL] 백엔드 테스트 46건 실패** -- test_csv_export IDOR 2건, test_dashboard 2건 포함 (2026-04-01 기준, 수정 필요)
-- **[HIGH] npm 취약점 4건** (yaml 2.0.0-2.8.2 Stack Overflow, 2 moderate + 2 high) -- `npm audit fix`로 해결 가능
+- **[HIGH] npm 취약점** (yaml 2.0.0-2.8.2 Stack Overflow, moderate/high) -- `npm audit fix`로 해결 가능
 - **[HIGH] 중복 파일 정리 필요** -- `.coverage 2~9`, `test_* 2.py` 등 공백 포함 중복 파일 다수
 - 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
 - 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
