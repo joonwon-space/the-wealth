@@ -548,3 +548,70 @@ tasks.md에 즉시 실행 가능 항목 8개 추가 (P1/P2):
 | P3 | 18 | 부가 기능 + DX + 접근성 |
 | Parked | 8 | 보류 (`parked.md`) |
 | **합계** | **81** | |
+
+---
+
+## Sprint-7 신규 항목 (2026-04-03, 7차 스프린트)
+
+### 즉시 실행 (tasks.md Sprint 7 추가)
+
+| 항목 | 우선순위 | 소스 |
+|------|----------|------|
+| fx_gain_loss 캐시 키 불일치 수정 (one-line fix) | P0 | SEC-003 |
+| 수동 보유종목 변경 시 analytics 캐시 무효화 | P0 | PERF-004 |
+| analytics/notifications/users rate limiting 추가 | P0 | SEC-001 |
+| SSE ticker DB 세션 최적화 (모듈 캐시) | P0 | PERF-001 |
+| SSE 해외종목 실시간 가격 지원 | P1 | TD-007 |
+| OrderDialog dynamic import | P1 | PERF-003 |
+| compare 페이지 empty state | P1 | UX-002 |
+| settings 탭 URL hash persist | P2 | UX-008 |
+
+### Milestone 23: 분석 완성 + 2FA (team-analysis 2026-04-03 제안)
+
+analytics 완성도 65% — 벤치마크 비교와 2FA가 핵심 미완성 항목.
+
+#### 23-1. TOTP 2FA (20-2 실행)
+- [ ] `pyotp` 패키지 + `POST /users/me/2fa/setup` (QR URI 반환)
+- [ ] `users` 테이블 `totp_secret_enc` 컬럼 추가 (AES-256 암호화) + Alembic 마이그레이션
+- [ ] `POST /users/me/2fa/verify` — 코드 확인 + `totp_enabled=True` 저장
+- [ ] 로그인 플로우: totp_enabled 계정에 2단계 코드 입력 추가
+- [ ] 설정 페이지 2FA 섹션 (AccountSection.tsx에 추가)
+
+#### 23-2. 시장 지수 데이터 수집 (21-1)
+- [ ] `index_snapshots` 테이블: index_code(KOSPI200/SPX), snapshot_date, close, open, high, low
+- [ ] 스케줄러: 평일 KST 16:15 KOSPI200 (`FHKUP03500100`) + S&P500 (`FHKST03030100 .SPX`) 데이터 저장
+- [ ] `GET /analytics/benchmark` 엔드포인트 — 기간별 벤치마크 수익률
+
+#### 23-3. 벤치마크 오버레이 차트 (21-2)
+- [ ] PortfolioHistoryChart.tsx에 KOSPI200/S&P500 기준선 추가 (Recharts Line)
+- [ ] 기간 필터와 동기화 (1M/3M/6M/1Y/ALL)
+- [ ] 벤치마크 토글 버튼 (국내 포트폴리오 → KOSPI200, 해외 포함 → S&P500)
+
+#### 23-4. 리스크 지표 서비스 추출 (21-3)
+- [ ] `backend/app/services/metrics_service.py` — _calc_sharpe, _calc_mdd, _calc_cagr 이동
+- [ ] 최소 히스토리 가드: 30일 미만 시 Sharpe/MDD null 반환 (오해 방지)
+- [ ] 분석 페이지 리스크 지표 카드 UI (Sharpe, MDD, 연환산 수익률)
+
+### 신규 P2 항목 (2026-04-03 추가)
+
+| # | 항목 | 이유 | 소스 |
+|---|------|------|------|
+| 46 | Recharts 차트 ARIA 레이블 (role=img + sr-only 데이터 테이블) | WCAG 1.1.1 준수 | UX-001 |
+| 47 | 해외 보유종목 'Last Sync' 타임스탬프 뱃지 (SSE 실시간 전까지 임시) | 혼란스러운 '--' 해소 | UX-003 |
+| 48 | 종목 상세 페이지 '관심종목 추가/제거' 버튼 | 페이지 간 이동 없이 바로 추가 | UX-007 |
+| 49 | HoldingsTable 정렬 상태 sessionStorage 저장 | 페이지 이동 후 정렬 초기화 방지 | UX-006 |
+| 50 | analytics.py get_metrics 순차 DB 쿼리 asyncio.gather 병렬화 | 30-50ms 절감 | PERF-002 |
+| 51 | analytics/page.tsx 762줄 → 섹션별 컴포넌트 분리 | 800줄 한계 접근 | TD-010 |
+| 52 | kis_order.py place_domestic/overseas_order 헬퍼 추출 | 128줄 함수 단순화 | TD-002 |
+| 53 | portfolios.py → holdings.py + transactions.py 분리 | 746줄 파일 분리 | TD-003 |
+| 54 | 감사 로그 KIS 계좌 삭제 이벤트 기록 확인 및 추가 | 재무 앱 추적성 | SEC-004 |
+| 55 | analytics 해외종목 가격 조회 전 캐시 체크 | 불필요한 KIS API 호출 80% 감소 | PERF-006 |
+
+### 항목 수 요약 (2026-04-03 4차 갱신 — Sprint 7)
+| 우선순위 | 개수 | 설명 |
+|----------|------|------|
+| P0 (tasks.md Sprint 7) | 4 | 캐시 버그 수정 + rate limiting + SSE DB 최적화 |
+| P1 (tasks.md Sprint 7) | 4 | SSE 해외주식 + OrderDialog lazy + compare empty + 탭 URL |
+| P1 (Milestone 23) | 12 | 2FA + 벤치마크 + 리스크 지표 |
+| P2 신규 | 10 | 접근성 + 성능 + 코드 품질 |
+| **Sprint 7 신규 합계** | **30** | |

@@ -399,3 +399,68 @@ Each item should be completable in a single commit.
   - `cd frontend && npm update @playwright/test @sentry/nextjs next eslint-config-next`
   - CI 통과 확인 후 완료
   - 파일: `frontend/package.json`, `frontend/package-lock.json`
+
+---
+
+## Sprint 7 work (team-analysis 2026-04-03, 7th sprint)
+
+### P0 -- fx_gain_loss 캐시 키 불일치 수정 [team-analysis: SEC-003]
+
+- [ ] **fix: analytics.py — fx_gain_loss 캐시 키를 _analytics_key() 패턴으로 통일**
+  - `backend/app/api/analytics.py:493` — `f"analytics:fx_gain_loss:{current_user.id}"` → `_analytics_key(current_user.id, "fx-gain-loss")`
+  - sync 후 invalidate_analytics_cache()가 실제로 캐시를 삭제하지 못하는 버그 수정
+  - 파일: `backend/app/api/analytics.py`
+
+### P0 -- 수동 보유종목 변경 시 analytics 캐시 무효화 누락 [team-analysis: PERF-004]
+
+- [ ] **fix: portfolios.py — holding add/edit/delete 시 invalidate_analytics_cache 호출**
+  - `backend/app/api/portfolios.py` — holding 생성/수정/삭제 mutation 후 `await invalidate_analytics_cache(current_user.id)` 추가
+  - sync 없이 수동 변경 시 최대 1시간 stale 데이터 노출 방지
+  - 파일: `backend/app/api/portfolios.py`
+
+### P0 -- analytics/notifications/users 엔드포인트 rate limit 추가 [team-analysis: SEC-001]
+
+- [ ] **security: analytics.py, notifications.py, users.py — rate limiting 적용**
+  - `backend/app/api/analytics.py` — 모든 GET 엔드포인트에 `@limiter.limit("30/minute")` 추가
+  - `backend/app/api/users.py` — password-change, email-change, account-delete에 `@limiter.limit("5/minute")` 추가
+  - `backend/app/api/notifications.py` — GET/PATCH에 `@limiter.limit("60/minute")` 추가
+  - 파일: `backend/app/api/analytics.py`, `backend/app/api/users.py`, `backend/app/api/notifications.py`
+
+### P0 -- SSE ticker 조회 DB 세션 최적화 [team-analysis: PERF-001]
+
+- [ ] **perf: prices.py — SSE 루프 내 ticker 조회를 모듈 레벨 캐시로 교체**
+  - `backend/app/api/prices.py:235` — `AsyncSessionLocal()` ticker 조회를 루프 외부로 이동
+  - 연결 시작 시 1회 ticker 목록 조회 후 60초 TTL로 메모리 캐시 (dict + timestamp)
+  - sync 이벤트 후 캐시 무효화: `invalidate_sse_ticker_cache(user_id)` 함수 추가
+  - 파일: `backend/app/api/prices.py`
+
+### P1 -- SSE 해외종목 실시간 가격 지원 [team-analysis: TD-007]
+
+- [ ] **feat: prices.py — SSE 루프에 해외종목 가격 조회 추가**
+  - `backend/app/api/prices.py:246` — `is_domestic(ticker)`로 tickers를 domestic/overseas로 분리
+  - domestic → 기존 `fetch_and_cache_domestic_price()` 유지
+  - overseas → `get_or_fetch_overseas_price()` 호출 (kis_price.py에 이미 존재)
+  - 두 결과를 merge하여 `prices` dict 구성
+  - 파일: `backend/app/api/prices.py`
+
+### P1 -- OrderDialog 동적 임포트로 번들 최적화 [team-analysis: PERF-003]
+
+- [ ] **perf: HoldingsSection.tsx — OrderDialog dynamic import로 교체**
+  - `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx:22` — static import 제거
+  - `const OrderDialog = dynamic(() => import('@/components/OrderDialog').then(m => ({ default: m.OrderDialog })), { ssr: false })`
+  - 초기 번들에서 ~15-20KB 절감 예상
+  - 파일: `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx`
+
+### P1 -- compare 페이지 empty state 추가 [team-analysis: UX-002]
+
+- [ ] **ux: compare/page.tsx — 포트폴리오 미선택 시 empty state 추가**
+  - `frontend/src/app/dashboard/compare/page.tsx` — selectedPortfolios.length === 0 시 안내 UI 표시
+  - 아이콘 + '비교할 포트폴리오를 추가하세요' + '포트폴리오 추가' 버튼 (기존 추가 버튼 트리거)
+  - 파일: `frontend/src/app/dashboard/compare/page.tsx`
+
+### P2 -- settings 탭 URL hash 반영 [team-analysis: UX-008]
+
+- [ ] **ux: settings/page.tsx — 탭 상태를 URL hash로 persist**
+  - `frontend/src/app/dashboard/settings/page.tsx` — 탭 전환 시 `window.location.hash` 업데이트 (#account, #kis, #security-logs, #sessions)
+  - 마운트 시 hash 읽어 초기 탭 복원
+  - 파일: `frontend/src/app/dashboard/settings/page.tsx`
