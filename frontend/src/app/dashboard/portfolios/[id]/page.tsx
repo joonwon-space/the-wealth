@@ -2,38 +2,25 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Download, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X, RefreshCw, Loader2 } from "lucide-react";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
-import { Input } from "@/components/ui/input";
+import { formatKRW } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
-import { PnLBadge } from "@/components/PnLBadge";
-import { TransactionChart } from "@/components/DynamicCharts";
-import { PageError } from "@/components/PageError";
-import { TableSkeleton } from "@/components/TableSkeleton";
+import { PendingOrdersPanel } from "@/components/PendingOrdersPanel";
+import { useCashBalance, usePendingOrders } from "@/hooks/useOrders";
+import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import type { ExistingHolding } from "@/components/OrderDialog";
+import { HoldingsSection } from "./HoldingsSection";
+import { TransactionSection } from "./TransactionSection";
 
 // Lazy-load OrderDialog: only used when user clicks 매수/매도 button (~20KB deferred)
 const OrderDialog = dynamic(
   () => import("@/components/OrderDialog").then((m) => ({ default: m.OrderDialog })),
   { ssr: false }
 );
-import { PendingOrdersPanel } from "@/components/PendingOrdersPanel";
-import { useCashBalance, usePendingOrders } from "@/hooks/useOrders";
-import { toast } from "sonner";
 
 interface PortfolioInfo {
   id: number;
@@ -108,13 +95,6 @@ function kisTransactionsKey(portfolioId: number, fromDate: string, toDate: strin
 
 function toYYYYMMDD(date: Date): string {
   return date.toISOString().slice(0, 10).replace(/-/g, "");
-}
-
-function formatUSD(value: string | number | null | undefined): string {
-  if (value == null) return "—";
-  const num = Number(value);
-  if (isNaN(num)) return "—";
-  return `$${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function PortfolioDetailPage() {
@@ -661,552 +641,77 @@ export default function PortfolioDetailPage() {
         </div>
       )}
 
-      {isLoading ? (
-        <TableSkeleton rows={4} columns={6} />
-      ) : isError ? (
-        <PageError
-          message={error instanceof Error ? error.message : "보유 종목을 불러올 수 없습니다"}
-          onRetry={() => refetch()}
-        />
-      ) : holdings.length === 0 && !addForm ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
-          <PackageOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
-          {isKisConnected ? (
-            <>
-              <p className="font-medium">KIS 계좌가 연결됐지만 아직 동기화되지 않았습니다</p>
-              <p className="mt-1 text-sm text-muted-foreground">실계좌 보유 종목을 불러오려면 동기화를 실행하세요.</p>
-              <Button onClick={handleKisSync} disabled={isSyncing} className="mt-4 gap-2">
-                <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-                {isSyncing ? "동기화 중..." : "지금 동기화"}
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="font-medium">보유 종목이 없습니다</p>
-              <p className="mt-1 text-sm text-muted-foreground">종목을 검색해서 추가해보세요.</p>
-              <Button onClick={() => setSearchOpen(true)} className="mt-4 gap-2">
-                <Search className="h-4 w-4" />
-                종목 검색
-              </Button>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                {["종목", "수량", "평균단가", "현재가", "손익 (KRW)", "평가금액 (KRW)", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...holdings]
-                .sort((a, b) => Number(b.market_value_krw ?? 0) - Number(a.market_value_krw ?? 0))
-                .map((h) => {
-                const isUSD = h.currency === "USD";
-                return (
-                  <tr key={h.id} className="border-t hover:bg-muted/20">
-                    {editId === h.id ? (
-                      <>
-                        <td className="px-4 py-2">
-                          <div className="font-medium">{h.name}</div>
-                          <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                        </td>
-                        <td className="px-4 py-2">
-                          <Input
-                            type="number"
-                            value={editForm.quantity}
-                            onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
-                            className="w-24 h-8"
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <Input
-                            type="number"
-                            value={editForm.avg_price}
-                            onChange={(e) => setEditForm((f) => ({ ...f, avg_price: e.target.value }))}
-                            className="w-28 h-8"
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={editHoldingMutation.isPending}>저장</Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditId(null)}>취소</Button>
-                          </div>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-4 py-3">
-                          <div className="font-medium">{h.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {h.ticker}
-                            {isUSD && <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700 dark:bg-blue-900 dark:text-blue-300">USD</span>}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">{formatNumber(h.quantity)}</td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {isUSD ? formatUSD(h.avg_price) : formatPrice(h.avg_price, "KRW")}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {h.current_price ? (
-                            <div>
-                              <span>{isUSD ? formatUSD(h.current_price) : formatPrice(h.current_price, "KRW")}</span>
-                              {isUSD && h.exchange_rate && (
-                                <div className="text-xs text-muted-foreground">
-                                  ≈ {formatKRW(String(Number(h.current_price) * Number(h.exchange_rate)))}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {h.pnl_amount != null ? (
-                            <div>
-                              <PnLBadge value={h.pnl_amount} />
-                              {h.pnl_rate != null && (
-                                <div className="text-xs text-muted-foreground">
-                                  {Number(h.pnl_rate) >= 0 ? "+" : ""}{Number(h.pnl_rate).toFixed(2)}%
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {h.market_value_krw != null ? (
-                            <div>
-                              <span>{formatKRW(h.market_value_krw)}</span>
-                              {isUSD && h.market_value != null && (
-                                <div className="text-xs text-muted-foreground">{formatUSD(h.market_value)}</div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 flex-wrap">
-                            {isKisConnected && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setOrderTicker(h.ticker);
-                                    setOrderName(h.name);
-                                    setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
-                                    setOrderInitialTab("BUY");
-                                    setOrderExchangeCode(h.currency === "USD" ? (h.ticker.includes(".") ? h.ticker.split(".")[1] : "NASD") : undefined);
-                                    setOrderExistingHolding({ quantity: h.quantity, avg_price: h.avg_price, pnl_amount: h.pnl_amount, pnl_rate: h.pnl_rate });
-                                    setOrderDialogOpen(true);
-                                  }}
-                                  className="rounded border px-2 py-0.5 text-xs font-medium text-red-600 border-red-200 hover:bg-red-50"
-                                >
-                                  매수
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setOrderTicker(h.ticker);
-                                    setOrderName(h.name);
-                                    setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
-                                    setOrderInitialTab("SELL");
-                                    setOrderExchangeCode(h.currency === "USD" ? (h.ticker.includes(".") ? h.ticker.split(".")[1] : "NASD") : undefined);
-                                    setOrderExistingHolding({ quantity: h.quantity, avg_price: h.avg_price, pnl_amount: h.pnl_amount, pnl_rate: h.pnl_rate });
-                                    setOrderDialogOpen(true);
-                                  }}
-                                  className="rounded border px-2 py-0.5 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
-                                >
-                                  매도
-                                </button>
-                              </>
-                            )}
-                            <button
-                              onClick={() => { setEditId(h.id); setEditForm({ quantity: h.quantity, avg_price: h.avg_price }); }}
-                              className="rounded border px-3 py-1 text-xs hover:bg-muted"
-                            >
-                              수정
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(h.id)}
-                              className="rounded border px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
+      <HoldingsSection
+        holdings={holdings}
+        isLoading={isLoading}
+        isError={isError}
+        error={error instanceof Error ? error : null}
+        onRetry={() => refetch()}
+        isKisConnected={isKisConnected}
+        isSyncing={isSyncing}
+        onKisSync={handleKisSync}
+        onSearchOpen={() => setSearchOpen(true)}
+        addForm={addForm}
+        addFormErrors={addFormErrors}
+        addHoldingPending={addHoldingMutation.isPending}
+        onSetAddForm={setAddForm}
+        onSetAddFormErrors={setAddFormErrors}
+        onHandleAdd={() => handleAdd({ preventDefault: () => {} } as React.FormEvent)}
+        editId={editId}
+        editForm={editForm}
+        editHoldingPending={editHoldingMutation.isPending}
+        onSetEditId={setEditId}
+        onSetEditForm={setEditForm}
+        onEditSave={handleEditSave}
+        deleteConfirmId={deleteConfirmId}
+        deleteHoldingPending={deleteHoldingMutation.isPending}
+        onSetDeleteConfirmId={setDeleteConfirmId}
+        onDeleteHolding={(id) => deleteHoldingMutation.mutate(id)}
+        onOpenOrder={(ticker, name, currentPrice, tab, exchangeCode, existingHolding) => {
+          setOrderTicker(ticker);
+          setOrderName(name);
+          setOrderCurrentPrice(currentPrice);
+          setOrderInitialTab(tab);
+          setOrderExchangeCode(exchangeCode);
+          setOrderExistingHolding(existingHolding);
+          setOrderDialogOpen(true);
+        }}
+      />
 
-              {/* 종목 추가 폼 행 */}
-              {addForm && (
-                <tr className="border-t bg-muted/10">
-                  <td className="px-4 py-2">
-                    <div className="font-medium">{addForm.name}</div>
-                    <div className="text-xs text-muted-foreground">{addForm.ticker}</div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex flex-col gap-1">
-                      <input
-                        type="number"
-                        placeholder="수량"
-                        value={addForm.quantity}
-                        onChange={(e) => {
-                          setAddForm((f) => f ? { ...f, quantity: e.target.value } : f);
-                          setAddFormErrors((prev) => ({ ...prev, quantity: undefined }));
-                        }}
-                        className="w-24 h-8"
-                        aria-invalid={!!addFormErrors.quantity}
-                      />
-                      {addFormErrors.quantity && (
-                        <span className="text-[10px] text-destructive">{addFormErrors.quantity}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex flex-col gap-1">
-                      <input
-                        type="number"
-                        placeholder="평균단가"
-                        value={addForm.avg_price}
-                        onChange={(e) => {
-                          setAddForm((f) => f ? { ...f, avg_price: e.target.value } : f);
-                          setAddFormErrors((prev) => ({ ...prev, avg_price: undefined }));
-                        }}
-                        className="w-28 h-8"
-                        aria-invalid={!!addFormErrors.avg_price}
-                      />
-                      {addFormErrors.avg_price && (
-                        <span className="text-[10px] text-destructive">{addFormErrors.avg_price}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={handleAdd}
-                        disabled={addHoldingMutation.isPending || !addForm.quantity || !addForm.avg_price}
-                      >
-                        추가
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setAddForm(null); setAddFormErrors({}); }}>취소</Button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
 
-      {/* 보유종목 삭제 확인 — shadcn AlertDialog (role=alertdialog, focus trap) */}
-      <AlertDialog
-        open={deleteConfirmId !== null}
-        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>종목을 삭제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 작업은 되돌릴 수 없습니다. 관련 거래내역도 모두 삭제됩니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleteConfirmId !== null) {
-                  deleteHoldingMutation.mutate(deleteConfirmId);
-                }
-              }}
-            >
-              {deleteHoldingMutation.isPending ? "삭제 중..." : "삭제"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 거래내역 삭제 확인 — shadcn AlertDialog */}
-      <AlertDialog
-        open={deleteTxnId !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTxnId(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>거래를 삭제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleteTxnId !== null) {
-                  deleteTxnMutation.mutate(deleteTxnId);
-                }
-              }}
-            >
-              {deleteTxnMutation.isPending ? "삭제 중..." : "삭제"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 수동 거래 이력 (DB) */}
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">거래 이력</h2>
-          <Button size="sm" variant="outline" onClick={() => setShowTxnForm(!showTxnForm)}>
-            {showTxnForm ? "취소" : "거래 추가"}
-          </Button>
-        </div>
-
-        {showTxnForm && (
-          <div className="grid grid-cols-2 gap-2 rounded-lg border p-3 sm:flex sm:flex-wrap sm:items-end">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">유형</label>
-              <select
-                value={txnForm.type}
-                onChange={(e) => setTxnForm((f) => ({ ...f, type: e.target.value as "BUY" | "SELL" }))}
-                className="h-8 w-full rounded border bg-background px-2 text-sm sm:w-auto"
-              >
-                <option value="BUY">매수</option>
-                <option value="SELL">매도</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">종목코드</label>
-              <Input value={txnForm.ticker} onChange={(e) => setTxnForm((f) => ({ ...f, ticker: e.target.value }))} placeholder="005930" className="h-8 w-full sm:w-24" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">수량</label>
-              <Input type="number" value={txnForm.quantity} onChange={(e) => setTxnForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="10" className="h-8 w-full sm:w-20" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">단가</label>
-              <Input type="number" value={txnForm.price} onChange={(e) => setTxnForm((f) => ({ ...f, price: e.target.value }))} placeholder="70000" className="h-8 w-full sm:w-28" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">날짜</label>
-              <Input type="date" value={txnForm.traded_at} onChange={(e) => setTxnForm((f) => ({ ...f, traded_at: e.target.value }))} className="h-8 w-full sm:w-36" />
-            </div>
-            <Button size="sm" className="col-span-2 sm:col-span-1" onClick={handleTxnSubmit} disabled={addTxnMutation.isPending}>
-              {addTxnMutation.isPending ? "저장 중..." : "저장"}
-            </Button>
-          </div>
-        )}
-
-        {transactions.length > 0 && (
-          <>
-            <TransactionChart transactions={transactions} />
-            <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    {["일시", "유형", "종목", "수량", "단가", "거래금액", "메모", ""].map((h) => (
-                      <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((t) => {
-                    const holdingMatch = holdings.find((h) => h.ticker === t.ticker);
-                    const totalAmount = Number(t.quantity) * Number(t.price);
-                    return (
-                    <tr key={t.id} className="border-t">
-                      <td className="px-4 py-2 text-xs text-muted-foreground">{new Date(t.traded_at).toLocaleString("ko-KR")}</td>
-                      <td className="px-4 py-2">
-                        <span className={`text-xs font-semibold ${t.type === "BUY" ? "text-[#e31f26]" : "text-[#1a56db]"}`}>
-                          {t.type === "BUY" ? "매수" : "매도"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="font-mono text-xs">{t.ticker}</div>
-                        {holdingMatch && <div className="text-xs text-muted-foreground">{holdingMatch.name}</div>}
-                      </td>
-                      <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
-                      <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
-                      <td className="px-4 py-2 tabular-nums">{formatKRW(totalAmount)}</td>
-                      <td className="px-4 py-2 min-w-[140px]">
-                        {editMemoId === t.id ? (
-                          <input
-                            type="text"
-                            autoFocus
-                            value={editMemoValue}
-                            maxLength={500}
-                            onChange={(e) => setEditMemoValue(e.target.value)}
-                            onBlur={() => {
-                              const trimmed = editMemoValue.trim() || null;
-                              updateMemoMutation.mutate({ txnId: t.id, memo: trimmed });
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                const trimmed = editMemoValue.trim() || null;
-                                updateMemoMutation.mutate({ txnId: t.id, memo: trimmed });
-                              }
-                              if (e.key === "Escape") {
-                                setEditMemoId(null);
-                              }
-                            }}
-                            className="w-full rounded border bg-background px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                            aria-label="메모 편집"
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            className="w-full text-left text-xs text-muted-foreground hover:text-foreground hover:underline"
-                            onClick={() => {
-                              setEditMemoId(t.id);
-                              setEditMemoValue(t.memo ?? "");
-                            }}
-                            aria-label={t.memo ? `메모: ${t.memo}. 클릭하여 편집` : "메모 추가 (클릭하여 편집)"}
-                          >
-                            {t.memo ?? <span className="opacity-40">메모 추가...</span>}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-2">
-                        <button
-                          onClick={() => setDeleteTxnId(t.id)}
-                          className="rounded border px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {hasMorTxns && (
-              <div className="flex justify-center pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void fetchMoreTxns()}
-                  disabled={isFetchingMoreTxns}
-                >
-                  {isFetchingMoreTxns ? "불러오는 중..." : "더 보기"}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* KIS API 체결 내역 */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-base font-semibold">KIS 체결 내역</h2>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowKisHistory((v) => !v)}
-          >
-            {showKisHistory ? "접기" : "불러오기"}
-          </Button>
-        </div>
-
-        {showKisHistory && (
-          <>
-            {holdings.some((h) => h.currency === "USD") && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                <span className="mt-0.5 shrink-0">⚠️</span>
-                <span>
-                  <strong>해외주식 체결 내역은 KIS OpenAPI로 주문한 건만 조회됩니다.</strong>
-                  {" "}한투 앱/HTS로 거래한 내역은 표시되지 않습니다. 아래 &quot;거래 이력&quot; 섹션에서 직접 입력해주세요.
-                </span>
-              </div>
-            )}
-            <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">시작일</label>
-                <Input
-                  type="date"
-                  value={kisFromDate}
-                  onChange={(e) => setKisFromDate(e.target.value)}
-                  className="h-8 w-36"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">종료일</label>
-                <Input
-                  type="date"
-                  value={kisToDate}
-                  onChange={(e) => setKisToDate(e.target.value)}
-                  className="h-8 w-36"
-                />
-              </div>
-              <Button size="sm" onClick={() => kisRefetch()} disabled={kisLoading}>
-                {kisLoading ? "조회 중..." : "조회"}
-              </Button>
-            </div>
-
-            {kisLoading ? (
-              <TableSkeleton rows={3} columns={6} />
-            ) : !kisTransactions || kisTransactions.length === 0 ? (
-              <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
-                해당 기간에 체결 내역이 없습니다.
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      {["일시", "유형", "종목", "수량", "단가", "거래금액"].map((h) => (
-                        <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {kisTransactions.map((t, i) => {
-                      const isOverseas = !["domestic"].includes(t.market) && t.market !== "";
-                      return (
-                        <tr key={i} className="border-t hover:bg-muted/20">
-                          <td className="px-4 py-2 text-xs text-muted-foreground">
-                            {new Date(t.traded_at).toLocaleString("ko-KR")}
-                          </td>
-                          <td className="px-4 py-2">
-                            <span className={`text-xs font-semibold ${t.type === "BUY" ? "text-[#e31f26]" : "text-[#1a56db]"}`}>
-                              {t.type === "BUY" ? "매수" : "매도"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2">
-                            <div className="font-mono text-xs">{t.ticker}</div>
-                            {t.name && <div className="text-xs text-muted-foreground">{t.name}</div>}
-                          </td>
-                          <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
-                          <td className="px-4 py-2 tabular-nums">
-                            {isOverseas ? formatUSD(t.price) : formatKRW(t.price)}
-                          </td>
-                          <td className="px-4 py-2 tabular-nums">
-                            {isOverseas ? formatUSD(t.total_amount) : formatKRW(t.total_amount)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
+      <TransactionSection
+        transactions={transactions}
+        holdings={holdings}
+        hasMorTxns={hasMorTxns ?? false}
+        isFetchingMoreTxns={isFetchingMoreTxns}
+        onFetchMoreTxns={() => void fetchMoreTxns()}
+        showTxnForm={showTxnForm}
+        txnForm={txnForm}
+        addTxnPending={addTxnMutation.isPending}
+        onSetShowTxnForm={setShowTxnForm}
+        onSetTxnForm={setTxnForm}
+        onTxnSubmit={handleTxnSubmit}
+        editMemoId={editMemoId}
+        editMemoValue={editMemoValue}
+        onSetEditMemoId={setEditMemoId}
+        onSetEditMemoValue={setEditMemoValue}
+        onUpdateMemo={(txnId, memo) => updateMemoMutation.mutate({ txnId, memo })}
+        deleteTxnId={deleteTxnId}
+        deleteTxnPending={deleteTxnMutation.isPending}
+        onSetDeleteTxnId={setDeleteTxnId}
+        onDeleteTxn={(id) => deleteTxnMutation.mutate(id)}
+        isKisConnected={isKisConnected}
+        kisTransactions={kisTransactions}
+        kisLoading={kisLoading}
+        kisFromDate={kisFromDate}
+        kisToDate={kisToDate}
+        showKisHistory={showKisHistory}
+        onSetKisFromDate={setKisFromDate}
+        onSetKisToDate={setKisToDate}
+        onSetShowKisHistory={setShowKisHistory}
+        onKisRefetch={() => void kisRefetch()}
+        hasOverseas={holdings.some((h) => h.currency === "USD")}
+      />
       <StockSearchDialog
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

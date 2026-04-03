@@ -320,31 +320,31 @@ Each item should be completable in a single commit.
 
 ### P0 -- 설정 페이지 '보안 로그' 탭 추가 [SEC-001]
 
-- [ ] **feat: settings/page.tsx — '보안 로그' 탭 섹션 추가**
+- [x] **feat: settings/page.tsx — '보안 로그' 탭 섹션 추가**
   - `frontend/src/app/dashboard/settings/page.tsx` — '보안 로그' 탭 섹션 추가
   - `GET /users/me/security-logs` 호출 + 테이블 표시 (action, ip_address, created_at, meta)
   - action별 아이콘/컬러: LOGIN_SUCCESS=green, LOGIN_FAILURE=red, LOGOUT=gray, PASSWORD_CHANGE=yellow, KIS_CREDENTIAL_UPDATE=blue
 
 ### P0 -- 활성 세션 관리 API + UI [SEC-002 / Milestone 20-4]
 
-- [ ] **feat: GET /auth/sessions + DELETE /auth/sessions/{jti} 엔드포인트**
+- [x] **feat: GET /auth/sessions + DELETE /auth/sessions/{jti} 엔드포인트**
   - `backend/app/api/auth.py` — `GET /auth/sessions`: Redis SCAN `refresh:{user_id}:*` → created_at 목록 반환
   - `backend/app/api/auth.py` — `DELETE /auth/sessions/{jti}`: 특정 세션 revoke
   - `backend/app/schemas/auth.py` — SessionItem 스키마 (jti, created_at, is_current)
-- [ ] **feat: settings/page.tsx — '활성 세션' 섹션 추가**
+- [x] **feat: settings/page.tsx — '활성 세션' 섹션 추가**
   - `frontend/src/app/dashboard/settings/page.tsx` — 세션 목록 표시 (기기 목록 + 개별 로그아웃 + 전체 로그아웃)
   - 현재 세션 배지 표시, 개별 세션 revoke 버튼
 
 ### P0 -- portfolios/[id]/page.tsx 분리 [TD-001]
 
-- [ ] **refactor: portfolios/[id]/page.tsx → HoldingsSection + TransactionSection 분리**
+- [x] **refactor: portfolios/[id]/page.tsx → HoldingsSection + TransactionSection 분리**
   - `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx` — 보유종목 테이블 + add/edit/delete mutation
   - `frontend/src/app/dashboard/portfolios/[id]/TransactionSection.tsx` — 거래내역 테이블 + add/delete mutation
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — 헤더 + 레이아웃 + 두 섹션 조합 (목표: < 400 lines)
 
 ### P1 -- settings/page.tsx 분리 [TD-002]
 
-- [ ] **refactor: settings/page.tsx → AccountSection + KisCredentialsSection 분리**
+- [x] **refactor: settings/page.tsx → AccountSection + KisCredentialsSection 분리**
   - `frontend/src/app/dashboard/settings/AccountSection.tsx` — 프로필/비밀번호/회원탈퇴 섹션
   - `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx` — KIS 자격증명 + 실계좌 조회 섹션
   - `frontend/src/app/dashboard/settings/page.tsx` — 탭 레이아웃만 유지 (목표: < 200 lines)
@@ -358,45 +358,45 @@ Each item should be completable in a single commit.
 
 ### P1 -- SSE httpx client per-message 최적화 [PERF-001]
 
-- [ ] **perf: prices.py — httpx.AsyncClient를 SSE generator 외부에서 생성**
+- [x] **perf: prices.py — httpx.AsyncClient를 SSE generator 외부에서 생성**
   - `backend/app/api/prices.py` — httpx.AsyncClient를 `while True` 루프 밖에서 생성 (연결당 1회)
   - 30s 틱마다 TCP 연결 재생성 → 연결당 1회 생성으로 감소
 
 ### P1 -- dashboard ETag + 304 지원 [PERF-002]
 
-- [ ] **perf: dashboard.py — ETag + 304 Not Modified 지원**
+- [x] **perf: dashboard.py — ETag + 304 Not Modified 지원**
   - `backend/app/api/dashboard.py` — 응답 body SHA-256 → ETag 헤더 반환
   - `If-None-Match` 요청 헤더 검사 → 일치 시 304 반환, body 생략
   - 주말/장마감 후 중복 폴링 트래픽 제거
 
 ### P2 -- npm patch updates [TD-004]
 
-- [ ] **chore: frontend/package.json — 9개 패키지 패치 업데이트**
+- [x] **chore: frontend/package.json — 9개 패키지 패치 업데이트**
   - 보안 CVE 없는 마이너/패치 업데이트 적용
   - `npm update` 후 빌드 확인
 
 ### P2 -- icon-only 버튼 aria-label 추가 [UX-003]
 
-- [ ] **a11y: icon-only 버튼 aria-label 추가**
+- [x] **a11y: icon-only 버튼 aria-label 추가**
   - `frontend/src/app/dashboard/journal/page.tsx` — 삭제 버튼 `aria-label="거래 삭제"`
   - `frontend/src/app/dashboard/compare/page.tsx` — 추가 버튼 `aria-label="포트폴리오 추가"`
   - `frontend/src/components/WatchlistSection.tsx` — 삭제 버튼 `aria-label="관심종목 삭제"`
 
 ### P2 -- HoldingsTable aria-sort role 수정 [UX-005]
 
-- [ ] **a11y: HoldingsTable.tsx — aria-sort role 충돌 해소**
+- [x] **a11y: HoldingsTable.tsx — aria-sort role 충돌 해소**
   - `frontend/src/components/HoldingsTable.tsx` — `role=button` + `aria-sort` 조합 제거
   - `role=columnheader` + `aria-sort` 또는 버튼 안에 span으로 aria 분리 (ESLint warning 해소)
 
 ### P2 -- OrderDialog dynamic import [PERF-003]
 
-- [ ] **perf: portfolios/[id]/page.tsx — OrderDialog next/dynamic lazy load**
+- [x] **perf: portfolios/[id]/page.tsx — OrderDialog next/dynamic lazy load**
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — `next/dynamic(() => import('@/components/OrderDialog'), { ssr: false })`
   - 초기 번들에서 ~20KB 분리 (클릭 시에만 로드)
 
 ### P2 -- Recharts 차트 aria-label 추가 [UX-004]
 
-- [ ] **a11y: Recharts 차트 aria-label 추가 (WCAG 1.1.1)**
+- [x] **a11y: Recharts 차트 aria-label 추가 (WCAG 1.1.1)**
   - `frontend/src/components/AllocationDonut.tsx` — `<ResponsiveContainer aria-label="자산 배분 도넛 차트">`
   - `frontend/src/components/PortfolioHistoryChart.tsx` — `aria-label="포트폴리오 수익률 차트"`
   - `frontend/src/components/TransactionChart.tsx` — `aria-label="거래 내역 차트"`
