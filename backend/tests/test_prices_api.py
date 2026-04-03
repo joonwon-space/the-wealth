@@ -594,7 +594,7 @@ class TestSSEEventGeneratorPaths:
         token = await _register_and_login(client, "stream_open_tick@test.com")
 
         ticker_result = MagicMock()
-        ticker_result.all.return_value = [("005930",)]
+        ticker_result.all.return_value = [("005930", "KRX")]
 
         _first_session, mock_session_local = self._make_session_pair(
             second_execute_result=ticker_result

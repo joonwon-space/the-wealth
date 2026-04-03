@@ -34,9 +34,12 @@ export default function SettingsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    window.location.hash = activeTab;
+  }, [activeTab]);
+
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
-    window.location.hash = tab;
   };
 
   return (
