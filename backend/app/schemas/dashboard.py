@@ -10,6 +10,7 @@ class HoldingWithPnL(BaseModel):
     id: int
     ticker: str
     name: str
+    portfolio_name: Optional[str] = None
     quantity: Decimal
     avg_price: Decimal
     current_price: Optional[Decimal]

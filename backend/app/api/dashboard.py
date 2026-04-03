@@ -95,6 +95,7 @@ async def get_summary(
     )
 
     portfolio_ids = [p.id for p in portfolios]
+    portfolio_name_map = {p.id: p.name for p in portfolios}
     if not portfolio_ids:
         return _empty
 
@@ -248,6 +249,7 @@ async def get_summary(
                     id=h.id,
                     ticker=h.ticker,
                     name=h.name,
+                    portfolio_name=portfolio_name_map.get(h.portfolio_id),
                     quantity=h.quantity,
                     avg_price=h.avg_price,
                     current_price=current_price,
@@ -276,6 +278,7 @@ async def get_summary(
                     id=h.id,
                     ticker=h.ticker,
                     name=h.name,
+                    portfolio_name=portfolio_name_map.get(h.portfolio_id),
                     quantity=h.quantity,
                     avg_price=h.avg_price,
                     current_price=current_price,

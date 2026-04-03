@@ -29,6 +29,7 @@ interface HoldingRow {
   w52_high: number | string | null;
   w52_low: number | string | null;
   currency?: string;
+  portfolio_name?: string | null;
 }
 
 interface Props {
@@ -72,6 +73,11 @@ const columns: ColumnDef<HoldingRow>[] = [
           {row.original.currency === "USD" && (
             <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
               해외
+            </span>
+          )}
+          {row.original.portfolio_name && (
+            <span className="rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+              {row.original.portfolio_name}
             </span>
           )}
         </div>
@@ -222,6 +228,11 @@ export function HoldingsTable({ holdings }: Props) {
                     {currency === "USD" && (
                       <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                         해외
+                      </span>
+                    )}
+                    {h.portfolio_name && (
+                      <span className="rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+                        {h.portfolio_name}
                       </span>
                     )}
                   </div>

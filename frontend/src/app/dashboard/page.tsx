@@ -55,6 +55,7 @@ interface HoldingRow {
   w52_high: number | null;
   w52_low: number | null;
   currency: "KRW" | "USD";
+  portfolio_name: string | null;
 }
 
 interface AllocationItem {
