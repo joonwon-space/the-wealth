@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { PackageOpen, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -19,8 +20,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { PnLBadge } from "@/components/PnLBadge";
-import { OrderDialog, ExistingHolding } from "@/components/OrderDialog";
+import type { ExistingHolding } from "@/components/OrderDialog";
 import { TableSkeleton } from "@/components/TableSkeleton";
+
+const OrderDialog = dynamic(
+  () => import("@/components/OrderDialog").then((m) => ({ default: m.OrderDialog })),
+  { ssr: false }
+);
 import { PageError } from "@/components/PageError";
 import { useCashBalance } from "@/hooks/useOrders";
 import { toast } from "sonner";

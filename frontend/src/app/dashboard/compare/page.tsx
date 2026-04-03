@@ -260,9 +260,22 @@ export default function ComparePage() {
       {selectedIds.length === 0 ? (
         <Card>
           <CardContent className="flex h-[320px] items-center justify-center text-sm text-muted-foreground p-6">
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-3">
               <GitCompare className="mx-auto h-10 w-10 text-muted-foreground/30 mb-2" />
-              <p>포트폴리오를 선택하면 수익률 비교 차트가 표시됩니다.</p>
+              <p>비교할 포트폴리오를 추가하세요</p>
+              <p className="text-xs text-muted-foreground">
+                위 목록에서 포트폴리오를 선택하면 수익률 비교 차트가 표시됩니다.
+              </p>
+              {portfolios.length > 0 && (
+                <button
+                  onClick={() => handleToggle(portfolios[0].id)}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  aria-label="포트폴리오 추가"
+                >
+                  <Plus className="h-4 w-4" />
+                  포트폴리오 추가
+                </button>
+              )}
             </div>
           </CardContent>
         </Card>

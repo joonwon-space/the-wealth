@@ -8,11 +8,12 @@ from decimal import Decimal
 from typing import Literal, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.limiter import limiter
 from app.core.redis_cache import RedisCache
 from app.core.config import settings
 from app.db.session import get_db
@@ -114,7 +115,9 @@ def _calc_sharpe(daily_returns: list[float]) -> Optional[float]:
 
 
 @router.get("/metrics")
+@limiter.limit("30/minute")
 async def get_metrics(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -265,7 +268,9 @@ async def get_metrics(
 
 
 @router.get("/monthly-returns", response_model=list[MonthlyReturn])
+@limiter.limit("30/minute")
 async def get_monthly_returns(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[MonthlyReturn]:
@@ -352,7 +357,9 @@ async def get_monthly_returns(
 
 
 @router.get("/portfolio-history", response_model=list[PortfolioHistoryPoint])
+@limiter.limit("30/minute")
 async def get_portfolio_history(
+    request: Request,
     period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
     portfolio_id: Optional[int] = Query(default=None, description="특정 포트폴리오 ID (미지정 시 전체 합산)"),
     current_user: User = Depends(get_current_user),
@@ -431,7 +438,9 @@ async def get_portfolio_history(
 
 
 @router.get("/sector-allocation", response_model=list[SectorAllocation])
+@limiter.limit("30/minute")
 async def get_sector_allocation(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[SectorAllocation]:
@@ -490,7 +499,9 @@ async def get_sector_allocation(
 
 
 @router.get("/fx-gain-loss")
+@limiter.limit("30/minute")
 async def get_fx_gain_loss(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
@@ -504,7 +515,7 @@ async def get_fx_gain_loss(
     현재가: Redis 캐시 우선, 없으면 avg_price fallback.
     현재 환율: Redis 캐시(get_cached_fx_rate) 사용.
     """
-    cache_key = f"analytics:fx_gain_loss:{current_user.id}"
+    cache_key = _analytics_key(current_user.id, "fx-gain-loss")
     cached = await _analytics_cache.get(cache_key)
     if cached:
         return json.loads(cached)
@@ -615,7 +626,9 @@ async def get_fx_gain_loss(
 
 
 @router.get("/krw-asset-history")
+@limiter.limit("30/minute")
 async def get_krw_asset_history(
+    request: Request,
     period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -732,7 +745,9 @@ async def get_krw_asset_history(
 
 
 @router.get("/fx-history")
+@limiter.limit("30/minute")
 async def get_fx_history(
+    request: Request,
     currency_pair: str = Query(default="USDKRW", description="통화쌍 (예: USDKRW)"),
     days: int = Query(default=90, ge=1, le=365, description="조회 기간 (일, 최대 365)"),
     current_user: User = Depends(get_current_user),

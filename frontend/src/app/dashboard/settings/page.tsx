@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SecurityLogsSection } from "./SecurityLogsSection";
 import { ActiveSessionsSection } from "./ActiveSessionsSection";
 import { AccountSection } from "./AccountSection";
@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 
 type Tab = "account" | "kis" | "security-logs" | "sessions";
 
+const VALID_TABS: Tab[] = ["account", "kis", "security-logs", "sessions"];
+
 const TABS: { id: Tab; label: string }[] = [
   { id: "account", label: "계정" },
   { id: "kis", label: "KIS 계좌" },
@@ -16,8 +18,26 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "sessions", label: "세션 관리" },
 ];
 
+function getInitialTab(): Tab {
+  if (typeof window === "undefined") return "account";
+  const hash = window.location.hash.slice(1) as Tab;
+  return VALID_TABS.includes(hash) ? hash : "account";
+}
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("account");
+  const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(1) as Tab;
+    if (VALID_TABS.includes(hash)) {
+      setActiveTab(hash);
+    }
+  }, []);
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
+  };
 
   return (
     <div className="space-y-6 max-w-xl">
@@ -28,7 +48,7 @@ export default function SettingsPage() {
         {TABS.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
               activeTab === tab.id
                 ? "border-primary text-primary"

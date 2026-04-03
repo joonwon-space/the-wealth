@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional
@@ -24,7 +25,11 @@ from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
 from app.core.logging import get_logger
-from app.services.kis_price import fetch_and_cache_domestic_price
+from app.core.ticker import is_domestic
+from app.services.kis_price import (
+    fetch_and_cache_domestic_price,
+    get_or_fetch_overseas_price,
+)
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 logger = get_logger(__name__)
@@ -36,6 +41,7 @@ _SSE_INTERVAL = 30         # seconds between price fetches
 _SSE_HEARTBEAT = 15        # seconds between heartbeat pings
 _SSE_TIMEOUT = 7200        # 2 hour max connection duration
 _SSE_MAX_CONNECTIONS = 3   # max concurrent SSE connections per user
+_SSE_TICKER_CACHE_TTL = 60  # seconds to cache ticker list per user
 
 # Global shutdown event — set during lifespan shutdown to terminate SSE streams
 _shutdown_event: asyncio.Event = asyncio.Event()
@@ -43,6 +49,41 @@ _shutdown_event: asyncio.Event = asyncio.Event()
 # Per-user active SSE connection count {user_id: count}
 _active_connections: dict[int, int] = {}
 _connections_lock: asyncio.Lock = asyncio.Lock()
+
+# Per-user ticker list cache {user_id: (ticker_market_map, cached_at_monotonic)}
+# ticker_market_map: {ticker: market}
+_ticker_cache: dict[int, tuple[dict[str, str], float]] = {}
+_ticker_cache_lock: asyncio.Lock = asyncio.Lock()
+
+
+async def _get_cached_ticker_market_map(
+    user_id: int, portfolio_ids: list[int]
+) -> dict[str, str]:
+    """SSE 루프에서 사용하는 ticker→market 맵을 60초 TTL로 메모리 캐시."""
+    async with _ticker_cache_lock:
+        if user_id in _ticker_cache:
+            ticker_map, cached_at = _ticker_cache[user_id]
+            if time.monotonic() - cached_at < _SSE_TICKER_CACHE_TTL:
+                return ticker_map
+
+    async with AsyncSessionLocal() as db:
+        hold_result = await db.execute(
+            select(Holding.ticker, Holding.market).distinct().where(
+                Holding.portfolio_id.in_(portfolio_ids)
+            )
+        )
+        ticker_map = {row[0]: (row[1] or "NYSE") for row in hold_result.all()}
+
+    async with _ticker_cache_lock:
+        _ticker_cache[user_id] = (ticker_map, time.monotonic())
+
+    return ticker_map
+
+
+async def invalidate_sse_ticker_cache(user_id: int) -> None:
+    """sync 또는 holding 변경 후 SSE ticker 캐시 무효화."""
+    async with _ticker_cache_lock:
+        _ticker_cache.pop(user_id, None)
 
 
 def signal_sse_shutdown() -> None:
@@ -232,26 +273,38 @@ async def stream_prices(
                         continue
 
                     try:
-                        async with AsyncSessionLocal() as db:
-                            hold_result = await db.execute(
-                                select(Holding.ticker).distinct().where(
-                                    Holding.portfolio_id.in_(portfolio_ids)
-                                )
-                            )
-                            tickers = [r[0] for r in hold_result.all()]
+                        ticker_market_map = await _get_cached_ticker_market_map(
+                            current_user.id, portfolio_ids
+                        )
 
-                        if not tickers:
+                        if not ticker_market_map:
                             yield f"data: {json.dumps({'prices': {}})}\n\n"
                         else:
-                            results = await asyncio.gather(
-                                *[fetch_and_cache_domestic_price(t, app_key, app_secret, client) for t in tickers],
+                            domestic = [t for t in ticker_market_map if is_domestic(t)]
+                            overseas = [t for t in ticker_market_map if not is_domestic(t)]
+
+                            domestic_results = await asyncio.gather(
+                                *[fetch_and_cache_domestic_price(t, app_key, app_secret, client) for t in domestic],
                                 return_exceptions=True,
                             )
-                            prices = {
-                                ticker: str(price)
-                                for ticker, price in zip(tickers, results)
-                                if isinstance(price, Decimal) and price > 0
-                            }
+                            overseas_results = await asyncio.gather(
+                                *[
+                                    get_or_fetch_overseas_price(
+                                        t, ticker_market_map[t], app_key, app_secret, client
+                                    )
+                                    for t in overseas
+                                ],
+                                return_exceptions=True,
+                            )
+
+                            prices: dict[str, str] = {}
+                            for ticker, price in zip(domestic, domestic_results):
+                                if isinstance(price, Decimal) and price > 0:
+                                    prices[ticker] = str(price)
+                            for ticker, price in zip(overseas, overseas_results):
+                                if isinstance(price, Decimal) and price > 0:
+                                    prices[ticker] = str(price)
+
                             yield f"data: {json.dumps({'market_open': True, 'prices': prices})}\n\n"
 
                             # Check alerts and emit triggered events

@@ -497,6 +497,7 @@ async def update_holding(
         holding.avg_price = body.avg_price
     await db.commit()
     await db.refresh(holding)
+    await invalidate_analytics_cache(current_user.id)
     return holding
 
 

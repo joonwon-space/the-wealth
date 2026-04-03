@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.encryption import decrypt, encrypt
+from app.core.limiter import limiter
 from app.core.security import (
     hash_password,
     revoke_all_refresh_tokens_for_user,
@@ -55,7 +56,9 @@ async def update_me(
 
 
 @router.post("/me/change-password", status_code=200)
+@limiter.limit("5/minute")
 async def change_password(
+    request: Request,
     body: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -77,7 +80,9 @@ async def change_password(
 
 
 @router.post("/me/change-email", status_code=200)
+@limiter.limit("5/minute")
 async def change_email(
+    request: Request,
     body: ChangeEmailRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -107,6 +112,7 @@ async def change_email(
 
 
 @router.delete("/me", status_code=200)
+@limiter.limit("5/minute")
 async def delete_account(
     request: Request,
     body: DeleteAccountRequest,
