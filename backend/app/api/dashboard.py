@@ -1,11 +1,14 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 
 import asyncio
+import hashlib
+import json
 from decimal import Decimal
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,14 +71,14 @@ def _calc_pnl(
     return pnl_amount, pnl_rate
 
 
-@router.get("/summary", response_model=DashboardSummary)
+@router.get("/summary")
 @limiter.limit("120/minute")
 async def get_summary(
     request: Request,
     refresh: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DashboardSummary:
+) -> Response:
     # 사용자 포트폴리오 및 홀딩 조회
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
@@ -97,7 +100,7 @@ async def get_summary(
     portfolio_ids = [p.id for p in portfolios]
     portfolio_name_map = {p.id: p.name for p in portfolios}
     if not portfolio_ids:
-        return _empty
+        return JSONResponse(content=json.loads(_empty.model_dump_json()))
 
     hold_result = await db.execute(
         select(Holding).where(Holding.portfolio_id.in_(portfolio_ids)).limit(500)
@@ -105,7 +108,7 @@ async def get_summary(
     holdings = hold_result.scalars().all()
 
     if not holdings:
-        return _empty
+        return JSONResponse(content=json.loads(_empty.model_dump_json()))
 
     # Ticker 분류: 국내(6자리 숫자) vs 해외
     tickers = list({h.ticker for h in holdings})
@@ -374,7 +377,7 @@ async def get_summary(
     triggered_raw = check_triggered_alerts(active_alerts, prices)
     triggered_alerts = [TriggeredAlert(**a) for a in triggered_raw]
 
-    return DashboardSummary(
+    summary = DashboardSummary(
         total_asset=total_asset,
         total_invested=total_invested,
         total_pnl_amount=total_pnl_amount,
@@ -387,4 +390,17 @@ async def get_summary(
         triggered_alerts=triggered_alerts,
         usd_krw_rate=exchange_rate if overseas_tickers else None,
         kis_status=kis_status,
+    )
+
+    # ETag + 304 지원: 응답 body SHA-256 해시로 ETag 생성.
+    # 주말/장마감 후 polling 시 동일 데이터면 304 반환 → body 전송 생략.
+    body = summary.model_dump_json()
+    etag = f'"{hashlib.sha256(body.encode()).hexdigest()[:16]}"'
+    if_none_match = request.headers.get("if-none-match", "")
+    if if_none_match == etag and not refresh:
+        return Response(status_code=304, headers={"ETag": etag})
+
+    return JSONResponse(
+        content=json.loads(body),
+        headers={"ETag": etag},
     )

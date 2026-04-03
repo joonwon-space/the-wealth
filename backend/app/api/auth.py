@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +14,9 @@ from app.core.security import (
     create_refresh_token,
     decode_refresh_token,
     hash_password,
+    list_sessions_for_user,
     revoke_all_refresh_tokens_for_user,
+    revoke_session_for_user,
     store_refresh_jti,
     verify_and_consume_refresh_jti,
     verify_password,
@@ -25,6 +29,7 @@ from app.schemas.auth import (
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
+    SessionItem,
     TokenResponse,
     UserResponse,
 )
@@ -298,3 +303,61 @@ async def logout(
     await log_event(db, AuditAction.LOGOUT, user_id=current_user.id, request=request)
     await db.commit()
     _clear_auth_cookies(response)
+
+
+@router.get("/sessions", response_model=list[SessionItem])
+@limiter.limit("30/minute")
+async def get_sessions(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> list[SessionItem]:
+    """현재 사용자의 활성 세션 목록 조회.
+
+    Redis에 저장된 refresh:{user_id}:* 키를 스캔해 세션 목록을 반환한다.
+    현재 요청에 사용된 JTI를 is_current=True로 표시한다.
+    """
+    # 현재 요청 토큰에서 JTI 추출 (쿠키 또는 Authorization 헤더)
+    current_jti: Optional[str] = None
+    raw_token = request.cookies.get("access_token") or ""
+    if not raw_token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            raw_token = auth_header[7:]
+    if raw_token:
+        try:
+            import jwt as _jwt  # noqa: PLC0415
+            from app.core.config import settings as _s  # noqa: PLC0415
+            payload = _jwt.decode(raw_token, _s.JWT_SECRET_KEY, algorithms=[_s.JWT_ALGORITHM])
+            current_jti = payload.get("jti")
+        except Exception:
+            pass
+
+    sessions = await list_sessions_for_user(current_user.id)
+    return [
+        SessionItem(
+            jti=s["jti"],
+            created_at=s.get("created_at"),
+            is_current=(s["jti"] == current_jti),
+        )
+        for s in sessions
+    ]
+
+
+@router.delete("/sessions/{jti}", status_code=204)
+@limiter.limit("30/minute")
+async def revoke_session(
+    request: Request,
+    jti: str,
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """특정 세션 revoke (개별 기기 로그아웃).
+
+    jti가 현재 사용자 소유인지 확인 후 Redis에서 삭제한다.
+    존재하지 않는 JTI는 404를 반환한다.
+    """
+    deleted = await revoke_session_for_user(current_user.id, jti)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )

@@ -3,6 +3,14 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
+class SessionItem(BaseModel):
+    """활성 세션 항목 (Redis refresh token 기반)."""
+
+    jti: str
+    created_at: Optional[str] = None
+    is_current: bool = False
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     # max_length=128 prevents bcrypt DoS (bcrypt truncates at 72 bytes; 128 chars

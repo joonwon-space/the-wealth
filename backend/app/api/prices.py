@@ -208,10 +208,66 @@ async def stream_prices(
             app_key = decrypt(acct.app_key_enc)
             app_secret = decrypt(acct.app_secret_enc)
 
-            while elapsed < _SSE_TIMEOUT and not _shutdown_event.is_set():
-                if not _is_market_open():
-                    yield f"data: {json.dumps({'market_open': False})}\n\n"
-                    # Send heartbeat pings while waiting for next cycle
+            # Create a single httpx client for the lifetime of this SSE connection.
+            # Creating one per 30s tick would open/close a TCP connection each cycle.
+            async with httpx.AsyncClient(timeout=10.0) as _sse_client:
+                while elapsed < _SSE_TIMEOUT and not _shutdown_event.is_set():
+                    if not _is_market_open():
+                        yield f"data: {json.dumps({'market_open': False})}\n\n"
+                        # Send heartbeat pings while waiting for next cycle
+                        remaining = _SSE_INTERVAL
+                        while remaining > 0 and not _shutdown_event.is_set():
+                            wait = min(_SSE_HEARTBEAT, remaining)
+                            try:
+                                await asyncio.wait_for(
+                                    _shutdown_event.wait(), timeout=wait
+                                )
+                                break  # Shutdown signaled
+                            except asyncio.TimeoutError:
+                                pass
+                            remaining -= wait
+                            if remaining > 0:
+                                yield ": ping\n\n"
+                        if _shutdown_event.is_set():
+                            break
+                        elapsed += _SSE_INTERVAL
+                        continue
+
+                    try:
+                        async with AsyncSessionLocal() as db:
+                            hold_result = await db.execute(
+                                select(Holding.ticker).distinct().where(
+                                    Holding.portfolio_id.in_(portfolio_ids)
+                                )
+                            )
+                            tickers = [r[0] for r in hold_result.all()]
+
+                        if not tickers:
+                            yield f"data: {json.dumps({'prices': {}})}\n\n"
+                        else:
+                            results = await asyncio.gather(
+                                *[fetch_and_cache_domestic_price(t, app_key, app_secret, _sse_client) for t in tickers],
+                                return_exceptions=True,
+                            )
+                            prices = {
+                                ticker: str(price)
+                                for ticker, price in zip(tickers, results)
+                                if isinstance(price, Decimal) and price > 0
+                            }
+                            yield f"data: {json.dumps({'market_open': True, 'prices': prices})}\n\n"
+
+                            # Check alerts and emit triggered events
+                            alert_event = await _check_alerts_and_emit(
+                                current_user.id, prices
+                            )
+                            if alert_event:
+                                yield alert_event
+
+                    except Exception as e:
+                        logger.warning("SSE price fetch error: %s", e)
+                        yield f"data: {json.dumps({'error': 'fetch_failed'})}\n\n"
+
+                    # Wait for next interval with heartbeat pings
                     remaining = _SSE_INTERVAL
                     while remaining > 0 and not _shutdown_event.is_set():
                         wait = min(_SSE_HEARTBEAT, remaining)
@@ -225,64 +281,10 @@ async def stream_prices(
                         remaining -= wait
                         if remaining > 0:
                             yield ": ping\n\n"
+
                     if _shutdown_event.is_set():
                         break
                     elapsed += _SSE_INTERVAL
-                    continue
-
-                try:
-                    async with AsyncSessionLocal() as db:
-                        hold_result = await db.execute(
-                            select(Holding.ticker).distinct().where(
-                                Holding.portfolio_id.in_(portfolio_ids)
-                            )
-                        )
-                        tickers = [r[0] for r in hold_result.all()]
-
-                    if not tickers:
-                        yield f"data: {json.dumps({'prices': {}})}\n\n"
-                    else:
-                        async with httpx.AsyncClient(timeout=10.0) as client:
-                            results = await asyncio.gather(
-                                *[fetch_and_cache_domestic_price(t, app_key, app_secret, client) for t in tickers],
-                                return_exceptions=True,
-                            )
-                        prices = {
-                            ticker: str(price)
-                            for ticker, price in zip(tickers, results)
-                            if isinstance(price, Decimal) and price > 0
-                        }
-                        yield f"data: {json.dumps({'market_open': True, 'prices': prices})}\n\n"
-
-                        # Check alerts and emit triggered events
-                        alert_event = await _check_alerts_and_emit(
-                            current_user.id, prices
-                        )
-                        if alert_event:
-                            yield alert_event
-
-                except Exception as e:
-                    logger.warning("SSE price fetch error: %s", e)
-                    yield f"data: {json.dumps({'error': 'fetch_failed'})}\n\n"
-
-                # Wait for next interval with heartbeat pings
-                remaining = _SSE_INTERVAL
-                while remaining > 0 and not _shutdown_event.is_set():
-                    wait = min(_SSE_HEARTBEAT, remaining)
-                    try:
-                        await asyncio.wait_for(
-                            _shutdown_event.wait(), timeout=wait
-                        )
-                        break  # Shutdown signaled
-                    except asyncio.TimeoutError:
-                        pass
-                    remaining -= wait
-                    if remaining > 0:
-                        yield ": ping\n\n"
-
-                if _shutdown_event.is_set():
-                    break
-                elapsed += _SSE_INTERVAL
 
             if elapsed >= _SSE_TIMEOUT:
                 logger.info(

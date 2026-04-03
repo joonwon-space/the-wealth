@@ -72,6 +72,50 @@ async def verify_and_consume_refresh_jti(jti: str, user_id: int) -> bool:
         return True
 
 
+async def list_sessions_for_user(user_id: int) -> list[dict]:
+    """Return all active sessions for a user from Redis.
+
+    Each session dict contains: jti, created_at (ISO string).
+    Keys follow refresh:{user_id}:{jti} format.
+    """
+    sessions: list[dict] = []
+    async with get_redis_client(settings.REDIS_URL) as r:
+        cursor = 0
+        while True:
+            cursor, keys = await r.scan(
+                cursor, match=f"{_REFRESH_TOKEN_PREFIX}{user_id}:*", count=100
+            )
+            for key in keys:
+                raw = await r.get(key)
+                if raw is None:
+                    continue
+                try:
+                    data = json.loads(raw)
+                except (ValueError, TypeError):
+                    data = {}
+                # Extract jti from key suffix: refresh:{user_id}:{jti}
+                key_str = key if isinstance(key, str) else key.decode()
+                prefix = f"{_REFRESH_TOKEN_PREFIX}{user_id}:"
+                jti = key_str[len(prefix):] if key_str.startswith(prefix) else key_str
+                sessions.append(
+                    {
+                        "jti": jti,
+                        "created_at": data.get("created_at"),
+                    }
+                )
+            if cursor == 0:
+                break
+    return sessions
+
+
+async def revoke_session_for_user(user_id: int, jti: str) -> bool:
+    """Revoke a specific session (jti) for a user. Returns True if found and deleted."""
+    key = _refresh_key(user_id, jti)
+    async with get_redis_client(settings.REDIS_URL) as r:
+        deleted = await r.delete(key)
+        return bool(deleted)
+
+
 async def revoke_all_refresh_tokens_for_user(user_id: int) -> None:
     """Revoke all refresh tokens for a user (on logout/password change).
 
