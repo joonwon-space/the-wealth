@@ -135,19 +135,34 @@ export default function AnalyticsPage() {
     staleTime: 60_000,
   });
 
-  const { data: metrics } = useQuery<Metrics>({
+  const {
+    data: metrics,
+    isLoading: metricsLoading,
+    isError: metricsError,
+    refetch: refetchMetrics,
+  } = useQuery<Metrics>({
     queryKey: ["analytics", "metrics"],
     queryFn: () => api.get<Metrics>("/analytics/metrics").then((r) => r.data),
     staleTime: 3_600_000,
   });
 
-  const { data: monthlyReturns = [] } = useQuery<MonthlyReturnItem[]>({
+  const {
+    data: monthlyReturns = [],
+    isLoading: monthlyLoading,
+    isError: monthlyError,
+    refetch: refetchMonthly,
+  } = useQuery<MonthlyReturnItem[]>({
     queryKey: ["analytics", "monthly-returns"],
     queryFn: () => api.get<MonthlyReturnItem[]>("/analytics/monthly-returns").then((r) => r.data),
     staleTime: 3_600_000,
   });
 
-  const { data: portfolioHistory = [] } = useQuery<HistoryPoint[]>({
+  const {
+    data: portfolioHistory = [],
+    isLoading: historyLoading,
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useQuery<HistoryPoint[]>({
     queryKey: ["analytics", "portfolio-history", historyPeriod],
     queryFn: () =>
       api
@@ -156,21 +171,36 @@ export default function AnalyticsPage() {
     staleTime: 3_600_000,
   });
 
-  const { data: sectorAllocation = [] } = useQuery<SectorAllocationItem[]>({
+  const {
+    data: sectorAllocation = [],
+    isLoading: sectorLoading,
+    isError: sectorError,
+    refetch: refetchSector,
+  } = useQuery<SectorAllocationItem[]>({
     queryKey: ["analytics", "sector-allocation"],
     queryFn: () =>
       api.get<SectorAllocationItem[]>("/analytics/sector-allocation").then((r) => r.data),
     staleTime: 3_600_000,
   });
 
-  const { data: fxGainLoss = [] } = useQuery<FxGainLossItem[]>({
+  const {
+    data: fxGainLoss = [],
+    isLoading: fxLoading,
+    isError: fxError,
+    refetch: refetchFx,
+  } = useQuery<FxGainLossItem[]>({
     queryKey: ["analytics", "fx-gain-loss"],
     queryFn: () =>
       api.get<FxGainLossItem[]>("/analytics/fx-gain-loss").then((r) => r.data),
     staleTime: 3_600_000,
   });
 
-  const { data: krwAssetHistory = [] } = useQuery<KrwAssetPoint[]>({
+  const {
+    data: krwAssetHistory = [],
+    isLoading: krwLoading,
+    isError: krwError,
+    refetch: refetchKrw,
+  } = useQuery<KrwAssetPoint[]>({
     queryKey: ["analytics", "krw-asset-history", historyPeriod],
     queryFn: () =>
       api
@@ -277,30 +307,61 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 성과 지표 */}
-      {metrics && (
-        <section className="space-y-2">
-          <h2 className="text-base font-semibold">성과 지표</h2>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">성과 지표</h2>
+        {metricsLoading ? (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+          </div>
+        ) : metricsError ? (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span>지표를 불러오지 못했습니다.</span>
+            <button onClick={() => refetchMetrics()} className="underline">다시 시도</button>
+          </div>
+        ) : metrics ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <MetricCard label="총 수익률" value={metrics.total_return_rate} suffix="%" tooltip="전체 투자 기간 동안의 누적 수익률" />
             <MetricCard label="CAGR" value={metrics.cagr} suffix="%" tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다." nullHint="데이터 30일 이상 필요" />
             <MetricCard label="MDD" value={metrics.mdd != null ? -metrics.mdd : null} suffix="%" tooltip="최대 낙폭(MDD): 고점 대비 최대 하락폭입니다. 값이 클수록 손실 위험이 큽니다." nullHint="이력 데이터 부족" />
             <MetricCard label="샤프 비율" value={metrics.sharpe_ratio} tooltip="샤프 비율: 위험(변동성) 한 단위당 초과 수익률. 1 이상이면 양호, 2 이상이면 우수합니다." nullHint="데이터 30일 이상 필요" />
           </div>
-        </section>
-      )}
+        ) : null}
+      </section>
 
       {/* 포트폴리오 가치 추이 */}
       <section className="space-y-2">
         <h2 className="text-base font-semibold">포트폴리오 가치 추이</h2>
-        <PortfolioHistoryChart
-          data={portfolioHistory}
-          period={historyPeriod}
-          onPeriodChange={setHistoryPeriod}
-        />
+        {historyLoading ? (
+          <Skeleton className="h-48 rounded-lg" />
+        ) : historyError ? (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span>포트폴리오 히스토리를 불러오지 못했습니다.</span>
+            <button onClick={() => refetchHistory()} className="underline">다시 시도</button>
+          </div>
+        ) : (
+          <PortfolioHistoryChart
+            data={portfolioHistory}
+            period={historyPeriod}
+            onPeriodChange={setHistoryPeriod}
+          />
+        )}
       </section>
 
       {/* 원화 환산 총 자산 추이 */}
-      {krwAssetHistory.length > 0 && (
+      {krwLoading ? (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">원화 환산 총 자산 추이</h2>
+          <Skeleton className="h-48 rounded-lg" />
+        </section>
+      ) : krwError ? (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">원화 환산 총 자산 추이</h2>
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span>데이터를 불러오지 못했습니다.</span>
+            <button onClick={() => refetchKrw()} className="underline">다시 시도</button>
+          </div>
+        </section>
+      ) : krwAssetHistory.length > 0 ? (
         <section className="space-y-2">
           <h2 className="text-base font-semibold">원화 환산 총 자산 추이</h2>
           <p className="text-xs text-muted-foreground">해외주식은 해당 날짜 환율로 원화 환산. 기간 탭은 위 차트와 연동됩니다.</p>
@@ -370,30 +431,53 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </section>
-      )}
+      ) : null}
 
       {/* 월별 수익률 히트맵 */}
       <section className="space-y-2">
         <h2 className="text-base font-semibold">월별 수익률</h2>
-        <MonthlyHeatmap data={monthlyReturns} />
+        {monthlyLoading ? (
+          <Skeleton className="h-32 rounded-lg" />
+        ) : monthlyError ? (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span>월별 수익률을 불러오지 못했습니다.</span>
+            <button onClick={() => refetchMonthly()} className="underline">다시 시도</button>
+          </div>
+        ) : (
+          <MonthlyHeatmap data={monthlyReturns} />
+        )}
       </section>
 
       {/* 섹터 배분 */}
-      {sectorAllocation.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">섹터 배분</h2>
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">섹터 배분</h2>
+        {sectorLoading ? (
+          <Skeleton className="h-48 rounded-lg" />
+        ) : sectorError ? (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span>섹터 배분을 불러오지 못했습니다.</span>
+            <button onClick={() => refetchSector()} className="underline">다시 시도</button>
+          </div>
+        ) : sectorAllocation.length > 0 ? (
           <Card>
             <CardContent className="p-4">
               <SectorAllocationChart data={sectorAllocation} />
             </CardContent>
           </Card>
-        </section>
-      )}
+        ) : null}
+      </section>
 
       {/* 해외주식 환차익/환차손 */}
-      {fxGainLoss.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">해외주식 환차익/환차손</h2>
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">해외주식 환차익/환차손</h2>
+        {fxLoading ? (
+          <Skeleton className="h-32 rounded-lg" />
+        ) : fxError ? (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span>환차익 데이터를 불러오지 못했습니다.</span>
+            <button onClick={() => refetchFx()} className="underline">다시 시도</button>
+          </div>
+        ) : fxGainLoss.length > 0 ? (
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -428,8 +512,8 @@ export default function AnalyticsPage() {
               </div>
             </CardContent>
           </Card>
-        </section>
-      )}
+        ) : null}
+      </section>
 
       {/* Stock Chart */}
       <section className="space-y-3">

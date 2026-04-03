@@ -19,6 +19,7 @@ from app.core.security import (
 )
 from app.api.deps import get_current_user
 from app.db.session import AsyncSessionLocal, get_db
+from app.models.security_audit_log import AuditAction
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
@@ -27,6 +28,7 @@ from app.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
+from app.services.audit_service import log_event
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = get_logger(__name__)
@@ -175,6 +177,15 @@ async def login(
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(body.password, user.hashed_password):
+        failed_user_id = user.id if user is not None else None
+        await log_event(
+            db,
+            AuditAction.LOGIN_FAILURE,
+            user_id=failed_user_id,
+            request=request,
+            meta={"email": body.email},
+        )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
@@ -182,6 +193,8 @@ async def login(
     access_token = create_access_token(user.id)
     refresh_token, jti = create_refresh_token(user.id)
     await store_refresh_jti(jti, user.id)
+    await log_event(db, AuditAction.LOGIN_SUCCESS, user_id=user.id, request=request)
+    await db.commit()
 
     _set_auth_cookies(response, access_token, refresh_token)
 
@@ -217,8 +230,8 @@ async def refresh(
         )
 
     # Verify jti exists in Redis and consume it (one-time use)
-    verified_user_id = await verify_and_consume_refresh_jti(decoded["jti"])
-    if verified_user_id is None:
+    jti_valid = await verify_and_consume_refresh_jti(decoded["jti"], decoded["user_id"])
+    if not jti_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token already used or revoked",
@@ -251,6 +264,7 @@ class ChangePasswordRequest(BaseModel):
 
 @router.post("/change-password", status_code=204)
 async def change_password(
+    request: Request,
     body: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -267,15 +281,20 @@ async def change_password(
             detail="New password must be at least 8 characters",
         )
     current_user.hashed_password = hash_password(body.new_password)
+    await log_event(db, AuditAction.PASSWORD_CHANGE, user_id=current_user.id, request=request)
     await db.commit()
     await revoke_all_refresh_tokens_for_user(current_user.id)
 
 
 @router.post("/logout", status_code=204)
 async def logout(
+    request: Request,
     response: Response,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
     """Revoke all refresh tokens and clear auth cookies."""
     await revoke_all_refresh_tokens_for_user(current_user.id)
+    await log_event(db, AuditAction.LOGOUT, user_id=current_user.id, request=request)
+    await db.commit()
     _clear_auth_cookies(response)

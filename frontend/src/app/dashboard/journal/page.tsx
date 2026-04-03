@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { BookOpen, ArrowUpCircle, ArrowDownCircle, MessageSquare, Search, X } from "lucide-react";
+import { BookOpen, ArrowUpCircle, ArrowDownCircle, MessageSquare, Search, TrendingUp, TrendingDown, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
@@ -101,12 +101,18 @@ function TransactionCard({ txn, stockName }: TransactionCardProps) {
             {stockName && <span className="ml-1 text-xs text-muted-foreground">{txn.ticker}</span>}
             <span
               className={cn(
-                "ml-2 rounded px-1.5 py-0.5 text-[11px] font-medium",
+                "ml-2 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium",
                 isBuy
                   ? "bg-rise/10 text-rise"
                   : "bg-fall/10 text-fall"
               )}
+              aria-label={isBuy ? "매수" : "매도"}
             >
+              {isBuy ? (
+                <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" />
+              ) : (
+                <TrendingDown className="h-2.5 w-2.5" aria-hidden="true" />
+              )}
               {isBuy ? "매수" : "매도"}
             </span>
           </div>

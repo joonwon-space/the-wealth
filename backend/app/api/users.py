@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,7 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
+from app.models.security_audit_log import AuditAction, SecurityAuditLog
 from app.models.user import User
 from app.schemas.user import (
     ChangeEmailRequest,
@@ -25,6 +26,7 @@ from app.schemas.user import (
     UserMe,
     UserUpdate,
 )
+from app.services.audit_service import log_event
 from app.services.kis_token import get_kis_access_token
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -106,6 +108,7 @@ async def change_email(
 
 @router.delete("/me", status_code=200)
 async def delete_account(
+    request: Request,
     body: DeleteAccountRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -122,6 +125,7 @@ async def delete_account(
             detail="Current password is incorrect",
         )
     user_id = current_user.id
+    await log_event(db, AuditAction.ACCOUNT_DELETE, user_id=user_id, request=request)
     await db.delete(current_user)
     await db.commit()
     await revoke_all_refresh_tokens_for_user(user_id)
@@ -169,6 +173,12 @@ async def add_kis_account(
         account_type=body.account_type or None,
     )
     db.add(acct)
+    await log_event(
+        db,
+        AuditAction.KIS_CREDENTIAL_ADD,
+        user_id=current_user.id,
+        meta={"account_no": body.account_no, "label": body.label},
+    )
     await db.commit()
     await db.refresh(acct)
     return {
@@ -261,6 +271,12 @@ async def delete_kis_account(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="KIS account not found"
         )
+    await log_event(
+        db,
+        AuditAction.KIS_CREDENTIAL_DELETE,
+        user_id=current_user.id,
+        meta={"account_no": acct.account_no, "label": acct.label},
+    )
     await db.delete(acct)
     await db.commit()
 
@@ -284,3 +300,28 @@ async def test_kis_account(
         return {"success": True, "message": "KIS API 연결 성공"}
     except Exception:
         return {"success": False, "message": "KIS API 연결 실패 — 자격증명을 확인해주세요"}
+
+
+@router.get("/me/security-logs")
+async def get_security_logs(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Return the 50 most recent security audit log entries for the current user."""
+    result = await db.execute(
+        select(SecurityAuditLog)
+        .where(SecurityAuditLog.user_id == current_user.id)
+        .order_by(SecurityAuditLog.created_at.desc())
+        .limit(50)
+    )
+    logs = result.scalars().all()
+    return [
+        {
+            "id": log.id,
+            "action": log.action.value,
+            "ip_address": log.ip_address,
+            "created_at": log.created_at.isoformat(),
+            "meta": log.meta,
+        }
+        for log in logs
+    ]

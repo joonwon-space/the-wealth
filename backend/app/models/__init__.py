@@ -6,6 +6,7 @@ from app.models.notification import Notification
 from app.models.order import Order
 from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
+from app.models.security_audit_log import SecurityAuditLog
 from app.models.sync_log import SyncLog
 from app.models.transaction import Transaction
 from app.models.user import User
@@ -16,6 +17,7 @@ __all__ = [
     "FxRateSnapshot",
     "Notification",
     "Order",
+    "SecurityAuditLog",
     "User",
     "KisAccount",
     "Portfolio",

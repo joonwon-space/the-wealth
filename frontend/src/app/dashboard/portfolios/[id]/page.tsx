@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X, RefreshCw } from "lucide-react";
+import { Plus, Search, Trash2, PackageOpen, Download, History, TrendingUp, TrendingDown, Wallet, Target, Pencil, Check, X, RefreshCw, Loader2 } from "lucide-react";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
@@ -117,6 +117,7 @@ export default function PortfolioDetailPage() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [addForm, setAddForm] = useState<AddForm | null>(null);
+  const [addFormErrors, setAddFormErrors] = useState<{ quantity?: string; avg_price?: string }>({});
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [orderTicker, setOrderTicker] = useState("");
   const [orderName, setOrderName] = useState("");
@@ -125,6 +126,7 @@ export default function PortfolioDetailPage() {
   const [orderExchangeCode, setOrderExchangeCode] = useState<string | undefined>();
   const [orderExistingHolding, setOrderExistingHolding] = useState<ExistingHolding | undefined>();
   const [showPendingOrders, setShowPendingOrders] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{ quantity: string; avg_price: string }>({ quantity: "", avg_price: "" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -362,6 +364,17 @@ export default function PortfolioDetailPage() {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm) return;
+    const errors: { quantity?: string; avg_price?: string } = {};
+    const qty = Number(addForm.quantity);
+    const price = Number(addForm.avg_price);
+    if (!addForm.quantity || qty <= 0) {
+      errors.quantity = "수량은 0보다 커야 합니다";
+    }
+    if (!addForm.avg_price || price < 0) {
+      errors.avg_price = "가격은 0 이상이어야 합니다";
+    }
+    setAddFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     addHoldingMutation.mutate(addForm);
   };
 
@@ -374,28 +387,44 @@ export default function PortfolioDetailPage() {
   };
 
   const downloadCsv = async (path: string, filename: string) => {
-    const response = await api.get<string>(path, { responseType: "blob" });
-    const url = URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const response = await api.get<string>(path, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([response.data], { type: "text/csv" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("파일 내보내기에 실패했습니다");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const downloadXlsx = async () => {
-    const response = await api.get<Blob>(`/portfolios/${portfolioId}/export/xlsx`, {
-      responseType: "blob",
-    });
-    const mimeType =
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const url = URL.createObjectURL(new Blob([response.data], { type: mimeType }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `portfolio_${portfolioId}_${today}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(url);
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const response = await api.get<Blob>(`/portfolios/${portfolioId}/export/xlsx`, {
+        responseType: "blob",
+      });
+      const mimeType =
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const url = URL.createObjectURL(new Blob([response.data], { type: mimeType }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `portfolio_${portfolioId}_${today}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("엑셀 내보내기에 실패했습니다");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -422,27 +451,30 @@ export default function PortfolioDetailPage() {
             variant="outline"
             size="sm"
             onClick={() => downloadCsv(`/portfolios/${portfolioId}/export/csv`, `holdings_portfolio_${portfolioId}.csv`)}
+            disabled={isExporting}
             className="gap-2"
           >
-            <Download className="h-4 w-4" />
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             보유 종목 CSV
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => downloadCsv(`/portfolios/${portfolioId}/transactions/export/csv`, `transactions_portfolio_${portfolioId}.csv`)}
+            disabled={isExporting}
             className="gap-2"
           >
-            <Download className="h-4 w-4" />
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             거래 내역 CSV
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={downloadXlsx}
+            disabled={isExporting}
             className="gap-2"
           >
-            <Download className="h-4 w-4" />
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Excel
           </Button>
           <Button onClick={() => setSearchOpen(true)} className="gap-2">
@@ -813,22 +845,40 @@ export default function PortfolioDetailPage() {
                     <div className="text-xs text-muted-foreground">{addForm.ticker}</div>
                   </td>
                   <td className="px-4 py-2">
-                    <input
-                      type="number"
-                      placeholder="수량"
-                      value={addForm.quantity}
-                      onChange={(e) => setAddForm((f) => f ? { ...f, quantity: e.target.value } : f)}
-                      className="w-24 h-8"
-                    />
+                    <div className="flex flex-col gap-1">
+                      <input
+                        type="number"
+                        placeholder="수량"
+                        value={addForm.quantity}
+                        onChange={(e) => {
+                          setAddForm((f) => f ? { ...f, quantity: e.target.value } : f);
+                          setAddFormErrors((prev) => ({ ...prev, quantity: undefined }));
+                        }}
+                        className="w-24 h-8"
+                        aria-invalid={!!addFormErrors.quantity}
+                      />
+                      {addFormErrors.quantity && (
+                        <span className="text-[10px] text-destructive">{addFormErrors.quantity}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2">
-                    <input
-                      type="number"
-                      placeholder="평균단가"
-                      value={addForm.avg_price}
-                      onChange={(e) => setAddForm((f) => f ? { ...f, avg_price: e.target.value } : f)}
-                      className="w-28 h-8"
-                    />
+                    <div className="flex flex-col gap-1">
+                      <input
+                        type="number"
+                        placeholder="평균단가"
+                        value={addForm.avg_price}
+                        onChange={(e) => {
+                          setAddForm((f) => f ? { ...f, avg_price: e.target.value } : f);
+                          setAddFormErrors((prev) => ({ ...prev, avg_price: undefined }));
+                        }}
+                        className="w-28 h-8"
+                        aria-invalid={!!addFormErrors.avg_price}
+                      />
+                      {addFormErrors.avg_price && (
+                        <span className="text-[10px] text-destructive">{addFormErrors.avg_price}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex gap-2">
@@ -839,7 +889,7 @@ export default function PortfolioDetailPage() {
                       >
                         추가
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setAddForm(null)}>취소</Button>
+                      <Button size="sm" variant="outline" onClick={() => { setAddForm(null); setAddFormErrors({}); }}>취소</Button>
                     </div>
                   </td>
                 </tr>

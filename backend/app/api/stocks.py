@@ -1,6 +1,5 @@
 """종목 검색 엔드포인트 — KIS 마스터 파일 기반 로컬 검색."""
 
-import re
 from typing import Optional
 
 import httpx
@@ -12,6 +11,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.encryption import decrypt
+from app.core.ticker import is_domestic
 from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
@@ -23,12 +23,6 @@ from app.services.stock_search import search_stocks as _search
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 logger = get_logger(__name__)
-
-_DOMESTIC_TICKER_RE = re.compile(r"^[0-9A-Z]{6}$")
-
-
-def _is_domestic(ticker: str) -> bool:
-    return bool(_DOMESTIC_TICKER_RE.match(ticker))
 
 
 @router.get("/search")
@@ -94,7 +88,7 @@ async def get_stock_detail(
             holding_market = holding.market
             holding_name = holding.name
 
-    if _is_domestic(ticker):
+    if is_domestic(ticker):
         return await _fetch_domestic_detail(
             ticker, app_key, app_secret, holding_name, my_holding
         )

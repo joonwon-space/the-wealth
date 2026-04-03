@@ -48,6 +48,9 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      - name: Security audit
+        run: pip install pip-audit && pip-audit -r requirements.txt --fail-on-vuln
+
       - name: Lint
         run: ruff check .
 

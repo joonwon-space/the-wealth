@@ -30,6 +30,7 @@ from app.services.price_snapshot import fetch_domestic_price_detail
 from app.services.kis_price import fetch_overseas_price_detail
 from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
+from app.services.fx_utils import forward_fill_rates
 
 _analytics_cache = RedisCache(settings.REDIS_URL)
 _ANALYTICS_CACHE_TTL = 3600  # 1시간; sync 시 무효화
@@ -198,10 +199,14 @@ async def get_metrics(
 
     total_return_rate = (total_current - total_invested) / total_invested * 100
 
-    # price_snapshots 기반 일별 포트폴리오 가치 시계열 계산
+    # price_snapshots 기반 일별 포트폴리오 가치 시계열 계산 (최근 1년 데이터만)
+    metrics_cutoff = date_type.today() - timedelta(days=365)
     snap_result = await db.execute(
         select(PriceSnapshot)
-        .where(PriceSnapshot.ticker.in_(tickers))
+        .where(
+            PriceSnapshot.ticker.in_(tickers),
+            PriceSnapshot.snapshot_date >= metrics_cutoff,
+        )
         .order_by(PriceSnapshot.snapshot_date)
     )
     snapshots = snap_result.scalars().all()
@@ -690,19 +695,10 @@ async def get_krw_asset_history(
         .order_by(FxRateSnapshot.snapshot_date)
     )
     fx_snapshots = fx_result.scalars().all()
-    fx_date_map: dict[str, float] = {
-        snap.snapshot_date.isoformat(): float(snap.rate)
-        for snap in fx_snapshots
-    }
 
     # forward-fill 환율: 날짜별 가장 최근 환율 채우기
     fallback_fx = await get_cached_fx_rate()
-    filled_fx: dict[str, float] = {}
-    last_known_fx: float = fallback_fx
-    for d in all_dates:
-        if d in fx_date_map:
-            last_known_fx = fx_date_map[d]
-        filled_fx[d] = last_known_fx
+    filled_fx = forward_fill_rates(fx_snapshots, all_dates, fallback_fx)
 
     # 날짜별 원화 환산 총 자산 계산
     history: list[dict] = []

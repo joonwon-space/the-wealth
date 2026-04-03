@@ -39,10 +39,13 @@ function filterByPeriod(data: HistoryPoint[], period: Props["period"]): HistoryP
   return data.filter((d) => new Date(d.date) >= cutoff);
 }
 
+interface ChartPayloadItem {
+  value?: unknown;
+}
+
 interface CustomTooltipProps {
   active?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload?: any[];
+  payload?: ChartPayloadItem[];
   label?: string;
   gain: number;
 }
@@ -152,8 +155,7 @@ export function PortfolioHistoryChart({ data, period, onPeriodChange }: Props) {
             content={({ active, payload, label }) => (
               <CustomTooltip
                 active={active}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                payload={payload as any[]}
+                payload={payload ? [...payload] : undefined}
                 label={typeof label === "string" ? label : undefined}
                 gain={payload?.[0]?.value != null ? pointGain(Number(payload[0].value)) : 0}
               />

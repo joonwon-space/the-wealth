@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
@@ -9,7 +10,10 @@ from jwt.exceptions import InvalidTokenError
 from app.core.config import settings
 from app.core.redis_cache import get_redis_client
 
-_REFRESH_TOKEN_PREFIX = "refresh_jti:"
+# Key format: refresh:{user_id}:{jti}
+# Enables O(1) per-user revocation via SCAN refresh:{user_id}:*
+# instead of the prior O(N) global scan over all refresh keys.
+_REFRESH_TOKEN_PREFIX = "refresh:"
 
 
 def hash_password(password: str) -> str:
@@ -44,35 +48,44 @@ def create_refresh_token(user_id: int) -> tuple[str, str]:
     return token, jti
 
 
+def _refresh_key(user_id: int, jti: str) -> str:
+    """Build Redis key for a refresh token: refresh:{user_id}:{jti}."""
+    return f"{_REFRESH_TOKEN_PREFIX}{user_id}:{jti}"
+
+
 async def store_refresh_jti(jti: str, user_id: int) -> None:
     """Store refresh token jti in Redis with TTL matching token lifetime."""
     ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
+    value = json.dumps({"user_id": user_id, "created_at": datetime.now(UTC).isoformat()})
     async with get_redis_client(settings.REDIS_URL) as r:
-        await r.setex(f"{_REFRESH_TOKEN_PREFIX}{jti}", ttl, str(user_id))
+        await r.setex(_refresh_key(user_id, jti), ttl, value)
 
 
-async def verify_and_consume_refresh_jti(jti: str) -> Optional[int]:
-    """Verify jti exists in Redis, consume it (delete), return user_id or None."""
+async def verify_and_consume_refresh_jti(jti: str, user_id: int) -> bool:
+    """Verify jti exists in Redis for user_id, consume it (delete). Returns True if valid."""
+    key = _refresh_key(user_id, jti)
     async with get_redis_client(settings.REDIS_URL) as r:
-        user_id_str = await r.get(f"{_REFRESH_TOKEN_PREFIX}{jti}")
-        if user_id_str is None:
-            return None
-        await r.delete(f"{_REFRESH_TOKEN_PREFIX}{jti}")
-        return int(user_id_str)
+        raw = await r.get(key)
+        if raw is None:
+            return False
+        await r.delete(key)
+        return True
 
 
 async def revoke_all_refresh_tokens_for_user(user_id: int) -> None:
-    """Revoke all refresh tokens for a user (on logout/password change)."""
+    """Revoke all refresh tokens for a user (on logout/password change).
+
+    Uses per-user key prefix refresh:{user_id}:* for O(1) targeted scan
+    instead of global O(N) scan over all refresh keys.
+    """
     async with get_redis_client(settings.REDIS_URL) as r:
         cursor = 0
         while True:
             cursor, keys = await r.scan(
-                cursor, match=f"{_REFRESH_TOKEN_PREFIX}*", count=100
+                cursor, match=f"{_REFRESH_TOKEN_PREFIX}{user_id}:*", count=100
             )
-            for key in keys:
-                val = await r.get(key)
-                if val == str(user_id):
-                    await r.delete(key)
+            if keys:
+                await r.delete(*keys)
             if cursor == 0:
                 break
 

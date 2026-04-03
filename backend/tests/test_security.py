@@ -204,63 +204,60 @@ class TestRedisJtiOperations:
         mock_redis.setex.assert_awaited_once()
         call_args = mock_redis.setex.await_args
         key = call_args[0][0]
-        assert "test-jti" in key
+        # New key format: refresh:{user_id}:{jti}
+        assert key == "refresh:5:test-jti"
 
     async def test_verify_and_consume_found(self, mock_redis: MagicMock) -> None:
-        mock_redis.get = AsyncMock(return_value="42")
+        import json
+        mock_redis.get = AsyncMock(return_value=json.dumps({"user_id": 42, "created_at": "2025-01-01T00:00:00+00:00"}))
         mock_redis.delete = AsyncMock()
         with patch("app.core.security.get_redis_client", return_value=mock_redis):
-            user_id = await verify_and_consume_refresh_jti("valid-jti")
-        assert user_id == 42
+            result = await verify_and_consume_refresh_jti("valid-jti", user_id=42)
+        assert result is True
         mock_redis.delete.assert_awaited_once()
 
     async def test_verify_and_consume_not_found(self, mock_redis: MagicMock) -> None:
         mock_redis.get = AsyncMock(return_value=None)
         with patch("app.core.security.get_redis_client", return_value=mock_redis):
-            user_id = await verify_and_consume_refresh_jti("missing-jti")
-        assert user_id is None
+            result = await verify_and_consume_refresh_jti("missing-jti", user_id=99)
+        assert result is False
 
     async def test_revoke_all_scans_and_deletes_matching(
         self, mock_redis: MagicMock
     ) -> None:
-        # First scan returns cursor=0 and matching keys
+        # New implementation: SCAN refresh:{user_id}:* and batch delete all found keys
         mock_redis.scan = AsyncMock(
-            return_value=(0, ["refresh_jti:jti-1", "refresh_jti:jti-2"])
+            return_value=(0, ["refresh:7:jti-1", "refresh:7:jti-2"])
         )
-        mock_redis.get = AsyncMock(side_effect=["7", "99"])
         mock_redis.delete = AsyncMock()
 
         with patch("app.core.security.get_redis_client", return_value=mock_redis):
             await revoke_all_refresh_tokens_for_user(user_id=7)
 
-        # Only the key whose value is "7" should be deleted
-        mock_redis.delete.assert_awaited_once_with("refresh_jti:jti-1")
+        # All found keys are deleted in a single batch call
+        mock_redis.delete.assert_awaited_once_with("refresh:7:jti-1", "refresh:7:jti-2")
 
     async def test_revoke_all_multiple_scan_pages(
         self, mock_redis: MagicMock
     ) -> None:
         """When scan returns non-zero cursor first, loop continues."""
-        # Page 1: cursor=5, one key belonging to user 3
-        # Page 2: cursor=0, one key belonging to someone else
         mock_redis.scan = AsyncMock(
             side_effect=[
-                (5, ["refresh_jti:jti-a"]),
-                (0, ["refresh_jti:jti-b"]),
+                (5, ["refresh:3:jti-a"]),
+                (0, ["refresh:3:jti-b"]),
             ]
         )
-        mock_redis.get = AsyncMock(side_effect=["3", "999"])
         mock_redis.delete = AsyncMock()
 
         with patch("app.core.security.get_redis_client", return_value=mock_redis):
             await revoke_all_refresh_tokens_for_user(user_id=3)
 
         assert mock_redis.scan.await_count == 2
-        mock_redis.delete.assert_awaited_once_with("refresh_jti:jti-a")
+        assert mock_redis.delete.await_count == 2
 
     async def test_revoke_all_no_matching_keys(self, mock_redis: MagicMock) -> None:
-        """If no keys match user_id, nothing is deleted."""
-        mock_redis.scan = AsyncMock(return_value=(0, ["refresh_jti:jti-x"]))
-        mock_redis.get = AsyncMock(return_value="999")
+        """If no keys found in scan, nothing is deleted."""
+        mock_redis.scan = AsyncMock(return_value=(0, []))
         mock_redis.delete = AsyncMock()
 
         with patch("app.core.security.get_redis_client", return_value=mock_redis):

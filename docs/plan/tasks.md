@@ -214,3 +214,102 @@ Each item should be completable in a single commit.
   - `frontend/src/app/dashboard/portfolios/[id]/page.tsx` — 보유종목/거래내역 삭제 확인 raw div 오버레이 제거
   - shadcn AlertDialog 패턴으로 통일 (role=alertdialog, focus trap 자동 처리)
   - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx`
+
+---
+
+## Sprint 4 work (team-analysis 2026-04-03)
+
+### P0 -- SQLAlchemy pool_recycle 추가 [team-analysis: TD-004]
+
+- [x] **fix: session.py — pool_recycle=1800 추가**
+  - `backend/app/db/session.py` — `create_async_engine`에 `pool_recycle=1800, pool_pre_ping=True` 추가
+  - Neon 전환(Milestone 22) 전에 필수, 야간 유휴 연결 에러 방지
+  - 파일: `backend/app/db/session.py`
+
+### P0 -- Refresh token Redis 키 포맷 변경 [team-analysis: SEC-001]
+
+- [x] **security: security.py — refresh token 키를 refresh:{user_id}:{jti} 포맷으로 변경**
+  - `backend/app/core/security.py` — `store_refresh_jti`, `verify_and_consume_refresh_jti`, `revoke_all_refresh_tokens_for_user` 키 포맷 변경
+  - 기존 `refresh:{jti}` → `refresh:{user_id}:{jti}` (O(N) 전체 스캔 → O(1) 사용자별 조회)
+  - Redis 값 JSON으로 확장: `{"user_id": ..., "created_at": ...}` (세션 관리 UI 준비)
+  - 파일: `backend/app/core/security.py`
+
+### P0 -- pip-audit CI 추가 [team-analysis: SEC-007]
+
+- [x] **chore: GitHub Actions — backend CI에 pip-audit 추가**
+  - `.github/workflows/` — backend CI job에 `pip install pip-audit && pip-audit -r requirements.txt --fail-on-vuln` 단계 추가
+  - Python CVE 자동 감지 (cryptography 취약점 수동 발견 재발 방지)
+  - 파일: `.github/workflows/backend-ci.yml` (또는 기존 CI 파일)
+
+### P0 -- 보안 감사 로그 [team-analysis: SEC-003]
+
+- [x] **feat: 보안 감사 로그 테이블 + 서비스 + 엔드포인트**
+  - `backend/app/models/security_audit_log.py` — `security_audit_logs` 테이블 (user_id, action enum, ip_address, user_agent, meta JSONB, created_at)
+  - Alembic 마이그레이션 생성
+  - `backend/app/services/audit_service.py` — `log_event(db, user_id, action, request, meta)` 비동기 함수
+  - 기록 대상: 로그인 성공/실패, 로그아웃, KIS 자격증명 등록/삭제, 비밀번호 변경
+  - `GET /users/me/security-logs` 엔드포인트 (최근 50건)
+  - 파일: `backend/app/models/security_audit_log.py`, `backend/app/services/audit_service.py`, `backend/app/api/users.py`, `backend/app/api/auth.py`
+
+### P1 -- stocks.py _is_domestic() 제거 [team-analysis: TD-001]
+
+- [x] **fix: stocks.py — 로컬 _is_domestic() 삭제 후 공유 함수 임포트**
+  - `backend/app/api/stocks.py` — 로컬 `_is_domestic()` 삭제
+  - 공유 `is_domestic` 함수 임포트 (app.services.kis_price 또는 공유 위치)
+  - 파일: `backend/app/api/stocks.py`
+
+### P1 -- forward_fill_rates fx_utils.py 추출 [team-analysis: TD-006]
+
+- [x] **refactor: forward_fill_rates() → fx_utils.py**
+  - `backend/app/services/fx_utils.py` — `forward_fill_rates(snapshots, dates) -> dict` 함수 생성
+  - `backend/app/api/analytics.py`, `backend/app/services/scheduler.py` 에서 임포트로 교체
+  - 파일: `backend/app/services/fx_utils.py`, `backend/app/api/analytics.py`, `backend/app/services/scheduler.py`
+
+### P1 -- PortfolioHistoryChart any[] 타입 수정 [team-analysis: TD-007]
+
+- [x] **fix: PortfolioHistoryChart.tsx — payload any[] 타입 제거**
+  - `frontend/src/components/PortfolioHistoryChart.tsx` — `TooltipProps<number, string>` 사용
+  - `as any[]` 캐스트 제거
+  - 파일: `frontend/src/components/PortfolioHistoryChart.tsx`
+
+### P1 -- analytics metrics 1Y 날짜 커트오프 [team-analysis: PERF-003]
+
+- [x] **fix: analytics.py — price_snapshots 1Y 날짜 범위 제한**
+  - `backend/app/api/analytics.py` — price_snapshots 쿼리에 `WHERE snapshot_date >= NOW() - INTERVAL '1 year'` 추가
+  - 기간 파라미터 연동: 선택된 period에 맞는 날짜 범위 적용
+  - 파일: `backend/app/api/analytics.py`
+
+### P1 -- 투자 일지 BUY/SELL 배지 아이콘 추가 [team-analysis: UX-003]
+
+- [x] **fix: journal/page.tsx — BUY/SELL 배지 텍스트+아이콘**
+  - `frontend/src/app/dashboard/journal/page.tsx` — 컬러만 의존하는 배지를 텍스트+아이콘으로 교체
+  - BUY: ▲ 아이콘 + 'BUY' 텍스트, SELL: ▼ 아이콘 + 'SELL' 텍스트 (WCAG 1.4.1)
+  - 파일: `frontend/src/app/dashboard/journal/page.tsx`
+
+### P1 -- 보유종목 추가 폼 인라인 유효성 검사 [team-analysis: UX-004]
+
+- [x] **fix: portfolios/[id]/page.tsx — add holding 폼 클라이언트 검증**
+  - 수량 0/음수, 가격 음수 클라이언트 검증 추가
+  - 유효성 실패 시 API 호출 없이 인라인 에러 메시지 표시
+  - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx`
+
+### P1 -- 설정 KIS 테스트 버튼 로딩 상태 [team-analysis: UX-005]
+
+- [x] **fix: settings/page.tsx — KIS 연결 테스트 버튼 isPending 로딩 상태**
+  - `frontend/src/app/dashboard/settings/page.tsx` — mutation.isPending으로 버튼 disabled + Loader2 스피너
+  - 중복 클릭 방지
+  - 파일: `frontend/src/app/dashboard/settings/page.tsx`
+
+### P1 -- analytics per-section isLoading/isError [team-analysis: UX-001]
+
+- [x] **fix: analytics/page.tsx — 6개 쿼리 섹션별 로딩/에러 처리**
+  - `frontend/src/app/dashboard/analytics/page.tsx` — metrics, monthlyReturns, portfolioHistory, sectorAllocation, fxGainLoss, krwAssetHistory 쿼리에 isLoading/isError 추출
+  - 각 섹션: `isLoading` → `<ChartSkeleton />`, `isError` → `<SectionError onRetry={refetch} />`
+  - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
+
+### P1 -- CSV/XLSX 내보내기 로딩 상태 [team-analysis: UX-002]
+
+- [x] **fix: portfolios/[id]/page.tsx — 내보내기 버튼 로딩 상태**
+  - isExporting 상태 추가, 내보내기 중 버튼 disabled + Loader2 스피너
+  - 실패 시 toast.error()
+  - 파일: `frontend/src/app/dashboard/portfolios/[id]/page.tsx`
