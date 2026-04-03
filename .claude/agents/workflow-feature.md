@@ -74,18 +74,20 @@ Agent(subagent_type="team-implement", prompt="Execute all incomplete tasks in do
 
 Wait for completion. Record the branch name, PR number, and completed task count.
 
-### Phase 3.5: CI VERIFICATION
+### Phase 3.5: CI VERIFICATION (MANDATORY — never skip)
 
-Wait for CI to pass after push. Same procedure as workflow-sprint Phase 2.5:
+**This phase is NOT optional. You MUST wait for CI and auto-fix failures. Do NOT ask the user — just do it.**
 
 ```bash
+sleep 5
 BACKEND_RUN=$(gh run list --branch main --workflow "Backend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
 FRONTEND_RUN=$(gh run list --branch main --workflow "Frontend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
 gh run watch "$BACKEND_RUN" --exit-status
 gh run watch "$FRONTEND_RUN" --exit-status
 ```
 
-If CI fails → read logs, fix, push, retry (max 3). Only proceed when green.
+If CI fails → read logs (`gh run view <ID> --log-failed`), fix directly, push, retry (max 3).
+**BLOCKING RULE: Do NOT proceed to Phase 4 until ALL CI checks are green.**
 
 ### Phase 4: REVIEW
 

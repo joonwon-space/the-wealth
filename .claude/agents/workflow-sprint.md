@@ -60,16 +60,21 @@ Agent(subagent_type="team-implement", prompt="Execute all incomplete tasks in do
 
 Wait for completion. Record the branch name, PR number, and completed task count.
 
-### Phase 2.5: CI VERIFICATION
+### Phase 2.5: CI VERIFICATION (MANDATORY — never skip)
 
-After implement pushes to remote, wait for CI to pass before proceeding to review.
+**This phase is NOT optional. You MUST wait for CI and fix failures before proceeding. Do NOT ask the user whether to check CI — just do it.**
+
+After implement pushes to remote, wait for BOTH CI pipelines:
 
 ```bash
+# Wait a few seconds for CI to trigger
+sleep 5
+
 # Get the latest push's CI run IDs
 BACKEND_RUN=$(gh run list --branch main --workflow "Backend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
 FRONTEND_RUN=$(gh run list --branch main --workflow "Frontend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
 
-# Wait for both
+# Wait for both — these commands block until completion
 echo "Waiting for Backend CI ($BACKEND_RUN)..."
 gh run watch "$BACKEND_RUN" --exit-status
 
@@ -77,10 +82,10 @@ echo "Waiting for Frontend CI ($FRONTEND_RUN)..."
 gh run watch "$FRONTEND_RUN" --exit-status
 ```
 
-**If CI fails:**
+**If CI fails (auto-fix loop, no user confirmation needed):**
 1. Read the failed run log: `gh run view <RUN_ID> --log-failed`
 2. Analyze the failure (lint error, test failure, config issue, dependency CVE)
-3. Fix the issue directly (do not re-launch team-implement for small fixes)
+3. Fix the issue directly — do NOT ask the user, just fix it
 4. Commit, push, and wait for CI again
 5. Repeat up to 3 times. If still failing after 3 attempts → STOP and report to user
 
@@ -90,7 +95,7 @@ gh run watch "$FRONTEND_RUN" --exit-status
 - CI config errors (invalid CLI flags in `.yml`) → fix the workflow file
 - Dependency CVEs (pip-audit) → bump version in `requirements.txt`
 
-**Only proceed to Phase 3 when ALL CI checks are green.**
+**BLOCKING RULE: Do NOT proceed to Phase 3 until ALL CI checks are green. No exceptions.**
 
 ### Phase 3: REVIEW
 
