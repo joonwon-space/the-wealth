@@ -71,7 +71,7 @@ def _calc_pnl(
     return pnl_amount, pnl_rate
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=None)
 @limiter.limit("120/minute")
 async def get_summary(
     request: Request,
