@@ -5,6 +5,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.redis_cache import get_redis_client
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.user import User
@@ -57,9 +59,6 @@ async def get_current_user_sse(
     티켓 방식: POST /auth/sse-ticket으로 30초 TTL UUID 발급 → ?ticket= 파라미터로 전달.
     JWT 방식(레거시): ?token= 파라미터 (nginx 로그 노출 위험, 클라이언트 이전 후 제거 예정).
     """
-    from app.core.config import settings  # noqa: PLC0415
-    from app.core.redis_cache import get_redis_client  # noqa: PLC0415
-
     user_id: Optional[int] = None
 
     if ticket:
