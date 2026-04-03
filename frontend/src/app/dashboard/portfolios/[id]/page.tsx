@@ -23,7 +23,14 @@ import { PnLBadge } from "@/components/PnLBadge";
 import { TransactionChart } from "@/components/DynamicCharts";
 import { PageError } from "@/components/PageError";
 import { TableSkeleton } from "@/components/TableSkeleton";
-import { OrderDialog, ExistingHolding } from "@/components/OrderDialog";
+import dynamic from "next/dynamic";
+import type { ExistingHolding } from "@/components/OrderDialog";
+
+// Lazy-load OrderDialog: only used when user clicks 매수/매도 button (~20KB deferred)
+const OrderDialog = dynamic(
+  () => import("@/components/OrderDialog").then((m) => ({ default: m.OrderDialog })),
+  { ssr: false }
+);
 import { PendingOrdersPanel } from "@/components/PendingOrdersPanel";
 import { useCashBalance, usePendingOrders } from "@/hooks/useOrders";
 import { toast } from "sonner";

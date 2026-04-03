@@ -57,7 +57,7 @@ export function TransactionChart({ transactions }: Props) {
 
   return (
     <div className="h-64 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" aria-label="거래 내역 차트">
         <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis dataKey="month" tick={{ fontSize: 12 }} className="fill-muted-foreground" />

@@ -294,15 +294,6 @@ export function HoldingsTable({ holdings }: Props) {
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={header.column.getToggleSortingHandler()}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        header.column.getToggleSortingHandler()?.(e);
-                      }
-                    }}
                     aria-sort={
                       header.column.getIsSorted() === "asc"
                         ? "ascending"
@@ -310,12 +301,21 @@ export function HoldingsTable({ holdings }: Props) {
                           ? "descending"
                           : "none"
                     }
-                    className={`cursor-pointer select-none px-4 py-3 text-left font-medium text-muted-foreground text-section-header ${(header.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}
+                    className={`px-4 py-3 text-left font-medium text-muted-foreground text-section-header ${(header.column.columnDef.meta as { className?: string } | undefined)?.className ?? ""}`}
                   >
-                    <div className="flex items-center gap-1">
+                    <button
+                      onClick={header.column.getToggleSortingHandler()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          header.column.getToggleSortingHandler()?.(e);
+                        }
+                      }}
+                      className="flex items-center gap-1 cursor-pointer select-none w-full text-inherit"
+                    >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {header.column.getCanSort() && (
-                        <span className="text-muted-foreground/50">
+                        <span className="text-muted-foreground/50" aria-hidden="true">
                           {header.column.getIsSorted() === "asc" ? (
                             <ChevronUp className="h-3 w-3" />
                           ) : header.column.getIsSorted() === "desc" ? (
@@ -325,7 +325,7 @@ export function HoldingsTable({ holdings }: Props) {
                           )}
                         </span>
                       )}
-                    </div>
+                    </button>
                   </th>
                 ))}
               </tr>

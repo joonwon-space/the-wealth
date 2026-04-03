@@ -82,7 +82,12 @@ export function AllocationDonut({ data, totalAsset }: Props) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
       {/* Donut chart */}
-      <div className="relative flex items-center justify-center shrink-0" style={{ width: SIZE, height: SIZE }}>
+      <div
+        className="relative flex items-center justify-center shrink-0"
+        style={{ width: SIZE, height: SIZE }}
+        role="img"
+        aria-label="자산 배분 도넛 차트"
+      >
         <PieChart width={SIZE} height={SIZE}>
           <Pie
             data={numericData}

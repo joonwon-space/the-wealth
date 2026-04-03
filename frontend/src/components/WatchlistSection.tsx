@@ -107,8 +107,9 @@ export function WatchlistSection() {
                   onClick={() => handleRemove(item.id, item.ticker)}
                   className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   title="관심 종목 삭제"
+                  aria-label={`${item.ticker} 관심종목 삭제`}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </div>
             </div>

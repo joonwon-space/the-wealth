@@ -125,7 +125,7 @@ export function PortfolioHistoryChart({ data, period, onPeriodChange }: Props) {
         )}
       </div>
 
-      <ResponsiveContainer width="100%" height={280}>
+      <ResponsiveContainer width="100%" height={280} aria-label="포트폴리오 수익률 차트">
         <AreaChart data={filtered} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
