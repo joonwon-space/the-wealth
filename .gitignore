@@ -27,6 +27,12 @@ frontend/.env.local
 # Playwright MCP
 .playwright-mcp/
 
+# Team analysis reports (regenerated each sprint, not worth tracking)
+docs/reviews/team-*.json
+docs/reviews/team-*.md
+docs/reviews/review/
+docs/reviews/release/
+
 # Visual QA / E2E screenshots
 vqa-*.png
 e2e-*.png
