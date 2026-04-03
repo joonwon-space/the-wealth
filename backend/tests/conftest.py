@@ -120,8 +120,11 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     from app.db.session import get_db
     from app.main import app
 
+    from app.core.redis_cache import reset_fallback_cache
+
     await _clean_all_data()
     await _flush_redis_cache()
+    reset_fallback_cache()  # reset pool so it binds to the current event loop
 
     # Reset in-memory rate limit counters before each test
     try:
