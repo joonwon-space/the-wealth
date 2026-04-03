@@ -66,6 +66,7 @@ function groupByDate(transactions: Transaction[]): Map<string, Transaction[]> {
 
 interface TransactionCardProps {
   txn: Transaction;
+  stockName?: string;
 }
 
 function TagBadge({ tag }: { tag: string }) {
@@ -76,7 +77,7 @@ function TagBadge({ tag }: { tag: string }) {
   );
 }
 
-function TransactionCard({ txn }: TransactionCardProps) {
+function TransactionCard({ txn, stockName }: TransactionCardProps) {
   const isBuy = txn.type === "BUY";
   const total = Number(txn.quantity) * Number(txn.price);
   const hasTags = txn.tags && txn.tags.length > 0;
@@ -96,7 +97,8 @@ function TransactionCard({ txn }: TransactionCardProps) {
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <span className="font-semibold text-sm">{txn.ticker}</span>
+            <span className="font-semibold text-sm">{stockName ?? txn.ticker}</span>
+            {stockName && <span className="ml-1 text-xs text-muted-foreground">{txn.ticker}</span>}
             <span
               className={cn(
                 "ml-2 rounded px-1.5 py-0.5 text-[11px] font-medium",
@@ -259,6 +261,14 @@ export default function JournalPage() {
       return true;
     });
   }, [transactions, typeFilter, memoOnly, selectedTag, selectedMonth, selectedTicker, debouncedSearch]);
+
+  const tickerNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const h of summaryHoldings) {
+      map.set(h.ticker, h.name);
+    }
+    return map;
+  }, [summaryHoldings]);
 
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
   const sortedDates = useMemo(() => [...grouped.keys()].sort((a, b) => b.localeCompare(a)), [grouped]);
@@ -524,7 +534,7 @@ export default function JournalPage() {
                 {/* Transactions for this day */}
                 <div className="space-y-2">
                   {dayTxns.map((txn) => (
-                    <TransactionCard key={txn.id} txn={txn} />
+                    <TransactionCard key={txn.id} txn={txn} stockName={tickerNameMap.get(txn.ticker)} />
                   ))}
                 </div>
               </div>

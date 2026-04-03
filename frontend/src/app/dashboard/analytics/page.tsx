@@ -42,6 +42,7 @@ interface HoldingRow {
   pnl_rate: number | null;
   day_change_rate: number | null;
   currency?: "KRW" | "USD";
+  portfolio_name?: string | null;
 }
 
 interface AllocationItem {
@@ -509,7 +510,14 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium text-sm">{h.name}</div>
-                    <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span>{h.ticker}</span>
+                      {h.portfolio_name && (
+                        <span className="rounded bg-muted px-1 text-[10px] font-medium">
+                          {h.portfolio_name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <PnLBadge value={h.pnl_rate ?? 0} suffix="%" />
                 </div>
@@ -566,7 +574,14 @@ export default function AnalyticsPage() {
                   >
                     <td className="px-4 py-2">
                       <div className="font-medium">{h.name}</div>
-                      <div className="text-xs text-muted-foreground">{h.ticker}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span>{h.ticker}</span>
+                        {h.portfolio_name && (
+                          <span className="rounded bg-muted px-1 text-[10px] font-medium">
+                            {h.portfolio_name}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-2 tabular-nums">{Number(h.quantity).toLocaleString("ko-KR")}</td>
                     <td className="px-4 py-2 tabular-nums">{formatPrice(h.avg_price, h.currency ?? "KRW")}</td>

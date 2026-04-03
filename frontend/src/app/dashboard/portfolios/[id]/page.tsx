@@ -956,13 +956,16 @@ export default function PortfolioDetailPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    {["일시", "유형", "종목", "수량", "단가", "메모", ""].map((h) => (
+                    {["일시", "유형", "종목", "수량", "단가", "거래금액", "메모", ""].map((h) => (
                       <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((t) => (
+                  {transactions.map((t) => {
+                    const holdingMatch = holdings.find((h) => h.ticker === t.ticker);
+                    const totalAmount = Number(t.quantity) * Number(t.price);
+                    return (
                     <tr key={t.id} className="border-t">
                       <td className="px-4 py-2 text-xs text-muted-foreground">{new Date(t.traded_at).toLocaleString("ko-KR")}</td>
                       <td className="px-4 py-2">
@@ -970,9 +973,13 @@ export default function PortfolioDetailPage() {
                           {t.type === "BUY" ? "매수" : "매도"}
                         </span>
                       </td>
-                      <td className="px-4 py-2 font-mono text-xs">{t.ticker}</td>
+                      <td className="px-4 py-2">
+                        <div className="font-mono text-xs">{t.ticker}</div>
+                        {holdingMatch && <div className="text-xs text-muted-foreground">{holdingMatch.name}</div>}
+                      </td>
                       <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
                       <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
+                      <td className="px-4 py-2 tabular-nums">{formatKRW(totalAmount)}</td>
                       <td className="px-4 py-2 min-w-[140px]">
                         {editMemoId === t.id ? (
                           <input
@@ -1020,7 +1027,8 @@ export default function PortfolioDetailPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
