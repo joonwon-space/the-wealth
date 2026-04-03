@@ -1,7 +1,7 @@
 """KIS price 서비스 단위 테스트 — Redis 캐시 폴백 로직."""
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
