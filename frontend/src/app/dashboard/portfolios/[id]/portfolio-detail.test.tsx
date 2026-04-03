@@ -56,7 +56,7 @@ describe("PortfolioDetailPage", () => {
     });
 
     renderWithQuery(<PortfolioDetailPage />);
-    const name = await screen.findByText("삼성전자");
-    expect(name).toBeInTheDocument();
+    const names = await screen.findAllByText("삼성전자");
+    expect(names[0]).toBeInTheDocument();
   });
 });
