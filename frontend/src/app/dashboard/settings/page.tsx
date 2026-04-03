@@ -28,13 +28,6 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
 
   useEffect(() => {
-    const hash = window.location.hash.slice(1) as Tab;
-    if (VALID_TABS.includes(hash)) {
-      setActiveTab(hash);
-    }
-  }, []);
-
-  useEffect(() => {
     window.location.hash = activeTab;
   }, [activeTab]);
 
