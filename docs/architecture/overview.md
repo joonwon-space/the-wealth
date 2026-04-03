@@ -59,7 +59,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 포트폴리오 요약 | 총 자산, 총 수익/손실, 수익률 |
 | 보유종목 테이블 | TanStack Table v8 기반 멀티 컬럼 정렬, 현재가/수익률 표시 |
 | 자산 배분 차트 | Recharts 도넛 차트 + 중앙 오버레이 텍스트 |
-| 실시간 가격 | SSE(Server-Sent Events) 기반 30초 주기 가격 업데이트 (사용자별 최대 3연결, 15초 하트비트, 2시간 타임아웃) |
+| 실시간 가격 | SSE(Server-Sent Events) 기반 30초 주기 가격 업데이트 (국내+해외 종목 지원, ticker 캐시 60초 TTL, 사용자별 최대 3연결, 15초 하트비트, 2시간 타임아웃, SSE 티켓 기반 인증) |
 | 30초 폴링 | 대시보드 데이터 자동 갱신 |
 
 ### 2.4 분석 및 차트
@@ -122,7 +122,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
   ├── /portfolios           → 포트폴리오 목록
   ├── /portfolios/[id]      → 포트폴리오 상세 (거래내역, 보유종목)
   ├── /stocks/[ticker]      → 종목 상세 (캔들스틱 차트, 종목 정보)
-  └── /settings             → KIS 계좌 관리, 사용자 설정
+  └── /settings             → KIS 계좌 관리, 사용자 설정, 보안 로그, 세션 관리 (URL hash 탭 복원)
 ```
 
 ### 네비게이션
@@ -173,9 +173,9 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 74개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 80개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
-### 인증 (5)
+### 인증 (8)
 | Method | Path | 설명 |
 |--------|------|------|
 | POST | `/auth/register` | 회원가입 |
@@ -183,6 +183,9 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/auth/refresh` | 토큰 갱신 |
 | POST | `/auth/change-password` | 비밀번호 변경 |
 | POST | `/auth/logout` | 로그아웃 |
+| POST | `/auth/sse-ticket` | SSE 단기 티켓 발급 (30초 TTL, 단일 사용) |
+| GET | `/auth/sessions` | 활성 세션 목록 조회 (refresh token 기반) |
+| DELETE | `/auth/sessions/{jti}` | 특정 세션 취소 |
 
 ### 포트폴리오 (20)
 | Method | Path | 설명 |
@@ -262,14 +265,15 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | POST | `/sync/{portfolio_id}` | 포트폴리오 동기화 |
 | GET | `/sync/logs` | 동기화 로그 |
 
-### 사용자 관리 (10)
+### 사용자 관리 (11)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/users/me` | 내 정보 조회 (이메일, 이름) |
 | PATCH | `/users/me` | 내 정보 수정 (이름) |
-| POST | `/users/me/change-password` | 비밀번호 변경 |
-| POST | `/users/me/change-email` | 이메일 변경 |
-| DELETE | `/users/me` | 회원 탈퇴 (cascade 삭제) |
+| POST | `/users/me/change-password` | 비밀번호 변경 (rate limit: 5/minute) |
+| POST | `/users/me/change-email` | 이메일 변경 (rate limit: 5/minute) |
+| DELETE | `/users/me` | 회원 탈퇴 (cascade 삭제, rate limit: 5/minute) |
+| GET | `/users/me/security-logs` | 보안 감사 로그 조회 (최근 50건) |
 | POST | `/users/kis-accounts` | KIS 계좌 등록 |
 | GET | `/users/kis-accounts` | KIS 계좌 목록 |
 | PATCH | `/users/kis-accounts/{id}` | KIS 계좌 수정 |
