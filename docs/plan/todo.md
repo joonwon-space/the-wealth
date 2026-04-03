@@ -104,7 +104,7 @@ Current actionable work is in `tasks.md`.
 ## Milestone 12: Backend Enhancement (Remaining)
 
 ### 12-3. Performance & Caching
-- [ ] ETag / `If-None-Match` support for dashboard endpoint (변경 없으면 304)
+- [x] ETag / `If-None-Match` support for dashboard endpoint (변경 없으면 304)
 - [ ] Stock search trie structure or Redis `ZRANGEBYLEX` indexing
 - [ ] KIS batch price API exploration (단일 호출로 여러 종목 조회)
 
@@ -177,7 +177,7 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ### 14-4. Security Enhancement
 - [ ] API key rotation automation
-- [ ] Security audit log (login attempts, settings changes, data access)
+- [x] Security audit log (login attempts, settings changes, data access) — 완료 (Sprint 4 backend + Sprint 6 UI)
 - [ ] 2FA (TOTP, Google Authenticator compatible)
 
 ---
@@ -274,6 +274,35 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
+## Sprint-6 완료 항목 (2026-04-03)
+
+### 보안
+- [x] SSE JWT URL 노출 제거: POST /auth/sse-ticket (30초 TTL 단일사용 티켓, nginx 로그 노출 방지)
+- [x] GET /auth/sessions — Redis refresh:{user_id}:* 스캔, IDOR 보호
+- [x] DELETE /auth/sessions/{jti} — 개별 세션 강제 종료, IDOR 보호
+
+### 성능
+- [x] PERF-SSE: httpx.AsyncClient SSE 루프 외부로 이동 (TCP/TLS 연결 1회/2시간, 기존 1회/30초)
+- [x] PERF-ETAG: 대시보드 ETag/304 캐싱 (SHA-256[:16], after-hours 폴링 페이로드 ~90% 감소)
+
+### 리팩터링
+- [x] portfolios/[id]/page.tsx 1226 → 65줄 (PortfolioHeader + HoldingsSection + TransactionSection 분리)
+- [x] settings/page.tsx 901 → 75줄 (AccountSection + KisCredentialsSection + SecurityLogsSection + ActiveSessionsSection 탭 분리)
+- [x] SecurityLogsSection — GET /users/me/security-logs, 한국어 액션 레이블, 실패 컬러링
+- [x] ActiveSessionsSection — GET /auth/sessions, 개별 취소, 세션 생성일 표시
+- [x] usePriceStream.ts — 티켓 인증으로 EventSource URL에서 JWT 제거
+
+### 테스트
+- [x] OrderDialog.test.tsx — 8개 vitest+MSW 테스트 (BUY/SELL, 수량 0 차단, LIMIT 가격 필수, 국내/해외 라우팅, 인플라이트 비활성화, 성공 닫기, 오류 처리)
+
+### 의존성
+- [x] next 16.2.0 → 16.2.2
+- [x] @sentry/nextjs 10.45.0 → 10.47.0
+- [x] @playwright/test 1.58.2 → 1.59.1
+- [x] react-is 추가 (recharts 빌드 실패 해결)
+
+---
+
 ## Sprint-3 완료 항목 (2026-04-03)
 
 ### 보안
@@ -323,13 +352,13 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [x] `security_audit_logs` 테이블: user_id, action enum, ip_address, user_agent, meta JSONB, created_at
 - [x] 기록 대상: 로그인 성공/실패, 로그아웃, KIS 자격증명 등록/삭제, 비밀번호 변경, 회원 탈퇴
 - [x] `GET /users/me/security-logs` 엔드포인트 (최근 50건)
-- [ ] 설정 페이지 '보안 로그' 탭 추가 (프론트 UI -- Sprint 5)
+- [x] 설정 페이지 '보안 로그' 탭 추가 (Sprint 6, 2026-04-03)
 
-### 20-4. 활성 세션 관리
+### 20-4. 활성 세션 관리 ✓ COMPLETED (Sprint 6, 2026-04-03)
 
-- [ ] `GET /auth/sessions` — 활성 세션 목록 조회 (Redis refresh:{user_id}:* 스캔)
-- [ ] `DELETE /auth/sessions/{session_id}` — 특정 세션 강제 종료
-- [ ] 설정 페이지 '활성 세션' 섹션 추가
+- [x] `GET /auth/sessions` — 활성 세션 목록 조회 (Redis refresh:{user_id}:* 스캔)
+- [x] `DELETE /auth/sessions/{session_id}` — 특정 세션 강제 종료
+- [x] 설정 페이지 '활성 세션' 탭 추가
 
 ---
 
