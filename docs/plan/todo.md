@@ -303,12 +303,13 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 거래 기능 활성화 이후 계정 보안 리스크가 재무 피해로 직결되므로 P1 우선순위.
 
-### 20-1. 서버 사이드 Refresh Token 관리
+### 20-1. 서버 사이드 Refresh Token 관리 ✓ COMPLETED (Sprint 4, 2026-04-03)
 
-- [ ] Redis에 refresh token 저장 — `refresh_token:{user_id}:{jti}` 키, TTL = refresh 만료일
-- [ ] 로그아웃 시 Redis 키 삭제 (현재는 클라이언트 쿠키만 제거)
-- [ ] `/auth/refresh` 검증 시 Redis 존재 여부 확인 — 없으면 401 반환
-- [ ] 비밀번호 변경 시 전체 refresh token 무효화 (기존 로직 강화)
+- [x] Redis에 refresh token 저장 — `refresh:{user_id}:{jti}` 키, TTL = refresh 만료일
+- [x] 로그아웃 시 Redis 키 삭제 + 사용자별 전체 무효화 O(1) per-user SCAN
+- [x] `/auth/refresh` 검증 시 Redis 존재 여부 확인 — 없으면 401 반환
+- [x] 비밀번호 변경 시 전체 refresh token 무효화
+- [x] Redis 값 JSON 확장: {user_id, created_at} — 세션 관리 UI 준비
 
 ### 20-2. 2FA (TOTP)
 
@@ -317,17 +318,16 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 - [ ] 2FA 활성화 확인 (`POST /users/me/2fa/verify`) + users 테이블 `totp_enabled`, `totp_secret_enc` 컬럼
 - [ ] 로그인 플로우: 2FA 활성화 계정은 TOTP 코드 추가 입력 단계
 
-### 20-3. 보안 감사 로그
+### 20-3. 보안 감사 로그 ✓ COMPLETED (Sprint 4, 2026-04-03)
 
-- [ ] `security_audit_logs` 테이블: user_id, action, resource_type, resource_id, ip_address, user_agent, created_at
-- [ ] 기록 대상: 로그인 성공/실패, 주문 실행/취소, KIS 자격증명 등록/수정/삭제, 회원 탈퇴
-- [ ] `GET /users/me/security-logs` 엔드포인트 (최근 50건)
-- [ ] 설정 페이지 '보안 로그' 탭 추가
+- [x] `security_audit_logs` 테이블: user_id, action enum, ip_address, user_agent, meta JSONB, created_at
+- [x] 기록 대상: 로그인 성공/실패, 로그아웃, KIS 자격증명 등록/삭제, 비밀번호 변경, 회원 탈퇴
+- [x] `GET /users/me/security-logs` 엔드포인트 (최근 50건)
+- [ ] 설정 페이지 '보안 로그' 탭 추가 (프론트 UI -- Sprint 5)
 
 ### 20-4. 활성 세션 관리
 
-- [ ] 각 refresh token에 device info (user-agent hash, IP, created_at) 저장
-- [ ] `GET /auth/sessions` — 활성 세션 목록 조회
+- [ ] `GET /auth/sessions` — 활성 세션 목록 조회 (Redis refresh:{user_id}:* 스캔)
 - [ ] `DELETE /auth/sessions/{session_id}` — 특정 세션 강제 종료
 - [ ] 설정 페이지 '활성 세션' 섹션 추가
 

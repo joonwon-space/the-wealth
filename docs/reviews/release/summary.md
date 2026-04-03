@@ -1,4 +1,4 @@
-# Release Validation Summary — sprint-3 (2026-04-03)
+# Release Validation Summary -- Sprint 4 (2026-04-03)
 
 ## Decision: GO
 
@@ -9,51 +9,51 @@
 | Frontend tsc --noEmit | PASS (0 errors) |
 | Frontend npm run build | PASS (clean, 13 routes) |
 | Backend ruff check | PASS (0 errors) |
-| DB migrations | None (no schema changes) |
-| API contract | No breaking changes |
+| Python syntax (new files) | PASS |
+| DB migration (k3l4m5n6o7p8) | Reversible, additive only |
 
 ## Security Assessment
 
-All changes are hardening (additive restrictions, not removals):
-- SEC-001: Sentry credential scrubbing — no functional change, adds protection
-- SEC-002: Password max_length validation — strictly more restrictive, clients sending >128-char passwords fail (correct behavior)
-- SEC-004: CSP unsafe-eval removed from production — reduced attack surface
-- SEC-006: Tags field length constraints — additive validation
+- SEC-001 (refresh token key format): Breaking change for existing sessions -- intentional. All users re-authenticate on next token refresh. New format enables O(1) per-user revocation.
+- SEC-003 (audit log): Additive new table and service. Non-blocking (errors swallowed). No new attack surface.
+- SEC-007 (pip-audit): CI-only addition. No runtime impact.
 
 ## Migration Notes
 
-- `cryptography==46.0.6`: Patch upgrade, backward compatible with existing AES-256 encrypted credentials in DB
-- `ConnectionPool` singleton: Zero-downtime change — pool is lazily created on first Redis operation. No reconnection needed.
-- PERF-001 DISTINCT ON: Raw SQL added via `text()` — PostgreSQL-specific, no issue since the project targets PostgreSQL exclusively
+1. Run `alembic upgrade head` BEFORE restarting backend.
+2. Existing refresh tokens with prefix `refresh_jti:` will be ignored -- all active sessions invalidated. Expected behavior.
+3. No Redis cache invalidation required.
+4. No frontend env changes.
 
 ## Rollback Plan
 
-All changes are backward compatible. If rollback needed:
-1. `git revert` the branch or checkout previous main
-2. No DB migration rollback required (no migrations)
-3. Redis cache keys are unchanged — no cache invalidation needed
+1. `alembic downgrade -1` -- drops security_audit_logs table and auditaction enum.
+2. Revert security.py to restore old refresh token key format (existing sessions already invalidated, cannot un-invalidate).
+3. No data loss risk (audit logs are append-only; holding/analytics data unchanged).
 
 ## Release Notes
 
-**sprint-3 — 2026-04-03**
+**Sprint 4 -- 2026-04-03**
 
 Security:
-- Sentry now strips KIS API credentials (appkey, appsecret, authorization) from error reports
-- Passwords capped at 128 characters to prevent bcrypt DoS attacks
-- CSP no longer permits unsafe-eval in production builds
-- Transaction memo tags are limited to 20 items of 50 characters each
-- cryptography upgraded to 46.0.6 (security patch for AES-256 credential encryption)
+- Refresh token Redis key changed to refresh:{user_id}:{jti} -- logout now O(1) per-user scan instead of O(N) global scan
+- Security audit log table + service: login, logout, KIS credential add/delete, password change events recorded
+- GET /users/me/security-logs endpoint (last 50 entries)
+- pip-audit added to backend CI pipeline for CVE auto-detection
 
-Performance:
-- Dashboard polling suspends when SSE is active (eliminates redundant /dashboard/summary calls)
-- Redis now uses a shared ConnectionPool (eliminates 40-300ms TCP overhead per request)
-- get_prev_close query reduced from 14,600 rows to 20 rows (DISTINCT ON)
-- fx-gain-loss endpoint now cached (3 DB queries + O(N×M) bisect eliminated on cache hit)
-- Overseas tickers in analytics/metrics now use the correct KIS API endpoint
-- Analytics page no longer makes a duplicate /dashboard/summary request on navigation
+Reliability:
+- SQLAlchemy pool_recycle=1800 -- prevents idle connection errors (required before Neon migration)
+
+Performance / Code Quality:
+- analytics.py price_snapshots limited to 1Y by default (metrics endpoint)
+- forward_fill_rates extracted to fx_utils.py (reusable across analytics + scheduler)
+- stocks.py removes duplicate _is_domestic() in favor of shared core.ticker.is_domestic
 
 UX:
-- All portfolio mutations now show error toasts on failure
-- Drag-to-reorder rollback on network error
-- Analytics table rows are keyboard-navigable (tabIndex, Enter/Space)
-- Holding and transaction delete dialogs use shadcn AlertDialog (proper focus trap, ARIA role)
+- Analytics page: all 6 queries now show per-section skeletons and retry buttons on error
+- Portfolio detail: add holding form shows inline validation errors (qty > 0, price >= 0)
+- Portfolio detail: CSV/XLSX export buttons show spinner and disable during download, toast on error
+- Investment journal: BUY/SELL badges now include TrendingUp/TrendingDown icons (WCAG 1.4.1)
+
+Type Safety:
+- PortfolioHistoryChart: removed any[] cast, typed ChartPayloadItem interface
