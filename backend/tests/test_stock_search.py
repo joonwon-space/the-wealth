@@ -342,7 +342,7 @@ class TestLoadStockListCaching:
         ctx.__aenter__ = AsyncMock(return_value=redis_mock)
         ctx.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("app.services.stock_search.aioredis.from_url", return_value=ctx):
+        with patch("app.services.stock_search.get_redis_client", return_value=ctx):
             result = await search_stocks("005930")
 
         assert any(r["ticker"] == "005930" for r in result)
@@ -367,7 +367,7 @@ class TestLoadStockListCaching:
         (tmp_path / "kospi_code.mst").write_bytes(mst_content)
 
         with (
-            patch("app.services.stock_search.aioredis.from_url", return_value=ctx),
+            patch("app.services.stock_search.get_redis_client", return_value=ctx),
             patch("app.services.stock_search._DATA_DIR", tmp_path),
         ):
             result = await search_stocks("005930")

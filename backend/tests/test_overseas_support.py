@@ -207,17 +207,18 @@ class TestFetchOverseasPriceDetail:
 
 @pytest.mark.unit
 class TestFetchUsdKrwRate:
-    @patch("app.core.redis_cache.aioredis")
+    @patch("app.core.redis_cache.get_redis_client")
     @patch("app.services.kis_price.get_kis_access_token")
-    async def test_returns_cached_rate(self, mock_token, mock_aioredis) -> None:
+    async def test_returns_cached_rate(self, mock_token, mock_get_client) -> None:
         """Redis에 캐시된 환율이 있으면 API 호출 없이 반환."""
         mock_token.return_value = "test-token"
 
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value="1380.5")
-        mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
-        mock_redis.__aexit__ = AsyncMock(return_value=False)
-        mock_aioredis.from_url.return_value = mock_redis
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=mock_redis)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_get_client.return_value = ctx
 
         mock_client = AsyncMock()
         result = await fetch_usd_krw_rate("key", "secret", mock_client)
@@ -225,17 +226,18 @@ class TestFetchUsdKrwRate:
         assert result == Decimal("1380.5")
         mock_client.get.assert_not_called()
 
-    @patch("app.core.redis_cache.aioredis")
+    @patch("app.core.redis_cache.get_redis_client")
     @patch("app.services.kis_price.get_kis_access_token")
-    async def test_fallback_rate_on_exception(self, mock_token, mock_aioredis) -> None:
+    async def test_fallback_rate_on_exception(self, mock_token, mock_get_client) -> None:
         """API 호출 및 캐시 모두 실패하면 fallback 1450 반환."""
         mock_token.return_value = "test-token"
 
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
-        mock_redis.__aexit__ = AsyncMock(return_value=False)
-        mock_aioredis.from_url.return_value = mock_redis
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=mock_redis)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_get_client.return_value = ctx
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=Exception("network error"))

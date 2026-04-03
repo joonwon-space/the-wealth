@@ -199,7 +199,7 @@ class TestRedisJtiOperations:
         return redis_mock
 
     async def test_store_refresh_jti_calls_setex(self, mock_redis: MagicMock) -> None:
-        with patch("app.core.security.aioredis.from_url", return_value=mock_redis):
+        with patch("app.core.security.get_redis_client", return_value=mock_redis):
             await store_refresh_jti("test-jti", user_id=5)
         mock_redis.setex.assert_awaited_once()
         call_args = mock_redis.setex.await_args
@@ -209,14 +209,14 @@ class TestRedisJtiOperations:
     async def test_verify_and_consume_found(self, mock_redis: MagicMock) -> None:
         mock_redis.get = AsyncMock(return_value="42")
         mock_redis.delete = AsyncMock()
-        with patch("app.core.security.aioredis.from_url", return_value=mock_redis):
+        with patch("app.core.security.get_redis_client", return_value=mock_redis):
             user_id = await verify_and_consume_refresh_jti("valid-jti")
         assert user_id == 42
         mock_redis.delete.assert_awaited_once()
 
     async def test_verify_and_consume_not_found(self, mock_redis: MagicMock) -> None:
         mock_redis.get = AsyncMock(return_value=None)
-        with patch("app.core.security.aioredis.from_url", return_value=mock_redis):
+        with patch("app.core.security.get_redis_client", return_value=mock_redis):
             user_id = await verify_and_consume_refresh_jti("missing-jti")
         assert user_id is None
 
@@ -230,7 +230,7 @@ class TestRedisJtiOperations:
         mock_redis.get = AsyncMock(side_effect=["7", "99"])
         mock_redis.delete = AsyncMock()
 
-        with patch("app.core.security.aioredis.from_url", return_value=mock_redis):
+        with patch("app.core.security.get_redis_client", return_value=mock_redis):
             await revoke_all_refresh_tokens_for_user(user_id=7)
 
         # Only the key whose value is "7" should be deleted
@@ -251,7 +251,7 @@ class TestRedisJtiOperations:
         mock_redis.get = AsyncMock(side_effect=["3", "999"])
         mock_redis.delete = AsyncMock()
 
-        with patch("app.core.security.aioredis.from_url", return_value=mock_redis):
+        with patch("app.core.security.get_redis_client", return_value=mock_redis):
             await revoke_all_refresh_tokens_for_user(user_id=3)
 
         assert mock_redis.scan.await_count == 2
@@ -263,7 +263,7 @@ class TestRedisJtiOperations:
         mock_redis.get = AsyncMock(return_value="999")
         mock_redis.delete = AsyncMock()
 
-        with patch("app.core.security.aioredis.from_url", return_value=mock_redis):
+        with patch("app.core.security.get_redis_client", return_value=mock_redis):
             await revoke_all_refresh_tokens_for_user(user_id=1)
 
         mock_redis.delete.assert_not_awaited()

@@ -14,30 +14,32 @@ from app.services.kis_price import (
 
 @pytest.mark.unit
 class TestPriceCache:
-    @patch("app.core.redis_cache.aioredis")
-    async def test_cache_and_retrieve(self, mock_aioredis) -> None:
+    @patch("app.core.redis_cache.get_redis_client")
+    async def test_cache_and_retrieve(self, mock_get_client) -> None:
         """캐시 저장 후 조회 시 값이 반환되어야 한다."""
         store: dict[str, str] = {}
 
         mock_redis = AsyncMock()
         mock_redis.setex = AsyncMock(side_effect=lambda k, t, v: store.update({k: v}))
         mock_redis.get = AsyncMock(side_effect=lambda k: store.get(k))
-        mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
-        mock_redis.__aexit__ = AsyncMock(return_value=False)
-        mock_aioredis.from_url.return_value = mock_redis
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=mock_redis)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_get_client.return_value = ctx
 
         await _cache_price("005930", Decimal("70000"))
         result = await _get_cached_price("005930")
         assert result == Decimal("70000")
 
-    @patch("app.core.redis_cache.aioredis")
-    async def test_cache_miss_returns_none(self, mock_aioredis) -> None:
+    @patch("app.core.redis_cache.get_redis_client")
+    async def test_cache_miss_returns_none(self, mock_get_client) -> None:
         """캐시에 없으면 None 반환."""
         mock_redis = AsyncMock()
         mock_redis.get = AsyncMock(return_value=None)
-        mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
-        mock_redis.__aexit__ = AsyncMock(return_value=False)
-        mock_aioredis.from_url.return_value = mock_redis
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=mock_redis)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_get_client.return_value = ctx
 
         result = await _get_cached_price("999999")
         assert result is None
