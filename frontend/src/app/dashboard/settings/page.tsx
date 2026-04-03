@@ -1,54 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Bell, Check, CheckCircle, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2, Wifi, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Loader2, Moon, Plus, Sun, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { useAuthStore } from "@/store/auth";
-import { formatKRW, formatNumber, formatUSD } from "@/lib/format";
+import { formatKRW } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-
-interface UserMe {
-  id: number;
-  email: string;
-  name: string | null;
-}
-
-interface BalanceHolding {
-  ticker: string;
-  name: string;
-  quantity: string;
-  avg_price: string;
-  currency: "KRW" | "USD";
-}
-
-interface AccountBalance {
-  label: string;
-  account_no: string;
-  portfolio_id?: number;
-  deposit: string;
-  total_eval: string;
-  stock_eval: string;
-  pnl: string;
-  usd_krw_rate?: number | null;
-  synced?: { inserted: number; updated: number; deleted: number };
-  holdings: BalanceHolding[];
-  error?: string;
-}
+import { cn } from "@/lib/utils";
+import { AccountSection } from "./AccountSection";
+import { KisCredentialsSection } from "./KisCredentialsSection";
+import { SecurityLogsSection } from "./SecurityLogsSection";
+import { ActiveSessionsSection } from "./ActiveSessionsSection";
 
 interface AlertItem {
   id: number;
@@ -59,190 +24,34 @@ interface AlertItem {
   is_active: boolean;
 }
 
-export default function SettingsPage() {
-  const queryClient = useQueryClient();
+type SettingsTab = "account" | "kis" | "alerts" | "security";
 
-  // Account info
-  const { data: userMe } = useQuery<UserMe>({
-    queryKey: ["users", "me"],
-    queryFn: () => api.get<UserMe>("/users/me").then((r) => r.data),
-  });
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState("");
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const updateNameMutation = useMutation({
-    mutationFn: (name: string) =>
-      api.patch<UserMe>("/users/me", { name: name || null }),
-    onSuccess: (resp) => {
-      queryClient.setQueryData<UserMe>(["users", "me"], resp.data);
-      setEditingName(false);
-      toast.success("이름이 저장되었습니다");
-    },
-    onError: () => toast.error("저장에 실패했습니다"),
-  });
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: "account", label: "계정" },
+  { id: "kis", label: "KIS 계좌" },
+  { id: "alerts", label: "알림" },
+  { id: "security", label: "보안" },
+];
 
-  const handleNameSave = () => {
-    updateNameMutation.mutate(nameInput.trim());
-  };
-
-  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") handleNameSave();
-    if (e.key === "Escape") setEditingName(false);
-  };
-
-  // Password change dialog
-  const [pwDialogOpen, setPwDialogOpen] = useState(false);
-  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
-  const [pwError, setPwError] = useState<string | null>(null);
-  const changePwMutation = useMutation({
-    mutationFn: () =>
-      api.post("/users/me/change-password", {
-        current_password: pwForm.current,
-        new_password: pwForm.next,
-      }),
-    onSuccess: () => {
-      toast.success("비밀번호가 변경되었습니다");
-      setPwDialogOpen(false);
-      setPwForm({ current: "", next: "", confirm: "" });
-      setPwError(null);
-    },
-    onError: (err: unknown) => {
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { error?: { message?: string } } } })
-              .response?.data?.error?.message
-          : null;
-      setPwError(msg ?? "비밀번호 변경에 실패했습니다");
-    },
-  });
-
-  const handleChangePw = () => {
-    setPwError(null);
-    if (pwForm.next.length < 8) {
-      setPwError("새 비밀번호는 8자 이상이어야 합니다");
-      return;
-    }
-    if (pwForm.next !== pwForm.confirm) {
-      setPwError("새 비밀번호가 일치하지 않습니다");
-      return;
-    }
-    changePwMutation.mutate();
-  };
-
-  // Email change dialog
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [emailForm, setEmailForm] = useState({ newEmail: "", password: "" });
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const changeEmailMutation = useMutation({
-    mutationFn: () =>
-      api.post("/users/me/change-email", {
-        new_email: emailForm.newEmail,
-        current_password: emailForm.password,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
-      toast.success("이메일이 변경되었습니다");
-      setEmailDialogOpen(false);
-      setEmailForm({ newEmail: "", password: "" });
-      setEmailError(null);
-    },
-    onError: (err: unknown) => {
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { error?: { message?: string } } } })
-              .response?.data?.error?.message
-          : null;
-      setEmailError(msg ?? "이메일 변경에 실패했습니다");
-    },
-  });
-
-  // Delete account dialog
-  const router = useRouter();
-  const logout = useAuthStore((s) => s.logout);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletePassword, setDeletePassword] = useState("");
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const deleteAccountMutation = useMutation({
-    mutationFn: () =>
-      api.delete("/users/me", { data: { current_password: deletePassword } }),
-    onSuccess: () => {
-      toast.success("계정이 삭제되었습니다");
-      logout();
-      router.push("/login");
-    },
-    onError: (err: unknown) => {
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { error?: { message?: string } } } })
-              .response?.data?.error?.message
-          : null;
-      setDeleteError(msg ?? "계정 삭제에 실패했습니다");
-    },
-  });
-
-  const [balanceLoading, setBalanceLoading] = useState(false);
-  const [balanceAccounts, setBalanceAccounts] = useState<AccountBalance[] | null>(null);
-  const [balanceError, setBalanceError] = useState<string | null>(null);
-
-  const [kisAccounts, setKisAccounts] = useState<{
-    id: number;
-    label: string;
-    account_no: string;
-    acnt_prdt_cd: string;
-    is_paper_trading: boolean;
-    account_type: string | null;
-  }[]>([]);
-  const [editingAcctId, setEditingAcctId] = useState<number | null>(null);
-  const [editLabel, setEditLabel] = useState("");
-  const [showAddAccount, setShowAddAccount] = useState(false);
-  const [newAcct, setNewAcct] = useState({
-    label: "",
-    account_no: "",
-    acnt_prdt_cd: "01",
-    app_key: "",
-    app_secret: "",
-    is_paper_trading: false,
-    account_type: "일반",
-  });
-  const [addingAcct, setAddingAcct] = useState(false);
-  const [testingAcctId, setTestingAcctId] = useState<number | null>(null);
-  const [testResults, setTestResults] = useState<Record<number, boolean | null>>({});
-
-  const handleTestAccount = async (id: number) => {
-    setTestingAcctId(id);
-    setTestResults((prev) => ({ ...prev, [id]: null }));
-    try {
-      const { data } = await api.post<{ success: boolean; message: string }>(`/users/kis-accounts/${id}/test`);
-      setTestResults((prev) => ({ ...prev, [id]: data.success }));
-      if (data.success) {
-        toast.success(data.message);
-      } else {
-        toast.error(data.message);
-      }
-    } catch {
-      setTestResults((prev) => ({ ...prev, [id]: false }));
-      toast.error("연결 테스트에 실패했습니다");
-    } finally {
-      setTestingAcctId(null);
-    }
-  };
-
+export default function SettingsPage(): React.ReactElement {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("account");
   const { theme, setTheme } = useTheme();
 
+  // Alerts state
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [newAlert, setNewAlert] = useState({ ticker: "", name: "", condition: "above" as "above" | "below", threshold: "" });
+  const [newAlert, setNewAlert] = useState({
+    ticker: "",
+    name: "",
+    condition: "above" as "above" | "below",
+    threshold: "",
+  });
   const [addingAlert, setAddingAlert] = useState(false);
-
-  const fetchKisAccounts = () => {
-    api.get<typeof kisAccounts>("/users/kis-accounts").then(({ data }) => setKisAccounts(data));
-  };
 
   const fetchAlerts = () => {
     api.get<AlertItem[]>("/alerts").then(({ data }) => setAlerts(data));
   };
 
   useEffect(() => {
-    fetchKisAccounts();
     fetchAlerts();
   }, []);
 
@@ -276,626 +85,169 @@ export default function SettingsPage() {
     }
   };
 
-  const handleAddAccount = async () => {
-    if (!newAcct.label || !newAcct.account_no || !newAcct.app_key || !newAcct.app_secret) return;
-    setAddingAcct(true);
-    try {
-      await api.post("/users/kis-accounts", newAcct);
-      setNewAcct({ label: "", account_no: "", acnt_prdt_cd: "01", app_key: "", app_secret: "", is_paper_trading: false, account_type: "일반" });
-      setShowAddAccount(false);
-      fetchKisAccounts();
-      toast.success("KIS 계좌가 등록되었습니다. 보유 종목을 동기화하는 중...");
-      // 계좌 등록 즉시 자동 동기화 — holdings DB 채우기
-      try {
-        const { data } = await api.post<{ accounts: AccountBalance[] }>("/sync/balance");
-        const synced = data.accounts[0]?.synced;
-        if (synced && (synced.inserted > 0 || synced.updated > 0)) {
-          toast.success(`동기화 완료: ${synced.inserted}개 종목이 포트폴리오에 추가됐습니다`);
-        } else {
-          toast.success("동기화 완료");
-        }
-        setBalanceAccounts(data.accounts);
-      } catch {
-        toast.warning("계좌는 등록됐지만 초기 동기화에 실패했습니다. 설정 > 실계좌 조회 & 동기화를 다시 시도해주세요.");
-      }
-    } catch {
-      toast.error("계좌 등록에 실패했습니다");
-    } finally {
-      setAddingAcct(false);
-    }
-  };
-
-  const handleSaveLabel = async (id: number) => {
-    if (!editLabel.trim()) return;
-    try {
-      await api.patch(`/users/kis-accounts/${id}`, { label: editLabel });
-      setKisAccounts((prev) => prev.map((a) => a.id === id ? { ...a, label: editLabel } : a));
-      setEditingAcctId(null);
-      toast.success("계좌 별칭이 변경되었습니다");
-    } catch {
-      toast.error("별칭 변경에 실패했습니다");
-    }
-  };
-
-  const handleDeleteAccount = async (id: number) => {
-    try {
-      await api.delete(`/users/kis-accounts/${id}`);
-      setKisAccounts((prev) => prev.filter((a) => a.id !== id));
-      toast.success("계좌가 삭제되었습니다");
-    } catch {
-      toast.error("계좌 삭제에 실패했습니다");
-    }
-  };
-
-  const handleBalanceInquiry = async () => {
-    setBalanceLoading(true);
-    setBalanceError(null);
-    setBalanceAccounts(null);
-    try {
-      const { data } = await api.post<{ accounts: AccountBalance[] }>("/sync/balance");
-      setBalanceAccounts(data.accounts);
-    } catch (err: unknown) {
-      const msg = err && typeof err === "object" && "response" in err
-        ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
-        : null;
-      setBalanceError(msg ?? "조회에 실패했습니다");
-    } finally {
-      setBalanceLoading(false);
-    }
-  };
-
   return (
-    <div className="space-y-8 max-w-xl">
+    <div className="space-y-6 max-w-xl">
       <h1 className="text-2xl font-bold">설정</h1>
 
-      {/* 계정 정보 */}
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          <h2 className="text-base font-semibold">계정 정보</h2>
-
-          {/* 이메일 (읽기 전용) */}
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">이메일</p>
-            <p className="text-sm font-medium">{userMe?.email ?? "—"}</p>
-          </div>
-
-          {/* 이름 인라인 편집 */}
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">이름</p>
-            {editingName ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  ref={nameInputRef}
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onBlur={handleNameSave}
-                  onKeyDown={handleNameKeyDown}
-                  className="h-8 text-sm max-w-[200px]"
-                  placeholder="이름 입력"
-                  autoFocus
-                />
-                <button
-                  onClick={handleNameSave}
-                  disabled={updateNameMutation.isPending}
-                  className="flex min-h-[32px] items-center gap-1 rounded px-2 text-xs font-medium text-primary hover:bg-accent disabled:opacity-50"
-                >
-                  {updateNameMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Check className="h-3 w-3" />
-                  )}
-                  저장
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setNameInput(userMe?.name ?? "");
-                  setEditingName(true);
-                }}
-                className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors group"
-              >
-                <span>{userMe?.name ?? "이름 없음"}</span>
-                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            )}
-          </div>
-
-          {/* 비밀번호 / 이메일 변경 버튼 영역 */}
-          <div className="pt-2 border-t border-border/50 flex flex-wrap gap-2">
-            {/* 이메일 변경 Dialog */}
-            <Dialog open={emailDialogOpen} onOpenChange={(open) => {
-              setEmailDialogOpen(open);
-              if (!open) {
-                setEmailForm({ newEmail: "", password: "" });
-                setEmailError(null);
-              }
-            }}>
-              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs" />}>
-                이메일 변경
-              </DialogTrigger>
-              <DialogContent className="max-w-sm">
-                <DialogHeader>
-                  <DialogTitle>이메일 변경</DialogTitle>
-                  <DialogDescription>새 이메일 주소와 현재 비밀번호를 입력하세요.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3 py-2">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">새 이메일</label>
-                    <Input
-                      type="email"
-                      value={emailForm.newEmail}
-                      onChange={(e) => setEmailForm((f) => ({ ...f, newEmail: e.target.value }))}
-                      placeholder="new@example.com"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">현재 비밀번호</label>
-                    <Input
-                      type="password"
-                      value={emailForm.password}
-                      onChange={(e) => setEmailForm((f) => ({ ...f, password: e.target.value }))}
-                      placeholder="현재 비밀번호"
-                    />
-                  </div>
-                  {emailError && (
-                    <p className="text-xs text-destructive">{emailError}</p>
-                  )}
-                </div>
-                <DialogFooter>
-                  <Button
-                    onClick={() => changeEmailMutation.mutate()}
-                    disabled={changeEmailMutation.isPending || !emailForm.newEmail || !emailForm.password}
-                    size="sm"
-                  >
-                    {changeEmailMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                    변경
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            {/* 비밀번호 변경 Dialog */}
-            <Dialog open={pwDialogOpen} onOpenChange={(open) => {
-              setPwDialogOpen(open);
-              if (!open) {
-                setPwForm({ current: "", next: "", confirm: "" });
-                setPwError(null);
-              }
-            }}>
-              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs" />}>
-                비밀번호 변경
-              </DialogTrigger>
-              <DialogContent className="max-w-sm">
-                <DialogHeader>
-                  <DialogTitle>비밀번호 변경</DialogTitle>
-                  <DialogDescription>새 비밀번호는 8자 이상이어야 합니다.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-3 py-2">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">현재 비밀번호</label>
-                    <Input
-                      type="password"
-                      value={pwForm.current}
-                      onChange={(e) => setPwForm((p) => ({ ...p, current: e.target.value }))}
-                      placeholder="현재 비밀번호"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">새 비밀번호</label>
-                    <Input
-                      type="password"
-                      value={pwForm.next}
-                      onChange={(e) => setPwForm((p) => ({ ...p, next: e.target.value }))}
-                      placeholder="새 비밀번호 (8자 이상)"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">새 비밀번호 확인</label>
-                    <Input
-                      type="password"
-                      value={pwForm.confirm}
-                      onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
-                      placeholder="새 비밀번호 재입력"
-                    />
-                  </div>
-                  {pwError && (
-                    <p className="text-xs text-destructive">{pwError}</p>
-                  )}
-                </div>
-                <DialogFooter>
-                  <Button
-                    onClick={handleChangePw}
-                    disabled={changePwMutation.isPending || !pwForm.current || !pwForm.next}
-                    size="sm"
-                  >
-                    {changePwMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                    변경
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 테마 */}
+      {/* 테마 토글 (항상 상단에 표시) */}
       <Card>
         <CardContent className="p-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">테마</p>
-            <p className="text-xs text-muted-foreground">라이트 / 다크 모드 전환</p>
+            <p className="text-xs text-muted-foreground">
+              라이트 / 다크 모드 전환
+            </p>
           </div>
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="flex min-h-[44px] items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
           >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Moon className="h-4 w-4" aria-hidden="true" />
+            )}
             {theme === "dark" ? "라이트 모드" : "다크 모드"}
           </button>
         </CardContent>
       </Card>
 
-      {/* KIS 계좌 관리 */}
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">KIS 계좌 목록</h2>
-            <Button size="sm" variant="outline" onClick={() => setShowAddAccount(!showAddAccount)} className="min-h-[44px] gap-1">
-              <Plus className="h-3.5 w-3.5" />
-              {showAddAccount ? "취소" : "계좌 추가"}
-            </Button>
-          </div>
+      {/* 탭 네비게이션 */}
+      <div className="flex gap-1 border-b">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+              activeTab === tab.id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-          {showAddAccount && (
-            <div className="space-y-2 rounded-lg border p-3">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">별칭</label>
-                  <Input value={newAcct.label} onChange={(e) => setNewAcct((f) => ({ ...f, label: e.target.value }))} placeholder="연금저축" className="h-8" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">계좌번호</label>
-                  <Input value={newAcct.account_no} onChange={(e) => setNewAcct((f) => ({ ...f, account_no: e.target.value }))} placeholder="63853538" className="h-8 font-mono" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">상품코드</label>
-                  <Input value={newAcct.acnt_prdt_cd} onChange={(e) => setNewAcct((f) => ({ ...f, acnt_prdt_cd: e.target.value }))} placeholder="01" className="h-8 font-mono w-16" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">계좌 유형</label>
-                  <select
-                    value={newAcct.account_type}
-                    onChange={(e) => setNewAcct((f) => ({ ...f, account_type: e.target.value }))}
-                    className="h-8 w-full rounded border bg-background px-2 text-sm"
-                  >
-                    {["일반", "ISA", "연금저축", "IRP", "해외주식"].map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+      {/* 탭 콘텐츠 */}
+      <div className="space-y-6">
+        {activeTab === "account" && <AccountSection />}
+
+        {activeTab === "kis" && <KisCredentialsSection />}
+
+        {activeTab === "alerts" && (
+          <Card>
+            <CardContent className="p-4 space-y-4">
               <div className="flex items-center gap-2">
-                <input
-                  id="paper-trading-new"
-                  type="checkbox"
-                  checked={newAcct.is_paper_trading}
-                  onChange={(e) => setNewAcct((f) => ({ ...f, is_paper_trading: e.target.checked }))}
-                  className="h-4 w-4 rounded border"
+                <Bell className="h-4 w-4" aria-hidden="true" />
+                <h2 className="text-base font-semibold">목표가 알림</h2>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
+                <Input
+                  aria-label="티커"
+                  placeholder="티커 (예: 005930)"
+                  value={newAlert.ticker}
+                  onChange={(e) =>
+                    setNewAlert((p) => ({ ...p, ticker: e.target.value }))
+                  }
+                  className="uppercase h-11 sm:h-9"
                 />
-                <label htmlFor="paper-trading-new" className="text-sm">
-                  모의투자 계좌
-                </label>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">App Key</label>
-                <Input value={newAcct.app_key} onChange={(e) => setNewAcct((f) => ({ ...f, app_key: e.target.value }))} placeholder="PS7yzJ..." className="h-8 font-mono" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">App Secret</label>
-                <Input type="password" value={newAcct.app_secret} onChange={(e) => setNewAcct((f) => ({ ...f, app_secret: e.target.value }))} placeholder="••••••••" className="h-8" />
-              </div>
-              <Button size="sm" onClick={handleAddAccount} disabled={addingAcct}>
-                {addingAcct ? "등록 중..." : "등록"}
-              </Button>
-            </div>
-          )}
-
-          {kisAccounts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">등록된 KIS 계좌가 없습니다.</p>
-          ) : (
-            <div className="space-y-2">
-              {kisAccounts.map((a) => (
-                <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-                  {editingAcctId === a.id ? (
-                    <div className="flex items-center gap-2">
-                      <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-7 w-32" autoFocus />
-                      <Button size="sm" onClick={() => handleSaveLabel(a.id)} className="h-7 px-2 text-xs">저장</Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingAcctId(null)} className="h-7 px-2 text-xs">취소</Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{a.label}</span>
-                      <button
-                        onClick={() => { setEditingAcctId(a.id); setEditLabel(a.label); }}
-                        aria-label={`${a.label} 계좌 별칭 편집`}
-                        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <span className="ml-1 font-mono text-muted-foreground">{a.account_no}-{a.acnt_prdt_cd}</span>
-                      {a.account_type && (
-                        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">{a.account_type}</span>
-                      )}
-                      {a.is_paper_trading && (
-                        <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-300">모의</span>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleTestAccount(a.id)}
-                      disabled={testingAcctId === a.id}
-                      className="min-h-[44px] rounded border px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 flex items-center gap-1"
-                      title="연결 테스트"
-                      aria-label="KIS 연결 테스트"
-                    >
-                      {testingAcctId === a.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : testResults[a.id] === true ? (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
-                      ) : testResults[a.id] === false ? (
-                        <XCircle className="h-3 w-3 text-destructive" />
-                      ) : (
-                        <Wifi className="h-3 w-3" />
-                      )}
-                      테스트
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAccount(a.id)}
-                      aria-label={`${a.label} 계좌 삭제`}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 실계좌 조회 + 동기화 */}
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          <h2 className="text-base font-semibold">실계좌 조회 & 동기화</h2>
-          <p className="text-sm text-muted-foreground">
-            등록된 KIS 계좌의 보유 종목을 조회하고 포트폴리오에 자동 동기화합니다.
-          </p>
-          <Button onClick={handleBalanceInquiry} disabled={balanceLoading} className="gap-2">
-            <Eye className="h-4 w-4" />
-            {balanceLoading ? "조회 중..." : "실계좌 조회 & 동기화"}
-          </Button>
-          {balanceError && (
-            <p className="text-sm text-destructive">{balanceError}</p>
-          )}
-          {balanceAccounts !== null && balanceAccounts.map((acct) => (
-            <div key={acct.account_no} className="space-y-3">
-              <h3 className="text-sm font-semibold">
-                {acct.label} <span className="font-normal text-muted-foreground">({acct.account_no})</span>
-              </h3>
-              {acct.error ? (
-                <p className="text-sm text-destructive">{acct.error}</p>
-              ) : (
-                <>
-                  {acct.synced && (acct.synced.inserted > 0 || acct.synced.updated > 0 || acct.synced.deleted > 0) && (
-                    <p className="text-xs text-green-600">
-                      동기화: +{acct.synced.inserted} ~{acct.synced.updated} -{acct.synced.deleted}
-                    </p>
-                  )}
-                  {acct.usd_krw_rate && (
-                    <p className="text-xs text-muted-foreground">
-                      기준 환율: <span className="tabular-nums font-medium">{formatKRW(acct.usd_krw_rate)}/USD</span>
-                    </p>
-                  )}
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-lg border p-3">
-                      <p className="text-xs text-muted-foreground">예수금</p>
-                      <p className="font-semibold tabular-nums">{formatKRW(acct.deposit)}</p>
-                    </div>
-                    <div className="rounded-lg border p-3">
-                      <p className="text-xs text-muted-foreground">총 평가</p>
-                      <p className="font-semibold tabular-nums">{formatKRW(acct.total_eval)}</p>
-                    </div>
-                    <div className="rounded-lg border p-3">
-                      <p className="text-xs text-muted-foreground">주식 평가</p>
-                      <p className="font-semibold tabular-nums">{formatKRW(acct.stock_eval)}</p>
-                    </div>
-                    <div className="rounded-lg border p-3">
-                      <p className="text-xs text-muted-foreground">평가 손익</p>
-                      <p className="font-semibold tabular-nums">{formatKRW(acct.pnl)}</p>
-                    </div>
-                  </div>
-                  {acct.holdings.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">보유 종목이 없습니다.</p>
-                  ) : (
-                    <div className="rounded-lg border overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            {["종목", "수량", "평균단가", "총 금액"].map((h) => (
-                              <th key={h} className="px-4 py-2 text-left font-medium text-muted-foreground">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[...acct.holdings]
-                            .sort((a, b) => {
-                              const rateA = a.currency === "USD" ? (acct.usd_krw_rate ?? 1350) : 1;
-                              const rateB = b.currency === "USD" ? (acct.usd_krw_rate ?? 1350) : 1;
-                              const totalA = Number(a.quantity) * Number(a.avg_price) * rateA;
-                              const totalB = Number(b.quantity) * Number(b.avg_price) * rateB;
-                              return totalB - totalA;
-                            })
-                            .map((h) => {
-                              const totalAmount = Number(h.quantity) * Number(h.avg_price);
-                              return (
-                                <tr key={h.ticker} className="border-t">
-                                  <td className="px-4 py-2">
-                                    <div className="font-medium">{h.name}</div>
-                                    <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                                  </td>
-                                  <td className="px-4 py-2 tabular-nums">{formatNumber(h.quantity)}</td>
-                                  <td className="px-4 py-2 tabular-nums">
-                                    {h.currency === "USD" ? formatUSD(Number(h.avg_price)) : formatKRW(h.avg_price)}
-                                  </td>
-                                  <td className="px-4 py-2 tabular-nums">
-                                    {h.currency === "USD" ? formatUSD(totalAmount) : formatKRW(totalAmount)}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* 목표가 알림 */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            <h2 className="text-base font-semibold">목표가 알림</h2>
-          </div>
-
-          {/* 등록 폼 */}
-          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-5">
-            <Input
-              aria-label="티커"
-              placeholder="티커 (예: 005930)"
-              value={newAlert.ticker}
-              onChange={(e) => setNewAlert((p) => ({ ...p, ticker: e.target.value }))}
-              className="uppercase h-11 sm:h-9"
-            />
-            <Input
-              aria-label="종목명"
-              placeholder="종목명 (선택)"
-              value={newAlert.name}
-              onChange={(e) => setNewAlert((p) => ({ ...p, name: e.target.value }))}
-              className="h-11 sm:h-9"
-            />
-            <select
-              aria-label="조건"
-              value={newAlert.condition}
-              onChange={(e) => setNewAlert((p) => ({ ...p, condition: e.target.value as "above" | "below" }))}
-              className="h-11 sm:h-9 rounded-md border bg-background px-3 py-2 text-sm"
-            >
-              <option value="above">이상 (≥)</option>
-              <option value="below">이하 (≤)</option>
-            </select>
-            <Input
-              aria-label="목표가"
-              type="number"
-              placeholder="목표가"
-              value={newAlert.threshold}
-              onChange={(e) => setNewAlert((p) => ({ ...p, threshold: e.target.value }))}
-              className="h-11 sm:h-9"
-            />
-            <Button onClick={handleAddAlert} disabled={addingAlert || !newAlert.ticker || !newAlert.threshold} className="h-11 sm:h-9 gap-1">
-              {addingAlert ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              추가
-            </Button>
-          </div>
-
-          {/* 알림 목록 */}
-          {alerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">등록된 알림이 없습니다.</p>
-          ) : (
-            <div className="divide-y rounded-lg border">
-              {alerts.map((a) => (
-                <div key={a.id} className="flex items-center justify-between px-4 py-2.5">
-                  <div className="text-sm">
-                    <span className="font-medium">{a.name || a.ticker}</span>
-                    {a.name && <span className="ml-1 text-xs text-muted-foreground">({a.ticker})</span>}
-                    <span className="ml-2 text-muted-foreground">
-                      {a.condition === "above" ? "≥" : "≤"} {formatKRW(a.threshold)}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteAlert(a.id)}
-                    aria-label={`${a.name || a.ticker} 알림 삭제`}
-                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 위험 구역 — 계정 삭제 */}
-      <Card className="border-destructive/40">
-        <CardContent className="space-y-3 p-6">
-          <h2 className="text-base font-semibold text-destructive">위험 구역</h2>
-          <p className="text-sm text-muted-foreground">
-            계정을 삭제하면 모든 포트폴리오, 보유 종목, 거래 내역이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
-          </p>
-          <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
-            setDeleteDialogOpen(open);
-            if (!open) {
-              setDeletePassword("");
-              setDeleteError(null);
-            }
-          }}>
-            <DialogTrigger render={<Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs" />}>
-              계정 삭제
-            </DialogTrigger>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle className="text-destructive">계정 영구 삭제</DialogTitle>
-                <DialogDescription>
-                  이 작업은 되돌릴 수 없습니다. 계속하려면 현재 비밀번호를 입력하세요.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3 py-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">현재 비밀번호</label>
-                  <Input
-                    type="password"
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    placeholder="현재 비밀번호"
-                  />
-                </div>
-                {deleteError && (
-                  <p className="text-xs text-destructive">{deleteError}</p>
-                )}
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="destructive"
-                  onClick={() => deleteAccountMutation.mutate()}
-                  disabled={deleteAccountMutation.isPending || !deletePassword}
-                  size="sm"
+                <Input
+                  aria-label="종목명"
+                  placeholder="종목명 (선택)"
+                  value={newAlert.name}
+                  onChange={(e) =>
+                    setNewAlert((p) => ({ ...p, name: e.target.value }))
+                  }
+                  className="h-11 sm:h-9"
+                />
+                <select
+                  aria-label="조건"
+                  value={newAlert.condition}
+                  onChange={(e) =>
+                    setNewAlert((p) => ({
+                      ...p,
+                      condition: e.target.value as "above" | "below",
+                    }))
+                  }
+                  className="h-11 sm:h-9 rounded-md border bg-background px-3 py-2 text-sm"
                 >
-                  {deleteAccountMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                  영구 삭제
+                  <option value="above">이상 (≥)</option>
+                  <option value="below">이하 (≤)</option>
+                </select>
+                <Input
+                  aria-label="목표가"
+                  type="number"
+                  placeholder="목표가"
+                  value={newAlert.threshold}
+                  onChange={(e) =>
+                    setNewAlert((p) => ({ ...p, threshold: e.target.value }))
+                  }
+                  className="h-11 sm:h-9"
+                />
+                <Button
+                  onClick={handleAddAlert}
+                  disabled={
+                    addingAlert || !newAlert.ticker || !newAlert.threshold
+                  }
+                  className="h-11 sm:h-9 gap-1"
+                >
+                  {addingAlert ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  추가
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
+              </div>
 
+              {alerts.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">
+                  등록된 알림이 없습니다.
+                </p>
+              ) : (
+                <div className="divide-y rounded-lg border">
+                  {alerts.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between px-4 py-2.5"
+                    >
+                      <div className="text-sm">
+                        <span className="font-medium">{a.name || a.ticker}</span>
+                        {a.name && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({a.ticker})
+                          </span>
+                        )}
+                        <span className="ml-2 text-muted-foreground">
+                          {a.condition === "above" ? "≥" : "≤"}{" "}
+                          {formatKRW(a.threshold)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteAlert(a.id)}
+                        aria-label={`${a.name || a.ticker} 알림 삭제`}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "security" && (
+          <>
+            <SecurityLogsSection />
+            <ActiveSessionsSection />
+          </>
+        )}
+      </div>
     </div>
   );
 }
