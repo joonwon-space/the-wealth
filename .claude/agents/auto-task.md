@@ -70,24 +70,26 @@ Repeat until no `[ ]` items remain:
 
    Run checks based on which files were changed:
 
-   **If any `.ts` or `.tsx` files changed:**
+   **If any `.ts` or `.tsx` files changed (must match `.github/workflows/frontend.yml`):**
    ```bash
    cd frontend
-   npx tsc --noEmit          # type check
-   npm run build             # full build — catches what tsc misses
+   npm run lint               # ESLint (catches React Compiler errors)
+   npx tsc --noEmit           # type check
+   npx vitest run 2>&1 | tail -30  # tests
+   npm run build              # full build
    cd ..
    ```
-   If build fails → fix the error immediately, then re-run. If it fails twice → stop and report.
+   If any step fails → fix the error immediately, then re-run. If it fails twice → stop and report.
 
-   **If any `.py` files changed:**
+   **If any `.py` files changed (must match `.github/workflows/backend.yml`):**
    ```bash
    cd backend
-   source venv/bin/activate
-   ruff check .              # lint
-   pytest -q --tb=short 2>&1 | tail -20  # tests
+   source venv/bin/activate 2>/dev/null || source venv/Scripts/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+   ruff check .                                   # lint
+   python -m pytest tests/ -q --tb=short 2>&1 | tail -30  # tests
    cd ..
    ```
-   If ruff or pytest fails → fix, then re-run. If it fails twice → stop and report.
+   If ruff or pytest fails → fix (check mock paths if imports changed), then re-run. If it fails twice → stop and report.
 
 4. **Update tasks.md**
    - Mark completed: `[ ]` → `[x]`

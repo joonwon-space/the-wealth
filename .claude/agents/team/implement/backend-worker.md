@@ -43,21 +43,33 @@ For each task, in order:
 - Match existing code patterns in the file
 - Do not refactor unrelated code
 
-### 3. Build verification (MANDATORY)
+### 3. Build verification (MANDATORY — must match CI exactly)
 
-After implementing each task:
+After implementing each task, run ALL steps in order (same as `.github/workflows/backend.yml`):
 
 ```bash
 cd backend
-source venv/bin/activate
+
+# Activate venv (try common paths)
+source venv/bin/activate 2>/dev/null || source venv/Scripts/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
+
+# Step 1: Lint
 ruff check . 2>&1 | head -30
-pytest -q --tb=short 2>&1 | tail -30
+
+# Step 2: Tests (CRITICAL — must run, not skip)
+python -m pytest tests/ -q --tb=short 2>&1 | tail -40
+
 cd ..
 ```
 
-- If ruff fails → fix lint errors, re-run
-- If pytest fails → fix test failures, re-run
-- If fails twice on same issue → mark task as FAILED, move to next task
+- If venv activation fails → try `pip install -r requirements.txt` in a temp venv, or run ruff/pytest via absolute path
+- If ruff fails → fix lint errors (undefined names, unused imports), re-run
+- If pytest fails → fix test failures (check mock paths, event loop issues, assertion values), re-run
+- If any step fails twice on same issue → mark task as FAILED, move to next task
+
+**CRITICAL**: Do NOT skip `pytest`. If you changed a module's imports (e.g., replaced `aioredis.from_url` with `get_redis_client`), ALL tests that mock that module MUST be updated. Search for mock paths: `grep -r "patch.*<module_name>" tests/` and fix any stale references.
+
+**Mock path rule**: When refactoring code that changes how a module imports its dependencies, always search for tests that patch the old import path and update them to the new path.
 
 ### 4. Commit
 

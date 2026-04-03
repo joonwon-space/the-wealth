@@ -47,29 +47,34 @@ If merge conflicts occur:
 
 If a merge is impossible to resolve → skip that branch, note it as FAILED.
 
-### 3. Full build verification
+### 3. Full build verification (must match CI exactly)
 
-After all merges, run the complete verification suite:
+After all merges, run the COMPLETE CI-equivalent suite:
 
 ```bash
-# Backend
+# Backend (matches .github/workflows/backend.yml)
 cd backend
-source venv/bin/activate
+source venv/bin/activate 2>/dev/null || source venv/Scripts/activate 2>/dev/null || source .venv/bin/activate 2>/dev/null || true
 ruff check . 2>&1 | head -30
-pytest -q --tb=short 2>&1 | tail -50
+python -m pytest tests/ -q --tb=short 2>&1 | tail -50
 cd ..
 
-# Frontend
+# Frontend (matches .github/workflows/frontend.yml)
 cd frontend
+npm run lint 2>&1 | tail -30
 npx tsc --noEmit 2>&1 | head -30
+npx vitest run 2>&1 | tail -30
 npm run build 2>&1 | tail -30
 cd ..
 ```
 
 If any check fails:
-1. Analyze the error
-2. Fix the issue (likely a merge artifact or cross-worker dependency)
-3. Re-run verification
+1. Analyze the error — common post-merge issues:
+   - **Stale mock paths**: Worker A changed imports, Worker B's tests still mock old path → update mock paths
+   - **Cross-worker state**: Worker A added ConnectionPool singleton, Worker B's tests need pool reset → add reset to conftest
+   - **Lint errors**: New code uses something not imported in the test file → add missing imports
+2. Fix the issue
+3. Re-run the FULL verification suite (not just the failing step)
 4. If fails twice → report the issue, do not force it
 
 ### 4. Update docs/plan/tasks.md

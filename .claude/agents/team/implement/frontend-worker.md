@@ -48,20 +48,26 @@ For each task, in order:
 - Use existing shadcn/ui components when available
 - Do not refactor unrelated code
 
-### 3. Build verification (MANDATORY)
+### 3. Build verification (MANDATORY — must match CI exactly)
 
-After implementing each task:
+After implementing each task, run ALL 4 steps in order (same as `.github/workflows/frontend.yml`):
 
 ```bash
 cd frontend
-npx tsc --noEmit 2>&1 | head -30
-npm run build 2>&1 | tail -30
+npm run lint 2>&1 | tail -30              # Step 1: ESLint (catches React Compiler errors)
+npx tsc --noEmit 2>&1 | head -30          # Step 2: Type check
+npx vitest run 2>&1 | tail -30            # Step 3: Tests
+npm run build 2>&1 | tail -30             # Step 4: Production build
 cd ..
 ```
 
+- If lint fails → fix lint errors (e.g., unused vars, ref access in render), re-run
 - If tsc fails → fix type errors, re-run
+- If vitest fails → fix test failures (check for DOM changes, mock paths), re-run
 - If build fails → fix build errors, re-run
-- If fails twice on same issue → mark task as FAILED, move to next task
+- If any step fails twice on same issue → mark task as FAILED, move to next task
+
+**CRITICAL**: Do NOT skip `npm run lint` or `npx vitest run`. These catch errors that tsc and build miss (e.g., React Compiler rules, broken test assertions).
 
 ### 4. Commit
 
