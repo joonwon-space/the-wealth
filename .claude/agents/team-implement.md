@@ -149,6 +149,38 @@ EOF
 )"
 ```
 
+## Post-step 2: CI Verification (if pushed)
+
+After pushing to remote, wait for CI to pass:
+
+```bash
+# Wait for Backend CI
+BACKEND_RUN=$(gh run list --branch main --workflow "Backend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
+if [ -n "$BACKEND_RUN" ]; then
+  echo "Waiting for Backend CI ($BACKEND_RUN)..."
+  gh run watch "$BACKEND_RUN" --exit-status || {
+    echo "Backend CI failed — reading logs..."
+    gh run view "$BACKEND_RUN" --log-failed 2>&1 | grep "short test summary" -A 20 | head -25
+  }
+fi
+
+# Wait for Frontend CI
+FRONTEND_RUN=$(gh run list --branch main --workflow "Frontend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
+if [ -n "$FRONTEND_RUN" ]; then
+  echo "Waiting for Frontend CI ($FRONTEND_RUN)..."
+  gh run watch "$FRONTEND_RUN" --exit-status || {
+    echo "Frontend CI failed — reading logs..."
+    gh run view "$FRONTEND_RUN" --log-failed 2>&1 | tail -30
+  }
+fi
+```
+
+**If CI fails:**
+1. Read the failure log and diagnose
+2. Fix the issue (lint, test mock path, dependency CVE, CI config)
+3. Commit, push, wait again
+4. Max 3 retries — then stop and report
+
 ## Rules
 
 - ALWAYS launch Phase 1 workers in parallel (single message, multiple Agent calls)

@@ -60,6 +60,38 @@ Agent(subagent_type="team-implement", prompt="Execute all incomplete tasks in do
 
 Wait for completion. Record the branch name, PR number, and completed task count.
 
+### Phase 2.5: CI VERIFICATION
+
+After implement pushes to remote, wait for CI to pass before proceeding to review.
+
+```bash
+# Get the latest push's CI run IDs
+BACKEND_RUN=$(gh run list --branch main --workflow "Backend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
+FRONTEND_RUN=$(gh run list --branch main --workflow "Frontend CI" --limit 1 --json databaseId --jq '.[0].databaseId')
+
+# Wait for both
+echo "Waiting for Backend CI ($BACKEND_RUN)..."
+gh run watch "$BACKEND_RUN" --exit-status
+
+echo "Waiting for Frontend CI ($FRONTEND_RUN)..."
+gh run watch "$FRONTEND_RUN" --exit-status
+```
+
+**If CI fails:**
+1. Read the failed run log: `gh run view <RUN_ID> --log-failed`
+2. Analyze the failure (lint error, test failure, config issue, dependency CVE)
+3. Fix the issue directly (do not re-launch team-implement for small fixes)
+4. Commit, push, and wait for CI again
+5. Repeat up to 3 times. If still failing after 3 attempts → STOP and report to user
+
+**Common CI failure patterns:**
+- Lint errors (unused imports, React Compiler rules) → fix the source file
+- Test failures (stale mock paths after refactoring) → update mock `patch()` targets
+- CI config errors (invalid CLI flags in `.yml`) → fix the workflow file
+- Dependency CVEs (pip-audit) → bump version in `requirements.txt`
+
+**Only proceed to Phase 3 when ALL CI checks are green.**
+
 ### Phase 3: REVIEW
 
 Launch the `team-review` agent:
