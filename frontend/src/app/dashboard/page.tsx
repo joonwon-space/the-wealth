@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -127,8 +127,8 @@ export default function DashboardPage() {
 
   // streamStatus is hoisted here so the query can react to SSE state.
   // The actual usePriceStream call is below after handleStreamPrices is defined;
-  // we track it via a ref updated in an effect to avoid circular dependency.
-  const streamActiveRef = useRef(false);
+  // we track it via state so refetchInterval reacts to SSE status changes.
+  const [streamActive, setStreamActive] = useState(false);
 
   const {
     data: summary,
@@ -143,7 +143,7 @@ export default function DashboardPage() {
     queryFn: () => fetchSummary(),
     // Disable polling when SSE is active — SSE already provides live prices,
     // so polling /dashboard/summary would be redundant. Re-enable on disconnect.
-    refetchInterval: streamActiveRef.current ? false : REFRESH_INTERVAL_MS,
+    refetchInterval: streamActive ? false : REFRESH_INTERVAL_MS,
   });
 
   // Show toast for triggered alerts when data refreshes
@@ -207,9 +207,9 @@ export default function DashboardPage() {
     enabled: !isLoading,
   });
 
-  // Keep ref in sync with SSE connection status so refetchInterval reacts.
+  // Keep state in sync with SSE connection status so refetchInterval reacts.
   useEffect(() => {
-    streamActiveRef.current = streamStatus === "connected";
+    setStreamActive(streamStatus === "connected");
   }, [streamStatus]);
 
   const handleManualRefresh = async () => {
