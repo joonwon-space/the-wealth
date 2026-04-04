@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 80 API endpoints (17 routers)                          │
+│   ├── 80 API endpoints (20 routers — analytics split into 3)  │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -803,7 +803,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: 730 passed (sprint-3 완료 후 기준; 2026-04-03)
+전체: 792 passed (Sprint 8 완료 후 기준; 2026-04-04), 78% 커버리지
 
 CI 수정 사항:
 - `test_kis_price.py` MagicMock import 누락 수정
@@ -904,14 +904,23 @@ CI 수정 사항:
 - Sentry ENVIRONMENT 환경변수화 (settings.ENVIRONMENT 사용)
 - 비교 페이지 포트폴리오 2개 미만 시 빈 상태 표시
 - 종목 상세 캔들스틱 데이터 로딩 중 ChartSkeleton 표시
+- **[Sprint 8]** slowapi 레이트 리밋 추가: stocks(30/min), chart(30/min), alerts(30/min), watchlist(60/min)
+- **[Sprint 8]** analytics.py 도메인별 분리: analytics_metrics.py + analytics_history.py + analytics_fx.py + analytics_utils.py 서비스
+- **[Sprint 8]** analytics/page.tsx 섹션 컴포넌트 분리 (MetricsSection, MonthlyReturnsSection, SectorFxSection, HistorySection)
+- **[Sprint 8]** 투자 일지 월별 빈 상태 개선 (월 필터 시 "이 달에는 거래 내역이 없습니다" + 거래 추가 링크)
+- **[Sprint 8]** 포트폴리오 비교 페이지 기간 필터 항상 표시 (포트폴리오 선택 전에도 노출)
+- **[Sprint 8]** kis_order.py 도메인별 분리: kis_domestic_order.py + kis_overseas_order.py + kis_order_query.py
+- **[Sprint 8]** CVE 패치: pygments 2.19.2→2.20.0 (CVE-2026-4539), requests 2.32.5→2.33.0 (CVE-2026-25645)
+- **[Sprint 8]** 의존성 업그레이드: fastapi 0.115→0.135.3, redis 6.x→7.4.0, sentry-sdk 2.x→2.57.0, sqlalchemy 2.0.x→2.0.49, ruff 0.11.x→0.15.9
+- **[Sprint 8]** fx-gain-loss 현재가 조회 병렬화 (asyncio.gather, sequential Redis 호출 제거)
+- **[Sprint 8]** analytics/fx-history currency_pair 입력 검증 (허용 목록: USDKRW/EURKRW/JPYKRW/CNYKRW)
 
 ### 6.4 약점 및 개선 필요 사항
 
-- **[HIGH] npm 취약점** (yaml 2.0.0-2.8.2 Stack Overflow, moderate/high) -- `npm audit fix`로 해결 가능
-- **[HIGH] 중복 파일 정리 필요** -- `.coverage 2~9`, `test_* 2.py` 등 공백 포함 중복 파일 다수
 - 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
 - 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
 - 분석 페이지 벤치마크/고급 지표 미구현 (기간 필터는 1W/1M/3M/6M/1Y/ALL 구현 완료)
+- invalidate_analytics_cache가 포트폴리오별 캐시 키를 무효화하지 않음 (TTL 1시간 만료 후 자동 갱신)
 
 ### 6.5 리스크
 
