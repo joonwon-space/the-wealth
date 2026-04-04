@@ -272,6 +272,63 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
+## Milestone 20: 코드 품질 & 핵심 분석 기능 (신규, Sprint 8+)
+
+### 20-1. 대형 파일 분리 (코드 품질)
+- [ ] analytics.py(780L) → analytics_metrics.py + analytics_history.py + analytics_fx.py + services/analytics_utils.py
+- [ ] kis_order.py(780L) → kis_domestic_order.py + kis_overseas_order.py + kis_order_query.py
+- [ ] analytics/page.tsx(762L) → MetricsSection + MonthlyReturnsSection + SectorFxSection + HistorySection
+- [ ] dashboard/page.tsx(603L) → DashboardMetrics + DashboardPortfolioList (각 독립 ErrorBoundary)
+- [ ] OrderDialog.tsx(605L) → DomesticOrderForm + OverseasOrderForm + useOrderSubmit hook
+
+### 20-2. KOSPI200/S&P500 벤치마크 비교
+- [ ] 백엔드: KOSPI200/S&P500 일별 지수 데이터 수집 스케줄러 (KIS FHKUP03500100, FHKST03030100)
+- [ ] 백엔드: index_snapshots 테이블 + Alembic 마이그레이션
+- [ ] 프론트엔드: 포트폴리오 히스토리 차트에 벤치마크 오버레이 라인
+- [ ] 프론트엔드: 벤치마크 선택 UI (KOSPI200 / S&P500 / 둘 다)
+
+### 20-3. 주식 상세 기술적 분석
+- [ ] Moving averages overlay (5/20/60/120일) — price_snapshots SMA 계산
+- [ ] Volume analysis chart — ComposedChart에 볼륨 바 추가
+- [ ] My holdings overlay — 평균 매입가 수평선 on 캔들스틱
+
+---
+
+## Milestone 21: 이메일 알림 & 운영 모니터링 (신규)
+
+### 21-1. 이메일 알림 (Milestone 19-1 통합)
+- [ ] Resend 또는 SendGrid 연동 — 가격 알림 이메일 발송
+- [ ] 알림 채널 설정 UI (인앱 / 이메일 / 둘 다)
+- [ ] 일일 포트폴리오 요약 이메일 (장 마감 후 자동 발송)
+- [ ] 환율 알림 (목표 USD/KRW 도달 시 이메일/인앱)
+
+### 21-2. 운영 대시보드 (Milestone 18-1 통합)
+- [ ] `/dashboard/admin` 내부 관리 페이지 (관리자 전용)
+- [ ] sync_logs 시각화 (성공/실패 추이 차트)
+- [ ] KIS API 응답시간 추이 차트 (MetricsMiddleware 데이터 활용)
+- [ ] Redis 키 현황 모니터링 (토큰/캐시/락 상태)
+- [ ] TLS 인증서 만료 체크 (health.py, D-30 이내 경고)
+
+### 21-3. 2FA (TOTP)
+- [ ] pyotp 라이브러리 TOTP 구현
+- [ ] users 테이블 totp_secret 컬럼 추가 (AES-256 암호화)
+- [ ] 설정 페이지 QR 코드 등록 UI
+- [ ] 로그인 플로우에 TOTP 검증 단계 추가
+
+---
+
+## Milestone 22: 매니지드 인프라 전환 (신규)
+
+### 22-1. PostgreSQL → Neon
+- [ ] Neon 프로젝트 생성 및 데이터 마이그레이션
+- [ ] Docker Compose 로컬 개발용으로만 유지
+
+### 22-2. Redis → Upstash
+- [ ] Upstash 인스턴스 생성 및 연결
+- [ ] 프로덕션 `.env` 업데이트 + 스테이징 검증
+
+---
+
 ---
 
 ## Sprint-6 완료 항목 (2026-04-03)

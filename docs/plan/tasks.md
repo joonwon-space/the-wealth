@@ -464,3 +464,79 @@ Each item should be completable in a single commit.
   - `frontend/src/app/dashboard/settings/page.tsx` — 탭 전환 시 `window.location.hash` 업데이트 (#account, #kis, #security-logs, #sessions)
   - 마운트 시 hash 읽어 초기 탭 복원
   - 파일: `frontend/src/app/dashboard/settings/page.tsx`
+
+---
+
+## Sprint 8 work (team-analysis 2026-04-04, 8th sprint)
+
+### P0 -- stocks/chart/alerts/watchlist 엔드포인트 rate limit 추가 [team-analysis: SEC-001]
+
+- [ ] **security: stocks.py, chart.py, alerts.py, watchlist.py — rate limiting 적용**
+  - `backend/app/api/stocks.py` — 2개 GET 엔드포인트에 `@limiter.limit("30/minute")` 추가 + `from app.core.limiter import limiter` 임포트
+  - `backend/app/api/chart.py` — GET 엔드포인트에 `@limiter.limit("30/minute")` 추가
+  - `backend/app/api/alerts.py` — CRUD 엔드포인트에 `@limiter.limit("30/minute")` 추가
+  - `backend/app/api/watchlist.py` — GET/POST/DELETE에 `@limiter.limit("60/minute")` 추가
+  - 파일: `backend/app/api/stocks.py`, `backend/app/api/chart.py`, `backend/app/api/alerts.py`, `backend/app/api/watchlist.py`
+
+### P0 -- analytics.py 분리 (780L → analytics_metrics.py + analytics_history.py + analytics_fx.py) [team-analysis: TD-001, PERF-003]
+
+- [ ] **refactor: analytics.py — 3개 라우터 파일로 분리**
+  - `backend/app/api/analytics_metrics.py` — `get_metrics`, `get_monthly_returns`, `get_sector_allocation` + `_calc_*` 헬퍼
+  - `backend/app/api/analytics_history.py` — `get_portfolio_history`, `get_krw_asset_history`
+  - `backend/app/api/analytics_fx.py` — `get_fx_gain_loss`, `get_fx_history`
+  - `backend/app/services/analytics_utils.py` — `_period_cutoff`, `_analytics_key`, `invalidate_analytics_cache` 공통 함수
+  - `backend/app/main.py` — 3개 라우터 등록으로 교체
+  - 파일: `backend/app/api/analytics_metrics.py`, `analytics_history.py`, `analytics_fx.py`, `services/analytics_utils.py`
+
+### P0 -- analytics/page.tsx 분리 (762L → 섹션 컴포넌트) [team-analysis: TD-003, PERF-003]
+
+- [ ] **refactor: analytics/page.tsx — 4개 섹션 컴포넌트로 분리**
+  - `frontend/src/app/dashboard/analytics/MetricsSection.tsx` — 성과 지표 (total_return, cagr, mdd, sharpe) + period 탭 (~150 lines)
+  - `frontend/src/app/dashboard/analytics/MonthlyReturnsSection.tsx` — 월별 수익 heatmap + bar chart (~150 lines)
+  - `frontend/src/app/dashboard/analytics/SectorFxSection.tsx` — 섹터 배분 donut + 환차손익 (~200 lines)
+  - `frontend/src/app/dashboard/analytics/HistorySection.tsx` — 포트폴리오 히스토리 + KRW 자산 추이 (~200 lines)
+  - 메인 page.tsx는 섹션 조합 + 쿼리 키 공유 ~100 lines
+  - 파일: `frontend/src/app/dashboard/analytics/` (신규 4개 컴포넌트)
+
+### P1 -- npm 마이너 업데이트 [team-analysis: TD-005]
+
+- [ ] **chore: frontend npm 마이너 업데이트**
+  - `@tanstack/react-query` 5.91.0 → 5.96.2, `@tanstack/react-query-devtools` 5.91.3 → 5.96.2
+  - `axios` 1.13.6 → 1.14.0, `@next/bundle-analyzer` 16.2.1 → 16.2.2
+  - `eslint-config-next` 16.2.0 → 16.2.2, `@types/node` 25.5.0 → 25.5.2
+  - `cd frontend && npm update @tanstack/react-query @tanstack/react-query-devtools axios @next/bundle-analyzer eslint-config-next @types/node`
+  - CI 통과 확인 후 완료
+  - 파일: `frontend/package.json`, `frontend/package-lock.json`
+
+### P1 -- Python 패치 업데이트 [team-analysis: TD-006]
+
+- [ ] **chore: backend Python 패치 업데이트**
+  - `fastapi` 0.135.1 → 0.135.3, `redis` 7.3.0 → 7.4.0, `sentry-sdk` 2.55.0 → 2.57.0
+  - `SQLAlchemy` 2.0.48 → 2.0.49, `ruff` 0.15.6 → 0.15.9
+  - `cd backend && pip install --upgrade fastapi redis sentry-sdk sqlalchemy ruff && pip freeze > requirements.txt`
+  - 테스트 통과 확인 후 완료
+  - 파일: `backend/requirements.txt`
+
+### P1 -- journal/page.tsx 빈 달 empty state 추가 [team-analysis: UX-001]
+
+- [ ] **ux: journal/page.tsx — 거래 없는 달 empty state 추가**
+  - `frontend/src/app/dashboard/journal/page.tsx` — `trades.length === 0` 조건에 empty state UI 추가
+  - BookOpen 아이콘 + '이 달에는 거래 내역이 없습니다' + '거래 추가하기' 포트폴리오 링크
+  - 파일: `frontend/src/app/dashboard/journal/page.tsx`
+
+### P1 -- compare/page.tsx 기간 필터 추가 [team-analysis: UX-002, PERF-002]
+
+- [ ] **feat: compare/page.tsx — 기간 필터 탭(1m/3m/6m/1y/all) 추가**
+  - `frontend/src/app/dashboard/compare/page.tsx` — period 상태 추가 + 탭 UI
+  - portfolio-history API 호출 시 period 파라미터 전달
+  - 기본값 3m. 각 포트폴리오 쿼리 키에 period 포함
+  - 파일: `frontend/src/app/dashboard/compare/page.tsx`
+
+### P2 -- kis_order.py 분리 (780L → 3개 서비스 파일) [team-analysis: TD-002]
+
+- [ ] **refactor: kis_order.py — 국내/해외/조회 분리**
+  - `backend/app/services/kis_domestic_order.py` — `place_domestic_order`, `get_orderable_quantity` (국내)
+  - `backend/app/services/kis_overseas_order.py` — `place_overseas_order` (해외)
+  - `backend/app/services/kis_order_query.py` — `get_pending_orders`, `cancel_order`, `settle_pending_orders` (조회/취소)
+  - `backend/app/services/kis_order.py` — 하위 호환 re-export만 유지
+  - 파일: `backend/app/services/kis_domestic_order.py`, `kis_overseas_order.py`, `kis_order_query.py`
