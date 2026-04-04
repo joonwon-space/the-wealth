@@ -98,7 +98,7 @@ def _auth(token: str) -> dict[str, str]:
 class TestSettlePendingOrders:
     """settle_pending_orders 서비스 통합 테스트."""
 
-    async def test_settle_fully_filled_order(self, client: AsyncClient) -> None:
+    async def test_settle_fully_filled_order(self, client: AsyncClient, test_session_factory) -> None:
         """pending 주문이 체결 확인되면 filled로 전환되고 transaction/holding이 생성된다."""
         from app.services.kis_order import OrderResult
 
@@ -144,7 +144,6 @@ class TestSettlePendingOrders:
         # 2. 체결 확인 실행
         from app.services.kis_order import FilledOrderInfo
         from app.services.order_settlement import settle_pending_orders
-        from app.db.session import AsyncSessionLocal
 
         filled_info = FilledOrderInfo(
             order_no="9999000001",
@@ -161,7 +160,7 @@ class TestSettlePendingOrders:
             new_callable=AsyncMock,
             return_value=[filled_info],
         ):
-            async with AsyncSessionLocal() as db:
+            async with test_session_factory() as db:
                 counts = await settle_pending_orders(
                     db=db,
                     portfolio_id=pid,
@@ -182,7 +181,7 @@ class TestSettlePendingOrders:
         assert len(txns) == 1
         assert txns[0]["ticker"] == "005930"
 
-    async def test_settle_partial_fill(self, client: AsyncClient) -> None:
+    async def test_settle_partial_fill(self, client: AsyncClient, test_session_factory) -> None:
         """부분 체결 시 partial 상태로 전환되고 체결 수량만 반영된다."""
         from app.services.kis_order import OrderResult
 
@@ -218,7 +217,6 @@ class TestSettlePendingOrders:
 
         from app.services.kis_order import FilledOrderInfo
         from app.services.order_settlement import settle_pending_orders
-        from app.db.session import AsyncSessionLocal
 
         filled_info = FilledOrderInfo(
             order_no="9999000002",
@@ -235,7 +233,7 @@ class TestSettlePendingOrders:
             new_callable=AsyncMock,
             return_value=[filled_info],
         ):
-            async with AsyncSessionLocal() as db:
+            async with test_session_factory() as db:
                 counts = await settle_pending_orders(
                     db=db,
                     portfolio_id=pid,

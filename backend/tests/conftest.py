@@ -114,6 +114,21 @@ async def db() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
+async def test_session_factory():
+    """Yield an async_sessionmaker bound to the test DB.
+
+    Unlike the ``db`` fixture this does NOT clean table data — it is meant
+    for tests that have already set up data via the ``client`` fixture and
+    need a raw session to call service functions directly.
+    """
+    engine = _make_engine()
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    yield factory
+    await engine.dispose()
+    await asyncio.sleep(0)
+
+
+@pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     """Provide HTTP client with clean data for each test."""
     from app.core.limiter import limiter
