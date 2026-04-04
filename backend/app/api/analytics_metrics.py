@@ -153,6 +153,13 @@ async def get_metrics(
                         current_prices[ticker] = cached_price
         except Exception as e:
             logger.warning("Failed to fetch prices for metrics: %s", e)
+            # 캐시에서 병렬 조회 (fallback)
+            fallback_results = await asyncio.gather(
+                *[_get_cached_price(t) for t in tickers], return_exceptions=True
+            )
+            for ticker, cached_price in zip(tickers, fallback_results):
+                if cached_price is not None and not isinstance(cached_price, Exception):
+                    current_prices[ticker] = cached_price
 
     # 현재 포트폴리오 가치 계산
     total_invested = sum(float(h.quantity) * float(h.avg_price) for h in holdings)

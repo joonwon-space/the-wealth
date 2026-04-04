@@ -1,0 +1,25 @@
+{
+  "agent": "security-reviewer",
+  "summary": "Sprint 8 changes are security-positive overall. All new endpoints correctly use get_current_user for authentication. Rate limiting has been applied consistently across new and modified endpoints. IDOR is properly prevented — all data queries filter by user_id. The analytics split preserves the existing security model. One concern: analytics_fx.py imports _get_cached_price (private function) and _cache_price (private function in analytics_metrics.py) from kis_price — using private APIs is a minor coupling risk. No hardcoded secrets, no injection vulnerabilities, no data exposure issues found.",
+  "verdict": "approve",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "title": "Importing private functions from kis_price module",
+      "severity": "low",
+      "category": "dependency",
+      "location": "backend/app/api/analytics_fx.py:25",
+      "detail": "analytics_fx.py imports _get_cached_price (prefixed with _ indicating private). analytics_metrics.py also imports _cache_price and _get_cached_price. Using private/internal functions creates tight coupling and the functions could change signatures without notice.",
+      "fix": "Expose get_cached_price and cache_price as public functions in kis_price.py or analytics_utils.py."
+    },
+    {
+      "id": "SEC-002",
+      "title": "fx-history endpoint does not validate currency_pair input",
+      "severity": "low",
+      "category": "injection",
+      "location": "backend/app/api/analytics_fx.py:158-189",
+      "detail": "The currency_pair query parameter is passed directly to SQLAlchemy's WHERE clause via FxRateSnapshot.currency_pair == currency_pair. SQLAlchemy uses parameterized queries so SQL injection is not possible. However, an attacker can probe for any currency_pair value — there is no allowlist validation. This is a minor information leakage concern.",
+      "fix": "Add an allowlist: valid_pairs = {'USDKRW', 'EURKRW'}; if currency_pair not in valid_pairs: raise HTTPException(400, ...)."
+    }
+  ]
+}

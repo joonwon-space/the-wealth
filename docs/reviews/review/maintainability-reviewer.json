@@ -1,0 +1,43 @@
+{
+  "agent": "maintainability-reviewer",
+  "summary": "The Sprint 8 module split significantly improves maintainability — analytics.py was a 700+ line monolith and the new split into domain-specific modules (metrics, history, fx) is clean and follows project conventions. The analytics_utils.py shared service pattern is correct. New TypeScript section components are well-typed with explicit interfaces. The analytics.py compatibility shim using # noqa: F401 is a pragmatic backward-compat solution. Two areas need attention: analytics_metrics.py at 383 lines approaches the 400-line guideline, and there is duplicated date_ticker_map construction logic across analytics_metrics.py and analytics_history.py that should eventually be extracted.",
+  "verdict": "request-changes",
+  "findings": [
+    {
+      "id": "MAIN-001",
+      "title": "Duplicated date_ticker_map construction across analytics modules",
+      "severity": "medium",
+      "category": "duplication",
+      "location": "backend/app/api/analytics_metrics.py:182-188, backend/app/api/analytics_history.py:92-97",
+      "detail": "Both analytics_metrics.py and analytics_history.py contain identical code to build a dict[str, dict[str, float]] from price snapshots. This pattern also appears in get_monthly_returns. Any bug fix to this logic requires updates in 3+ places.",
+      "fix": "Extract to analytics_utils.py: def build_date_ticker_map(snapshots: Sequence[PriceSnapshot]) -> dict[str, dict[str, float]]: ..."
+    },
+    {
+      "id": "MAIN-002",
+      "title": "analytics_metrics.py approaches 400-line guideline",
+      "severity": "low",
+      "category": "readability",
+      "location": "backend/app/api/analytics_metrics.py",
+      "detail": "The file is 383 lines. Project convention is 200-400 lines typical, 800 max. It is within bounds but worth noting for the next sprint — get_metrics alone is 150 lines.",
+      "fix": "Consider extracting _build_portfolio_values() helper to reduce get_metrics body size in a future sprint."
+    },
+    {
+      "id": "MAIN-003",
+      "title": "analytics.py shim retains large import block from original module",
+      "severity": "low",
+      "category": "architecture",
+      "location": "backend/app/api/analytics.py",
+      "detail": "The analytics.py shim still imports many models and services (Optional, date, Holding, Portfolio, etc.) that are no longer used in that file — they were needed by the original endpoints which are now in the split modules. These unused imports were removed by ruff --fix, but the shim may cause confusion about what still lives in analytics.py vs the new modules.",
+      "fix": "Add a module docstring to analytics.py clearly stating: 'This module is a backward-compatibility shim. All endpoints have moved to analytics_metrics.py, analytics_history.py, analytics_fx.py.'"
+    },
+    {
+      "id": "MAIN-004",
+      "title": "Three new analytics router files register the same prefix",
+      "severity": "low",
+      "category": "architecture",
+      "location": "backend/app/api/analytics_metrics.py:37, backend/app/api/analytics_history.py:31, backend/app/api/analytics_fx.py:27",
+      "detail": "All three new routers use prefix='/analytics'. While FastAPI supports this, it means the prefix is repeated in 3 places. If the prefix changes, 3 files need updating.",
+      "fix": "This is acceptable given FastAPI's router composition model. Document in main.py with a comment grouping the three analytics routers together."
+    }
+  ]
+}

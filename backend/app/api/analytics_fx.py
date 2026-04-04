@@ -1,10 +1,11 @@
 """환차손익 API — fx-gain-loss, fx-history."""
 
+import asyncio
 import bisect
 import json
 from datetime import date as date_type, timedelta
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -109,10 +110,12 @@ async def get_fx_gain_loss(
                   date_type.fromisoformat(target_date)).days)
         return candidates[1] if d0 <= d1 else candidates[0]
 
+    # 현재가 병렬 조회 (sequential 대신 gather로 최적화)
+    cached_prices = await asyncio.gather(*[_get_cached_price(h.ticker) for h in overseas])
+
     result_items: list[dict] = []
-    for h in overseas:
+    for h, cached_price in zip(overseas, cached_prices):
         # 현재가 (USD)
-        cached_price = await _get_cached_price(h.ticker)
         current_price_usd = float(cached_price) if cached_price is not None else float(h.avg_price)
 
         qty = float(h.quantity)
@@ -173,6 +176,10 @@ async def get_fx_history(
       {"date": "2026-03-27", "rate": 1375.0}
     ]
     """
+    _valid_pairs = {"USDKRW", "EURKRW", "JPYKRW", "CNYKRW"}
+    if currency_pair not in _valid_pairs:
+        raise HTTPException(status_code=400, detail=f"currency_pair must be one of: {', '.join(sorted(_valid_pairs))}")
+
     cutoff = date_type.today() - timedelta(days=days)
     result = await db.execute(
         select(FxRateSnapshot)
