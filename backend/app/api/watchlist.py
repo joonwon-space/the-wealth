@@ -1,12 +1,13 @@
 """관심 종목 API."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.db.session import get_db
 from app.models.user import User
@@ -46,7 +47,9 @@ class WatchlistOut(BaseModel):
 
 
 @router.get("", response_model=list[WatchlistOut])
+@limiter.limit("60/minute")
 async def list_watchlist(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Watchlist]:
@@ -59,7 +62,9 @@ async def list_watchlist(
 
 
 @router.post("", response_model=WatchlistOut, status_code=201)
+@limiter.limit("60/minute")
 async def add_to_watchlist(
+    request: Request,
     body: WatchlistCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -81,7 +86,9 @@ async def add_to_watchlist(
 
 
 @router.delete("/{item_id}", status_code=204)
+@limiter.limit("60/minute")
 async def remove_from_watchlist(
+    request: Request,
     item_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

@@ -4,12 +4,13 @@ from datetime import date, timedelta
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.db.session import get_db
@@ -23,7 +24,9 @@ logger = get_logger(__name__)
 
 
 @router.get("/daily")
+@limiter.limit("30/minute")
 async def get_daily_chart(
+    request: Request,
     ticker: str = Query(..., min_length=1, max_length=20),
     period: str = Query(default="3M", pattern="^(1M|3M|6M|1Y|3Y)$"),
     market: Optional[str] = Query(default=None, description="해외주식 거래소 코드 (NAS/NYS/HKS 등)"),

@@ -502,8 +502,8 @@ class TestGetSectorAllocation:
         total_weight = sum(item["weight"] for item in data)
         assert abs(total_weight - 100.0) < 0.5
 
-    @patch("app.api.analytics._analytics_cache")
-    @patch("app.api.analytics.get_cached_fx_rate", new_callable=AsyncMock)
+    @patch("app.services.analytics_utils._analytics_cache")
+    @patch("app.api.analytics_metrics.get_cached_fx_rate", new_callable=AsyncMock)
     async def test_overseas_holding_converted_to_krw(
         self,
         mock_fx: AsyncMock,

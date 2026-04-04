@@ -236,25 +236,23 @@ export default function ComparePage() {
         )}
       </section>
 
-      {/* Period selector */}
-      {selectedIds.length > 0 && (
-        <div className="flex gap-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                period === p
-                  ? "text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-              style={period === p ? { background: "var(--accent-indigo)" } : undefined}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Period selector — always visible */}
+      <div className="flex gap-1">
+        {PERIODS.map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              period === p
+                ? "text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+            style={period === p ? { background: "var(--accent-indigo)" } : undefined}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
 
       {/* Chart */}
       {selectedIds.length === 0 ? (

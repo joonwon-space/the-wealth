@@ -14,8 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.limiter import limiter
-from app.core.redis_cache import RedisCache
-from app.core.config import settings
 from app.db.session import get_db
 from app.models.fx_rate_snapshot import FxRateSnapshot
 from app.models.holding import Holding
@@ -33,42 +31,17 @@ from app.data.sector_map import get_sector
 from app.schemas.analytics import MonthlyReturn, PortfolioHistoryPoint, SectorAllocation
 from app.services.fx_utils import forward_fill_rates
 
-_analytics_cache = RedisCache(settings.REDIS_URL)
-_ANALYTICS_CACHE_TTL = 3600  # 1시간; sync 시 무효화
+from app.services.analytics_utils import (
+    ANALYTICS_CACHE_TTL as _ANALYTICS_CACHE_TTL,
+    analytics_key as _analytics_key,
+    get_analytics_cache as _get_analytics_cache,
+    invalidate_analytics_cache,  # noqa: F401 — re-exported for backward compatibility
+    period_cutoff as _period_cutoff,
+)
 
+_analytics_cache = _get_analytics_cache()
 
 HistoryPeriod = Literal["1W", "1M", "3M", "6M", "1Y", "ALL"]
-
-
-def _period_cutoff(period: str) -> Optional[date_type]:
-    """Return the earliest date for the given period, or None for ALL."""
-    today = date_type.today()
-    if period == "1W":
-        return today - timedelta(days=7)
-    if period == "1M":
-        return today - timedelta(days=30)
-    if period == "3M":
-        return today - timedelta(days=91)
-    if period == "6M":
-        return today - timedelta(days=182)
-    if period == "1Y":
-        return today - timedelta(days=365)
-    return None  # ALL
-
-
-def _analytics_key(user_id: int, endpoint: str) -> str:
-    return f"analytics:{user_id}:{endpoint}"
-
-
-async def invalidate_analytics_cache(user_id: int) -> None:
-    """sync 성공 후 호출 — 해당 유저의 분석 캐시 전체 삭제."""
-    for endpoint in ("metrics", "monthly-returns", "sector-allocation", "fx-gain-loss"):
-        await _analytics_cache.delete(_analytics_key(user_id, endpoint))
-    # period-specific keys for portfolio-history and krw-asset-history
-    for period in ("1W", "1M", "3M", "6M", "1Y", "ALL"):
-        await _analytics_cache.delete(_analytics_key(user_id, f"portfolio-history:{period}"))
-    for period in ("1M", "3M", "6M", "1Y", "ALL"):
-        await _analytics_cache.delete(_analytics_key(user_id, f"krw-asset-history:{period}"))
 
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])

@@ -4,12 +4,13 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.db.session import get_db
 from app.models.alert import Alert
@@ -68,7 +69,9 @@ class AlertOut(BaseModel):
 
 
 @router.get("", response_model=list[AlertOut])
+@limiter.limit("30/minute")
 async def list_alerts(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Alert]:
@@ -81,7 +84,9 @@ async def list_alerts(
 
 
 @router.post("", response_model=AlertOut, status_code=201)
+@limiter.limit("30/minute")
 async def create_alert(
+    request: Request,
     body: AlertCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -101,7 +106,9 @@ async def create_alert(
 
 
 @router.patch("/{alert_id}", response_model=AlertOut)
+@limiter.limit("30/minute")
 async def patch_alert(
+    request: Request,
     alert_id: int,
     body: AlertPatch,
     current_user: User = Depends(get_current_user),
@@ -126,7 +133,9 @@ async def patch_alert(
 
 
 @router.delete("/{alert_id}", status_code=204)
+@limiter.limit("30/minute")
 async def delete_alert(
+    request: Request,
     alert_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

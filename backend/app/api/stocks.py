@@ -3,12 +3,13 @@
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.encryption import decrypt
 from app.core.ticker import is_domestic
@@ -26,7 +27,9 @@ logger = get_logger(__name__)
 
 
 @router.get("/search")
+@limiter.limit("30/minute")
 async def search_stocks(
+    request: Request,
     q: str = Query(..., min_length=1, max_length=50, description="종목명 또는 티커"),
     current_user: User = Depends(get_current_user),
 ) -> dict:
@@ -40,7 +43,9 @@ async def search_stocks(
 
 
 @router.get("/{ticker}/detail")
+@limiter.limit("30/minute")
 async def get_stock_detail(
+    request: Request,
     ticker: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
