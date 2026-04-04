@@ -7,10 +7,10 @@ Each item should be completable in a single commit.
 
 ## Bug Fix: test_order_settlement.py 2 failing tests (2026-04-04)
 
-- [ ] Add `test_session_factory` async fixture to `backend/tests/conftest.py` that creates an `async_sessionmaker` bound to the `TEST_DB_URL` NullPool engine (no data cleanup)
-- [ ] Replace `AsyncSessionLocal()` in `test_settle_fully_filled_order` with `test_session_factory()`
-- [ ] Replace `AsyncSessionLocal()` in `test_settle_partial_fill` with `test_session_factory()`
-- [ ] Verify both failing tests pass and coverage for `order_settlement.py` improves above 23%
+- [x] Add `test_session_factory` async fixture to `backend/tests/conftest.py` that creates an `async_sessionmaker` bound to the `TEST_DB_URL` NullPool engine (no data cleanup)
+- [x] Replace `AsyncSessionLocal()` in `test_settle_fully_filled_order` with `test_session_factory()`
+- [x] Replace `AsyncSessionLocal()` in `test_settle_partial_fill` with `test_session_factory()`
+- [x] Verify both failing tests pass and coverage for `order_settlement.py` improves above 23% (75% achieved)
 
 ---
 

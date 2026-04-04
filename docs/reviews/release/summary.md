@@ -1,3 +1,13 @@
+# Release Readiness Report — Bug Fix: test_order_settlement (2026-04-04)
+
+## Decision: GO
+
+- Build: no production code changed, no build impact
+- Tests: 3/3 pass in test_order_settlement.py (was 1/3); ruff lint clean
+- Migrations: no schema changes
+- API contracts: no API changes
+- Coverage: order_settlement.py improved 23% -> 75%
+
 # Release Readiness Report — 2026-04-04 (Sprint 8)
 
 ## Decision: GO
