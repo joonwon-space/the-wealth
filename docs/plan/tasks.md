@@ -9,21 +9,21 @@ Each item should be completable in a single commit.
 
 ### Quick Wins (S effort, high impact)
 
-- [ ] Add `staleTime: 60_000` to portfolio list useQuery in `frontend/src/app/dashboard/portfolios/page.tsx:191` — PERF-002/UX-005: unnecessary re-fetches on window focus
-- [ ] Add `@limiter.limit("10/minute")` to `get_orderable` (L270), `list_pending_orders` (L306), `settle_orders_endpoint` (L396), `get_portfolio_cash_balance` (L423) in `backend/app/api/orders.py` — SEC-001/TD-006: 4 order endpoints calling KIS API without rate limits
-- [ ] Add `aria-label` to inline quantity/price edit inputs in `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx:441,459` — UX-002: screen reader accessibility
+- [x] Add `staleTime: 60_000` to portfolio list useQuery in `frontend/src/app/dashboard/portfolios/page.tsx:191` — PERF-002/UX-005: unnecessary re-fetches on window focus
+- [x] Add `@limiter.limit("10/minute")` to `get_orderable` (L270), `list_pending_orders` (L306), `settle_orders_endpoint` (L396), `get_portfolio_cash_balance` (L423) in `backend/app/api/orders.py` — SEC-001/TD-006: 4 order endpoints calling KIS API without rate limits
+- [x] Add `aria-label` to inline quantity/price edit inputs in `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx:441,459` — UX-002: screen reader accessibility
 
 ### Large File Splits (M effort, high impact)
 
-- [ ] Complete `backend/app/services/kis_order.py` (780L) split — move domestic logic into `kis_domestic_order.py`, overseas into `kis_overseas_order.py`, query/cancel into `kis_order_query.py`, reduce original to shim/remove — TD-001 + PROD-002: split files exist but original unreduced
-- [ ] Split `frontend/src/components/OrderDialog.tsx` (605L) into `DomesticOrderForm.tsx` + `OverseasOrderForm.tsx` + `useOrderSubmit.ts` — TD-002 + PROD-002
-- [ ] Complete `frontend/src/app/dashboard/page.tsx` (415L) split — DashboardMetrics.tsx already exists; extract remaining portfolio list section into `DashboardPortfolioList.tsx` with its own ErrorBoundary — TD-003: partial split done in Sprint 9
+- [x] Complete `backend/app/services/kis_order.py` (780L) split — move domestic logic into `kis_domestic_order.py`, overseas into `kis_overseas_order.py`, query/cancel into `kis_order_query.py`, reduce original to shim/remove — TD-001 + PROD-002: split files exist but original unreduced
+- [x] Split `frontend/src/components/OrderDialog.tsx` (605L) into `DomesticOrderForm.tsx` + `OverseasOrderForm.tsx` + `useOrderSubmit.ts` — TD-002 + PROD-002
+- [x] Complete `frontend/src/app/dashboard/page.tsx` (415L) split — DashboardMetrics.tsx already exists; extract remaining portfolio list section into `DashboardPortfolioList.tsx` with its own ErrorBoundary — TD-003: partial split done in Sprint 9
 
 ### Benchmark Foundation (L effort, high user value)
 
-- [ ] Create `index_snapshots` Alembic migration (`index_code`, `index_name`, `date`, `close_price`) for KOSPI200 + S&P500 — UX-001 + PROD-001: prerequisite for benchmark overlay
-- [ ] Add KOSPI200 daily snapshot scheduler task to `backend/app/services/scheduler.py` using KIS `FHKUP03500100` — UX-001 + PROD-001
-- [ ] Add S&P500 daily snapshot scheduler task to `backend/app/services/scheduler.py` using KIS `FHKST03030100` — UX-001 + PROD-001 (해외 지수)
+- [x] Create `index_snapshots` Alembic migration (`index_code`, `index_name`, `date`, `close_price`) for KOSPI200 + S&P500 — UX-001 + PROD-001: prerequisite for benchmark overlay
+- [x] Add KOSPI200 daily snapshot scheduler task to `backend/app/services/scheduler.py` using KIS `FHKUP03500100` — UX-001 + PROD-001
+- [x] Add S&P500 daily snapshot scheduler task to `backend/app/services/scheduler.py` using KIS `FHKST03030100` — UX-001 + PROD-001 (해외 지수)
 
 ---
 
