@@ -50,6 +50,7 @@ _consecutive_failures: dict[str, int] = {
     "preload_prices_am": 0,
     "preload_prices_pm": 0,
     "settle_orders": 0,
+    "collect_benchmark": 0,
 }
 
 
@@ -392,6 +393,40 @@ async def _settle_pending_orders(job_id: str = "settle_orders") -> None:
         _record_job_failure(job_id, exc)
 
 
+async def _collect_benchmark_snapshots(job_id: str = "collect_benchmark") -> None:
+    """KOSPI200 + S&P500 지수 스냅샷 수집 후 index_snapshots에 저장.
+
+    KST 16:20 평일 실행 (국내 장 마감 후).
+    첫 번째 KIS 계좌 자격증명을 사용하여 API를 호출한다.
+    """
+    from app.services.kis_benchmark import collect_snapshots
+
+    logger.info("[Scheduler] Starting benchmark snapshot collection")
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(KisAccount).limit(1))
+            acct = result.scalar_one_or_none()
+            if not acct:
+                logger.info("[Scheduler] No KIS account found, skipping benchmark collection")
+                _record_job_success(job_id)
+                return
+
+            app_key = decrypt(acct.app_key_enc)
+            app_secret = decrypt(acct.app_secret_enc)
+
+        status = await collect_snapshots(app_key, app_secret)
+        logger.info("[Scheduler] Benchmark collection results: %s", status)
+
+        if any(status.values()):
+            _record_job_success(job_id)
+        else:
+            _record_job_failure(job_id, RuntimeError("All benchmark fetches failed"))
+
+    except Exception as exc:
+        _record_job_failure(job_id, exc)
+
+
 def start_scheduler() -> None:
     # 미국 장 마감 후 동기화: EST 16:00 ≈ UTC 21:30 (= KST 06:30)
     scheduler.add_job(
@@ -463,12 +498,25 @@ def start_scheduler() -> None:
         kwargs={"job_id": "settle_orders"},
         replace_existing=True,
     )
+    # 벤치마크 지수 스냅샷: KST 16:20 = UTC 07:20 평일 (국내 장 마감 후)
+    scheduler.add_job(
+        _collect_benchmark_snapshots,
+        trigger="cron",
+        day_of_week="mon-fri",
+        hour=7,
+        minute=20,
+        timezone="UTC",
+        id="collect_benchmark",
+        kwargs={"job_id": "collect_benchmark"},
+        replace_existing=True,
+    )
     scheduler.start()
     logger.info(
         "[Scheduler] APScheduler started — "
         "holdings sync + price preload at KST 08:00 & 16:00, "
         "US close sync at KST 06:30, "
         "daily close snapshot at KST 16:10, FX snapshot at KST 16:30, "
+        "benchmark snapshot at KST 16:20, "
         "order settlement every 5min during market hours"
     )
 

@@ -1,6 +1,7 @@
 from app.models.alert import Alert
 from app.models.fx_rate_snapshot import FxRateSnapshot
 from app.models.holding import Holding
+from app.models.index_snapshot import IndexSnapshot
 from app.models.kis_account import KisAccount
 from app.models.notification import Notification
 from app.models.order import Order
@@ -15,6 +16,7 @@ from app.models.watchlist import Watchlist
 __all__ = [
     "Alert",
     "FxRateSnapshot",
+    "IndexSnapshot",
     "Notification",
     "Order",
     "SecurityAuditLog",

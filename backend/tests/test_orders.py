@@ -643,12 +643,9 @@ class TestIsMarketOpen:
         # Saturday KST
         saturday = datetime(2026, 3, 28, 10, 0, 0, tzinfo=_KST)
 
-        with patch("app.services.kis_order.datetime") as mock_dt:
+        # is_market_open is now implemented in kis_order_place
+        with patch("app.services.kis_order_place.datetime") as mock_dt:
             mock_dt.now.return_value = saturday
-            # Rebuild with mocked value
-            import importlib
-            import app.services.kis_order as kis_order_module
-            importlib.reload(kis_order_module)
 
         # Direct test without mocking datetime module complexity
         # Just verify the function exists and is callable

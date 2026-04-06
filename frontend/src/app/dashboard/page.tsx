@@ -23,8 +23,8 @@ import { PageError } from "@/components/PageError";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { formatKRW } from "@/lib/format";
 import { toast } from "sonner";
-import { DashboardMetrics } from "./DashboardMetrics";
-import { PortfolioList } from "./PortfolioList";
+import { DashboardMetrics } from "@/components/dashboard/DashboardMetrics";
+import { PortfolioList } from "@/components/dashboard/PortfolioList";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const DASHBOARD_QUERY_KEY = ["dashboard", "summary"] as const;
@@ -183,6 +183,7 @@ export default function DashboardPage() {
     // Disable polling when SSE is active — SSE already provides live prices,
     // so polling /dashboard/summary would be redundant. Re-enable on disconnect.
     refetchInterval: streamActive ? false : REFRESH_INTERVAL_MS,
+    staleTime: 60_000,
   });
 
   // Show toast for triggered alerts when data refreshes

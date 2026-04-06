@@ -440,6 +440,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
                     <div className="flex flex-col gap-1">
                       <input
                         type="number"
+                        inputMode="numeric"
                         placeholder="수량"
                         value={addForm.quantity}
                         onChange={(e) => {
@@ -458,6 +459,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
                     <div className="flex flex-col gap-1">
                       <input
                         type="number"
+                        inputMode="decimal"
                         placeholder="평균단가"
                         value={addForm.avg_price}
                         onChange={(e) => {

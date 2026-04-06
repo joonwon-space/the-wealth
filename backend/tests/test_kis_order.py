@@ -20,9 +20,13 @@ DUMMY_PRDT = "01"
 
 @pytest.fixture(autouse=True)
 def mock_kis_token():
-    """모든 테스트에서 KIS 토큰 발급을 mock."""
+    """모든 테스트에서 KIS 토큰 발급을 mock.
+
+    kis_order_place/cancel/query 모듈이 lazy import 방식으로 가져오므로
+    원본 모듈(kis_token)을 직접 패치한다.
+    """
     with patch(
-        "app.services.kis_order.get_kis_access_token",
+        "app.services.kis_token.get_kis_access_token",
         new_callable=AsyncMock,
         return_value="fake_token",
     ):
@@ -31,8 +35,11 @@ def mock_kis_token():
 
 @pytest.fixture(autouse=True)
 def mock_cache():
-    """Redis cache를 mock으로 대체 (락/레이트리밋 통과)."""
-    with patch("app.services.kis_order._cache") as mock_c:
+    """Redis cache를 mock으로 대체 (락/레이트리밋 통과).
+
+    rate limit 및 order lock은 kis_order_place._cache를 사용한다.
+    """
+    with patch("app.services.kis_order_place._cache") as mock_c:
         mock_c.get = AsyncMock(return_value=None)
         mock_c.setex = AsyncMock(return_value=True)
         yield mock_c

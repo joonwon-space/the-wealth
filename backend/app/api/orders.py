@@ -97,7 +97,7 @@ async def _get_portfolio_with_kis(
 
 
 @router.post("/portfolios/{portfolio_id}/orders", response_model=OrderResult)
-@limiter.limit("30/minute")
+@limiter.limit("10/minute")
 async def place_order(
     request: Request,
     portfolio_id: int,
