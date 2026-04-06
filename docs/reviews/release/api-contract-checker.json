@@ -1,32 +1,11 @@
 {
   "agent": "api-contract-checker",
-  "summary": "No breaking API changes detected. All endpoint URLs, request parameters, and response schemas are unchanged from Sprint 7. The analytics module split is internal refactoring only — same prefix /analytics, same endpoint paths, same response schemas. Rate limit additions are transparent to clients (429 responses are new but clients must handle error responses). One new endpoint added: GET /analytics/fx-history with required query param validation (currency_pair allowlist added). No endpoints were removed or renamed.",
+  "summary": "No breaking API changes in Sprint 9. The portfolios.py split into portfolio_holdings.py + portfolio_transactions.py + portfolios.py is purely internal — all existing endpoint URLs remain unchanged. main.py registers all 3 routers with the same /portfolios prefix so no client-facing paths changed. analytics.py shim preserves the invalidate_analytics_cache import contract. No endpoints were removed, renamed, or had their request/response schemas changed. New feature: analytics sections have ErrorBoundary wrapping on frontend — transparent to API consumers.",
   "verdict": "pass",
   "checks": [
-    {
-      "name": "Endpoint URL changes",
-      "status": "pass",
-      "detail": "No endpoint URLs changed. Analytics module split is transparent — all /analytics/* paths still exist with same URLs."
-    },
-    {
-      "name": "Response schema changes",
-      "status": "pass",
-      "detail": "No response schema changes. All existing endpoints return same shapes."
-    },
-    {
-      "name": "New endpoints",
-      "status": "pass",
-      "detail": "GET /analytics/fx-history added (new feature, not a breaking change). GET /analytics/fx-gain-loss existed before, unchanged."
-    },
-    {
-      "name": "Rate limit additions",
-      "status": "pass",
-      "detail": "30/minute limits added to stocks, chart, alerts, watchlist endpoints. 429 responses are a new possible error code for these endpoints. Existing clients should handle 4xx errors — this is not a breaking change per API convention."
-    },
-    {
-      "name": "backward-compat shim",
-      "status": "pass",
-      "detail": "app.api.analytics still exports invalidate_analytics_cache for callers that import from it (portfolios.py, sync.py). No import path changes needed."
-    }
+    {"name": "portfolio endpoints", "status": "pass", "detail": "All /portfolios/* URLs unchanged, served from split modules"},
+    {"name": "analytics endpoints", "status": "pass", "detail": "All /analytics/* URLs unchanged, shim re-exports intact"},
+    {"name": "response schemas", "status": "pass", "detail": "No schema changes in Sprint 9"},
+    {"name": "no removed endpoints", "status": "pass", "detail": "0 endpoints removed"}
   ]
 }

@@ -1,69 +1,45 @@
-# Release Readiness Report — Bug Fix: test_order_settlement (2026-04-04)
+# Release Readiness Report — Sprint 9 (2026-04-06)
 
 ## Decision: GO
 
-- Build: no production code changed, no build impact
-- Tests: 3/3 pass in test_order_settlement.py (was 1/3); ruff lint clean
-- Migrations: no schema changes
-- API contracts: no API changes
-- Coverage: order_settlement.py improved 23% -> 75%
+All 4 validators pass. Ready to deploy.
 
-# Release Readiness Report — 2026-04-04 (Sprint 8)
+## Validator Results
 
-## Decision: GO
+| Validator | Status | Detail |
+|-----------|--------|--------|
+| build-validator | PASS | ruff clean, tsc clean, CI green (both pipelines) |
+| test-runner | PASS | 794 tests pass, pytest-asyncio 1.3.0 compatible |
+| migration-checker | PASS | No schema changes, no migration needed |
+| api-contract-checker | PASS | No breaking changes, all URLs preserved |
 
-All 4 validators pass. No blockers. No pending migrations. CI is green on both Backend and Frontend.
+## Release Notes
 
----
+### Sprint 9 — Dependency upgrades & code quality
 
-## Check Results
+**Security / CVE patches:**
+- requests 2.32.5 -> 2.33.0 (CVE-2026-25645)
+- starlette 0.52.1 -> 1.0.0 (includes security fixes)
 
-| Check | Verdict | Key Metric |
-|-------|---------|------------|
-| Build | pass | 0 lint errors, frontend build clean (13 routes) |
-| Tests | pass | 792/794 passed, 78% coverage (2 pre-existing failures) |
-| Migrations | pass | No new migrations, head: k3l4m5n6o7p8 |
-| API Contract | pass | 0 breaking changes, 1 new endpoint (fx-history) |
+**Dependency upgrades:**
+- pytest-asyncio 0.25.3 -> 1.3.0
+- All CVEs confirmed clear via pip-audit
+
+**Code quality (refactoring):**
+- analytics.py 762L -> 16L backward-compat shim
+- portfolios.py 751L split into portfolio_holdings.py (266L) + portfolio_transactions.py (212L) + portfolios.py (170L)
+- dashboard/page.tsx 603L split into DashboardMetrics.tsx (225L) + PortfolioList.tsx (136L) + page.tsx (~280L)
+
+**UX improvements:**
+- analytics/page.tsx: MetricsSection, HistorySection, MonthlyReturnsSection, SectorFxSection each wrapped with ErrorBoundary
+- KisCredentialsSection delete toast updated to "KIS 계좌가 삭제되었습니다"
+
+## Deployment Instructions
+
+1. `pip install -r requirements.txt` (starlette + pytest-asyncio upgrades)
+2. No `alembic upgrade head` needed (no schema changes)
+3. Deploy as normal
 
 ## Blockers
 
 None.
-
-## Warnings
-
-- 2 pre-existing test failures in test_order_settlement.py (unrelated to Sprint 8).
-- 15 frontend lint warnings (pre-existing, 0 errors).
-
----
-
-## Release Notes
-
-### Features
-- Rate limiting applied to stocks, chart, alerts, and watchlist endpoints (30 req/min) — protects against API abuse
-- Analytics page split into independently-loading sections (Metrics, Monthly Returns, Sector/FX, History) for better perceived performance
-- Journal page now shows month-specific empty state with link to add trade when filtering by month
-- Compare page period filter always visible (no longer hidden until portfolio is selected)
-
-### Performance
-- FX gain/loss endpoint now fetches prices in parallel (asyncio.gather) — eliminates N sequential Redis calls
-- Analytics metrics exception fallback now uses parallel cache reads
-
-### Security & Dependencies
-- Fixed CVEs: pygments 2.20.0 (CVE-2026-4539), requests 2.33.0 (CVE-2026-25645)
-- Updated: fastapi 0.135.3, redis 7.4.0, sentry-sdk 2.57.0, sqlalchemy 2.0.49, ruff 0.15.9
-- Added currency_pair allowlist validation on /analytics/fx-history endpoint
-- Analytics router code split into domain-specific modules (analytics_metrics, analytics_history, analytics_fx)
-- KIS order service split into domain-specific re-export modules (kis_domestic_order, kis_overseas_order, kis_order_query)
-
-### Internal
-- Analytics module split: analytics.py kept as backward-compat shim with docstring
-- Shared analytics utility functions extracted to analytics_utils.py service
-
-## Pre-Release Checklist
-- [x] All blockers resolved
-- [x] No new migrations (skip alembic upgrade)
-- [x] No new environment variables required
-- [x] CI green (Backend + Frontend)
-- [x] CVEs patched
-
-Generated: 2026-04-04

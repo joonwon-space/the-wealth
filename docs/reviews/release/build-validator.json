@@ -1,32 +1,13 @@
 {
   "agent": "build-validator",
-  "summary": "All build checks pass. Backend ruff lint reports no errors. Frontend Next.js build succeeds with all 13 routes built successfully (11 static, 2 dynamic). Frontend lint reports 15 warnings and 0 errors. TypeScript type check is clean. No new large dependencies added in this sprint.",
+  "summary": "Sprint 9 build checks all pass. Backend ruff lint reports no errors across all modified files. Frontend tsc --noEmit reports no errors in source files (stale .next/types artifact excluded). Frontend lint reports 15 warnings (pre-existing) and 0 errors. CI green on both Backend CI and Frontend CI workflows. starlette 1.0.0 and pytest-asyncio 1.3.0 upgrades do not affect build artifacts.",
   "verdict": "pass",
   "checks": [
-    {
-      "name": "Backend ruff lint",
-      "status": "pass",
-      "detail": "ruff check app/ — All checks passed"
-    },
-    {
-      "name": "Frontend Next.js build",
-      "status": "pass",
-      "detail": "npm run build succeeded. 13 routes built (11 static, 2 dynamic). No build errors."
-    },
-    {
-      "name": "Frontend lint",
-      "status": "pass",
-      "detail": "15 warnings, 0 errors. Warnings are pre-existing (unused eslint-disable directive, unused vi import in tests)."
-    },
-    {
-      "name": "TypeScript type check",
-      "status": "pass",
-      "detail": "tsc --noEmit passes cleanly for all new and modified TypeScript files."
-    },
-    {
-      "name": "Bundle size",
-      "status": "pass",
-      "detail": "No new large dependencies added. @tanstack/react-query and axios updates are minor version bumps. New analytics section components are code-split by Next.js automatically."
-    }
+    {"name": "backend ruff lint", "status": "pass", "detail": "All checks passed"},
+    {"name": "frontend tsc", "status": "pass", "detail": "No source file errors"},
+    {"name": "frontend eslint", "status": "pass", "detail": "0 errors, 15 pre-existing warnings"},
+    {"name": "backend CI", "status": "pass", "detail": "Run 24014067764 succeeded"},
+    {"name": "frontend CI", "status": "pass", "detail": "Run 24014067766 succeeded"},
+    {"name": "pip-audit", "status": "pass", "detail": "No known vulnerabilities found"}
   ]
 }

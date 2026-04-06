@@ -1,27 +1,11 @@
 {
   "agent": "test-runner",
-  "summary": "Test suite is healthy. 792 tests pass, 78% overall backend coverage (meets the 80% target at module level for changed files). 2 pre-existing failures in test_order_settlement.py are confirmed unrelated to Sprint 8 changes — they exist on main prior to this sprint. All new analytics module tests pass (36 tests in test_analytics_api.py). Frontend build confirms component behavior.",
+  "summary": "All 794 backend tests pass in Sprint 9. pytest-asyncio upgraded to 1.3.0 with asyncio_mode=auto maintained. Test imports in test_analytics_api.py and test_analytics_metrics.py updated to new module paths. No test regressions from the portfolios.py split — existing portfolio tests still pass against the new split module structure.",
   "verdict": "pass",
   "checks": [
-    {
-      "name": "Backend test suite",
-      "status": "pass",
-      "detail": "792 passed, 2 failed (pre-existing). test_order_settlement.py failures exist on HEAD~3 and are unrelated to Sprint 8 changes."
-    },
-    {
-      "name": "Analytics tests",
-      "status": "pass",
-      "detail": "36 tests in test_analytics_api.py all pass. Mock paths updated to analytics_metrics module correctly."
-    },
-    {
-      "name": "Backend coverage",
-      "status": "pass",
-      "detail": "78% overall. New modules: analytics_utils.py 100%, analytics_metrics.py implicitly covered via test_analytics_api.py. kis_domestic_order.py, kis_overseas_order.py, kis_order_query.py are re-export shims at 0% coverage — acceptable as they are trivial re-exports."
-    },
-    {
-      "name": "Pre-existing failures",
-      "status": "info",
-      "detail": "test_order_settlement.py::test_settle_fully_filled_order and test_settle_partial_fill — confirmed pre-existing before Sprint 8. Not caused by Sprint 8 changes."
-    }
+    {"name": "backend pytest", "status": "pass", "detail": "794 passed, 0 failed, 84 warnings"},
+    {"name": "pytest-asyncio 1.3.0 compatibility", "status": "pass", "detail": "asyncio_mode=auto works correctly"},
+    {"name": "test import paths", "status": "pass", "detail": "Analytics test imports updated to analytics_metrics/analytics_utils"},
+    {"name": "portfolios test suite", "status": "pass", "detail": "All portfolio tests pass against split modules"}
   ]
 }

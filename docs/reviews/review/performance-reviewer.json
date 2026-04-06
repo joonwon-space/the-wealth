@@ -1,34 +1,16 @@
 {
   "agent": "performance-reviewer",
-  "summary": "The Sprint 8 changes are performance-neutral to slightly positive. The analytics module split maintains the existing Redis caching strategy with 1-hour TTL. The frontend split into section components means each section fetches independently with staleTime: 3_600_000 — this is correct. The main performance concern is get_metrics in analytics_metrics.py which issues N sequential Redis cache reads (one per ticker) in the exception fallback path. The fx-gain-loss endpoint also issues N sequential get_cached_price calls in a for-loop when Redis does not have the data. Both should use asyncio.gather. No N+1 DB queries found — all queries use IN clauses.",
-  "verdict": "request-changes",
+  "summary": "Sprint 9 changes are performance-neutral to slightly positive. The portfolios.py split reduces module load time by removing unused imports from the main portfolios module. The DashboardMetrics.tsx and PortfolioList.tsx split does not introduce new queries or re-renders — props flow down from the parent query. The analytics.py shim is 16 lines and has zero overhead. ErrorBoundary wrapping in analytics/page.tsx adds negligible React overhead. The generateSparklineData function in DashboardMetrics.tsx uses Math.random() on every render which could cause unnecessary re-renders if the parent re-renders — this is low severity as it existed before in page.tsx.",
+  "verdict": "approve",
   "findings": [
     {
       "id": "PERF-001",
-      "title": "Sequential get_cached_price calls in fx-gain-loss endpoint",
-      "severity": "high",
-      "category": "api",
-      "location": "backend/app/api/analytics_fx.py:113-116",
-      "detail": "The for loop over overseas holdings calls `await _get_cached_price(h.ticker)` sequentially for each holding. With 10 overseas holdings, this is 10 sequential Redis round-trips. This adds latency proportional to the number of holdings.",
-      "fix": "Use asyncio.gather: price_tasks = [_get_cached_price(h.ticker) for h in overseas]; prices = await asyncio.gather(*price_tasks). Then zip prices with overseas holdings."
-    },
-    {
-      "id": "PERF-002",
-      "title": "Sequential cache reads in get_metrics exception fallback",
-      "severity": "medium",
-      "category": "api",
-      "location": "backend/app/api/analytics_metrics.py:150-153",
-      "detail": "In the except block after asyncio.gather fails, individual _get_cached_price calls are made per ticker in a loop. While the main gather path is already parallel, the fallback path is sequential.",
-      "fix": "In the exception handler, also use asyncio.gather for the fallback cache reads: fallback_tasks = [_get_cached_price(t) for t in tickers]; fallback_results = await asyncio.gather(*fallback_tasks)."
-    },
-    {
-      "id": "PERF-003",
-      "title": "analytics/page.tsx section components load in parallel by default",
+      "title": "generateSparklineData called on every render in DashboardMetrics",
       "severity": "low",
       "category": "rendering",
-      "location": "frontend/src/app/dashboard/analytics/page.tsx",
-      "detail": "The new component split causes MetricsSection, MonthlyReturnsSection, SectorFxSection, and HistorySection to all mount simultaneously, triggering 6+ API calls in parallel on first load. This is correct behavior and actually improves perceived performance by loading independently.",
-      "fix": "No fix needed — this is the desired behavior."
+      "location": "frontend/src/app/dashboard/DashboardMetrics.tsx:81",
+      "detail": "generateSparklineData uses Math.random() so memoization would not help, but it runs on every parent re-render. This was the same in the original page.tsx — not a regression.",
+      "fix": "Consider moving sparkline generation to parent component as a derived constant, or accept it as acceptable cost (7 data points, no network calls)."
     }
   ]
 }
