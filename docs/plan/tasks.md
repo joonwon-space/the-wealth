@@ -549,3 +549,70 @@ Each item should be completable in a single commit.
   - `backend/app/services/kis_order_query.py` — `get_pending_orders`, `cancel_order`, `settle_pending_orders` (조회/취소)
   - `backend/app/services/kis_order.py` — 하위 호환 re-export만 유지
   - 파일: `backend/app/services/kis_domestic_order.py`, `kis_overseas_order.py`, `kis_order_query.py`
+
+---
+
+## Sprint 9 work (team-analysis 2026-04-06, 9th sprint)
+
+### P0 -- 로컬 venv pip 동기화 (CVE 패치) [team-analysis: TD-001]
+
+- [x] **chore: backend venv — requirements.txt 동기화**
+  - `cd backend && source venv/bin/activate && pip install -r requirements.txt`
+  - Pygments 2.19.2 → 2.20.0 (CVE-2026-4539), requests 2.32.5 → 2.33.0 (CVE-2026-25645) 적용
+  - requirements.txt 이미 최신 버전 명시됨 — venv만 동기화
+  - 파일: `backend/venv` (재설치 후 pip-audit 재확인)
+
+### P0 -- starlette 0.52.1 → 1.0.0 마이그레이션 [team-analysis: TD-002]
+
+- [x] **chore: backend — starlette 1.0.0 업그레이드 및 호환성 검증**
+  - `backend/requirements.txt` — `starlette==0.52.1` → `starlette==1.0.0`
+  - FastAPI 내부 의존성 확인 (`fastapi>=0.135.3` 와 호환 여부)
+  - `cd backend && source venv/bin/activate && pip install starlette==1.0.0 && pytest tests/ -x -q` 로 회귀 확인
+  - 파일: `backend/requirements.txt`
+
+### P1 -- pytest-asyncio 0.25.3 → 1.3.0 업그레이드 [team-analysis: TD-003]
+
+- [x] **chore: backend — pytest-asyncio 1.3.0 업그레이드**
+  - `backend/requirements.txt` — `pytest-asyncio==0.25.3` → `pytest-asyncio==1.3.0`
+  - pytest.ini `asyncio_mode = auto` 설정 호환성 확인
+  - 마이그레이션 노트 검토: `asyncio_mode`, fixture scope 변경 사항
+  - `pytest tests/ -x -q` 전체 통과 확인
+  - 파일: `backend/requirements.txt`, `backend/pytest.ini` (필요 시)
+
+### P1 -- analytics.py shim 최소화 [team-analysis: TD-004]
+
+- [x] **refactor: analytics.py — 762L shim을 30L 이하로 축소**
+  - `backend/app/api/analytics.py` — 실제 엔드포인트 구현 코드 전부 삭제 (이미 split 모듈에 있음)
+  - re-export / backward-compat 임포트만 유지: `invalidate_analytics_cache`, `router` 등
+  - 파일: `backend/app/api/analytics.py`
+
+### P1 -- dashboard/page.tsx 603L → DashboardMetrics + PortfolioList 분리 [team-analysis: TD-005]
+
+- [x] **refactor: dashboard/page.tsx — 독립 섹션 컴포넌트 추출**
+  - `frontend/src/app/dashboard/DashboardMetrics.tsx` — 총 자산/수익/일변동 지표 카드 (~150 lines)
+  - `frontend/src/app/dashboard/PortfolioList.tsx` — 포트폴리오 목록 + WatchlistSection + 보유종목 테이블 (~200 lines)
+  - 메인 page.tsx — 두 컴포넌트 조합 + SSE/쿼리 상태 관리 (~200 lines)
+  - 각 섹션 독립 ErrorBoundary 적용
+  - 파일: `frontend/src/app/dashboard/DashboardMetrics.tsx`, `frontend/src/app/dashboard/PortfolioList.tsx`, `frontend/src/app/dashboard/page.tsx`
+
+### P1 -- analytics 섹션별 ErrorBoundary 추가 [team-analysis: UX-001]
+
+- [x] **ux: analytics/page.tsx — MetricsSection, HistorySection, SectorFxSection에 ErrorBoundary 감싸기**
+  - `frontend/src/app/dashboard/analytics/page.tsx` — 각 섹션 컴포넌트를 `<ErrorBoundary>` 로 감싸기
+  - 개별 섹션 오류 시 전체 페이지 크래시 방지
+  - 파일: `frontend/src/app/dashboard/analytics/page.tsx`
+
+### P2 -- portfolios.py 751L 분리 [team-analysis: TD-006]
+
+- [x] **refactor: portfolios.py — 3개 라우터 파일로 분리**
+  - `backend/app/api/portfolio_holdings.py` — holding CRUD (add/edit/delete/bulk) + reconciliation 관련 (~250 lines)
+  - `backend/app/api/portfolio_transactions.py` — transaction CRUD + cursor pagination (~200 lines)
+  - `backend/app/api/portfolios.py` — portfolio CRUD + reorder + target + sync 트리거 (~300 lines)
+  - `backend/app/main.py` — 3개 라우터 등록으로 교체
+  - 파일: `backend/app/api/portfolio_holdings.py`, `backend/app/api/portfolio_transactions.py`, `backend/app/api/portfolios.py`
+
+### P2 -- KisCredentialsSection KIS 계좌 추가 성공 toast [team-analysis: UX-002]
+
+- [x] **ux: KisCredentialsSection.tsx — 계좌 추가/삭제 성공 toast 추가**
+  - `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx` — 계좌 추가 성공 시 `toast.success('KIS 계좌가 등록되었습니다')`, 삭제 성공 시 `toast.success('KIS 계좌가 삭제되었습니다')` 추가
+  - 파일: `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx`

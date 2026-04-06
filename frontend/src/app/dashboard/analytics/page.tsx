@@ -15,6 +15,7 @@ import { MetricsSection } from "./MetricsSection";
 import { MonthlyReturnsSection } from "./MonthlyReturnsSection";
 import { SectorFxSection } from "./SectorFxSection";
 import { HistorySection } from "./HistorySection";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
 
@@ -209,16 +210,24 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 성과 지표 */}
-      <MetricsSection />
+      <ErrorBoundary>
+        <MetricsSection />
+      </ErrorBoundary>
 
       {/* 포트폴리오 가치 추이 + 원화 환산 총 자산 추이 */}
-      <HistorySection period={historyPeriod} onPeriodChange={setHistoryPeriod} />
+      <ErrorBoundary>
+        <HistorySection period={historyPeriod} onPeriodChange={setHistoryPeriod} />
+      </ErrorBoundary>
 
       {/* 월별 수익률 */}
-      <MonthlyReturnsSection />
+      <ErrorBoundary>
+        <MonthlyReturnsSection />
+      </ErrorBoundary>
 
       {/* 섹터 배분 + 환차익/환차손 */}
-      <SectorFxSection />
+      <ErrorBoundary>
+        <SectorFxSection />
+      </ErrorBoundary>
 
       {/* Stock Chart */}
       <section className="space-y-3">

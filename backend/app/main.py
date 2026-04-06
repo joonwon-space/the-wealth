@@ -12,7 +12,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import alerts, analytics_metrics, analytics_history, analytics_fx, auth, chart, dashboard, health, internal, notifications, orders, portfolio_export, portfolios, prices, stocks, sync, users, watchlist
+from app.api import alerts, analytics_metrics, analytics_history, analytics_fx, auth, chart, dashboard, health, internal, notifications, orders, portfolio_export, portfolio_holdings, portfolio_transactions, portfolios, prices, stocks, sync, users, watchlist
 from app.api.prices import signal_sse_shutdown
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -104,6 +104,8 @@ v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(auth.router)
 v1_router.include_router(alerts.router)
 v1_router.include_router(portfolios.router)
+v1_router.include_router(portfolio_holdings.router)
+v1_router.include_router(portfolio_transactions.router)
 v1_router.include_router(portfolio_export.router)
 v1_router.include_router(stocks.router)
 v1_router.include_router(dashboard.router)

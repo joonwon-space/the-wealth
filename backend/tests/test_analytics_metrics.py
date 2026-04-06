@@ -1,11 +1,11 @@
 """Unit tests for analytics metrics calculation functions.
 
-Tests cover _calc_mdd, _calc_cagr, _calc_sharpe from app.api.analytics.
+Tests cover _calc_mdd, _calc_cagr, _calc_sharpe from app.api.analytics_metrics.
 """
 
 import math
 
-from app.api.analytics import _calc_cagr, _calc_mdd, _calc_sharpe
+from app.api.analytics_metrics import _calc_cagr, _calc_mdd, _calc_sharpe
 
 
 class TestCalcMdd:

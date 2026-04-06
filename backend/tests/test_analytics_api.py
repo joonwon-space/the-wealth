@@ -53,7 +53,7 @@ async def _setup_portfolio_with_holdings(
 
 @pytest.mark.integration
 class TestGetMetricsEmpty:
-    @patch("app.api.analytics._analytics_cache")
+    @patch("app.services.analytics_utils._analytics_cache")
     async def test_no_portfolios_returns_null_metrics(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
@@ -69,7 +69,7 @@ class TestGetMetricsEmpty:
         assert data["mdd"] is None
         assert data["sharpe_ratio"] is None
 
-    @patch("app.api.analytics._analytics_cache")
+    @patch("app.services.analytics_utils._analytics_cache")
     async def test_no_holdings_returns_null_metrics(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
@@ -88,8 +88,8 @@ class TestGetMetricsEmpty:
         resp = await client.get("/analytics/metrics")
         assert resp.status_code in (401, 403)
 
-    @patch("app.api.analytics._analytics_cache")
-    @patch("app.api.analytics.fetch_domestic_price_detail", new_callable=AsyncMock)
+    @patch("app.services.analytics_utils._analytics_cache")
+    @patch("app.api.analytics_metrics.fetch_domestic_price_detail", new_callable=AsyncMock)
     async def test_metrics_no_snapshots_uses_avg_price(
         self, mock_fetch: AsyncMock, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
@@ -140,7 +140,7 @@ class TestGetPortfolioHistory:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    @patch("app.api.analytics._analytics_cache")
+    @patch("app.services.analytics_utils._analytics_cache")
     async def test_with_snapshots_returns_history(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
@@ -337,7 +337,7 @@ class TestGetMonthlyReturns:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    @patch("app.api.analytics._analytics_cache")
+    @patch("app.services.analytics_utils._analytics_cache")
     async def test_two_months_returns_one_entry(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
@@ -376,7 +376,7 @@ class TestGetMonthlyReturns:
 
 @pytest.mark.integration
 class TestGetSectorAllocation:
-    @patch("app.api.analytics._analytics_cache")
+    @patch("app.services.analytics_utils._analytics_cache")
     async def test_no_portfolios_returns_empty(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
@@ -388,7 +388,7 @@ class TestGetSectorAllocation:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    @patch("app.api.analytics._analytics_cache")
+    @patch("app.services.analytics_utils._analytics_cache")
     async def test_no_holdings_returns_empty(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
@@ -444,8 +444,8 @@ class TestGetSectorAllocation:
             assert "value" in item
             assert "weight" in item
 
-    @patch("app.api.analytics._analytics_cache")
-    @patch("app.api.analytics.get_cached_fx_rate", new_callable=AsyncMock)
+    @patch("app.services.analytics_utils._analytics_cache")
+    @patch("app.api.analytics_fx.get_cached_fx_rate", new_callable=AsyncMock)
     async def test_sector_allocation_sorted_by_value_desc(
         self,
         mock_fx: AsyncMock,
@@ -475,8 +475,8 @@ class TestGetSectorAllocation:
             values = [item["value"] for item in data]
             assert values == sorted(values, reverse=True)
 
-    @patch("app.api.analytics._analytics_cache")
-    @patch("app.api.analytics.get_cached_fx_rate", new_callable=AsyncMock)
+    @patch("app.services.analytics_utils._analytics_cache")
+    @patch("app.api.analytics_fx.get_cached_fx_rate", new_callable=AsyncMock)
     async def test_single_holding_returns_100_percent_no_cache(
         self,
         mock_fx: AsyncMock,
@@ -557,39 +557,39 @@ class TestIsDomestic:
 
 class TestPeriodCutoff:
     def test_all_returns_none(self) -> None:
-        from app.api.analytics import _period_cutoff
+        from app.services.analytics_utils import period_cutoff as _period_cutoff
         assert _period_cutoff("ALL") is None
 
     def test_1w_returns_7_days_ago(self) -> None:
-        from app.api.analytics import _period_cutoff
+        from app.services.analytics_utils import period_cutoff as _period_cutoff
         from datetime import date as date_type
         cutoff = _period_cutoff("1W")
         today = date_type.today()
         assert cutoff == today - timedelta(days=7)
 
     def test_1m_returns_30_days_ago(self) -> None:
-        from app.api.analytics import _period_cutoff
+        from app.services.analytics_utils import period_cutoff as _period_cutoff
         from datetime import date as date_type
         cutoff = _period_cutoff("1M")
         today = date_type.today()
         assert cutoff == today - timedelta(days=30)
 
     def test_3m_returns_91_days_ago(self) -> None:
-        from app.api.analytics import _period_cutoff
+        from app.services.analytics_utils import period_cutoff as _period_cutoff
         from datetime import date as date_type
         cutoff = _period_cutoff("3M")
         today = date_type.today()
         assert cutoff == today - timedelta(days=91)
 
     def test_6m_returns_182_days_ago(self) -> None:
-        from app.api.analytics import _period_cutoff
+        from app.services.analytics_utils import period_cutoff as _period_cutoff
         from datetime import date as date_type
         cutoff = _period_cutoff("6M")
         today = date_type.today()
         assert cutoff == today - timedelta(days=182)
 
     def test_1y_returns_365_days_ago(self) -> None:
-        from app.api.analytics import _period_cutoff
+        from app.services.analytics_utils import period_cutoff as _period_cutoff
         from datetime import date as date_type
         cutoff = _period_cutoff("1Y")
         today = date_type.today()
@@ -599,7 +599,8 @@ class TestPeriodCutoff:
 class TestInvalidateAnalyticsCache:
     async def test_invalidate_deletes_all_keys(self) -> None:
         """invalidate_analytics_cache가 모든 캐시 키를 삭제 시도."""
-        from app.api.analytics import invalidate_analytics_cache, _analytics_cache
+        from app.api.analytics import invalidate_analytics_cache
+        from app.services.analytics_utils import _analytics_cache
 
         deleted_keys: list[str] = []
         original_delete = _analytics_cache.delete

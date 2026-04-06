@@ -181,7 +181,7 @@ export function KisCredentialsSection() {
     try {
       await api.delete(`/users/kis-accounts/${id}`);
       setKisAccounts((prev) => prev.filter((a) => a.id !== id));
-      toast.success("계좌가 삭제되었습니다");
+      toast.success("KIS 계좌가 삭제되었습니다");
     } catch {
       toast.error("계좌 삭제에 실패했습니다");
     }
