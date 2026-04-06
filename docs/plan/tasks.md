@@ -9,15 +9,15 @@ Each item should be completable in a single commit.
 
 ### Quick Wins (S effort, high impact)
 
-- [ ] Add `staleTime: 60_000` to portfolio list and holdings useQuery calls in `frontend/src/app/dashboard/page.tsx` — PERF-001: unnecessary re-fetches on remount
-- [ ] Add `@limiter.limit("10/minute")` to POST /orders (domestic + overseas) and GET /orders/orderable-qty in `backend/app/api/orders.py` — SEC-002 + TD-005: order endpoints lack per-route rate limits
-- [ ] Add `type="number"` + `inputMode="decimal"` + `aria-label` to inline editing inputs in `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx:441,459` — UX-003: mobile keyboard UX + a11y
+- [ ] Add `staleTime: 60_000` to portfolio list useQuery in `frontend/src/app/dashboard/portfolios/page.tsx:191` — PERF-002/UX-005: unnecessary re-fetches on window focus
+- [ ] Add `@limiter.limit("10/minute")` to `get_orderable` (L270), `list_pending_orders` (L306), `settle_orders_endpoint` (L396), `get_portfolio_cash_balance` (L423) in `backend/app/api/orders.py` — SEC-001/TD-006: 4 order endpoints calling KIS API without rate limits
+- [ ] Add `aria-label` to inline quantity/price edit inputs in `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx:441,459` — UX-002: screen reader accessibility
 
 ### Large File Splits (M effort, high impact)
 
-- [ ] Split `backend/app/services/kis_order.py` (780L) into `kis_domestic_order.py` + `kis_overseas_order.py` + `kis_order_query.py` — TD-001 + PROD-002: exceeds 800L limit, blocks feature velocity
+- [ ] Complete `backend/app/services/kis_order.py` (780L) split — move domestic logic into `kis_domestic_order.py`, overseas into `kis_overseas_order.py`, query/cancel into `kis_order_query.py`, reduce original to shim/remove — TD-001 + PROD-002: split files exist but original unreduced
 - [ ] Split `frontend/src/components/OrderDialog.tsx` (605L) into `DomesticOrderForm.tsx` + `OverseasOrderForm.tsx` + `useOrderSubmit.ts` — TD-002 + PROD-002
-- [ ] Split `frontend/src/app/dashboard/page.tsx` (415L) into `DashboardMetrics.tsx` + `DashboardPortfolioList.tsx` with independent ErrorBoundaries — TD-003 + PROD-002
+- [ ] Complete `frontend/src/app/dashboard/page.tsx` (415L) split — DashboardMetrics.tsx already exists; extract remaining portfolio list section into `DashboardPortfolioList.tsx` with its own ErrorBoundary — TD-003: partial split done in Sprint 9
 
 ### Benchmark Foundation (L effort, high user value)
 

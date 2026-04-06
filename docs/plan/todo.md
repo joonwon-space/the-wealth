@@ -275,11 +275,11 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ## Milestone 20: 코드 품질 & 핵심 분석 기능 (신규, Sprint 8+)
 
 ### 20-1. 대형 파일 분리 (코드 품질)
-- [ ] analytics.py(780L) → analytics_metrics.py + analytics_history.py + analytics_fx.py + services/analytics_utils.py
-- [ ] kis_order.py(780L) → kis_domestic_order.py + kis_overseas_order.py + kis_order_query.py
-- [ ] analytics/page.tsx(762L) → MetricsSection + MonthlyReturnsSection + SectorFxSection + HistorySection
-- [ ] dashboard/page.tsx(603L) → DashboardMetrics + DashboardPortfolioList (각 독립 ErrorBoundary)
-- [ ] OrderDialog.tsx(605L) → DomesticOrderForm + OverseasOrderForm + useOrderSubmit hook
+- [x] analytics.py(780L) → analytics_metrics.py + analytics_history.py + analytics_fx.py + services/analytics_utils.py (Sprint 9 완료)
+- [ ] kis_order.py(780L) → 분리 파일(kis_domestic_order.py 등) 생성 완료, 로직 이전 미완료 → tasks.md Sprint 10
+- [x] analytics/page.tsx(762L) → MetricsSection + MonthlyReturnsSection + SectorFxSection + HistorySection (Sprint 9, 762→457L)
+- [ ] dashboard/page.tsx(415L) → DashboardMetrics 추출 완료, DashboardPortfolioList 미완료 → tasks.md Sprint 10
+- [ ] OrderDialog.tsx(605L) → DomesticOrderForm + OverseasOrderForm + useOrderSubmit hook → tasks.md Sprint 10
 
 ### 20-2. KOSPI200/S&P500 벤치마크 비교
 - [ ] 백엔드: KOSPI200/S&P500 일별 지수 데이터 수집 스케줄러 (KIS FHKUP03500100, FHKST03030100)
