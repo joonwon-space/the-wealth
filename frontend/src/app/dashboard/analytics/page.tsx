@@ -1,23 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart3, Search } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { formatKRW, formatRate, formatPrice } from "@/lib/format";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PnLBadge } from "@/components/PnLBadge";
-import { AllocationDonut, CandlestickChart } from "@/components/DynamicCharts";
+import { Card, CardContent } from "@/components/ui/card";
+import { AllocationDonut } from "@/components/DynamicCharts";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SummaryCards } from "./SummaryCards";
 import { MetricsSection } from "./MetricsSection";
 import { MonthlyReturnsSection } from "./MonthlyReturnsSection";
 import { SectorFxSection } from "./SectorFxSection";
 import { HistorySection } from "./HistorySection";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
+import { StockChartSection } from "./StockChartSection";
+import { PerformanceTable } from "./PerformanceTable";
 
 interface HoldingRow {
   ticker: string;
@@ -59,22 +57,20 @@ interface Candle {
   volume: number;
 }
 
-export default function AnalyticsPage() {
-  const [historyPeriod, setHistoryPeriod] = useState<
-    "1W" | "1M" | "3M" | "6M" | "1Y" | "ALL"
-  >("3M");
+type ChartPeriod = "1M" | "3M" | "6M" | "1Y" | "3Y";
+type HistoryPeriod = "1W" | "1M" | "3M" | "6M" | "1Y" | "ALL";
 
-  // Chart state
+export default function AnalyticsPage() {
+  const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>("3M");
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string>("");
   const [selectedAvgPrice, setSelectedAvgPrice] = useState<number | undefined>();
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>("3M");
+  const [period, setPeriod] = useState<ChartPeriod>("3M");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // Use the same query key as dashboard/page.tsx so TanStack Query serves
-  // the cached response instead of making a duplicate network request.
+  // Shares the cached response with dashboard/page.tsx
   const { data: summary, isLoading: summaryLoading } = useQuery<Summary>({
     queryKey: ["dashboard", "summary"],
     queryFn: () => api.get<Summary>("/dashboard/summary").then((r) => r.data),
@@ -103,7 +99,7 @@ export default function AnalyticsPage() {
     fetchChart(ticker, period);
   };
 
-  const handlePeriodChange = (p: (typeof PERIODS)[number]) => {
+  const handlePeriodChange = (p: ChartPeriod) => {
     setPeriod(p);
     if (selectedTicker) fetchChart(selectedTicker, p);
   };
@@ -177,119 +173,42 @@ export default function AnalyticsPage() {
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">분석</h1>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">총 자산</p>
-            <p className="mt-1 text-lg font-bold tabular-nums">{formatKRW(s.total_asset)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">투자 원금</p>
-            <p className="mt-1 text-lg font-bold tabular-nums">{formatKRW(s.total_invested)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">총 손익</p>
-            <p className="mt-1 text-lg font-bold">
-              <PnLBadge value={s.total_pnl_amount} />
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">수익률</p>
-            <p className="mt-1 text-lg font-bold">
-              <PnLBadge value={s.total_pnl_rate} suffix="%" />
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <SummaryCards
+        totalAsset={s.total_asset}
+        totalInvested={s.total_invested}
+        totalPnlAmount={s.total_pnl_amount}
+        totalPnlRate={s.total_pnl_rate}
+      />
 
-      {/* 성과 지표 */}
       <ErrorBoundary>
         <MetricsSection />
       </ErrorBoundary>
 
-      {/* 포트폴리오 가치 추이 + 원화 환산 총 자산 추이 */}
       <ErrorBoundary>
         <HistorySection period={historyPeriod} onPeriodChange={setHistoryPeriod} />
       </ErrorBoundary>
 
-      {/* 월별 수익률 */}
       <ErrorBoundary>
         <MonthlyReturnsSection />
       </ErrorBoundary>
 
-      {/* 섹터 배분 + 환차익/환차손 */}
       <ErrorBoundary>
         <SectorFxSection />
       </ErrorBoundary>
 
-      {/* Stock Chart */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">
-            {selectedTicker ? `${selectedName} (${selectedTicker})` : "종목 차트"}
-          </h2>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setSearchOpen(true)}
-            className="gap-1"
-          >
-            <Search className="h-3.5 w-3.5" />
-            종목 선택
-          </Button>
-        </div>
+      <StockChartSection
+        selectedTicker={selectedTicker}
+        selectedName={selectedName}
+        selectedAvgPrice={selectedAvgPrice}
+        period={period}
+        candles={candles}
+        chartLoading={chartLoading}
+        holdings={s.holdings}
+        onPeriodChange={handlePeriodChange}
+        onSearchOpen={() => setSearchOpen(true)}
+        onSelectStock={handleSelectStock}
+      />
 
-        {selectedTicker && (
-          <div className="flex gap-1">
-            {PERIODS.map((p) => (
-              <button
-                key={p}
-                onClick={() => handlePeriodChange(p)}
-                className={`min-h-[44px] min-w-[44px] rounded px-3 py-1 text-xs font-medium transition-colors ${
-                  period === p
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {!selectedTicker && s.holdings.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {s.holdings.map((h, i) => (
-              <button
-                key={`${h.ticker}-${i}`}
-                onClick={() => handleSelectStock(h.ticker, h.name)}
-                className="min-h-[44px] rounded-lg border px-3 py-1.5 text-xs hover:bg-accent transition-colors"
-              >
-                {h.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {chartLoading ? (
-          <Skeleton className="h-[400px] w-full" />
-        ) : selectedTicker ? (
-          <CandlestickChart candles={candles} avgPrice={selectedAvgPrice} />
-        ) : (
-          <div className="flex h-[300px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-            보유 종목을 선택하거나 검색하세요
-          </div>
-        )}
-      </section>
-
-      {/* Allocation chart */}
       {s.allocation.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">자산 배분</h2>
@@ -297,152 +216,10 @@ export default function AnalyticsPage() {
         </section>
       )}
 
-      {/* Performance table */}
-      {sortedByMarketValue.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">종목별 성과</h2>
-
-          {/* Mobile card view */}
-          <div className="space-y-3 md:hidden">
-            {sortedByMarketValue.map((h, i) => (
-              <button
-                key={`${h.ticker}-${i}`}
-                className="w-full text-left rounded-lg border p-3 space-y-2 active:bg-accent/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={() => handleSelectStock(h.ticker, h.name)}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-sm">{h.name}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      <span>{h.ticker}</span>
-                      {h.portfolio_name && (
-                        <span className="rounded bg-muted px-1 text-[10px] font-medium">
-                          {h.portfolio_name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <PnLBadge value={h.pnl_rate ?? 0} suffix="%" />
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">수량</span>
-                    <span className="tabular-nums">
-                      {Number(h.quantity).toLocaleString("ko-KR")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">현재가</span>
-                    <span className="tabular-nums">
-                      {h.current_price
-                        ? formatPrice(h.current_price, h.currency ?? "KRW")
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">평균단가</span>
-                    <span className="tabular-nums">
-                      {formatPrice(h.avg_price, h.currency ?? "KRW")}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">평가금액(₩)</span>
-                    <span className="tabular-nums">{formatKRW(h.market_value_krw)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">수익금(₩)</span>
-                    <PnLBadge value={h.pnl_amount ?? 0} />
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Desktop table view */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  {(
-                    [
-                      "종목",
-                      "수량",
-                      "평균단가",
-                      "현재가",
-                      "평가금액(₩)",
-                      "손익(₩)",
-                      "수익률",
-                    ] as const
-                  ).map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-2 text-left font-medium text-muted-foreground"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                  <th className="hidden lg:table-cell px-4 py-2 text-left font-medium text-muted-foreground">
-                    전일 대비
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedByMarketValue.map((h, i) => (
-                  <tr
-                    key={`${h.ticker}-${i}`}
-                    className="border-t cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:bg-accent/50"
-                    tabIndex={0}
-                    onClick={() => handleSelectStock(h.ticker, h.name)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleSelectStock(h.ticker, h.name);
-                      }
-                    }}
-                  >
-                    <td className="px-4 py-2">
-                      <div className="font-medium">{h.name}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <span>{h.ticker}</span>
-                        {h.portfolio_name && (
-                          <span className="rounded bg-muted px-1 text-[10px] font-medium">
-                            {h.portfolio_name}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 tabular-nums">
-                      {Number(h.quantity).toLocaleString("ko-KR")}
-                    </td>
-                    <td className="px-4 py-2 tabular-nums">
-                      {formatPrice(h.avg_price, h.currency ?? "KRW")}
-                    </td>
-                    <td className="px-4 py-2 tabular-nums">
-                      {h.current_price
-                        ? formatPrice(h.current_price, h.currency ?? "KRW")
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-2 tabular-nums">{formatKRW(h.market_value_krw)}</td>
-                    <td className="px-4 py-2">
-                      <PnLBadge value={h.pnl_amount ?? 0} />
-                    </td>
-                    <td className="px-4 py-2">
-                      <PnLBadge value={h.pnl_rate ?? 0} suffix="%" />
-                    </td>
-                    <td className="hidden lg:table-cell px-4 py-2">
-                      {h.day_change_rate != null ? (
-                        <PnLBadge value={h.day_change_rate} suffix="%" />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      <PerformanceTable
+        holdings={sortedByMarketValue}
+        onSelectStock={handleSelectStock}
+      />
 
       <StockSearchDialog
         open={searchOpen}

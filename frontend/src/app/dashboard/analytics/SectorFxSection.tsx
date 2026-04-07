@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PnLBadge } from "@/components/PnLBadge";
 import { SectorAllocationChart } from "@/components/DynamicCharts";
+import { WidgetErrorFallback } from "@/components/WidgetErrorFallback";
 
 interface SectorAllocationItem {
   sector: string;
@@ -60,12 +61,10 @@ export function SectorFxSection() {
         {sectorLoading ? (
           <Skeleton className="h-48 rounded-lg" />
         ) : sectorError ? (
-          <div className="flex items-center gap-2 text-sm text-destructive">
-            <span>섹터 배분을 불러오지 못했습니다.</span>
-            <button onClick={() => refetchSector()} className="underline">
-              다시 시도
-            </button>
-          </div>
+          <WidgetErrorFallback
+            message="섹터 배분을 불러오지 못했습니다."
+            onRetry={() => refetchSector()}
+          />
         ) : sectorAllocation.length > 0 ? (
           <Card>
             <CardContent className="p-4">
@@ -81,12 +80,10 @@ export function SectorFxSection() {
         {fxLoading ? (
           <Skeleton className="h-32 rounded-lg" />
         ) : fxError ? (
-          <div className="flex items-center gap-2 text-sm text-destructive">
-            <span>환차익 데이터를 불러오지 못했습니다.</span>
-            <button onClick={() => refetchFx()} className="underline">
-              다시 시도
-            </button>
-          </div>
+          <WidgetErrorFallback
+            message="환차익 데이터를 불러오지 못했습니다."
+            onRetry={() => refetchFx()}
+          />
         ) : fxGainLoss.length > 0 ? (
           <Card>
             <CardContent className="p-0">

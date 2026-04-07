@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WidgetErrorFallback } from "@/components/WidgetErrorFallback";
 
 interface Metrics {
   total_return_rate: number | null;
@@ -103,12 +104,10 @@ export function MetricsSection() {
           ))}
         </div>
       ) : isError ? (
-        <div className="flex items-center gap-2 text-sm text-destructive">
-          <span>지표를 불러오지 못했습니다.</span>
-          <button onClick={() => refetch()} className="underline">
-            다시 시도
-          </button>
-        </div>
+        <WidgetErrorFallback
+          message="지표를 불러오지 못했습니다."
+          onRetry={() => refetch()}
+        />
       ) : metrics ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <MetricCard

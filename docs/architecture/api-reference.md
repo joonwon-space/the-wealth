@@ -281,10 +281,11 @@ Rate-limited endpoints for brute force protection.
 
 ### POST /portfolios/{portfolio_id}/orders
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 10/minute per user
 - **Request body**: `{ "ticker": string, "name"?: string, "order_type": "BUY"|"SELL", "order_class": "limit"|"market", "quantity": int, "price"?: decimal, "exchange_code"?: string, "memo"?: string }`
 - **Response** (200): `OrderResult` -- order record with KIS order number
 - **Side effects**: Creates `orders` DB record; on success (pending), creates `transaction` and updates `holdings` (weighted avg price recalculation for BUY, quantity reduction for SELL); invalidates cash balance cache
-- **Notes**: Domestic/overseas auto-detected by ticker pattern. Account-type-specific TR_ID routing (regular/ISA/pension/IRP). Duplicate order prevention via Redis lock (TTL 10s). Rate limit: 5 orders/min per user.
+- **Notes**: Domestic/overseas auto-detected by ticker pattern. Account-type-specific TR_ID routing (regular/ISA/pension/IRP). Duplicate order prevention via Redis lock (TTL 10s).
 - **Errors**: 400 (no KIS account linked), 502 (KIS API failure)
 
 ### GET /portfolios/{portfolio_id}/orders/orderable
