@@ -159,9 +159,6 @@ async def _snapshot_daily_close() -> None:
 
     KST 16:10 (UTC 07:10) 평일 실행.
     """
-    import asyncio
-    from decimal import Decimal
-
     job_id = "daily_close_snapshot"
     logger.info("[Scheduler] Starting daily close snapshot")
 

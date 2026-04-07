@@ -20,7 +20,7 @@ Each item should be completable in a single commit.
 - [x] Extract `HoldingsTableRow.tsx` component from `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx` — move the per-row JSX (cells: ticker, name, qty inline-edit, avg price inline-edit, current price, PnL badge, 52-week bar, actions) into `frontend/src/app/dashboard/portfolios/[id]/HoldingsTableRow.tsx`; update HoldingsSection.tsx imports; target HoldingsSection.tsx ≤300L
 
 ### 23-2a. scheduler.py Split — market jobs (TD-004)
-- [ ] Split `backend/app/services/scheduler.py` (526L) — extract all market-data jobs (collect_price_snapshots, collect_benchmark, collect_exchange_rate) into `backend/app/services/scheduler_market_jobs.py`; each function takes `session_factory` param; update imports in scheduler.py
+- [x] Split `backend/app/services/scheduler.py` (526L) — extract all market-data jobs (collect_price_snapshots, collect_benchmark, collect_exchange_rate) into `backend/app/services/scheduler_market_jobs.py`; each function takes `session_factory` param; update imports in scheduler.py
 
 ### 23-2b. scheduler.py Split — portfolio + ops jobs (TD-004)
 - [ ] Extract portfolio jobs (sync_portfolio_holdings) and ops jobs (run_health_checks, check_disk_usage, check_price_gaps) from `backend/app/services/scheduler.py` into `backend/app/services/scheduler_portfolio_jobs.py` and `backend/app/services/scheduler_ops_jobs.py`; reduce scheduler.py to ≤150L orchestrator-only; add pytest unit test verifying all job ids still register
