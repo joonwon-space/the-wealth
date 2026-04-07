@@ -276,21 +276,21 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ### 20-1. 대형 파일 분리 (코드 품질)
 - [x] analytics.py(780L) → analytics_metrics.py + analytics_history.py + analytics_fx.py + services/analytics_utils.py (Sprint 9 완료)
-- [ ] kis_order.py(780L) → 분리 파일(kis_domestic_order.py 등) 생성 완료, 로직 이전 미완료 → tasks.md Sprint 10
+- [x] kis_order.py(780L) → kis_domestic_order.py + kis_overseas_order.py + kis_order_query.py 분리 완료 (Sprint 10 완료)
 - [x] analytics/page.tsx(762L) → MetricsSection + MonthlyReturnsSection + SectorFxSection + HistorySection (Sprint 9, 762→457L)
-- [ ] dashboard/page.tsx(415L) → DashboardMetrics 추출 완료, DashboardPortfolioList 미완료 → tasks.md Sprint 10
-- [ ] OrderDialog.tsx(605L) → DomesticOrderForm + OverseasOrderForm + useOrderSubmit hook → tasks.md Sprint 10
+- [x] dashboard/page.tsx(415L) → DashboardMetrics + DashboardPortfolioList 추출 완료 (Sprint 10 완료)
+- [x] OrderDialog.tsx(605L) → DomesticOrderForm + OverseasOrderForm + useOrderSubmit hook 완료 (Sprint 10 완료)
 
 ### 20-2. KOSPI200/S&P500 벤치마크 비교
-- [ ] 백엔드: KOSPI200/S&P500 일별 지수 데이터 수집 스케줄러 (KIS FHKUP03500100, FHKST03030100)
-- [ ] 백엔드: index_snapshots 테이블 + Alembic 마이그레이션
-- [ ] 프론트엔드: 포트폴리오 히스토리 차트에 벤치마크 오버레이 라인
-- [ ] 프론트엔드: 벤치마크 선택 UI (KOSPI200 / S&P500 / 둘 다)
+- [x] 백엔드: KOSPI200/S&P500 일별 지수 데이터 수집 스케줄러 (Sprint 10 완료)
+- [x] 백엔드: index_snapshots 테이블 + Alembic 마이그레이션 (Sprint 10 완료)
+- [x] 프론트엔드: 포트폴리오 히스토리 차트에 벤치마크 오버레이 라인 (Sprint 11 완료)
+- [x] 프론트엔드: 벤치마크 선택 UI (KOSPI200 / S&P500 / 둘 다) (Sprint 11 완료)
 
 ### 20-3. 주식 상세 기술적 분석
-- [ ] Moving averages overlay (5/20/60/120일) — price_snapshots SMA 계산
-- [ ] Volume analysis chart — ComposedChart에 볼륨 바 추가
-- [ ] My holdings overlay — 평균 매입가 수평선 on 캔들스틱
+- [x] Moving averages overlay (20/60/120일) — price_snapshots SMA + GET /analytics/stocks/{ticker}/sma (Sprint 11 완료)
+- [ ] Volume analysis chart — ComposedChart에 볼륨 바 추가 (Milestone 22로 이동)
+- [ ] My holdings overlay — 평균 매입가 수평선 on 캔들스틱 (Milestone 22로 이동)
 
 ---
 
@@ -317,13 +317,38 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 
 ---
 
-## Milestone 22: 매니지드 인프라 전환 (신규)
+## Milestone 22: 분석 기능 완성 — 배당 추적 + 차트 심화 (신규, Sprint 12+)
 
-### 22-1. PostgreSQL → Neon
+### 22-1. 배당 추적 (PROD-003)
+- [ ] KIS HHKDB669102C0 배당일정 + HHKDB13470100 배당률 API 연동 스케줄러
+- [ ] dividends 테이블 + Alembic 마이그레이션 (ticker, ex_date, pay_date, amount, yield)
+- [ ] analytics 페이지 배당 달력 + 배당 수익률 차트 (연간 배당 수익 히스토리)
+
+### 22-2. 주식 차트 심화 (PROD-004)
+- [ ] Volume analysis chart — CandlestickChart.tsx에 볼륨 바 추가 (ComposedChart)
+- [ ] My holdings overlay — 평균 매입가 수평선 on 캔들스틱
+
+---
+
+## Milestone 23: 코드 품질 — 대형 파일 분리 Round 2 (신규, Sprint 13+)
+
+### 23-1. 프론트엔드 파일 분리 (TD-002, TD-003)
+- [ ] journal/page.tsx (567L) → JournalTimeline.tsx + JournalFilters.tsx + useJournalData.ts 추출, 목표 ≤280L
+- [ ] HoldingsSection.tsx (548L) → useHoldingsInlineEdit.ts + HoldingsTableRow.tsx 추출, 목표 ≤300L
+
+### 23-2. 백엔드 파일 분리 (TD-004, TD-007)
+- [ ] scheduler.py (526L) → scheduler_market_jobs.py + scheduler_portfolio_jobs.py + scheduler_ops_jobs.py 분리, scheduler.py ≤100L orchestrator only
+- [ ] kis_price.py (522L) → kis_fx.py 추출 (USD/KRW FX 로직 ~160L), kis_price.py 목표 ≤300L
+
+---
+
+## Milestone 24: 매니지드 인프라 전환 (구 Milestone 22)
+
+### 24-1. PostgreSQL → Neon
 - [ ] Neon 프로젝트 생성 및 데이터 마이그레이션
 - [ ] Docker Compose 로컬 개발용으로만 유지
 
-### 22-2. Redis → Upstash
+### 24-2. Redis → Upstash
 - [ ] Upstash 인스턴스 생성 및 연결
 - [ ] 프로덕션 `.env` 업데이트 + 스테이징 검증
 
