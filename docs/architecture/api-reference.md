@@ -91,10 +91,12 @@ Rate-limited endpoints for brute force protection.
 
 ### GET /portfolios/{portfolio_id}/holdings
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 30/min
 - **Response** (200): `HoldingResponse[]`
 
 ### GET /portfolios/{portfolio_id}/holdings/with-prices
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 30/min
 - **Response** (200): Holdings with current prices, P&L, market values fetched live from KIS API
 - **Notes**: Uses `asyncio.gather()` for parallel price fetching; falls back to Redis cache on KIS API failure
 
@@ -124,31 +126,37 @@ Rate-limited endpoints for brute force protection.
 
 ### GET /portfolios/{portfolio_id}/transactions
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 60/min
 - **Response** (200): `TransactionResponse[]`
 
 ### GET /portfolios/{portfolio_id}/transactions/paginated
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 60/min
 - **Query params**: `cursor: int` (default 0, last transaction ID from previous page), `limit: int` (default 20, max 100)
 - **Response** (200): `TransactionPage` -- `{ items: TransactionResponse[], next_cursor: int | null, has_more: boolean }`
 - **Notes**: Cursor-based pagination for infinite scroll. `cursor=0` returns the first page. Excludes soft-deleted transactions.
 
 ### POST /portfolios/{portfolio_id}/transactions
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 60/min
 - **Request body**: `{ "ticker": string, "type": "BUY"|"SELL", "quantity": decimal, "price": decimal, "traded_at": datetime }`
 - **Response** (201): `TransactionResponse`
 
 ### DELETE /portfolios/transactions/{transaction_id}
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 60/min
 - **Response** (204): No content
 
 ### PATCH /portfolios/{portfolio_id}/transactions/{transaction_id}
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 60/min
 - **Request body**: `{ "memo": string | null }`
 - **Response** (200): `TransactionResponse`
 - **Notes**: Updates transaction memo (inline edit for investment journal)
 
 ### GET /portfolios/{portfolio_id}/kis-transactions
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 60/min
 - **Query params**: `from_date: string (YYYYMMDD)`, `to_date: string (YYYYMMDD)`
 - **Response** (200): List of KIS settlement records (domestic + overseas)
 - **Notes**: Requires linked KIS account. Fetches from KIS API `TTTC8001R` (domestic) and `TTTS3035R` (overseas by exchange)
