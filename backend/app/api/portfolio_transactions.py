@@ -4,12 +4,13 @@ import asyncio
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.encryption import decrypt
+from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
@@ -35,7 +36,9 @@ def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:
 
 
 @router.get("/{portfolio_id}/transactions", response_model=list[TransactionResponse])
+@limiter.limit("60/minute")
 async def list_transactions(
+    request: Request,
     portfolio_id: int,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
@@ -63,7 +66,9 @@ async def list_transactions(
 
 
 @router.get("/{portfolio_id}/transactions/paginated", response_model=TransactionPage)
+@limiter.limit("60/minute")
 async def list_transactions_paginated(
+    request: Request,
     portfolio_id: int,
     cursor: int = Query(default=0, ge=0, description="마지막으로 조회한 transaction ID (0이면 처음부터)"),
     limit: int = Query(default=20, ge=1, le=100),
@@ -119,7 +124,9 @@ async def list_transactions_paginated(
     response_model=TransactionResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("60/minute")
 async def create_transaction(
+    request: Request,
     portfolio_id: int,
     body: TransactionCreate,
     current_user: User = Depends(get_current_user),
@@ -148,7 +155,9 @@ async def create_transaction(
 
 
 @router.delete("/transactions/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("60/minute")
 async def delete_transaction(
+    request: Request,
     transaction_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -172,7 +181,9 @@ async def delete_transaction(
     "/{portfolio_id}/transactions/{transaction_id}",
     response_model=TransactionResponse,
 )
+@limiter.limit("60/minute")
 async def update_transaction_memo(
+    request: Request,
     portfolio_id: int,
     transaction_id: int,
     body: TransactionMemoUpdate,
@@ -202,7 +213,9 @@ async def update_transaction_memo(
 
 
 @router.get("/{portfolio_id}/kis-transactions")
+@limiter.limit("60/minute")
 async def list_kis_transactions(
+    request: Request,
     portfolio_id: int,
     from_date: str = Query(..., pattern=r"^\d{8}$", description="YYYYMMDD"),
     to_date: str = Query(..., pattern=r"^\d{8}$", description="YYYYMMDD"),

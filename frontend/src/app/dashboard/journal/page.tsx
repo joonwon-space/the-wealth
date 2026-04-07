@@ -510,24 +510,37 @@ export default function JournalPage() {
             </div>
           ))}
         </div>
+      ) : filtered.length === 0 && transactions.length > 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
+          <BookOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
+          <p className="font-semibold">필터 조건에 맞는 거래가 없습니다</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            다른 필터 조건을 선택하거나 필터를 초기화해 보세요.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => {
+              setTypeFilter("ALL");
+              setMemoOnly(false);
+              setSelectedTag(null);
+              setSelectedMonth("ALL");
+              setSelectedTicker("ALL");
+              setSearchInput("");
+            }}
+          >
+            필터 초기화
+          </Button>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <BookOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
-          <p className="font-semibold">
-            {selectedMonth !== "ALL" && !debouncedSearch && !memoOnly && !selectedTag && typeFilter === "ALL" && selectedTicker === "ALL"
-              ? "이 달에는 거래 내역이 없습니다"
-              : "검색 결과가 없습니다"}
-          </p>
+          <p className="font-semibold">거래 내역이 없습니다</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {debouncedSearch
-              ? `"${debouncedSearch}" 메모가 없는 거래 내역입니다.`
-              : memoOnly
-              ? "메모가 있는 거래 내역이 없습니다."
-              : selectedMonth !== "ALL" && typeFilter === "ALL" && selectedTicker === "ALL" && !selectedTag
-              ? "이 달에 등록된 거래가 없습니다."
-              : "선택한 조건에 맞는 거래 내역이 없습니다."}
+            포트폴리오에 거래 내역을 추가하세요.
           </p>
-          {selectedMonth !== "ALL" && !debouncedSearch && !memoOnly && !selectedTag && typeFilter === "ALL" && selectedTicker === "ALL" && activePortfolioId !== null && (
+          {activePortfolioId !== null && (
             <a
               href={`/dashboard/portfolios/${activePortfolioId}`}
               className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
