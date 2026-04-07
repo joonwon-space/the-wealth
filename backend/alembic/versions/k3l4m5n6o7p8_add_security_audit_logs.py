@@ -20,19 +20,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum type first
-    auditaction_enum = postgresql.ENUM(
-        "LOGIN_SUCCESS",
-        "LOGIN_FAILURE",
-        "LOGOUT",
-        "PASSWORD_CHANGE",
-        "ACCOUNT_DELETE",
-        "KIS_CREDENTIAL_ADD",
-        "KIS_CREDENTIAL_DELETE",
-        name="auditaction",
-        create_type=True,
+    # Create enum type using raw SQL for asyncpg compatibility
+    op.execute(
+        sa.text(
+            "CREATE TYPE IF NOT EXISTS auditaction AS ENUM ("
+            "'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'LOGOUT', 'PASSWORD_CHANGE',"
+            " 'ACCOUNT_DELETE', 'KIS_CREDENTIAL_ADD', 'KIS_CREDENTIAL_DELETE'"
+            ")"
+        )
     )
-    auditaction_enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "security_audit_logs",
