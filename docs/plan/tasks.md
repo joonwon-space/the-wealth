@@ -5,6 +5,31 @@ Each item should be completable in a single commit.
 
 ---
 
+## Sprint 13 — Code Quality: Large File Splits Round 2 (2026-04-08)
+
+### 23-1a. journal/page.tsx Split (TD-002)
+- [ ] Extract `JournalFilters.tsx` component from `frontend/src/app/dashboard/journal/page.tsx` — move filter state + filter controls UI (date pickers, tag selector, search input) into new file `frontend/src/app/dashboard/journal/JournalFilters.tsx`; export `JournalFiltersProps` interface; update imports in page.tsx
+
+### 23-1b. journal/page.tsx Split — hook + timeline (TD-002)
+- [ ] Extract `useJournalData.ts` custom hook from `frontend/src/app/dashboard/journal/page.tsx` — move useQuery calls (transactions, portfolio list), derived state (filteredTxns), and filter state into `frontend/src/app/dashboard/journal/useJournalData.ts`; extract `JournalTimeline.tsx` for the timeline list render; target page.tsx ≤280L
+
+### 23-1c. HoldingsSection.tsx Split — inline edit hook (TD-003)
+- [ ] Extract `useHoldingsInlineEdit.ts` custom hook from `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx` — move inline-edit state (editingId, editQty, editPrice, handlers: startEdit, cancelEdit, saveEdit) and the mutation logic into `frontend/src/app/dashboard/portfolios/[id]/useHoldingsInlineEdit.ts`; update HoldingsSection.tsx imports; target HoldingsSection.tsx ≤380L
+
+### 23-1d. HoldingsSection.tsx Split — table row component (TD-003)
+- [ ] Extract `HoldingsTableRow.tsx` component from `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx` — move the per-row JSX (cells: ticker, name, qty inline-edit, avg price inline-edit, current price, PnL badge, 52-week bar, actions) into `frontend/src/app/dashboard/portfolios/[id]/HoldingsTableRow.tsx`; update HoldingsSection.tsx imports; target HoldingsSection.tsx ≤300L
+
+### 23-2a. scheduler.py Split — market jobs (TD-004)
+- [ ] Split `backend/app/services/scheduler.py` (526L) — extract all market-data jobs (collect_price_snapshots, collect_benchmark, collect_exchange_rate) into `backend/app/services/scheduler_market_jobs.py`; each function takes `session_factory` param; update imports in scheduler.py
+
+### 23-2b. scheduler.py Split — portfolio + ops jobs (TD-004)
+- [ ] Extract portfolio jobs (sync_portfolio_holdings) and ops jobs (run_health_checks, check_disk_usage, check_price_gaps) from `backend/app/services/scheduler.py` into `backend/app/services/scheduler_portfolio_jobs.py` and `backend/app/services/scheduler_ops_jobs.py`; reduce scheduler.py to ≤150L orchestrator-only; add pytest unit test verifying all job ids still register
+
+### 23-2c. kis_price.py Split — extract kis_fx.py (TD-007)
+- [ ] Extract USD/KRW FX logic (~160L) from `backend/app/services/kis_price.py` into `backend/app/services/kis_fx.py` — move `get_usd_krw_rate`, `collect_exchange_rate_snapshot`, and related helpers; update all import sites; add/move existing tests to cover kis_fx module; target kis_price.py ≤360L
+
+---
+
 ## Sprint 12 — Security Quick Wins + UX Polish (2026-04-07)
 
 ### Rate Limit Gaps (SEC-001)
