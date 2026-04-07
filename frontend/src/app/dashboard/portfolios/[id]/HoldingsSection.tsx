@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { PackageOpen, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useHoldingsInlineEdit } from "./useHoldingsInlineEdit";
 import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -84,8 +85,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
   const [orderInitialTab, setOrderInitialTab] = useState<"BUY" | "SELL">("BUY");
   const [orderExchangeCode, setOrderExchangeCode] = useState<string | undefined>();
   const [orderExistingHolding, setOrderExistingHolding] = useState<ExistingHolding | undefined>();
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<{ quantity: string; avg_price: string }>({ quantity: "", avg_price: "" });
+  const { editId, editForm, isEditPending, startEdit, cancelEdit, setEditFormField, saveEdit } = useHoldingsInlineEdit(portfolioId);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const { data: cashBalance, isError: cashBalanceError, dataUpdatedAt: cashBalanceUpdatedAt, refetch: refetchCashBalance } = useCashBalance(isKisConnected ? portfolioId : 0);
@@ -114,20 +114,6 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
     },
     onError: () => {
       toast.error("보유종목 추가에 실패했습니다. 입력 내용을 확인해주세요.");
-    },
-  });
-
-  const editHoldingMutation = useMutation({
-    mutationFn: ({ holdingId, quantity, avg_price }: { holdingId: number; quantity: number; avg_price: number }) =>
-      api.patch<Holding>(`/portfolios/holdings/${holdingId}`, { quantity, avg_price }).then((r) => r.data),
-    onSuccess: (data) => {
-      queryClient.setQueryData<Holding[]>(holdingsKey(portfolioId), (prev) =>
-        prev ? prev.map((h) => (h.id === data.id ? data : h)) : []
-      );
-      setEditId(null);
-    },
-    onError: () => {
-      toast.error("보유종목 수정에 실패했습니다. 잠시 후 다시 시도해주세요.");
     },
   });
 
@@ -170,14 +156,6 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
     setAddFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
     addHoldingMutation.mutate(addForm);
-  };
-
-  const handleEditSave = (holdingId: number) => {
-    editHoldingMutation.mutate({
-      holdingId,
-      quantity: Number(editForm.quantity),
-      avg_price: Number(editForm.avg_price),
-    });
   };
 
   return (
@@ -302,7 +280,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
                           <Input
                             type="number"
                             value={editForm.quantity}
-                            onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
+                            onChange={(e) => setEditFormField("quantity", e.target.value)}
                             className="w-24 h-8"
                           />
                         </td>
@@ -310,14 +288,14 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
                           <Input
                             type="number"
                             value={editForm.avg_price}
-                            onChange={(e) => setEditForm((f) => ({ ...f, avg_price: e.target.value }))}
+                            onChange={(e) => setEditFormField("avg_price", e.target.value)}
                             className="w-28 h-8"
                           />
                         </td>
                         <td className="px-4 py-2">
                           <div className="flex gap-2">
-                            <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={editHoldingMutation.isPending}>저장</Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditId(null)}>취소</Button>
+                            <Button size="sm" onClick={() => saveEdit(h.id)} disabled={isEditPending}>저장</Button>
+                            <Button size="sm" variant="outline" onClick={cancelEdit}>취소</Button>
                           </div>
                         </td>
                       </>
@@ -409,7 +387,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
                               </>
                             )}
                             <button
-                              onClick={() => { setEditId(h.id); setEditForm({ quantity: h.quantity, avg_price: h.avg_price }); }}
+                              onClick={() => startEdit(h)}
                               className="rounded border px-3 py-1 text-xs hover:bg-muted"
                             >
                               수정
