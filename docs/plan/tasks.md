@@ -11,7 +11,7 @@ Each item should be completable in a single commit.
 - [x] Extract `JournalFilters.tsx` component from `frontend/src/app/dashboard/journal/page.tsx` — move filter state + filter controls UI (date pickers, tag selector, search input) into new file `frontend/src/app/dashboard/journal/JournalFilters.tsx`; export `JournalFiltersProps` interface; update imports in page.tsx
 
 ### 23-1b. journal/page.tsx Split — hook + timeline (TD-002)
-- [ ] Extract `useJournalData.ts` custom hook from `frontend/src/app/dashboard/journal/page.tsx` — move useQuery calls (transactions, portfolio list), derived state (filteredTxns), and filter state into `frontend/src/app/dashboard/journal/useJournalData.ts`; extract `JournalTimeline.tsx` for the timeline list render; target page.tsx ≤280L
+- [x] Extract `useJournalData.ts` custom hook from `frontend/src/app/dashboard/journal/page.tsx` — move useQuery calls (transactions, portfolio list), derived state (filteredTxns), and filter state into `frontend/src/app/dashboard/journal/useJournalData.ts`; extract `JournalTimeline.tsx` for the timeline list render; target page.tsx ≤280L
 
 ### 23-1c. HoldingsSection.tsx Split — inline edit hook (TD-003)
 - [ ] Extract `useHoldingsInlineEdit.ts` custom hook from `frontend/src/app/dashboard/portfolios/[id]/HoldingsSection.tsx` — move inline-edit state (editingId, editQty, editPrice, handlers: startEdit, cancelEdit, saveEdit) and the mutation logic into `frontend/src/app/dashboard/portfolios/[id]/useHoldingsInlineEdit.ts`; update HoldingsSection.tsx imports; target HoldingsSection.tsx ≤380L
