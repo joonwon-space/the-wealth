@@ -175,7 +175,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 80개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 82개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 > 주문 (`POST /portfolios/{id}/orders`) 레이트 리밋: 10/minute (Sprint 10에서 30→10으로 강화)
 
@@ -230,7 +230,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 |--------|------|------|
 | GET | `/dashboard/summary` | 대시보드 요약 (kis_status: "ok" / "degraded" 포함) |
 
-### 분석 (7)
+### 분석 (9)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/analytics/metrics` | 수익률 지표 |
@@ -240,6 +240,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/analytics/fx-history` | USD/KRW 환율 히스토리 |
 | GET | `/analytics/fx-gain-loss` | 해외주식 종목별 환차익/환차손 분리 |
 | GET | `/analytics/krw-asset-history` | 환율 반영 원화 환산 총 자산 추이 |
+| GET | `/analytics/benchmark` | KOSPI200 / S&P500 벤치마크 지수 일별 종가 시계열 |
+| GET | `/analytics/stocks/{ticker}/sma` | 종목별 단순 이동평균(SMA) 시계열 |
 
 ### 알림 (4)
 | Method | Path | 설명 |
