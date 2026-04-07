@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { BookOpen, ArrowUpCircle, ArrowDownCircle, MessageSquare, Search, TrendingUp, TrendingDown, X } from "lucide-react";
+import { BookOpen, ArrowUpCircle, ArrowDownCircle, MessageSquare, TrendingUp, TrendingDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { JournalFilters } from "./JournalFilters";
 
 interface Portfolio {
   id: number;
@@ -36,8 +37,6 @@ interface Transaction {
 }
 
 type TypeFilter = "ALL" | "BUY" | "SELL";
-
-const PRESET_TAGS = ["#실적발표", "#배당투자", "#단기매매", "#장기투자", "#리밸런싱"] as const;
 
 function formatDateGroup(iso: string): string {
   const d = new Date(iso);
@@ -389,116 +388,30 @@ export default function JournalPage() {
       )}
 
       {/* Filters */}
-      <div className="space-y-2">
-        {/* Row 1: type + memo + month + ticker */}
-        <div className="flex flex-wrap items-center gap-2">
-          {(["ALL", "BUY", "SELL"] as TypeFilter[]).map((t) => (
-            <Button
-              key={t}
-              variant={typeFilter === t ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTypeFilter(t)}
-              className="min-h-[36px]"
-            >
-              {t === "ALL" ? "전체" : t === "BUY" ? "매수" : "매도"}
-            </Button>
-          ))}
-          <Button
-            variant={memoOnly ? "default" : "outline"}
-            size="sm"
-            onClick={() => setMemoOnly((v) => !v)}
-            className="min-h-[36px] gap-1"
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            메모만
-          </Button>
-
-          {/* Month filter */}
-          {availableMonths.length > 0 && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="h-9 rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              aria-label="월별 필터"
-            >
-              <option value="ALL">전체 월</option>
-              {availableMonths.map((m) => (
-                <option key={m} value={m}>
-                  {m.replace("-", "년 ")}월
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Ticker filter */}
-          {availableTickers.length > 0 && (
-            <select
-              value={selectedTicker}
-              onChange={(e) => setSelectedTicker(e.target.value)}
-              className="h-9 rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              aria-label="종목별 필터"
-            >
-              <option value="ALL">전체 종목</option>
-              {availableTickers.map((ticker) => (
-                <option key={ticker} value={ticker}>{ticker}</option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Row 2: keyword search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="메모 내용 검색..."
-            className="h-9 w-full rounded-md border bg-background pl-8 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            aria-label="메모 검색"
-          />
-          {searchInput && (
-            <button
-              onClick={() => setSearchInput("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="검색어 지우기"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Tag filter */}
-        <div className="flex flex-wrap gap-1.5">
-          {PRESET_TAGS.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setSelectedTag((prev) => (prev === tag ? null : tag))}
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                selectedTag === tag
-                  ? "border-transparent text-white"
-                  : "hover:bg-accent text-muted-foreground"
-              )}
-              style={
-                selectedTag === tag
-                  ? { background: "var(--accent-indigo)" }
-                  : undefined
-              }
-            >
-              {tag}
-            </button>
-          ))}
-          {selectedTag && (
-            <button
-              onClick={() => setSelectedTag(null)}
-              className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              ✕ 초기화
-            </button>
-          )}
-        </div>
-      </div>
+      <JournalFilters
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
+        memoOnly={memoOnly}
+        onMemoOnlyChange={setMemoOnly}
+        selectedTag={selectedTag}
+        onTagChange={setSelectedTag}
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        selectedTicker={selectedTicker}
+        onTickerChange={setSelectedTicker}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        availableMonths={availableMonths}
+        availableTickers={availableTickers}
+        onResetFilters={() => {
+          setTypeFilter("ALL");
+          setMemoOnly(false);
+          setSelectedTag(null);
+          setSelectedMonth("ALL");
+          setSelectedTicker("ALL");
+          setSearchInput("");
+        }}
+      />
 
       {/* Timeline */}
       {isLoading ? (
@@ -532,6 +445,7 @@ export default function JournalPage() {
           >
             필터 초기화
           </Button>
+
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
