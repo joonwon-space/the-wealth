@@ -20,13 +20,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum type using raw SQL for asyncpg compatibility
+    # Create enum type using DO block for compatibility with PostgreSQL < 16
+    # (CREATE TYPE IF NOT EXISTS requires PG16+)
     op.execute(
         sa.text(
-            "CREATE TYPE IF NOT EXISTS auditaction AS ENUM ("
+            "DO $$ BEGIN "
+            "CREATE TYPE auditaction AS ENUM ("
             "'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'LOGOUT', 'PASSWORD_CHANGE',"
             " 'ACCOUNT_DELETE', 'KIS_CREDENTIAL_ADD', 'KIS_CREDENTIAL_DELETE'"
-            ")"
+            "); "
+            "EXCEPTION WHEN duplicate_object THEN NULL; "
+            "END $$"
         )
     )
 
