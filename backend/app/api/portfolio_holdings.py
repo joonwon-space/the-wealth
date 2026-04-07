@@ -58,7 +58,9 @@ def _assert_holding_owner(holding: Holding, portfolio: Portfolio, user: User) ->
 
 
 @router.get("/{portfolio_id}/holdings", response_model=list[HoldingResponse])
+@limiter.limit("30/minute")
 async def list_holdings(
+    request: Request,
     portfolio_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -77,7 +79,9 @@ async def list_holdings(
 
 
 @router.get("/{portfolio_id}/holdings/with-prices")
+@limiter.limit("30/minute")
 async def list_holdings_with_prices(
+    request: Request,
     portfolio_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

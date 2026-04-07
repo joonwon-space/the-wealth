@@ -8,28 +8,28 @@ Each item should be completable in a single commit.
 ## Sprint 12 — Security Quick Wins + UX Polish (2026-04-07)
 
 ### Rate Limit Gaps (SEC-001)
-- [ ] Add `@limiter.limit("60/minute")` to all 6 endpoints in `backend/app/api/portfolio_transactions.py` — list_transactions, list_transactions_paginated, create transaction, delete transaction, patch transaction, list_kis_transactions; consistent with project-wide rate-limiting policy
+- [x] Add `@limiter.limit("60/minute")` to all 6 endpoints in `backend/app/api/portfolio_transactions.py` — list_transactions, list_transactions_paginated, create transaction, delete transaction, patch transaction, list_kis_transactions; consistent with project-wide rate-limiting policy
 
 ### Holdings GET Rate Limits (SEC-004)
-- [ ] Add `@limiter.limit("30/minute")` to `GET /{portfolio_id}/holdings` and `GET /{portfolio_id}/holdings/with-prices` in `backend/app/api/portfolio_holdings.py` — the with-prices endpoint calls KIS API and is particularly vulnerable
+- [x] Add `@limiter.limit("30/minute")` to `GET /{portfolio_id}/holdings` and `GET /{portfolio_id}/holdings/with-prices` in `backend/app/api/portfolio_holdings.py` — the with-prices endpoint calls KIS API and is particularly vulnerable
 
 ### Vite CVE Patch (TD-001)
-- [ ] Upgrade vite in `frontend/` to fix HIGH severity CVE GHSA-4w7w-66w2-5vf9 (path traversal in .map file handling, affects >=8.0.0 <=8.0.4): `cd frontend && npm update vite`; verify `npm audit` shows 0 vulnerabilities after upgrade
+- [x] Upgrade vite in `frontend/` to fix HIGH severity CVE GHSA-4w7w-66w2-5vf9 (path traversal in .map file handling, affects >=8.0.0 <=8.0.4): `cd frontend && npm update vite`; verify `npm audit` shows 0 vulnerabilities after upgrade
 
 ### Journal Empty State (UX-001)
-- [ ] Add empty state to `frontend/src/app/dashboard/journal/page.tsx` — when filteredTxns.length === 0 but transactions.length > 0, render a message '필터 조건에 맞는 거래가 없습니다' with a Reset 버튼 that clears all filters; reuse existing EmptyState or create inline
+- [x] Add empty state to `frontend/src/app/dashboard/journal/page.tsx` — when filteredTxns.length === 0 but transactions.length > 0, render a message '필터 조건에 맞는 거래가 없습니다' with a Reset 버튼 that clears all filters; reuse existing EmptyState or create inline
 
 ### Analytics Metrics Null Feedback (UX-002)
-- [ ] Add informational banner to `frontend/src/app/dashboard/analytics/MetricsSection.tsx` — when the API returns null for all metrics (Sharpe/MDD/CAGR), show '포트폴리오 히스토리가 부족합니다. 지표는 데이터 축적 후 표시됩니다.' to explain why values are missing
+- [x] Add informational banner to `frontend/src/app/dashboard/analytics/MetricsSection.tsx` — when the API returns null for all metrics (Sharpe/MDD/CAGR), show '포트폴리오 히스토리가 부족합니다. 지표는 데이터 축적 후 표시됩니다.' to explain why values are missing
 
 ### Benchmark Period Sync (UX-005)
-- [ ] Fix `frontend/src/app/dashboard/analytics/HistorySection.tsx` — pass the active period filter's from/to dates to the benchmark overlay useQuery params so KOSPI200/S&P500 data aligns with the selected portfolio history window
+- [x] Fix `frontend/src/app/dashboard/analytics/HistorySection.tsx` — pass the active period filter's from/to dates to the benchmark overlay useQuery params so KOSPI200/S&P500 data aligns with the selected portfolio history window
 
 ### AccountSection staleTime (TD-006)
-- [ ] Add `staleTime: 60_000` to the userMe `useQuery` in `frontend/src/app/dashboard/settings/AccountSection.tsx` line 37 — matches staleTime policy already applied to other settings page queries
+- [x] Add `staleTime: 60_000` to the userMe `useQuery` in `frontend/src/app/dashboard/settings/AccountSection.tsx` line 37 — matches staleTime policy already applied to other settings page queries
 
 ### todo.md Stale Completions (TD-005)
-- [ ] Mark completed Sprint 10/11 items as `[x]` in `docs/plan/todo.md` Milestone 20: kis_order.py split (20-1), DashboardPortfolioList (20-1), OrderDialog split (20-1), benchmark collection (20-2), SMA overlay (20-3) — all completed in git commits f8c9d60 and c37bc75
+- [x] Mark completed Sprint 10/11 items as `[x]` in `docs/plan/todo.md` Milestone 20: kis_order.py split (20-1), DashboardPortfolioList (20-1), OrderDialog split (20-1), benchmark collection (20-2), SMA overlay (20-3) — all completed in git commits f8c9d60 and c37bc75
 
 ---
 

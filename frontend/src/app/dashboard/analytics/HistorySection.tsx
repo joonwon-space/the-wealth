@@ -41,8 +41,26 @@ interface BenchmarkPoint {
 type BenchmarkMode = "OFF" | "KOSPI200" | "SP500";
 
 interface HistorySectionProps {
-  period: "1W" | "1M" | "3M" | "6M" | "1Y" | "ALL";
-  onPeriodChange: (p: "1W" | "1M" | "3M" | "6M" | "1Y" | "ALL") => void;
+  period: Period;
+  onPeriodChange: (p: Period) => void;
+}
+
+type Period = "1W" | "1M" | "3M" | "6M" | "1Y" | "ALL";
+
+/** Returns ISO date strings for a given period filter. */
+function getPeriodDateRange(period: Period): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date(to);
+  if (period === "1W") from.setDate(from.getDate() - 7);
+  else if (period === "1M") from.setMonth(from.getMonth() - 1);
+  else if (period === "3M") from.setMonth(from.getMonth() - 3);
+  else if (period === "6M") from.setMonth(from.getMonth() - 6);
+  else if (period === "1Y") from.setFullYear(from.getFullYear() - 1);
+  else from.setFullYear(from.getFullYear() - 10); // ALL: 10y lookback
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  };
 }
 
 /** 두 시계열을 날짜 기준으로 병합한다. 기준점 대비 % 변화율로 정규화. */
@@ -99,17 +117,23 @@ export function HistorySection({ period, onPeriodChange }: HistorySectionProps) 
     staleTime: 3_600_000,
   });
 
+  const periodDateRange = getPeriodDateRange(period);
+
   const {
     data: benchmarkData = [],
     isLoading: benchmarkLoading,
   } = useQuery<BenchmarkPoint[]>({
-    queryKey: ["analytics", "benchmark", benchmarkMode],
+    queryKey: ["analytics", "benchmark", benchmarkMode, period],
     queryFn: () =>
       benchmarkMode === "OFF"
         ? Promise.resolve([])
         : api
             .get<BenchmarkPoint[]>("/analytics/benchmark", {
-              params: { index_code: benchmarkMode },
+              params: {
+                index_code: benchmarkMode,
+                from: periodDateRange.from,
+                to: periodDateRange.to,
+              },
             })
             .then((r) => r.data),
     enabled: benchmarkMode !== "OFF",

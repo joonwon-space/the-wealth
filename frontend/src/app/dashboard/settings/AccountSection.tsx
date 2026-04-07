@@ -37,6 +37,7 @@ export function AccountSection() {
   const { data: userMe } = useQuery<UserMe>({
     queryKey: ["users", "me"],
     queryFn: () => api.get<UserMe>("/users/me").then((r) => r.data),
+    staleTime: 60_000,
   });
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
