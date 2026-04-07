@@ -1,8 +1,45 @@
-# Code Review Summary — Sprint 10 Regression Fix (2026-04-07)
+# Sprint 11 Code Review Summary (2026-04-07)
+
+**Scope:** 17 files changed — BM-001/002, CQ-001/002/003, MA-001/002
+**Tests:** 824 passed / 0 failed (21 new tests added)
 
 ## Verdict: APPROVE
 
-All 21 Sprint 10 test regressions have been resolved. Test count improved from 782 passed / 21 failed (main) to **803 passed / 0 failed** (sprint10-fixes). Build and lint checks pass cleanly.
+Sprint 11 changes are well-structured and correct. All 7 tasks implemented cleanly. No critical or high severity findings. TypeScript compiles clean. Python linting passes.
+
+### Correctness
+- `_compute_sma` handles empty lists, insufficient data, and edge periods correctly
+- Benchmark deduplication by calendar day is sound
+- `_upsert_snapshot_with_session` session separation pattern is correct
+- Frontend `mergeWithBenchmark` handles missing benchmark dates with `null` (connectNulls handles rendering)
+
+### Security
+- Both new endpoints require `get_current_user` authentication
+- Both rate-limited at 30/minute
+- `index_code` validated against allowlist — no injection
+- Ticker parameter uses parameterized queries — no SQL injection
+
+### Performance
+- No N+1 queries introduced
+- Frontend queries have `staleTime: 3_600_000` — won't over-fetch
+- Benchmark overlay fetches only when mode != "OFF"
+- Medium: server-side caching not added for SMA/benchmark endpoints (future sprint)
+
+### Maintainability
+- `analytics/page.tsx` reduced from 457L to 205L
+- `WidgetErrorFallback` eliminates 6 repeated inline error patterns
+- All new Python files have type annotations and docstrings
+- Component interfaces explicitly typed
+
+| Dimension | Verdict | Critical | High | Medium | Low |
+|-----------|---------|----------|------|--------|-----|
+| Correctness | APPROVE | 0 | 0 | 0 | 0 |
+| Security | APPROVE | 0 | 0 | 0 | 0 |
+| Performance | APPROVE | 0 | 0 | 2 | 1 |
+| Maintainability | APPROVE | 0 | 0 | 0 | 1 |
+| **TOTAL** | **APPROVE** | **0** | **0** | **2** | **2** |
+
+Remaining medium findings (missing Redis caching on new endpoints) are appropriate for a future sprint, not blocking.
 
 ## Must Fix (before merge)
 

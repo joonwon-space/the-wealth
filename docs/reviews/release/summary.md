@@ -1,8 +1,44 @@
-# Release Readiness Report — Sprint 10 Regression Fix (2026-04-07)
+# Release Readiness Report — Sprint 11 (2026-04-07)
 
-## Decision: CONDITIONAL GO
+## Decision: GO
 
-All 4 validators pass. The regression fix is production-ready. One conditional: the local dev database has a migration drift (auditaction enum already exists from a prior migration run outside Alembic). This must be resolved before running `alembic upgrade head` on any environment where those objects already exist.
+Sprint 11 changes are production-ready.
+
+### Build Validator
+- Frontend production build: PASS (0 errors, 13 pre-existing warnings)
+- TypeScript compiler: PASS (0 errors)
+- Python ruff lint: PASS (all checks passed)
+- ESLint: PASS (0 errors)
+
+### Test Runner
+- Backend: 824 passed / 0 failed (21 new tests added: 8 SMA + 7 benchmark + 6 unit)
+- Frontend: TypeScript compilation passes; no existing test regressions introduced
+
+### Migration Checker
+- Sprint 11 adds NO new Alembic migrations (no schema changes)
+- Existing pre-Sprint 11 migration drift on dev DB (`auditaction` enum conflict) is a known pre-existing infrastructure issue, not caused by Sprint 11
+- New API endpoints use existing `index_snapshots` and `price_snapshots` tables which are already migrated
+
+### API Contract Checker
+- `GET /analytics/benchmark`: new endpoint, no breaking change
+- `GET /analytics/stocks/{ticker}/sma`: new endpoint, no breaking change
+- All existing endpoints unchanged
+- Frontend queries use correct paths and parameter names
+
+### Release Notes (Sprint 11)
+
+**New Features:**
+- Benchmark comparison overlay on portfolio history chart (KOSPI200 / S&P500 / OFF toggle)
+- SMA moving average overlay on stock candlestick chart (20/60/120 day selector)
+- `GET /analytics/benchmark` — index snapshot history API
+- `GET /analytics/stocks/{ticker}/sma` — simple moving average API
+
+**Code Quality:**
+- `analytics/page.tsx` reduced from 457L to 205L (55% smaller)
+- `WidgetErrorFallback` shared component eliminates 6 duplicate inline error patterns
+- `_upsert_snapshot` session anti-pattern resolved in `kis_benchmark.py`
+
+**Tests:** +21 backend tests (824 total)
 
 ## Validator Results
 

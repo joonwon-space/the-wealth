@@ -72,7 +72,7 @@ Current actionable work is in `tasks.md`.
 
 ### 11-2. Analytics Page Enhancement
 - [x] Portfolio performance period filter (1w / 1m / 3m / 6m / 1y / all 탭)
-- [ ] KOSPI200 / S&P500 benchmark overlay — backend data collection ready (index_snapshots table); needs frontend chart overlay (국내: `FHKUP03500100`, 해외: `FHKST03030100` `.SPX`/`.DJI`/`.IXIC`)
+- [x] KOSPI200 / S&P500 benchmark overlay — `GET /analytics/benchmark` endpoint + `HistorySection.tsx` toggle (KOSPI200/SP500/OFF) with normalized % return comparison (Sprint 11)
 - [ ] Dividend income tracking (calendar + yield chart) — KIS `HHKDB669102C0` 배당일정, `HHKDB13470100` 배당률 상위
 - [ ] Investment performance metrics: Sharpe ratio, MDD, CAGR (`backend/app/services/metrics.py`)
 - [ ] Monthly/annual return heatmap (GitHub contribution chart style)
@@ -83,7 +83,7 @@ Current actionable work is in `tasks.md`.
 
 ### 11-4. Stock Detail Page Enhancement
 - [x] Fundamental data (market cap, PER, PBR, dividend yield) via KIS master API — stocks.py에서 FHKST01010100 조회 구현 완료
-- [ ] Moving averages overlay (5/20/60/120 day)
+- [x] Moving averages overlay — `GET /analytics/stocks/{ticker}/sma` endpoint + `StockChartSection.tsx` SMA selector (20/60/120일) + `CandlestickChart.tsx` LineSeries overlay (Sprint 11)
 - [ ] Volume analysis chart
 - [ ] News/disclosure feed (KIS `FHKST01011800` 국내 시황/공시, `HHPSTH60100C1` 해외뉴스 — 제목 수준, 본문은 네이버 금융 등 보조 소스 필요)
 - [ ] My holdings overlay (average purchase price horizontal line on candlestick chart)
