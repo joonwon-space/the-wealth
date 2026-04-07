@@ -34,25 +34,25 @@ def upgrade() -> None:
         )
     )
 
+    # Use postgresql.ENUM with create_type=False so SQLAlchemy does not emit
+    # a second CREATE TYPE after the DO block above already created it.
+    action_enum = postgresql.ENUM(
+        "LOGIN_SUCCESS",
+        "LOGIN_FAILURE",
+        "LOGOUT",
+        "PASSWORD_CHANGE",
+        "ACCOUNT_DELETE",
+        "KIS_CREDENTIAL_ADD",
+        "KIS_CREDENTIAL_DELETE",
+        name="auditaction",
+        create_type=False,
+    )
+
     op.create_table(
         "security_audit_logs",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=True),
-        sa.Column(
-            "action",
-            sa.Enum(
-                "LOGIN_SUCCESS",
-                "LOGIN_FAILURE",
-                "LOGOUT",
-                "PASSWORD_CHANGE",
-                "ACCOUNT_DELETE",
-                "KIS_CREDENTIAL_ADD",
-                "KIS_CREDENTIAL_DELETE",
-                name="auditaction",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
+        sa.Column("action", action_enum, nullable=False),
         sa.Column("ip_address", sa.String(45), nullable=True),
         sa.Column("user_agent", sa.Text(), nullable=True),
         sa.Column("meta", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
