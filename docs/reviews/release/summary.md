@@ -1,50 +1,50 @@
-# Release Readiness Report — Sprint 10 (2026-04-07)
+# Release Readiness Report — Sprint 10 Regression Fix (2026-04-07)
 
 ## Decision: CONDITIONAL GO
 
-All 4 validators pass. One conditional: `alembic upgrade head` is required before traffic resumes (new `index_snapshots` table). Safe to deploy with that step included.
+All 4 validators pass. The regression fix is production-ready. One conditional: the local dev database has a migration drift (auditaction enum already exists from a prior migration run outside Alembic). This must be resolved before running `alembic upgrade head` on any environment where those objects already exist.
 
 ## Validator Results
 
 | Validator | Status | Detail |
 |-----------|--------|--------|
-| build-validator | PASS | ruff clean, tsc clean, backend + frontend Docker images build successfully (CI green) |
-| test-runner | PASS | 38 Sprint 10 targeted tests pass; 793+ total passing; pre-existing test isolation failures in test_alerts.py are unrelated to Sprint 10 |
-| migration-checker | CONDITIONAL | New `index_snapshots` migration (l4m5n6o7p8q9) — forward-only additive table, safe to apply; downgrade drops table cleanly |
-| api-contract-checker | PASS | No breaking API changes; 4 order endpoints now rate-limited (10/minute); scheduler gains collect_benchmark job |
+| build-validator | PASS | ruff clean (F401 in kis_benchmark.py fixed), tsc clean, frontend `npm run build` exits 0 |
+| test-runner | PASS | **803 passed / 0 failed** (up from 782/21 on main). All 21 Sprint 10 regressions resolved. |
+| migration-checker | CONDITIONAL | Migrations `k3l4m5n6o7p8` and `l4m5n6o7p8q9` are additive only. Dev DB has migration drift (auditaction enum pre-exists). Use `alembic stamp` to mark current revision before upgrading. |
+| api-contract-checker | PASS | No breaking API changes. All backward-compatible re-exports preserved. `kis_order.py` shim exports all original symbols. |
 
 ## Release Notes
 
-### Sprint 10 — Code Quality + Benchmark Foundation
+### Sprint 10 Regression Fix
 
-**Quick wins:**
-- `staleTime: 60_000` on portfolio list useQuery — reduces unnecessary refetches on window focus
-- `@limiter.limit("10/minute")` on 4 order endpoints: `get_orderable`, `list_pending_orders`, `settle_orders_endpoint`, `get_portfolio_cash_balance`
-- `aria-label` added to inline quantity/price inputs in HoldingsSection
+**Root cause:** Sprint 10 file split (kis_order.py → kis_order_place.py + kis_order_cancel.py + kis_order_query.py) used a different module decomposition in main vs sprint10-fixes. The test mock patches targeted old module paths that became re-export shims, causing mocks to be no-ops and 21 tests to fail.
 
-**Large file splits:**
-- `kis_order.py`: 780L reduced to 25L backward-compatible shim; logic split into `kis_order_place.py`, `kis_order_cancel.py`, `kis_order_query.py`
-- `OrderDialog.tsx`: 605L split into `OrderForm.tsx` (components/orders/) + `DashboardMetrics.tsx` (components/dashboard/)
-- `dashboard/page.tsx`: portfolio list delegated to `PortfolioList.tsx` with ErrorBoundary
+**Changes applied:**
+- `tests/test_kis_order.py` — patch `kis_token.get_kis_access_token` directly (source module) and `kis_order_place._cache` (correct rate-limit location)
+- `tests/test_orders.py` — patch `kis_order_place.datetime` (correct module after split)
+- `tests/test_scheduler.py` — assert 7 scheduler jobs (includes `collect_benchmark`); verify `collect_benchmark` job id
+- `kis_benchmark.py` — remove unused `sqlalchemy.text` import (ruff F401)
 
-**Benchmark foundation:**
-- New `index_snapshots` table via Alembic migration
-- `kis_benchmark.py` service: fetches KOSPI200 (FHKUP03500100) and S&P500 (FHKST03030100) daily close prices
-- Scheduler: new `collect_benchmark` job at KST 16:20 weekdays
+**Architecture difference from main:**
+- sprint10-fixes uses `kis_order_place.py` as the single consolidated module for domestic + overseas order placement
+- main uses separate `kis_domestic_order.py` and `kis_overseas_order.py` for each market
+- sprint10-fixes is the correct branch — all tests pass at 803
 
 ## Deployment Instructions
 
-1. Pull latest main
-2. `cd backend && alembic upgrade head` (creates `index_snapshots` table — required)
-3. `pip install -r requirements.txt` (no new dependencies in Sprint 10)
-4. Restart backend service
+1. Pull `sprint10-fixes` branch
+2. Check alembic current: `alembic current`
+3. If at `cdf80f13c5f6`, run: `alembic upgrade head` (applies k3l4m5n6o7p8 and l4m5n6o7p8q9)
+4. If auditaction enum already exists (from prior manual migration), run: `alembic stamp k3l4m5n6o7p8` then `alembic upgrade head`
+5. `pip install -r requirements.txt` (no new dependencies)
+6. Restart backend service
 
 ## Blockers
 
-None. Migration is additive only (creates new table). No data backfill needed.
+None for the regression fix itself. Migration drift in dev DB is a pre-existing issue unrelated to this fix.
 
 ## Post-Deploy Monitoring
 
-- Watch scheduler logs at KST 16:20 for `[Scheduler] Starting benchmark snapshot collection`
-- Verify `index_snapshots` table populates after market close
-- Rate limit rejections for order endpoints will return HTTP 429 — expected behavior
+- Verify test suite passes in CI: 803 tests, 0 failures
+- Confirm scheduler registers 7 jobs at startup (check logs for `Starting benchmark snapshot collection`)
+- Rate limit on order endpoints (10/minute) returns HTTP 429 when exceeded — expected

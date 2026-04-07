@@ -15,7 +15,6 @@ from decimal import Decimal
 from typing import Optional
 
 import httpx
-from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.config import settings

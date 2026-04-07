@@ -5,6 +5,16 @@ Each item should be completable in a single commit.
 
 ---
 
+## Bug Fix: Sprint 10 Test Regressions — 21 Failing Tests (2026-04-07)
+
+- [x] Correct mock patch paths in `test_kis_order.py`: patch `kis_token.get_kis_access_token` (source module) and `kis_order_place._cache` (rate-limit location) — test mock was targeting old paths that became re-export shims after file split
+- [x] Correct datetime patch path in `test_orders.py`: patch `kis_order_place.datetime` (correct module after split)
+- [x] Update scheduler job count assertion in `test_scheduler.py`: assert 7 jobs (not 8), verify `collect_benchmark` job id — main had wrong count for wrong architecture
+- [x] Remove unused `sqlalchemy.text` import from `kis_benchmark.py` (ruff F401)
+- [x] Verify 803 tests pass / 0 fail (up from 782/21 on main)
+
+---
+
 ## Sprint 10 — Code Quality + Benchmark Foundation (2026-04-06)
 
 ### Quick Wins (S effort, high impact)
