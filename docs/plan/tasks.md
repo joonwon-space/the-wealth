@@ -26,7 +26,7 @@ Each item should be completable in a single commit.
 - [x] Extract portfolio jobs (sync_portfolio_holdings) and ops jobs (run_health_checks, check_disk_usage, check_price_gaps) from `backend/app/services/scheduler.py` into `backend/app/services/scheduler_portfolio_jobs.py` and `backend/app/services/scheduler_ops_jobs.py`; reduce scheduler.py to ≤150L orchestrator-only; add pytest unit test verifying all job ids still register
 
 ### 23-2c. kis_price.py Split — extract kis_fx.py (TD-007)
-- [ ] Extract USD/KRW FX logic (~160L) from `backend/app/services/kis_price.py` into `backend/app/services/kis_fx.py` — move `get_usd_krw_rate`, `collect_exchange_rate_snapshot`, and related helpers; update all import sites; add/move existing tests to cover kis_fx module; target kis_price.py ≤360L
+- [x] Extract USD/KRW FX logic (~160L) from `backend/app/services/kis_price.py` into `backend/app/services/kis_fx.py` — move `get_usd_krw_rate`, `collect_exchange_rate_snapshot`, and related helpers; update all import sites; add/move existing tests to cover kis_fx module; target kis_price.py ≤360L
 
 ---
 
