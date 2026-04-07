@@ -86,7 +86,9 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 ### Trading
 | Component | Description |
 |-----------|-------------|
-| `OrderDialog.tsx` | Buy/sell order dialog with limit/market toggle, quick ratio buttons (10%/25%/50%/100%), confirmation step, cash balance display |
+| `OrderDialog.tsx` | Buy/sell order dialog orchestrator — delegates to `orders/OrderForm.tsx` and `orders/OrderConfirmation.tsx` |
+| `orders/OrderForm.tsx` | Order input form (limit/market toggle, quick ratio buttons 10%/25%/50%/100%, cash balance) |
+| `orders/OrderConfirmation.tsx` | Order confirmation step before submission |
 | `PendingOrdersPanel.tsx` | Pending (unfilled) orders table with cancel action and auto-detect filled orders via toast notification |
 
 ### Notifications
@@ -97,6 +99,8 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 ### Infrastructure
 | Component | Description |
 |-----------|-------------|
+| `dashboard/DashboardMetrics.tsx` | Dashboard metrics cards (total assets, P&L) — extracted from `dashboard/page.tsx` |
+| `dashboard/PortfolioList.tsx` | Portfolio list widget on main dashboard — extracted from `dashboard/page.tsx` |
 | `QueryProvider.tsx` | TanStack Query provider (wraps app with QueryClientProvider) |
 | `ErrorBoundary.tsx` | React Error Boundary with fallback UI + Sentry captureException |
 | `PageError.tsx` | Page-level error display component |
@@ -155,6 +159,7 @@ Axios instance configured with:
 | `usePriceStream` | `hooks/usePriceStream.ts` | SSE real-time price streaming. Connects to `GET /prices/stream?token={jwt}`. Updates prices every 30s during KST 09:00-15:30. Auto-reconnects on disconnect. |
 | `useNotifications` | `hooks/useNotifications.ts` | TanStack Query hook for notification center. Provides `notifications` list, `markRead`, `markAllRead` mutations with optimistic updates. |
 | `useOrders` | `hooks/useOrders.ts` | TanStack Query hooks for trading: `usePlaceOrder` (mutation), `useCashBalance` (query, 30s refetch), `usePendingOrders` (query, 5s refetch), `useCancelOrder` (mutation), `useOrderableInfo` (query). |
+| `useDebounce` | `hooks/useDebounce.ts` | Generic debounce hook for search input delay. |
 
 ---
 

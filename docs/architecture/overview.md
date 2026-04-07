@@ -105,6 +105,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 동기화 로그 | 동기화 이력 조회 (inserted/updated/deleted 건수) |
 | 일일 종가 스냅샷 | 평일 KST 16:10 보유종목 OHLCV 자동 저장 |
 | 환율 스냅샷 | 평일 KST 16:30 USD/KRW 환율 자동 저장 |
+| 미체결 주문 자동 체결 확인 | 평일 KST 09:00-15:00 매 5분마다 미체결 주문 KIS API 조회 후 체결 상태 자동 업데이트 |
+| 지수 스냅샷 (벤치마크) | 평일 KST 16:20 KOSPI200 + S&P500 지수 스냅샷 수집 → index_snapshots 저장 |
 
 ---
 
@@ -174,6 +176,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 ## 5. API 엔드포인트 전체 목록
 
 총 80개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+
+> 주문 (`POST /portfolios/{id}/orders`) 레이트 리밋: 10/minute (Sprint 10에서 30→10으로 강화)
 
 ### 인증 (8)
 | Method | Path | 설명 |

@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 80 API endpoints (20 routers — analytics split into 3)  │
+│   ├── 80 API endpoints (20 routers — analytics/portfolios split into sub-files)  │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -67,7 +67,9 @@ frontend/src/
 │   ├── login/                    # 로그인 페이지
 │   ├── register/                 # 회원가입 페이지
 │   └── dashboard/                # 대시보드 (인증 필요)
-│       ├── page.tsx              # 메인 대시보드
+│       ├── page.tsx              # 메인 대시보드 (thin shim, DashboardMetrics+PortfolioList 위임)
+│       ├── DashboardMetrics.tsx  # 총 자산/수익 카드 컴포넌트
+│       ├── PortfolioList.tsx     # 포트폴리오 목록 위젯
 │       ├── error.tsx             # 대시보드 에러 바운더리
 │       ├── layout.tsx            # 대시보드 레이아웃 (사이드바+하단 네비)
 │       ├── analytics/            # 분석 페이지
@@ -103,12 +105,19 @@ frontend/src/
 │   ├── ChartSkeleton.tsx         # 차트 로딩 스켈레톤
 │   ├── TableSkeleton.tsx         # 테이블 로딩 스켈레톤
 │   ├── NotificationBell.tsx     # 알림 벨 아이콘 + 미읽음 배지 + 드롭다운
-│   ├── OrderDialog.tsx          # 매수/매도 주문 다이얼로그 (지정가/시장가, 빠른비율)
+│   ├── OrderDialog.tsx          # 매수/매도 주문 다이얼로그 오케스트레이터
 │   ├── PendingOrdersPanel.tsx   # 미체결 주문 패널 (주문 취소, 체결 알림)
 │   ├── SentryInit.tsx           # Sentry 초기화 (프로덕션 전용)
+│   ├── dashboard/               # 대시보드 서브컴포넌트
+│   │   ├── DashboardMetrics.tsx # 총 자산/수익 카드 (page.tsx에서 분리)
+│   │   └── PortfolioList.tsx    # 대시보드 포트폴리오 목록 (page.tsx에서 분리)
+│   ├── orders/                  # 주문 서브컴포넌트
+│   │   ├── OrderForm.tsx        # 주문 입력 폼 (지정가/시장가, 빠른비율)
+│   │   └── OrderConfirmation.tsx # 주문 확인 스텝
 │   └── ui/                       # shadcn/ui 컴포넌트
 ├── hooks/
 │   ├── useCountUp.ts              # 숫자 카운트업 애니메이션 훅
+│   ├── useDebounce.ts            # 검색 입력 디바운스 훅
 │   ├── usePriceStream.ts         # SSE 실시간 가격 스트리밍 훅
 │   ├── useNotifications.ts      # 알림 센터 TanStack Query 훅 (목록, 읽음, 전체 읽음)
 │   └── useOrders.ts             # 주문 TanStack Query 훅 (주문, 예수금, 미체결, 취소)
@@ -264,10 +273,15 @@ backend/app/
 ├── api/                       # 17개 API 라우터 + 공통 의존성
 │   ├── deps.py                # get_current_user, get_current_user_sse 인증 의존성
 │   ├── auth.py                # 인증 (register, login, refresh, change-password, logout)
-│   ├── portfolios.py          # 포트폴리오/보유종목/거래내역 CRUD + KIS 체결내역
+│   ├── portfolios.py          # 포트폴리오 CRUD (thin shim: holdings/transactions 분리)
+│   ├── portfolio_holdings.py  # 보유종목 CRUD + 일괄등록
+│   ├── portfolio_transactions.py # 거래내역 CRUD + cursor 페이지네이션 + KIS 체결내역
 │   ├── portfolio_export.py    # CSV 내보내기 (보유종목 + 거래내역)
 │   ├── dashboard.py           # 대시보드 요약
-│   ├── analytics.py           # 수익률 분석, 월별 수익률, 섹터 배분, 환차익 분석, 원화 자산 추이
+│   ├── analytics.py           # thin re-export shim (→ analytics_metrics/history/fx)
+│   ├── analytics_metrics.py   # 수익률 지표, 월별 수익률, 섹터 배분
+│   ├── analytics_history.py   # 포트폴리오 히스토리, 원화 환산 자산 추이
+│   ├── analytics_fx.py        # 환차익/환차손 분리, 환율 히스토리
 │   ├── alerts.py              # 가격 알림 CRUD + 활성화/비활성화
 │   ├── notifications.py       # 인앱 알림 센터 (목록, 읽음 처리)
 │   ├── stocks.py              # 종목 검색/상세
@@ -293,7 +307,7 @@ backend/app/
 ├── db/
 │   ├── base.py                # SQLAlchemy Base
 │   └── session.py             # AsyncSession 팩토리
-├── models/                    # SQLAlchemy ORM 모델 (12 테이블)
+├── models/                    # SQLAlchemy ORM 모델 (14 테이블)
 │   ├── user.py
 │   ├── portfolio.py
 │   ├── holding.py
@@ -305,7 +319,9 @@ backend/app/
 │   ├── price_snapshot.py
 │   ├── fx_rate_snapshot.py
 │   ├── order.py
-│   └── sync_log.py
+│   ├── sync_log.py
+│   ├── index_snapshot.py      # KOSPI200/S&P500 지수 스냅샷 (벤치마크)
+│   └── security_audit_log.py  # 보안 감사 로그 (로그인/비밀번호 변경 등)
 ├── schemas/                   # Pydantic 검증 스키마
 │   ├── auth.py
 │   ├── portfolio.py
@@ -319,7 +335,11 @@ backend/app/
 │   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬)
 │   ├── kis_account.py         # KIS 잔고 조회
 │   ├── kis_balance.py         # KIS 예수금 조회 (국내 TTTC8434R + 해외 TTTS3012R)
-│   ├── kis_order.py           # KIS 주문 (국내/해외 매수/매도/취소, 미체결 조회)
+│   ├── kis_order.py           # KIS 주문 thin re-export shim (→ kis_order_place/cancel/query)
+│   ├── kis_order_place.py     # 국내/해외 매수/매도 주문 실행
+│   ├── kis_order_cancel.py    # 주문 취소
+│   ├── kis_order_query.py     # 미체결 조회, 주문 가능 수량, 예수금
+│   ├── kis_benchmark.py       # KOSPI200 + S&P500 지수 스냅샷 수집
 │   ├── kis_transaction.py     # KIS 체결내역 조회 (국내 TTTC8001R + 해외 TTTS3035R)
 │   ├── reconciliation.py      # 보유종목 동기화 로직
 │   ├── price_snapshot.py      # 일일 종가 스냅샷 저장
@@ -388,7 +408,7 @@ async def fetch_prices_parallel(
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ APScheduler (AsyncIOScheduler) — 5개 cron 잡             │
+│ APScheduler (AsyncIOScheduler) — 7개 cron 잡             │
 │                                                         │
 │ Job 1: kis_sync_us (미국 장 마감 후 동기화)               │
 │   trigger: cron(mon-fri, 21:30 UTC) = KST 06:30         │
@@ -414,6 +434,16 @@ async def fetch_prices_parallel(
 │ Job 5: fx_rate_snapshot (환율 스냅샷)                     │
 │   trigger: cron(mon-fri, 07:30 UTC) = KST 16:30         │
 │   action: USD/KRW 환율 조회 → fx_rate_snapshots 테이블 저장│
+│                                                         │
+│ Job 6: settle_orders (미체결 주문 자동 체결 확인)          │
+│   trigger: cron(mon-fri, hour=9-15, minute=*/5) UTC      │
+│            = KST 장중 09:00-15:00 매 5분                  │
+│   action: 미체결 주문 KIS API 조회 → filled/partial 업데이트│
+│                                                         │
+│ Job 7: collect_benchmark (지수 스냅샷)                    │
+│   trigger: cron(mon-fri, 07:20 UTC) = KST 16:20         │
+│   action: KOSPI200 + S&P500 지수 스냅샷 수집              │
+│           → index_snapshots 테이블 저장                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -449,7 +479,7 @@ Request
 
 ---
 
-## 4. 데이터베이스 스키마 (12 테이블)
+## 4. 데이터베이스 스키마 (14 테이블)
 
 ### 4.1 ERD 다이어그램
 
@@ -546,6 +576,30 @@ Request
 │ created_at       │
 │ UQ(pair, date)   │
 └──────────────────┘
+
+┌──────────────────┐
+│ index_snapshots  │
+├──────────────────┤
+│ id (PK)          │
+│ index_code       │ (String, INDEX) KOSPI200/SP500
+│ timestamp        │ (DateTime tz)
+│ close_price      │ (Numeric, NOT NULL)
+│ change_pct       │ (Numeric, nullable)
+│ created_at       │
+│ UQ(code, ts)     │
+└──────────────────┘
+
+┌─────────────────────┐
+│ security_audit_logs │
+├─────────────────────┤
+│ id (PK)             │
+│ user_id (FK, SET NULL)│◄── users
+│ action              │ (Enum: LOGIN_SUCCESS/FAILURE/LOGOUT/...)
+│ ip_address          │ (String, nullable)
+│ user_agent          │ (Text, nullable)
+│ extra               │ (JSONB, nullable)
+│ created_at          │
+└─────────────────────┘
 
 ┌──────────────┐
 │   orders     │
@@ -701,6 +755,28 @@ Request
 | message | String | nullable | 에러 메시지 (최대 500자) |
 | synced_at | DateTime | default=now | 동기화 일시 |
 
+#### index_snapshots
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|---------|------|
+| id | Integer | PK, auto | 스냅샷 ID |
+| index_code | String(20) | NOT NULL, INDEX | 지수 코드 (KOSPI200, SP500) |
+| timestamp | DateTime(tz) | NOT NULL | 스냅샷 시각 |
+| close_price | Numeric(18,4) | NOT NULL | 종가 |
+| change_pct | Numeric(8,4) | nullable | 전일 대비 변동률 (%) |
+| created_at | DateTime(tz) | server_default=now | 생성일시 |
+| | | UNIQUE(index_code, timestamp) | 지수+시각 유니크 |
+
+#### security_audit_logs
+| 컬럼 | 타입 | 제약조건 | 설명 |
+|------|------|---------|------|
+| id | Integer | PK, auto | 로그 ID |
+| user_id | Integer | FK→users SET NULL, nullable | 대상 사용자 (탈퇴 시 NULL 유지) |
+| action | Enum | NOT NULL | 행동 유형 (LOGIN_SUCCESS/FAILURE/LOGOUT/PASSWORD_CHANGE/ACCOUNT_DELETE/KIS_CREDENTIAL_ADD/KIS_CREDENTIAL_DELETE) |
+| ip_address | String | nullable | 클라이언트 IP |
+| user_agent | Text | nullable | 클라이언트 User-Agent |
+| extra | JSONB | nullable | 추가 컨텍스트 (이메일 등) |
+| created_at | DateTime(tz) | server_default=now | 생성일시 |
+
 #### orders
 | 컬럼 | 타입 | 제약조건 | 설명 |
 |------|------|---------|------|
@@ -759,13 +835,13 @@ slowapi 기반 IP별 레이트 리미팅:
 | POST /sync/* | 5/min |
 | GET /dashboard/* | 120/min |
 | POST/PATCH/DELETE /portfolios/* (쓰기) | 60/min |
-| POST /portfolios/{id}/orders | 30/min |
+| POST /portfolios/{id}/orders | 10/min (Sprint 10에서 강화) |
 | DELETE /portfolios/{id}/orders/* | 30/min |
 | 기타 | 60/min (기본값) |
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-04-03)
+## 6. 프로젝트 현황 분석 (2026-04-07)
 
 ### 6.1 완성도
 
@@ -781,7 +857,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
 | 주식 매매 | 완료 | 국내/해외 매수/매도 주문, 미체결 조회/취소, 예수금 조회 (국내+해외 합산), 이중 주문 방지 락 |
-| 자동 동기화 | 완료 | APScheduler 5개 cron 잡: KST 06:30 미국 장 마감 sync, KST 08:00/16:00 holdings sync + 캐시 워밍, KST 16:10 일일 스냅샷, KST 16:30 환율 스냅샷 |
+| 자동 동기화 | 완료 | APScheduler 7개 cron 잡: KST 06:30 미국 장 마감 sync, KST 08:00/16:00 holdings sync + 캐시 워밍, KST 16:10 일일 스냅샷, KST 16:30 환율 스냅샷, 장중 5분마다 미체결 주문 체결 확인, KST 16:20 KOSPI200+S&P500 지수 스냅샷 |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
 | 에러 처리 | 완료 | 표준 에러 응답 (envelope), Error Boundary, 전역 예외 핸들러 |
@@ -800,10 +876,14 @@ slowapi 기반 IP별 레이트 리미팅:
 | 보안 강화 (sprint-3) | 완료 | bcrypt DoS 방지(max_length=128), Sentry 자격증명 스크러빙, CSP 수정, tags 길이 제한 |
 | 성능 최적화 (sprint-3) | 완료 | Redis ConnectionPool 싱글턴, DISTINCT ON prev_close 쿼리, fx-gain-loss 캐시, SSE React Compiler 호환 |
 | 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
+| 코드 파일 분할 (Sprint 9/10) | 완료 | analytics.py→3분할, portfolios.py→holdings+transactions, kis_order.py→place+cancel+query, dashboard/page.tsx→DashboardMetrics+PortfolioList |
+| 벤치마크 수집 기반 (Sprint 10) | 완료 (데이터 수집) | IndexSnapshot 모델 + collect_benchmark 스케줄러 잡. 분석 페이지 UI 연동 미착수 |
+| 미체결 주문 자동 체결 확인 (Sprint 10) | 완료 | settle_orders 스케줄러 잡 (장중 5분 주기) |
+| 의존성 안정성 (Sprint 9) | 완료 | Starlette 1.0.0, pytest-asyncio 1.3.0 업그레이드. 803 테스트 통과 |
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: 792 passed (Sprint 8 완료 후 기준; 2026-04-04), 78% 커버리지
+전체: 803 passed (Sprint 10 완료 후 기준; 2026-04-07), 78% 커버리지
 
 CI 수정 사항:
 - `test_kis_price.py` MagicMock import 누락 수정
@@ -914,12 +994,27 @@ CI 수정 사항:
 - **[Sprint 8]** 의존성 업그레이드: fastapi 0.115→0.135.3, redis 6.x→7.4.0, sentry-sdk 2.x→2.57.0, sqlalchemy 2.0.x→2.0.49, ruff 0.11.x→0.15.9
 - **[Sprint 8]** fx-gain-loss 현재가 조회 병렬화 (asyncio.gather, sequential Redis 호출 제거)
 - **[Sprint 8]** analytics/fx-history currency_pair 입력 검증 (허용 목록: USDKRW/EURKRW/JPYKRW/CNYKRW)
+- **[Sprint 9]** Starlette 0.52.1 → 1.0.0 업그레이드 (803 테스트 통과)
+- **[Sprint 9]** pytest-asyncio 0.25.3 → 1.3.0 업그레이드
+- **[Sprint 9]** analytics.py API 라우터 3분할 → analytics_metrics.py + analytics_history.py + analytics_fx.py (각 독립 APIRouter)
+- **[Sprint 9]** portfolios.py API 라우터 분할 → portfolio_holdings.py + portfolio_transactions.py
+- **[Sprint 9]** dashboard/page.tsx 603L → DashboardMetrics + PortfolioList 컴포넌트 분리
+- **[Sprint 9]** analytics 섹션 컴포넌트 ErrorBoundary 래핑 (개별 섹션 실패 시 독립적 에러 표시)
+- **[Sprint 10]** 주문 레이트 리밋 강화: POST /orders 30/min → 10/min
+- **[Sprint 10]** 대시보드 요약 staleTime 60초 추가 (불필요한 refetch 감소)
+- **[Sprint 10]** IndexSnapshot 모델 + index_snapshots 마이그레이션 추가
+- **[Sprint 10]** kis_benchmark.py: KOSPI200 + S&P500 스냅샷 수집 서비스
+- **[Sprint 10]** 스케줄러 Job 6 추가: settle_orders (장중 5분 주기)
+- **[Sprint 10]** 스케줄러 Job 7 추가: collect_benchmark (KST 16:20)
+- **[Sprint 10]** kis_order.py 추가 분할: kis_order_place.py (384L) + kis_order_cancel.py (103L) + kis_order_query.py 분리; kis_order.py thin shim으로 유지
+- **[Sprint 10]** a11y 개선: HoldingsSection 수치 입력 inputMode="numeric"/"decimal" 추가
+- **[Sprint 10]** 테스트 회귀 수정: 21개 실패 → 0 (신규 모듈 경로 픽스처 업데이트)
 
 ### 6.4 약점 및 개선 필요 사항
 
 - 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
 - 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
-- 분석 페이지 벤치마크/고급 지표 미구현 (기간 필터는 1W/1M/3M/6M/1Y/ALL 구현 완료)
+- 벤치마크 비교 UI 미구현 (Sprint 10에서 index_snapshots 데이터 수집 기반 완료, 분석 페이지 차트 연동 미착수)
 - invalidate_analytics_cache가 포트폴리오별 캐시 키를 무효화하지 않음 (TTL 1시간 만료 후 자동 갱신)
 
 ### 6.5 리스크
