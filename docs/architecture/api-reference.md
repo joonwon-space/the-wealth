@@ -222,6 +222,22 @@ Rate-limited endpoints for brute force protection.
 - **Response** (200): `[{ "date": string (YYYY-MM-DD), "value": decimal, "domestic_value": decimal, "overseas_value_krw": decimal }]`
 - **Description**: Time-series total asset value in KRW, combining domestic holdings (KRW) and overseas holdings (USD converted at the day's FX rate from `fx_rate_snapshots`, forward-filled when missing). Sourced from `price_snapshots` joined with `fx_rate_snapshots`.
 
+### GET /analytics/benchmark
+- **Auth**: Required
+- **Rate limit**: 30/minute
+- **Query params**: `index_code: string` (default "KOSPI200"; accepts KOSPI200, SP500), `from: string (YYYY-MM-DD)` (optional), `to: string (YYYY-MM-DD)` (optional)
+- **Response** (200): `[{ "date": string (YYYY-MM-DD), "close_price": decimal }]`
+- **Description**: Returns daily close price time-series for the specified benchmark index from the `index_snapshots` table. Data is collected by the `collect_benchmark` scheduler job (KST 16:20 weekdays).
+- **Errors**: 400 (invalid `index_code`)
+
+### GET /analytics/stocks/{ticker}/sma
+- **Auth**: Required
+- **Rate limit**: 30/minute
+- **Path params**: `ticker: string`
+- **Query params**: `period: int` (default 20, min 2, max 200), `from: string (YYYY-MM-DD)` (optional), `to: string (YYYY-MM-DD)` (optional)
+- **Response** (200): `[{ "date": string (YYYY-MM-DD), "sma": decimal }]`
+- **Description**: Returns the simple moving average (SMA) time-series for a ticker from `price_snapshots`. Points where SMA cannot be computed (insufficient preceding data) are excluded from the response. Fetches `period-1` extra days before `from` to ensure accurate SMA at the start of the requested range.
+
 ---
 
 ## Alerts (`/alerts`)

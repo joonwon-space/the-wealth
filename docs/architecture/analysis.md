@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 80 API endpoints (20 routers — analytics/portfolios split into sub-files)  │
+│   ├── 82 API endpoints (20 routers — analytics/portfolios split into sub-files)  │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -270,7 +270,7 @@ frontend/src/
 ```
 backend/app/
 ├── main.py                    # FastAPI app, CORS, 미들웨어, 라우터 등록
-├── api/                       # 17개 API 라우터 + 공통 의존성
+├── api/                       # 20개 API 라우터 + 공통 의존성
 │   ├── deps.py                # get_current_user, get_current_user_sse 인증 의존성
 │   ├── auth.py                # 인증 (register, login, refresh, change-password, logout)
 │   ├── portfolios.py          # 포트폴리오 CRUD (thin shim: holdings/transactions 분리)
@@ -282,6 +282,8 @@ backend/app/
 │   ├── analytics_metrics.py   # 수익률 지표, 월별 수익률, 섹터 배분
 │   ├── analytics_history.py   # 포트폴리오 히스토리, 원화 환산 자산 추이
 │   ├── analytics_fx.py        # 환차익/환차손 분리, 환율 히스토리
+│   ├── analytics_benchmark.py # 벤치마크 지수 히스토리 (KOSPI200/S&P500)
+│   ├── analytics_sma.py       # 종목별 단순 이동평균(SMA) 시계열
 │   ├── alerts.py              # 가격 알림 CRUD + 활성화/비활성화
 │   ├── notifications.py       # 인앱 알림 센터 (목록, 읽음 처리)
 │   ├── stocks.py              # 종목 검색/상세
@@ -877,7 +879,8 @@ slowapi 기반 IP별 레이트 리미팅:
 | 성능 최적화 (sprint-3) | 완료 | Redis ConnectionPool 싱글턴, DISTINCT ON prev_close 쿼리, fx-gain-loss 캐시, SSE React Compiler 호환 |
 | 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
 | 코드 파일 분할 (Sprint 9/10) | 완료 | analytics.py→3분할, portfolios.py→holdings+transactions, kis_order.py→place+cancel+query, dashboard/page.tsx→DashboardMetrics+PortfolioList |
-| 벤치마크 수집 기반 (Sprint 10) | 완료 (데이터 수집) | IndexSnapshot 모델 + collect_benchmark 스케줄러 잡. 분석 페이지 UI 연동 미착수 |
+| 벤치마크 히스토리 API (Sprint 11) | 완료 | GET /analytics/benchmark — KOSPI200/S&P500 일별 종가 시계열, index_snapshots 테이블 쿼리 |
+| SMA 오버레이 API (Sprint 11) | 완료 | GET /analytics/stocks/{ticker}/sma — price_snapshots 기반 단순 이동평균 계산, period 2~200 파라미터 지원 |
 | 미체결 주문 자동 체결 확인 (Sprint 10) | 완료 | settle_orders 스케줄러 잡 (장중 5분 주기) |
 | 의존성 안정성 (Sprint 9) | 완료 | Starlette 1.0.0, pytest-asyncio 1.3.0 업그레이드. 803 테스트 통과 |
 
@@ -1009,12 +1012,15 @@ CI 수정 사항:
 - **[Sprint 10]** kis_order.py 추가 분할: kis_order_place.py (384L) + kis_order_cancel.py (103L) + kis_order_query.py 분리; kis_order.py thin shim으로 유지
 - **[Sprint 10]** a11y 개선: HoldingsSection 수치 입력 inputMode="numeric"/"decimal" 추가
 - **[Sprint 10]** 테스트 회귀 수정: 21개 실패 → 0 (신규 모듈 경로 픽스처 업데이트)
+- **[Sprint 11]** 벤치마크 API 추가: GET /analytics/benchmark — KOSPI200/S&P500 일별 종가 시계열 (index_snapshots 쿼리, index_code 입력 검증, 30/min 레이트 리밋)
+- **[Sprint 11]** SMA 오버레이 API 추가: GET /analytics/stocks/{ticker}/sma — price_snapshots 기반 단순 이동평균 계산 (period 2~200, from/to 날짜 필터, 초기 None 포인트 제외)
+- **[Sprint 11]** 코드 품질 개선: analytics_benchmark.py + analytics_sma.py 독립 라우터 파일 분리 (20개 라우터 체계 확립)
 
 ### 6.4 약점 및 개선 필요 사항
 
 - 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
 - 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
-- 벤치마크 비교 UI 미구현 (Sprint 10에서 index_snapshots 데이터 수집 기반 완료, 분석 페이지 차트 연동 미착수)
+- 벤치마크 비교 UI 미구현 (Sprint 11에서 GET /analytics/benchmark API 완료. 분석 페이지 차트 연동 미착수)
 - invalidate_analytics_cache가 포트폴리오별 캐시 키를 무효화하지 않음 (TTL 1시간 만료 후 자동 갱신)
 
 ### 6.5 리스크
