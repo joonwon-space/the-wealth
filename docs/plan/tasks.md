@@ -5,6 +5,31 @@ Each item should be completable in a single commit.
 
 ---
 
+## Sprint 11 — Benchmark Read API + Moving Averages + Code Quality (2026-04-07)
+
+### Benchmark Read Endpoint (BM-001)
+- [x] Add `GET /analytics/benchmark` endpoint in `backend/app/api/analytics.py` — query `index_snapshots` table, accept `?index_code=KOSPI200&from=YYYY-MM-DD&to=YYYY-MM-DD`, return `[{date, close_price}]` list; add rate-limit 30/minute
+
+### Benchmark Frontend Overlay (BM-002)
+- [x] Add benchmark overlay toggle to `frontend/src/app/dashboard/analytics/page.tsx` — fetch `/analytics/benchmark?index_code=KOSPI200`, plot as a secondary line on the portfolio history Recharts chart; show toggle button (KOSPI200 / S&P500 / off)
+
+### Shared Error Fallback Component (CQ-001)
+- [x] Extract `WidgetErrorFallback` component from inline JSX in `frontend/src/app/dashboard/analytics/page.tsx` and `frontend/src/app/dashboard/page.tsx` into `frontend/src/components/WidgetErrorFallback.tsx`; update all usages
+
+### Fix _upsert_snapshot Session Anti-Pattern (CQ-002)
+- [x] Refactor `_upsert_snapshot` in `backend/app/services/kis_benchmark.py` — replace bare `AsyncSessionLocal()` context manager (session not injected) with a proper `async with AsyncSessionLocal() as session:` block that receives the session as a parameter where the caller passes it; ensure session commit/rollback is handled correctly
+
+### Shrink analytics/page.tsx (CQ-003)
+- [x] Split `frontend/src/app/dashboard/analytics/page.tsx` (457L) — extract `BenchmarkChart.tsx`, `PortfolioMetricsCards.tsx` helper components; target main file ≤ 280 lines
+
+### Backend SMA Endpoint (MA-001)
+- [x] Add `GET /analytics/stocks/{ticker}/sma` endpoint in `backend/app/api/analytics.py` — accept `?period=20&from=YYYY-MM-DD&to=YYYY-MM-DD`, compute SMA over `price_history` snapshots stored in DB, return `[{date, sma}]`; add rate-limit 30/minute; add unit tests in `backend/tests/test_analytics_sma.py`
+
+### Frontend Moving Average Overlay (MA-002)
+- [x] Add SMA overlay to stock detail chart in `frontend/src/app/dashboard/portfolios/[id]/` — fetch `/analytics/stocks/{ticker}/sma?period=20`, render as dashed line on the Recharts price chart; add period selector (20 / 60 / 120 days)
+
+---
+
 ## Bug Fix: Sprint 10 Test Regressions — 21 Failing Tests (2026-04-07)
 
 - [x] Correct mock patch paths in `test_kis_order.py`: patch `kis_token.get_kis_access_token` (source module) and `kis_order_place._cache` (rate-limit location) — test mock was targeting old paths that became re-export shims after file split

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createChart, CandlestickSeries, HistogramSeries, type IChartApi } from "lightweight-charts";
+import { createChart, CandlestickSeries, HistogramSeries, LineSeries, type IChartApi } from "lightweight-charts";
 
 interface Candle {
   time: string;
@@ -12,12 +12,21 @@ interface Candle {
   volume: number;
 }
 
+interface SmaDataPoint {
+  time: string;
+  value: number;
+}
+
 interface Props {
   candles: Candle[];
   avgPrice?: number;
+  /** SMA 시계열 데이터 (시간 오름차순) */
+  smaData?: SmaDataPoint[];
+  /** SMA 기간 — 범례 레이블용 */
+  smaPeriod?: number;
 }
 
-export function CandlestickChart({ candles, avgPrice }: Props) {
+export function CandlestickChart({ candles, avgPrice, smaData, smaPeriod }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -97,6 +106,18 @@ export function CandlestickChart({ candles, avgPrice }: Props) {
       });
     }
 
+    // SMA line overlay
+    if (smaData && smaData.length > 0) {
+      const smaSeries = chart.addSeries(LineSeries, {
+        color: "#f59e0b",
+        lineWidth: 1,
+        lineStyle: 1, // dashed
+        priceFormat: { type: "price", precision: 0, minMove: 1 },
+        title: smaPeriod ? `SMA${smaPeriod}` : "SMA",
+      });
+      smaSeries.setData(smaData);
+    }
+
     chart.timeScale().fitContent();
 
     // Resize handler
@@ -112,7 +133,7 @@ export function CandlestickChart({ candles, avgPrice }: Props) {
       chart.remove();
       chartRef.current = null;
     };
-  }, [candles, avgPrice]);
+  }, [candles, avgPrice, smaData, smaPeriod]);
 
   if (candles.length === 0) {
     return (

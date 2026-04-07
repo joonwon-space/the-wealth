@@ -12,7 +12,10 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -164,26 +167,40 @@ async def _fetch_overseas_index(
         return None
 
 
-async def _upsert_snapshot(snapshot: IndexSnapshotData) -> None:
-    """index_snapshots 테이블에 upsert (충돌 시 close_price/change_pct 갱신)."""
-    async with AsyncSessionLocal() as db:
-        stmt = (
-            pg_insert(IndexSnapshot)
-            .values(
-                index_code=snapshot.index_code,
-                timestamp=snapshot.timestamp,
-                close_price=snapshot.close_price,
-                change_pct=snapshot.change_pct,
-            )
-            .on_conflict_do_update(
-                constraint="uq_index_snapshot_code_ts",
-                set_={
-                    "close_price": snapshot.close_price,
-                    "change_pct": snapshot.change_pct,
-                },
-            )
+async def _upsert_snapshot_with_session(
+    db: "AsyncSession", snapshot: IndexSnapshotData
+) -> None:
+    """index_snapshots 테이블에 upsert — 외부 세션을 받아 실행.
+
+    커밋은 호출자 책임이다.  이 함수는 세션을 생성하거나 닫지 않는다.
+    """
+    stmt = (
+        pg_insert(IndexSnapshot)
+        .values(
+            index_code=snapshot.index_code,
+            timestamp=snapshot.timestamp,
+            close_price=snapshot.close_price,
+            change_pct=snapshot.change_pct,
         )
-        await db.execute(stmt)
+        .on_conflict_do_update(
+            constraint="uq_index_snapshot_code_ts",
+            set_={
+                "close_price": snapshot.close_price,
+                "change_pct": snapshot.change_pct,
+            },
+        )
+    )
+    await db.execute(stmt)
+
+
+async def _upsert_snapshot(snapshot: IndexSnapshotData) -> None:
+    """index_snapshots 테이블에 upsert (충돌 시 close_price/change_pct 갱신).
+
+    스케줄러처럼 세션 없이 직접 호출되는 경우를 위한 편의 래퍼.
+    내부에서 세션을 생성하고 커밋한 뒤 닫는다.
+    """
+    async with AsyncSessionLocal() as db:
+        await _upsert_snapshot_with_session(db, snapshot)
         await db.commit()
 
 
