@@ -70,9 +70,9 @@
   /* Primary: dodger blue #1e90ff */
   --primary: #1e90ff;
   --primary-foreground: #ffffff;
-  /* Secondary: neon green #00ff00 */
-  --secondary: #00ff00;
-  --secondary-foreground: #000000;
+  /* Secondary: neutral slate */
+  --secondary: oklch(0.94 0.01 250);
+  --secondary-foreground: oklch(0.25 0.01 250);
   --muted: oklch(0.94 0.01 250);
   --muted-foreground: oklch(0.50 0.01 250);
   --accent: oklch(0.94 0.01 250);
@@ -118,12 +118,12 @@
   --card-foreground: oklch(0.94 0.005 250);
   --popover: oklch(0.18 0.01 250);
   --popover-foreground: oklch(0.94 0.005 250);
-  /* Primary: neon green #00ff00 (dark mode accent) */
-  --primary: #00ff00;
-  --primary-foreground: #000000;
-  /* Secondary: dodger blue #1e90ff */
-  --secondary: #1e90ff;
-  --secondary-foreground: #ffffff;
+  /* Primary: dodger blue #1e90ff (consistent across themes) */
+  --primary: #1e90ff;
+  --primary-foreground: #ffffff;
+  /* Secondary: neutral dark slate */
+  --secondary: oklch(0.25 0.015 277);
+  --secondary-foreground: oklch(0.94 0.005 250);
   --muted: oklch(0.22 0.01 250);
   --muted-foreground: oklch(0.62 0.01 250);
   --accent: oklch(0.25 0.015 277);
@@ -131,10 +131,10 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: #00ff00;
-  /* Chart: green-first palette in dark mode */
-  --chart-1: #00ff00;                       /* neon green */
-  --chart-2: #1e90ff;                       /* dodger blue */
+  --ring: #1e90ff;
+  /* Chart: blue-first palette in dark mode */
+  --chart-1: #1e90ff;                       /* dodger blue */
+  --chart-2: oklch(0.70 0.15 145.0);        /* green */
   --chart-3: oklch(0.82 0.18 70.08);       /* amber */
   --chart-4: oklch(0.68 0.257 29.23);      /* rose */
   --chart-5: oklch(0.68 0.255 303.9);      /* violet */
@@ -143,17 +143,17 @@
   --chart-8: oklch(0.70 0.15 145.0);       /* green */
   --sidebar: oklch(0.16 0.01 250);
   --sidebar-foreground: oklch(0.94 0.005 250);
-  --sidebar-primary: #00ff00;
-  --sidebar-primary-foreground: #000000;
+  --sidebar-primary: #1e90ff;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.22 0.01 250);
   --sidebar-accent-foreground: oklch(0.94 0.005 250);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: #00ff00;
+  --sidebar-ring: #1e90ff;
   /* Korean stock market colors — brightened for dark background WCAG AA compliance */
   --rise: #FF4D4F;
   --fall: #4B8EF5;
   /* Accent shortcuts */
-  --accent-indigo: #00ff00;
+  --accent-indigo: #1e90ff;
   --accent-amber: oklch(0.82 0.18 70.08);
   /* Glassmorphism */
   --glass-bg: oklch(0.18 0.01 250 / 60%);

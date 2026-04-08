@@ -73,7 +73,7 @@ export function WatchlistSection() {
           <Eye className="h-4 w-4 text-muted-foreground" />
           관심 종목
         </h2>
-        <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setSearchOpen(true)}>
+        <Button size="sm" variant="ghost" className="min-h-[44px] gap-1 text-xs" onClick={() => setSearchOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
           추가
         </Button>

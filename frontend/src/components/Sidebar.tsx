@@ -83,7 +83,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               onClick={onNavigate}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150",
+                "relative flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150",
                 isActive
                   ? "bg-accent text-foreground font-medium"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent/50 font-normal"
@@ -110,14 +110,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex flex-col gap-0.5 border-t border-border/50 pt-3">
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors duration-150"
+          className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors duration-150"
         >
           {mounted && (theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />)}
           {mounted ? (theme === "dark" ? "라이트 모드" : "다크 모드") : "테마"}
         </button>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors duration-150"
+          className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors duration-150"
         >
           <LogOut className="h-4 w-4" />
           로그아웃
@@ -138,10 +138,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <Link
             href="/dashboard/settings"
             onClick={onNavigate}
-            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors duration-150"
+            className="shrink-0 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors duration-150"
             aria-label="설정"
           >
-            <Settings className="h-3.5 w-3.5" />
+            <Settings className="h-4 w-4" />
           </Link>
         </div>
       </div>

@@ -111,7 +111,7 @@ export function NotificationBell() {
         aria-label={`알림 ${unreadCount > 0 ? `(${unreadCount}개 미읽음)` : ""}`}
         aria-expanded={open}
         aria-haspopup="true"
-        className="relative p-2 rounded-md hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => setOpen((prev) => !prev)}
       >
         <Bell className="h-5 w-5" />
