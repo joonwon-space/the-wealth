@@ -333,12 +333,12 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ## Milestone 23: 코드 품질 — 대형 파일 분리 Round 2 (신규, Sprint 13+)
 
 ### 23-1. 프론트엔드 파일 분리 (TD-002, TD-003)
-- [ ] journal/page.tsx (567L) → JournalTimeline.tsx + JournalFilters.tsx + useJournalData.ts 추출, 목표 ≤280L
-- [ ] HoldingsSection.tsx (548L) → useHoldingsInlineEdit.ts + HoldingsTableRow.tsx 추출, 목표 ≤300L
+- [x] journal/page.tsx (567L) → JournalTimeline.tsx + JournalFilters.tsx + useJournalData.ts 추출, 목표 ≤280L (Sprint 13 완료)
+- [x] HoldingsSection.tsx (548L) → useHoldingsInlineEdit.ts + HoldingsTableRow.tsx 추출, 목표 ≤300L (Sprint 13 완료)
 
 ### 23-2. 백엔드 파일 분리 (TD-004, TD-007)
-- [ ] scheduler.py (526L) → scheduler_market_jobs.py + scheduler_portfolio_jobs.py + scheduler_ops_jobs.py 분리, scheduler.py ≤100L orchestrator only
-- [ ] kis_price.py (522L) → kis_fx.py 추출 (USD/KRW FX 로직 ~160L), kis_price.py 목표 ≤300L
+- [x] scheduler.py (526L) → scheduler_market_jobs.py + scheduler_portfolio_jobs.py + scheduler_ops_jobs.py 분리, scheduler.py ≤100L orchestrator only (Sprint 13 완료)
+- [x] kis_price.py (522L) → kis_fx.py 추출 (USD/KRW FX 로직 ~160L), kis_price.py 목표 ≤300L (Sprint 13 완료)
 
 ---
 

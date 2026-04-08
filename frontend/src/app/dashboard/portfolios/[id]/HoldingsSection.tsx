@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { PackageOpen, RefreshCw, Search, Trash2 } from "lucide-react";
+import { PackageOpen, RefreshCw, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
-import { Input } from "@/components/ui/input";
+import { useHoldingsInlineEdit } from "./useHoldingsInlineEdit";
+import { HoldingsTableRow } from "./HoldingsTableRow";
+import { formatKRW } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -19,7 +20,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
-import { PnLBadge } from "@/components/PnLBadge";
 import type { ExistingHolding } from "@/components/OrderDialog";
 import { TableSkeleton } from "@/components/TableSkeleton";
 
@@ -56,12 +56,6 @@ interface AddForm {
 
 const EMPTY_FORM: AddForm = { ticker: "", name: "", quantity: "", avg_price: "" };
 
-function formatUSD(value: string | number | null | undefined): string {
-  if (value == null) return "—";
-  const num = Number(value);
-  if (isNaN(num)) return "—";
-  return `$${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export function holdingsKey(portfolioId: number) {
   return ["portfolios", portfolioId, "holdings"] as const;
@@ -84,8 +78,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
   const [orderInitialTab, setOrderInitialTab] = useState<"BUY" | "SELL">("BUY");
   const [orderExchangeCode, setOrderExchangeCode] = useState<string | undefined>();
   const [orderExistingHolding, setOrderExistingHolding] = useState<ExistingHolding | undefined>();
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<{ quantity: string; avg_price: string }>({ quantity: "", avg_price: "" });
+  const { editId, editForm, isEditPending, startEdit, cancelEdit, setEditFormField, saveEdit } = useHoldingsInlineEdit(portfolioId);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const { data: cashBalance, isError: cashBalanceError, dataUpdatedAt: cashBalanceUpdatedAt, refetch: refetchCashBalance } = useCashBalance(isKisConnected ? portfolioId : 0);
@@ -114,20 +107,6 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
     },
     onError: () => {
       toast.error("보유종목 추가에 실패했습니다. 입력 내용을 확인해주세요.");
-    },
-  });
-
-  const editHoldingMutation = useMutation({
-    mutationFn: ({ holdingId, quantity, avg_price }: { holdingId: number; quantity: number; avg_price: number }) =>
-      api.patch<Holding>(`/portfolios/holdings/${holdingId}`, { quantity, avg_price }).then((r) => r.data),
-    onSuccess: (data) => {
-      queryClient.setQueryData<Holding[]>(holdingsKey(portfolioId), (prev) =>
-        prev ? prev.map((h) => (h.id === data.id ? data : h)) : []
-      );
-      setEditId(null);
-    },
-    onError: () => {
-      toast.error("보유종목 수정에 실패했습니다. 잠시 후 다시 시도해주세요.");
     },
   });
 
@@ -170,14 +149,6 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
     setAddFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
     addHoldingMutation.mutate(addForm);
-  };
-
-  const handleEditSave = (holdingId: number) => {
-    editHoldingMutation.mutate({
-      holdingId,
-      quantity: Number(editForm.quantity),
-      avg_price: Number(editForm.avg_price),
-    });
   };
 
   return (
@@ -288,146 +259,30 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
             <tbody>
               {[...holdings]
                 .sort((a, b) => Number(b.market_value_krw ?? 0) - Number(a.market_value_krw ?? 0))
-                .map((h) => {
-                const isUSD = h.currency === "USD";
-                return (
-                  <tr key={h.id} className="border-t hover:bg-muted/20">
-                    {editId === h.id ? (
-                      <>
-                        <td className="px-4 py-2">
-                          <div className="font-medium">{h.name}</div>
-                          <div className="text-xs text-muted-foreground">{h.ticker}</div>
-                        </td>
-                        <td className="px-4 py-2">
-                          <Input
-                            type="number"
-                            value={editForm.quantity}
-                            onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
-                            className="w-24 h-8"
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <Input
-                            type="number"
-                            value={editForm.avg_price}
-                            onChange={(e) => setEditForm((f) => ({ ...f, avg_price: e.target.value }))}
-                            className="w-28 h-8"
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => handleEditSave(h.id)} disabled={editHoldingMutation.isPending}>저장</Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditId(null)}>취소</Button>
-                          </div>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-4 py-3">
-                          <div className="font-medium">{h.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {h.ticker}
-                            {isUSD && <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700 dark:bg-blue-900 dark:text-blue-300">USD</span>}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">{formatNumber(h.quantity)}</td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {isUSD ? formatUSD(h.avg_price) : formatPrice(h.avg_price, "KRW")}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {h.current_price ? (
-                            <div>
-                              <span>{isUSD ? formatUSD(h.current_price) : formatPrice(h.current_price, "KRW")}</span>
-                              {isUSD && h.exchange_rate && (
-                                <div className="text-xs text-muted-foreground">
-                                  ≈ {formatKRW(String(Number(h.current_price) * Number(h.exchange_rate)))}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {h.pnl_amount != null ? (
-                            <div>
-                              <PnLBadge value={h.pnl_amount} />
-                              {h.pnl_rate != null && (
-                                <div className="text-xs text-muted-foreground">
-                                  {Number(h.pnl_rate) >= 0 ? "+" : ""}{Number(h.pnl_rate).toFixed(2)}%
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {h.market_value_krw != null ? (
-                            <div>
-                              <span>{formatKRW(h.market_value_krw)}</span>
-                              {isUSD && h.market_value != null && (
-                                <div className="text-xs text-muted-foreground">{formatUSD(h.market_value)}</div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 flex-wrap">
-                            {isKisConnected && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setOrderTicker(h.ticker);
-                                    setOrderName(h.name);
-                                    setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
-                                    setOrderInitialTab("BUY");
-                                    setOrderExchangeCode(h.currency === "USD" ? (h.ticker.includes(".") ? h.ticker.split(".")[1] : "NASD") : undefined);
-                                    setOrderExistingHolding({ quantity: h.quantity, avg_price: h.avg_price, pnl_amount: h.pnl_amount, pnl_rate: h.pnl_rate });
-                                    setOrderDialogOpen(true);
-                                  }}
-                                  className="rounded border px-2 py-0.5 text-xs font-medium text-red-600 border-red-200 hover:bg-red-50"
-                                >
-                                  매수
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setOrderTicker(h.ticker);
-                                    setOrderName(h.name);
-                                    setOrderCurrentPrice(h.current_price ? Number(h.current_price) : undefined);
-                                    setOrderInitialTab("SELL");
-                                    setOrderExchangeCode(h.currency === "USD" ? (h.ticker.includes(".") ? h.ticker.split(".")[1] : "NASD") : undefined);
-                                    setOrderExistingHolding({ quantity: h.quantity, avg_price: h.avg_price, pnl_amount: h.pnl_amount, pnl_rate: h.pnl_rate });
-                                    setOrderDialogOpen(true);
-                                  }}
-                                  className="rounded border px-2 py-0.5 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
-                                >
-                                  매도
-                                </button>
-                              </>
-                            )}
-                            <button
-                              onClick={() => { setEditId(h.id); setEditForm({ quantity: h.quantity, avg_price: h.avg_price }); }}
-                              className="rounded border px-3 py-1 text-xs hover:bg-muted"
-                            >
-                              수정
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(h.id)}
-                              className="rounded border px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
-                              aria-label="보유종목 삭제"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
+                .map((h) => (
+                  <HoldingsTableRow
+                    key={h.id}
+                    holding={h}
+                    isKisConnected={isKisConnected}
+                    isEditing={editId === h.id}
+                    editForm={editForm}
+                    isEditPending={isEditPending}
+                    onStartEdit={startEdit}
+                    onCancelEdit={cancelEdit}
+                    onEditFormFieldChange={setEditFormField}
+                    onSaveEdit={saveEdit}
+                    onRequestDelete={setDeleteConfirmId}
+                    onOpenOrder={(ticker, name, currentPrice, initialTab, exchangeCode, existingHolding) => {
+                      setOrderTicker(ticker);
+                      setOrderName(name);
+                      setOrderCurrentPrice(currentPrice);
+                      setOrderInitialTab(initialTab);
+                      setOrderExchangeCode(exchangeCode);
+                      setOrderExistingHolding(existingHolding);
+                      setOrderDialogOpen(true);
+                    }}
+                  />
+                ))}
 
               {/* 종목 추가 폼 행 */}
               {addForm && (
