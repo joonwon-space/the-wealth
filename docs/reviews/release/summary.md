@@ -1,3 +1,31 @@
+# Release Readiness Report — Sprint 14 (2026-04-08)
+
+## Decision: GO
+
+Sprint 14 changes are production-ready.
+
+### Validators
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| Build / Lint | PASS | ruff clean, 0 errors |
+| Security audit | PASS | pip-audit clean |
+| Test suite | PASS | CI green (8 min, 800+ tests) |
+| Migration safety | N/A | No schema changes |
+| API contract | PASS | No breaking changes; 3 new env settings with safe defaults |
+
+### Deployment notes
+- New settings can be added to `.env` / Docker Compose for tuning:
+  - `KIS_RATE_LIMIT_PER_SEC=5.0` (default)
+  - `KIS_RATE_LIMIT_BURST=20` (default)
+  - `KIS_MOCK_MODE=false` (default)
+- If KIS API quota is tighter in prod, lower `KIS_RATE_LIMIT_PER_SEC`
+- `KIS_MOCK_MODE=true` disables rate limiting (for dev/staging only)
+
+---
+
+## Sprint 12 (archived)
+
 # Release Readiness Report — Sprint 12 (2026-04-07)
 
 ## Decision: GO

@@ -341,6 +341,7 @@ backend/app/
 │   └── user.py
 ├── services/                  # 비즈니스 로직
 │   ├── kis_token.py           # KIS OAuth2 토큰 관리
+│   ├── kis_rate_limiter.py    # KIS API 토큰 버킷 레이트 리미터 (asyncio-safe, 5/s, burst=20)
 │   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬); FX 함수는 kis_fx.py 위임 re-export
 │   ├── kis_fx.py              # USD/KRW 환율 조회·캐시·DB 스냅샷 (kis_price.py에서 분리)
 │   ├── kis_account.py         # KIS 잔고 조회
@@ -416,6 +417,40 @@ async def fetch_prices_parallel(
 - **해외주식**: `HHDFS00000300` TR — 응답 필드 `last` (현재가)
 - **일별 OHLCV**: `FHKST01010400` TR — open/high/low/close/volume
 - **폴백 전략**: KIS API 실패 시 Redis 캐시(`price:{ticker}`, TTL 300초)에서 마지막 가격 사용
+
+### 3.3a KIS API 레이트 리미팅 (Sprint 14)
+
+KIS API 호출 속도를 서버 측 토큰 버킷으로 제어하는 `kis_rate_limiter.py` 모듈을 추가했습니다.
+
+```
+kis_price.py / price_snapshot.py 내 KIS HTTP 호출 (6개 call site)
+  │
+  ▼ await _rate_limit_acquire()  ← 토큰 버킷에서 토큰 1개 소비
+  │
+  ├── 토큰 있음 → 즉시 통과
+  └── 토큰 없음 → asyncio.sleep(deficit / rate) 대기
+                  └── wait > timeout → asyncio.TimeoutError
+                  └── wait >= 0.5s  → WARNING: P95 slow acquire
+```
+
+**설정 (환경변수 / `config.py`)**:
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `KIS_RATE_LIMIT_PER_SEC` | `5.0` | 초당 토큰 보충 속도 (tokens/second) |
+| `KIS_RATE_LIMIT_BURST` | `20` | 최대 버스트 크기 (시작 시 사용 가능 토큰) |
+| `KIS_MOCK_MODE` | `false` | `true` 설정 시 레이트 리밋 비활성화 (로컬 개발/테스트용) |
+
+**Wrapped call sites**:
+- `kis_price.fetch_domestic_price` — 국내주식 현재가 (TR FHKST01010100)
+- `kis_price.fetch_overseas_price` — 해외주식 현재가 (TR HHDFS00000300)
+- `kis_price.fetch_domestic_daily_ohlcv` — 국내주식 OHLCV (TR FHKST01010400)
+- `kis_price.fetch_overseas_price_detail` — 해외주식 상세 (TR HHDFS00000300 + HHDFS76200200 fallback)
+- `price_snapshot.fetch_domestic_price_detail` — 국내주식 상세 (TR FHKST01010100)
+
+**Observability**:
+- `get_timeout_counter()` — 누적 timeout 횟수 (thread-safe 카운터)
+- P95 힌트: wait >= 0.5s 시 WARNING 레벨 structlog 출력
 
 ### 3.4 스케줄러 (APScheduler)
 

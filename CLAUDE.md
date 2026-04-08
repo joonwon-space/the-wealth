@@ -52,6 +52,7 @@ cd frontend && npx shadcn@latest add <component>
 - **Directory layout**: `app/{api, core, db, models, schemas, services}`
 - **Auth**: JWT access tokens (30min) + refresh token rotation; passlib/bcrypt; `get_current_user` dependency on all protected routes
 - **KIS token lifecycle**: Redis caches the 24h KIS access token; proactive rotation before expiry
+- **KIS rate limiting**: `kis_rate_limiter.py` token bucket (5/s, burst=20); all KIS HTTP call sites in `kis_price.py` and `price_snapshot.py` call `await _rate_limit_acquire()` before the request; configurable via `KIS_RATE_LIMIT_PER_SEC`, `KIS_RATE_LIMIT_BURST`, `KIS_MOCK_MODE` settings
 - **Price calculation**: Current prices and P&L computed dynamically via KIS API (`asyncio.gather`) — never stored in DB
 - **Encryption**: AES-256 for storing KIS API credentials; master key from env
 

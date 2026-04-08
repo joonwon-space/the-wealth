@@ -1,3 +1,13 @@
+# Code Review Summary — Sprint 14 (2026-04-08)
+
+## Verdict: APPROVE
+
+All 8 Sprint 14 tasks (RL-001 through RL-008) implemented. CI green. Sensitive path review passed.
+
+---
+
+## Sprint 12 (archived below)
+
 # Code Review Summary — Sprint 12 (2026-04-07)
 
 ## Verdict: APPROVE
