@@ -5,6 +5,34 @@ Each item should be completable in a single commit.
 
 ---
 
+## Sprint 14 — KIS Rate Limiting (2026-04-08)
+
+### RL-002. Settings: KIS rate limit config
+- [x] Add `KIS_RATE_LIMIT_PER_SEC: float = 5.0`, `KIS_RATE_LIMIT_BURST: int = 20`, `KIS_MOCK_MODE: bool = False` to `backend/app/core/config.py` Settings class — controls token bucket behavior without code changes
+
+### RL-001. Token bucket rate limiter module
+- [x] Create `backend/app/services/kis_rate_limiter.py` — `KisRateLimiter` class (asyncio-safe token bucket: `_consume()`, `acquire()`, `available_tokens()`); module-level `_limiter` singleton; `acquire()` helper; `get_timeout_counter()` observability; P95 slow-acquire warning log
+
+### RL-006. Unit tests for token bucket
+- [x] Create `backend/tests/test_kis_rate_limiter.py` — TDD: tests written first (RED), then implementation (GREEN); covers: initial tokens, burst, refill, cap, wait proportionality, mock mode, async acquire, timeout raises, global acquire helper
+
+### RL-007. Integration test — burst of 20 with httpx mock
+- [x] Integration tests in `test_kis_rate_limiter.py` (class `TestRateLimiterIntegration`): burst-20 concurrent gather, 20 mock KIS calls through rate limiter, timeout counter increment, P95 hint log
+
+### RL-003. Wrap kis_price.py call sites
+- [x] Add `await _rate_limit_acquire()` before each `client.get()` call in `backend/app/services/kis_price.py` — `fetch_domestic_price`, `fetch_overseas_price`, `fetch_domestic_daily_ohlcv`, `fetch_overseas_price_detail` (primary + 52w fallback)
+
+### RL-004. Wrap price_snapshot.py call sites
+- [x] Add `await _rate_limit_acquire()` before the KIS `client.get()` call in `backend/app/services/price_snapshot.py` `fetch_domestic_price_detail`
+
+### RL-005. Observability logging
+- [x] Included in `kis_rate_limiter.py`: acquire-timeout counter (`_timeout_counter` + lock), P95 hint warning log when wait >= 500ms, cumulative timeout count in warning message
+
+### RL-008. Promote P1 detail-cache fallback to todo.md
+- [x] Add `OverseasPriceDetail JSON cache fallback` item to `docs/plan/todo.md` Milestone 13-5c — deferred from this sprint; includes cache key, TTL, serialization plan
+
+---
+
 ## Sprint 13 — Code Quality: Large File Splits Round 2 (2026-04-08)
 
 ### 23-1a. journal/page.tsx Split (TD-002)

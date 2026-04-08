@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET: str = ""
 
+    # KIS API rate limiting (token bucket).
+    # KIS_RATE_LIMIT_PER_SEC: steady-state token refill rate (requests/second).
+    # KIS_RATE_LIMIT_BURST: maximum burst capacity (tokens available upfront).
+    # KIS_MOCK_MODE: when True, rate limiter is bypassed (useful for local dev / tests).
+    KIS_RATE_LIMIT_PER_SEC: float = 5.0
+    KIS_RATE_LIMIT_BURST: int = 20
+    KIS_MOCK_MODE: bool = False
+
     @model_validator(mode="after")
     def reject_placeholder_secrets(self) -> "Settings":
         if self.JWT_SECRET_KEY in _PLACEHOLDER_SECRETS:

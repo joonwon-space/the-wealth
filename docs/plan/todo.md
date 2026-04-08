@@ -164,7 +164,9 @@ Alert CRUD exists but no logic to actually notify users when price conditions ar
 ### 13-5c. KIS API Dependency Reduction
 - [x] Adaptive cache TTL (after-market 24h extension)
 - [x] KIS API health check on startup + degraded mode
+- [x] KIS rate limiting — token bucket (`kis_rate_limiter.py`, KIS_RATE_LIMIT_PER_SEC/BURST settings) — Sprint 14
 - [ ] Price fetch failure rate tracking → 18-3으로 통합
+- [ ] OverseasPriceDetail JSON cache fallback (P1) — `fetch_overseas_price_detail` 결과를 Redis에 JSON 직렬화하여 캐싱; KIS API 장애 시 52주 고/저 포함 전체 `OverseasPriceDetail` 반환; TTL은 `get_adaptive_ttl()` 따름; 캐시 키 `overseas_detail:{market}:{ticker}`
 
 ---
 

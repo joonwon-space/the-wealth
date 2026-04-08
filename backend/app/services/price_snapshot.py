@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.price_snapshot import PriceSnapshot
+from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
 from app.services.kis_token import get_kis_access_token
 
 logger = get_logger(__name__)
@@ -37,6 +38,7 @@ async def fetch_domestic_price_detail(
 
     Returns PriceDetail with current, prev_close, day_change_rate.
     """
+    await _rate_limit_acquire()
     token = await get_kis_access_token(app_key, app_secret)
     headers = {
         "authorization": f"Bearer {token}",

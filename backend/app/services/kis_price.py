@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.redis_cache import RedisCache
 from app.services.kis_health import get_kis_availability
+from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
 from app.services.kis_token import get_kis_access_token
 
 # FX utilities extracted to kis_fx.py — re-exported here for backward compatibility
@@ -103,6 +104,7 @@ async def fetch_domestic_price(
     ticker: str, app_key: str, app_secret: str, client: httpx.AsyncClient
 ) -> Optional[Decimal]:
     """국내주식 현재가 조회 (FHKST01010100)."""
+    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     headers["tr_id"] = "FHKST01010100"
     params = {
@@ -128,6 +130,7 @@ async def fetch_overseas_price(
     ticker: str, market: str, app_key: str, app_secret: str, client: httpx.AsyncClient
 ) -> Optional[Decimal]:
     """해외주식 현재가 조회 (HHDFS00000300)."""
+    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     headers["tr_id"] = "HHDFS00000300"
     params = {
@@ -180,6 +183,7 @@ async def fetch_domestic_daily_ohlcv(
     Returns dict with open, high, low, close, volume or None on failure.
     target_date: YYYYMMDD format. If None, uses latest available.
     """
+    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     headers["tr_id"] = "FHKST01010400"
     from datetime import date as date_type, timedelta
@@ -284,6 +288,7 @@ async def fetch_overseas_price_detail(
     2차: last == "0" 시 base(전일 종가) fallback
     3차: 52주 고/저 없으면 HHDFS76200200 (price-detail) fallback
     """
+    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     params = {
         "AUTH": "",
@@ -314,6 +319,7 @@ async def fetch_overseas_price_detail(
         # 52주 고/저 없으면 HHDFS76200200 fallback
         if not w52_high_str or w52_high_str == "0":
             try:
+                await _rate_limit_acquire()
                 detail_resp = await client.get(
                     f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
                     headers={**headers, "tr_id": "HHDFS76200200"},
