@@ -854,7 +854,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-04-07)
+## 6. 프로젝트 현황 분석 (2026-04-08)
 
 ### 6.1 완성도
 
@@ -892,6 +892,9 @@ slowapi 기반 IP별 레이트 리미팅:
 | 코드 파일 분할 (Sprint 9/10) | 완료 | analytics.py→3분할, portfolios.py→holdings+transactions, kis_order.py→place+cancel+query, dashboard/page.tsx→DashboardMetrics+PortfolioList |
 | 벤치마크 히스토리 API (Sprint 11) | 완료 | GET /analytics/benchmark — KOSPI200/S&P500 일별 종가 시계열, index_snapshots 테이블 쿼리 |
 | SMA 오버레이 API (Sprint 11) | 완료 | GET /analytics/stocks/{ticker}/sma — price_snapshots 기반 단순 이동평균 계산, period 2~200 파라미터 지원 |
+| 보안 강화 (Sprint 12) | 완료 | transaction 엔드포인트 6개 60/min 레이트 리밋 추가, holdings GET 30/min 추가 (SEC-001/004) |
+| UX 개선 (Sprint 12) | 완료 | 투자 일지 빈 필터 상태 reset 버튼, MetricsSection null 배너, HistorySection 벤치마크 기간 필터 연동, AccountSection staleTime 60s |
+| 대형 파일 분할 (Sprint 13) | 완료 | journal/page.tsx→JournalFilters+JournalTimeline+useJournalData 분리, HoldingsSection→HoldingsTableRow+useHoldingsInlineEdit 분리, scheduler.py→scheduler_market/portfolio/ops_jobs.py 분리, kis_price.py→kis_fx.py FX 로직 분리 (TD-002/003/004/007) |
 | 미체결 주문 자동 체결 확인 (Sprint 10) | 완료 | settle_orders 스케줄러 잡 (장중 5분 주기) |
 | 의존성 안정성 (Sprint 9) | 완료 | Starlette 1.0.0, pytest-asyncio 1.3.0 업그레이드. 803 테스트 통과 |
 
@@ -1026,6 +1029,18 @@ CI 수정 사항:
 - **[Sprint 11]** 벤치마크 API 추가: GET /analytics/benchmark — KOSPI200/S&P500 일별 종가 시계열 (index_snapshots 쿼리, index_code 입력 검증, 30/min 레이트 리밋)
 - **[Sprint 11]** SMA 오버레이 API 추가: GET /analytics/stocks/{ticker}/sma — price_snapshots 기반 단순 이동평균 계산 (period 2~200, from/to 날짜 필터, 초기 None 포인트 제외)
 - **[Sprint 11]** 코드 품질 개선: analytics_benchmark.py + analytics_sma.py 독립 라우터 파일 분리 (20개 라우터 체계 확립)
+- **[Sprint 12/SEC-001]** Sentry before_send KIS 자격증명 스크러빙: 이미 적용 (analysis.md 6.3 항목)
+- **[Sprint 12/SEC-004]** holdings GET 엔드포인트 30/min 레이트 리밋 추가 (portfolio_holdings.py)
+- **[Sprint 12/SEC-004]** transaction 엔드포인트 전체 6개 60/min 레이트 리밋 추가 (portfolio_transactions.py)
+- **[Sprint 12/UX-001]** 투자 일지 필터 빈 상태에 reset 버튼 추가
+- **[Sprint 12/UX-002]** MetricsSection Sharpe/MDD/CAGR 전부 null일 때 안내 배너 추가
+- **[Sprint 12/UX-005]** HistorySection 벤치마크 쿼리에 period from/to 날짜 파라미터 연동
+- **[Sprint 12/TD-006]** AccountSection userMe staleTime: 60_000 추가 (불필요한 refetch 방지)
+- **[Sprint 12/TD-001]** vite 8.0.6 업그레이드 (CVE GHSA-4w7w-66w2-5vf9 패치, 0 취약점)
+- **[Sprint 13/TD-002]** journal/page.tsx (~533L) → JournalFilters.tsx + JournalTimeline.tsx + useJournalData.ts 분리 (page.tsx ~179L thin orchestrator)
+- **[Sprint 13/TD-003]** HoldingsSection.tsx → HoldingsTableRow.tsx + useHoldingsInlineEdit.ts 분리
+- **[Sprint 13/TD-004]** scheduler.py → scheduler_market_jobs.py + scheduler_portfolio_jobs.py + scheduler_ops_jobs.py 분리 (scheduler.py thin orchestrator 유지)
+- **[Sprint 13/TD-007]** kis_price.py → kis_fx.py FX 로직 분리 (USD/KRW 환율 조회·캐시·DB 스냅샷; kis_price.py re-export shim 유지)
 
 ### 6.4 약점 및 개선 필요 사항
 
