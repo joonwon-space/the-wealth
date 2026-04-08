@@ -75,9 +75,16 @@ frontend/src/
 │       ├── analytics/            # 분석 페이지
 │       ├── compare/              # 포트폴리오 비교 페이지
 │       ├── journal/              # 투자 일지 페이지
+│       │   ├── page.tsx          # 투자 일지 메인 (thin orchestrator, ~179L)
+│       │   ├── useJournalData.ts # 데이터 패칭 + 필터 상태 훅
+│       │   ├── JournalFilters.tsx # 필터 UI 컴포넌트
+│       │   └── JournalTimeline.tsx # 타임라인 렌더링 컴포넌트
 │       ├── portfolios/           # 포트폴리오 목록/상세
 │       │   ├── page.tsx          # 포트폴리오 목록
-│       │   └── [id]/             # 포트폴리오 상세 (거래내역)
+│       │   └── [id]/             # 포트폴리오 상세
+│       │       ├── HoldingsSection.tsx       # 보유종목 테이블 오케스트레이터
+│       │       ├── HoldingsTableRow.tsx      # 행 렌더링 컴포넌트 (분리)
+│       │       └── useHoldingsInlineEdit.ts  # 인라인 편집 훅 (분리)
 │       ├── stocks/[ticker]/      # 종목 상세 (캔들스틱 차트)
 │       └── settings/             # 설정
 ├── components/
@@ -334,7 +341,8 @@ backend/app/
 │   └── user.py
 ├── services/                  # 비즈니스 로직
 │   ├── kis_token.py           # KIS OAuth2 토큰 관리
-│   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬)
+│   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬); FX 함수는 kis_fx.py 위임 re-export
+│   ├── kis_fx.py              # USD/KRW 환율 조회·캐시·DB 스냅샷 (kis_price.py에서 분리)
 │   ├── kis_account.py         # KIS 잔고 조회
 │   ├── kis_balance.py         # KIS 예수금 조회 (국내 TTTC8434R + 해외 TTTS3012R)
 │   ├── kis_order.py           # KIS 주문 thin re-export shim (→ kis_order_place/cancel/query)
@@ -345,7 +353,10 @@ backend/app/
 │   ├── kis_transaction.py     # KIS 체결내역 조회 (국내 TTTC8001R + 해외 TTTS3035R)
 │   ├── reconciliation.py      # 보유종목 동기화 로직
 │   ├── price_snapshot.py      # 일일 종가 스냅샷 저장
-│   ├── scheduler.py           # APScheduler 설정
+│   ├── scheduler.py           # APScheduler 설정 + job registration (thin orchestrator)
+│   ├── scheduler_market_jobs.py   # 시장 데이터 스케줄러 잡 (종가·FX·벤치마크 스냅샷)
+│   ├── scheduler_portfolio_jobs.py # 포트폴리오 동기화 스케줄러 잡
+│   ├── scheduler_ops_jobs.py      # 운영 스케줄러 잡 (미체결 주문 자동 체결 확인)
 │   ├── stock_search.py        # KRX 종목 검색
 │   ├── backup_health.py       # 백업 파일 상태 조회
 │   └── kis_health.py          # KIS API 가용성 헬스체크 (시작 시 연결 테스트)
