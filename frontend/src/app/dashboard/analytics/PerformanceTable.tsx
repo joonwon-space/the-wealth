@@ -50,7 +50,7 @@ export function PerformanceTable({ holdings, onSelectStock }: PerformanceTablePr
                   )}
                 </div>
               </div>
-              <PnLBadge value={h.pnl_rate ?? 0} suffix="%" />
+              <PnLBadge value={h.pnl_rate} suffix="%" />
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               <div className="flex justify-between">
@@ -79,7 +79,7 @@ export function PerformanceTable({ holdings, onSelectStock }: PerformanceTablePr
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">수익금(₩)</span>
-                <PnLBadge value={h.pnl_amount ?? 0} />
+                <PnLBadge value={h.pnl_amount} />
               </div>
             </div>
           </button>
@@ -152,10 +152,10 @@ export function PerformanceTable({ holdings, onSelectStock }: PerformanceTablePr
                 </td>
                 <td className="px-4 py-2 tabular-nums">{formatKRW(h.market_value_krw)}</td>
                 <td className="px-4 py-2">
-                  <PnLBadge value={h.pnl_amount ?? 0} />
+                  <PnLBadge value={h.pnl_amount} />
                 </td>
                 <td className="px-4 py-2">
-                  <PnLBadge value={h.pnl_rate ?? 0} suffix="%" />
+                  <PnLBadge value={h.pnl_rate} suffix="%" />
                 </td>
                 <td className="hidden lg:table-cell px-4 py-2">
                   {h.day_change_rate != null ? (

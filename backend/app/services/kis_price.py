@@ -120,7 +120,7 @@ async def fetch_domestic_price(
         resp.raise_for_status()
         data = resp.json()
         price_str: str = data.get("output", {}).get("stck_prpr", "0")
-        return Decimal(price_str) if price_str else None
+        return Decimal(price_str) if price_str and price_str != "0" else None
     except Exception as e:
         logger.warning("Failed to fetch domestic price for %s: %s", ticker, e)
         return None

@@ -163,7 +163,7 @@ async def list_holdings_with_prices(
             invested_krw = invested * exchange_rate
             mv_usd = h.quantity * cp if cp is not None else None
             mv_krw = mv_usd * exchange_rate if mv_usd is not None else None
-            pnl_krw = mv_krw - invested_krw if mv_krw is not None else None
+            pnl_krw = (mv_krw - invested_krw) if mv_krw is not None and invested_krw else None
             pnl_rate = (
                 (pnl_krw / invested_krw * 100)
                 if pnl_krw is not None and invested_krw
@@ -185,7 +185,7 @@ async def list_holdings_with_prices(
             })
         else:
             mv = h.quantity * cp if cp is not None else None
-            pnl = mv - invested if mv is not None else None
+            pnl = (mv - invested) if mv is not None and invested else None
             pnl_rate = (pnl / invested * 100) if pnl is not None and invested else None
             items.append({
                 "id": h.id,
