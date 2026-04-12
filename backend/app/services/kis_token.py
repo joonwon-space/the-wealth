@@ -6,6 +6,7 @@ KIS tokens are valid for 24 hours.
 - Proactively rotated 10 minutes before expiry
 """
 
+import asyncio
 import hashlib
 from datetime import datetime
 from typing import Optional
@@ -23,6 +24,10 @@ _TOKEN_TTL_SECONDS = 86400  # 24 h fallback (KIS spec)
 
 _cache = RedisCache(settings.REDIS_URL)
 
+# Per-key locks prevent concurrent coroutines from issuing duplicate tokens.
+_issue_locks: dict[str, asyncio.Lock] = {}
+_issue_locks_guard: asyncio.Lock = asyncio.Lock()
+
 
 def _cache_key_for(app_key: str) -> str:
     """Full app_key hash to prevent cross-user cache collision."""
@@ -30,16 +35,37 @@ def _cache_key_for(app_key: str) -> str:
     return f"kis:token:{key_hash}"
 
 
+async def _get_issue_lock(cache_key: str) -> asyncio.Lock:
+    async with _issue_locks_guard:
+        if cache_key not in _issue_locks:
+            _issue_locks[cache_key] = asyncio.Lock()
+        return _issue_locks[cache_key]
+
+
 async def get_kis_access_token(app_key: str, app_secret: str) -> str:
-    """Return a valid KIS access token, fetching from cache or issuing a new one."""
+    """Return a valid KIS access token, fetching from cache or issuing a new one.
+
+    Uses double-checked locking: fast cache read first, then per-key lock to
+    prevent concurrent coroutines from each issuing a new token on cache miss.
+    """
     cache_key = _cache_key_for(app_key)
+
+    # Fast path — cache hit, no lock needed.
     cached = await _cache.get(cache_key)
     if cached:
         return cached
 
-    token, ttl = await _issue_token(app_key, app_secret)
-    await _cache.setex(cache_key, max(ttl - _ROTATION_BUFFER_SECONDS, 60), token)
-    return token
+    # Slow path — acquire per-key lock so only one coroutine issues a token.
+    lock = await _get_issue_lock(cache_key)
+    async with lock:
+        # Re-check: another coroutine may have populated the cache while we waited.
+        cached = await _cache.get(cache_key)
+        if cached:
+            return cached
+
+        token, ttl = await _issue_token(app_key, app_secret)
+        await _cache.setex(cache_key, max(ttl - _ROTATION_BUFFER_SECONDS, 60), token)
+        return token
 
 
 async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
