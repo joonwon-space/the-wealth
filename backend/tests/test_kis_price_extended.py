@@ -101,18 +101,18 @@ class TestFetchDomesticPrice:
         assert result is None
 
     @patch("app.services.kis_price.get_kis_access_token", new_callable=AsyncMock)
-    async def test_missing_output_key_returns_zero_decimal(
+    async def test_missing_output_key_returns_none(
         self, mock_token: AsyncMock
     ) -> None:
-        """When output dict is missing, stck_prpr defaults to '0', returning Decimal('0')."""
+        """When output dict is missing, stck_prpr defaults to '0', returning None (not a valid price)."""
         mock_token.return_value = "fake-token"
         response = _make_response(200, {})
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
 
         result = await fetch_domestic_price("005930", "key", "secret", mock_client)
-        # stck_prpr defaults to "0" → Decimal("0"), not None (actual service behavior)
-        assert result == Decimal("0")
+        # stck_prpr defaults to "0" → treated as missing/invalid, returns None
+        assert result is None
 
 
 # ---------------------------------------------------------------------------
