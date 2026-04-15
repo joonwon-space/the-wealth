@@ -110,48 +110,57 @@ async def list_holdings_with_prices(
     prices: dict[str, Decimal | None] = {}
     exchange_rate = Decimal("1450")
 
+    acct: KisAccount | None = None
     if portfolio.kis_account_id:
         acct = await db.get(KisAccount, portfolio.kis_account_id)
-        if acct:
-            try:
-                app_key = decrypt(acct.app_key_enc)
-                app_secret = decrypt(acct.app_secret_enc)
-                domestic_tickers = list({h.ticker for h in holdings if is_domestic(h.ticker)})
-                overseas_tickers = list({h.ticker for h in overseas_holdings})
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    domestic_tasks = [
-                        get_or_fetch_domestic_price(t, app_key, app_secret, client)
-                        for t in domestic_tickers
-                    ]
-                    overseas_tasks = [
-                        get_or_fetch_overseas_price(t, ticker_to_market[t], app_key, app_secret, client)
-                        for t in overseas_tickers
-                    ]
-                    fx_task = (
-                        fetch_usd_krw_rate(app_key, app_secret, client)
-                        if overseas_holdings
-                        else asyncio.sleep(0, result=Decimal("1450"))
-                    )
-                    *all_prices, fx = await asyncio.gather(
-                        *domestic_tasks, *overseas_tasks, fx_task, return_exceptions=True
-                    )
-
-                domestic_results = all_prices[: len(domestic_tickers)]
-                overseas_results = all_prices[len(domestic_tickers):]
-
-                for ticker, price in zip(domestic_tickers, domestic_results):
-                    if isinstance(price, Decimal) and price > 0:
-                        prices[ticker] = price
-                if isinstance(fx, Decimal):
-                    exchange_rate = fx
-                for ticker, price in zip(overseas_tickers, overseas_results):
-                    if isinstance(price, Decimal) and price > 0:
-                        prices[ticker] = price
-
-            except Exception as e:
-                logger.warning(
-                    "Failed to fetch prices for portfolio %d: %s", portfolio_id, e
+    if acct is None:
+        # Fallback: use any KIS account from the same user for price lookups
+        fallback_result = await db.execute(
+            select(KisAccount)
+            .where(KisAccount.user_id == current_user.id)
+            .limit(1)
+        )
+        acct = fallback_result.scalar_one_or_none()
+    if acct:
+        try:
+            app_key = decrypt(acct.app_key_enc)
+            app_secret = decrypt(acct.app_secret_enc)
+            domestic_tickers = list({h.ticker for h in holdings if is_domestic(h.ticker)})
+            overseas_tickers = list({h.ticker for h in overseas_holdings})
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                domestic_tasks = [
+                    get_or_fetch_domestic_price(t, app_key, app_secret, client)
+                    for t in domestic_tickers
+                ]
+                overseas_tasks = [
+                    get_or_fetch_overseas_price(t, ticker_to_market[t], app_key, app_secret, client)
+                    for t in overseas_tickers
+                ]
+                fx_task = (
+                    fetch_usd_krw_rate(app_key, app_secret, client)
+                    if overseas_holdings
+                    else asyncio.sleep(0, result=Decimal("1450"))
                 )
+                *all_prices, fx = await asyncio.gather(
+                    *domestic_tasks, *overseas_tasks, fx_task, return_exceptions=True
+                )
+
+            domestic_results = all_prices[: len(domestic_tickers)]
+            overseas_results = all_prices[len(domestic_tickers):]
+
+            for ticker, price in zip(domestic_tickers, domestic_results):
+                if isinstance(price, Decimal) and price > 0:
+                    prices[ticker] = price
+            if isinstance(fx, Decimal):
+                exchange_rate = fx
+            for ticker, price in zip(overseas_tickers, overseas_results):
+                if isinstance(price, Decimal) and price > 0:
+                    prices[ticker] = price
+
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch prices for portfolio %d: %s", portfolio_id, e
+            )
 
     items = []
     for h in holdings:
