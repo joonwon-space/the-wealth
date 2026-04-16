@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useHoldingsInlineEdit } from "./useHoldingsInlineEdit";
 import { HoldingsTableRow } from "./HoldingsTableRow";
-import { formatKRW } from "@/lib/format";
+import { formatKRW, formatRate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -207,7 +207,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
               {Number(cashBalance.total_profit_loss) >= 0 ? "+" : ""}{formatKRW(cashBalance.total_profit_loss)}
             </div>
             <div className={`text-xs ${Number(cashBalance.profit_loss_rate) >= 0 ? "text-red-500" : "text-blue-500"}`}>
-              {Number(cashBalance.profit_loss_rate) >= 0 ? "+" : ""}{Number(cashBalance.profit_loss_rate).toFixed(2)}%
+              {Number(cashBalance.profit_loss_rate) > 0 ? "+" : ""}{formatRate(cashBalance.profit_loss_rate)}%
             </div>
           </div>
           <div className="rounded-lg border p-3">
