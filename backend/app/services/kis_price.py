@@ -275,6 +275,7 @@ async def fetch_prices_parallel(
     return price_map
 
 
+
 async def fetch_overseas_price_detail(
     ticker: str,
     market: str,

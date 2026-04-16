@@ -34,7 +34,7 @@ async def fetch_usd_krw_rate(
     app_secret: str,
     client: httpx.AsyncClient,
 ) -> Decimal:
-    """USD/KRW 환율 조회. 1h 캐시 → frankfurter.app → 7일 stale 캐시 → 하드코딩 1450 순으로 fallback.
+    """USD/KRW 환율 조회. 1h 캐시 → frankfurter.dev → 7일 stale 캐시 → 하드코딩 1450 순으로 fallback.
 
     KIS API에는 전용 환율 엔드포인트가 없으므로 ECB 기반 공개 FX API를 사용한다.
     API key 불필요, 무료, rate limit 없음.
@@ -45,7 +45,7 @@ async def fetch_usd_krw_rate(
 
     try:
         resp = await client.get(
-            "https://api.frankfurter.app/latest",
+            "https://api.frankfurter.dev/v1/latest",
             params={"from": "USD", "to": "KRW"},
             timeout=5.0,
         )
@@ -57,10 +57,10 @@ async def fetch_usd_krw_rate(
             if rate > 100:
                 await _cache.setex(_FX_CACHE_KEY, _FX_CACHE_TTL, str(rate))
                 await _cache.setex(_FX_STALE_KEY, _FX_STALE_TTL, str(rate))
-                logger.info("Fetched USD/KRW rate from frankfurter.app: %s", rate)
+                logger.info("Fetched USD/KRW rate from frankfurter.dev: %s", rate)
                 return rate
     except Exception as e:
-        logger.warning("Failed to fetch USD/KRW rate via frankfurter.app: %s", e)
+        logger.warning("Failed to fetch USD/KRW rate via frankfurter.dev: %s", e)
 
     stale = await _cache.get(_FX_STALE_KEY)
     if stale:

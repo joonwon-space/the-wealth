@@ -276,7 +276,7 @@ class TestFetchUsdKrwRate:
         ctx.__aexit__ = AsyncMock(return_value=None)
         mock_get_client.return_value = ctx
 
-        # frankfurter.app 응답 형식
+        # frankfurter.dev 응답 형식
         response = _make_response(200, {"rates": {"KRW": 1330.50}})
         mock_client = AsyncMock(spec=httpx.AsyncClient)
         mock_client.get = AsyncMock(return_value=response)
