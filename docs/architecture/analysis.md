@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 82 API endpoints (20 routers — analytics/portfolios split into sub-files)  │
+│   ├── 80 API endpoints (22 routers — analytics/portfolios/orders split into sub-files)  │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -889,7 +889,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-04-08)
+## 6. 프로젝트 현황 분석 (2026-04-17)
 
 ### 6.1 완성도
 
@@ -924,6 +924,9 @@ slowapi 기반 IP별 레이트 리미팅:
 | 보안 강화 (sprint-3) | 완료 | bcrypt DoS 방지(max_length=128), Sentry 자격증명 스크러빙, CSP 수정, tags 길이 제한 |
 | 성능 최적화 (sprint-3) | 완료 | Redis ConnectionPool 싱글턴, DISTINCT ON prev_close 쿼리, fx-gain-loss 캐시, SSE React Compiler 호환 |
 | 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
+| KIS API 레이트 리미터 (Sprint 14) | 완료 | 토큰 버킷 5/s, burst=20; 6개 call site 래핑; KIS_MOCK_MODE 지원 |
+| KIS 토큰 중복 발급 방지 (Sprint 14) | 완료 | Redis asyncio.Lock 기반 동시 요청 직렬화 |
+| 예수금 수익률 재계산 (Sprint 14) | 완료 | profit_loss_rate를 KIS evlu_erng_rt 대신 합산 P&L 기준으로 재계산 |
 | 코드 파일 분할 (Sprint 9/10) | 완료 | analytics.py→3분할, portfolios.py→holdings+transactions, kis_order.py→place+cancel+query, dashboard/page.tsx→DashboardMetrics+PortfolioList |
 | 벤치마크 히스토리 API (Sprint 11) | 완료 | GET /analytics/benchmark — KOSPI200/S&P500 일별 종가 시계열, index_snapshots 테이블 쿼리 |
 | SMA 오버레이 API (Sprint 11) | 완료 | GET /analytics/stocks/{ticker}/sma — price_snapshots 기반 단순 이동평균 계산, period 2~200 파라미터 지원 |
@@ -1076,6 +1079,13 @@ CI 수정 사항:
 - **[Sprint 13/TD-003]** HoldingsSection.tsx → HoldingsTableRow.tsx + useHoldingsInlineEdit.ts 분리
 - **[Sprint 13/TD-004]** scheduler.py → scheduler_market_jobs.py + scheduler_portfolio_jobs.py + scheduler_ops_jobs.py 분리 (scheduler.py thin orchestrator 유지)
 - **[Sprint 13/TD-007]** kis_price.py → kis_fx.py FX 로직 분리 (USD/KRW 환율 조회·캐시·DB 스냅샷; kis_price.py re-export shim 유지)
+- **[Sprint 14/RL-001~RL-008]** KIS API 토큰 버킷 레이트 리미터 추가: kis_rate_limiter.py (5/s, burst=20), 6개 KIS HTTP call site 래핑, KIS_RATE_LIMIT_PER_SEC / KIS_RATE_LIMIT_BURST / KIS_MOCK_MODE 환경변수 지원
+- **[Sprint 14]** KIS 토큰 중복 발급 방지: Redis asyncio.Lock 기반 동시 요청 직렬화 (b277160)
+- **[Sprint 14]** KIS 계좌 미연결 포트폴리오 가격 조회 수정: reconcile_holdings 시 KIS 계좌 없는 포트폴리오도 처리 (73d448c)
+- **[Sprint 14]** 예수금 profit_loss_rate 재계산 수정: KIS evlu_erng_rt 대신 합산된 total_profit_loss / invested_stock_amount 기준으로 재계산 (해외 손익 미반영 문제 해결) (38c63b8)
+- **[Sprint 14]** 수익률 표시 개선: 0.01% 미만 소수점 손익 표시 수정 (6d04922), KIS 평가손익 카드 formatRate 적용 (2c5d69d)
+- **[Sprint 14]** frankfurter FX API URL 업데이트 (신 도메인으로 전환) (eb96796)
+- **[Sprint 14]** 의존성 보안 패치: python-multipart 0.0.22→0.0.26 (CVE-2026-40347), pytest 8.4.2→9.0.3 (CVE-2025-71176), cryptography 46.0.6→46.0.7 (CVE-2026-39892)
 
 ### 6.4 약점 및 개선 필요 사항
 

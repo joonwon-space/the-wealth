@@ -473,6 +473,9 @@ Docker Compose 헬스체크:
 | `R2_SECRET_ACCESS_KEY` | - | R2 시크릿 키 | |
 | `VISUAL_QA_EMAIL` | - | E2E 테스트용 계정 이메일 | `qa@example.com` |
 | `VISUAL_QA_PASSWORD` | - | E2E 테스트용 계정 비밀번호 | |
+| `KIS_RATE_LIMIT_PER_SEC` | - | KIS API 토큰 버킷 보충 속도 (기본: 5.0 req/s) | `5.0` |
+| `KIS_RATE_LIMIT_BURST` | - | KIS API 버스트 최대 크기 (기본: 20 토큰) | `20` |
+| `KIS_MOCK_MODE` | - | `true` 설정 시 KIS 레이트 리밋 비활성화 (로컬 개발/테스트용) | `false` |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
 

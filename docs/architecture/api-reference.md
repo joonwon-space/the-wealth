@@ -337,7 +337,7 @@ Rate-limited endpoints for brute force protection.
 ### GET /portfolios/{portfolio_id}/cash-balance
 - **Auth**: Required (ownership verified)
 - **Response** (200): `CashBalanceResponse` -- `{ total_cash, available_cash, total_evaluation, total_profit_loss, profit_loss_rate, currency, foreign_cash?, usd_krw_rate? }`
-- **Notes**: Combines domestic balance (TTTC8434R) with overseas holdings evaluation (converted to KRW). When overseas holdings have `frcr_evlu_pfls_amt == 0`, falls back to `sum(quantity * avg_price)`. Result cached in Redis for 30 seconds.
+- **Notes**: Combines domestic balance (TTTC8434R) with overseas holdings evaluation (converted to KRW). When overseas holdings have `frcr_evlu_pfls_amt == 0`, falls back to `sum(quantity * avg_price)`. `profit_loss_rate` is recomputed from the aggregated `total_profit_loss / invested_stock_amount` (where `invested_stock_amount = stock_evaluation - total_profit_loss`) rather than relying on KIS `evlu_erng_rt`, which does not reflect overseas P&L and can be zero. Result cached in Redis for 30 seconds.
 
 ---
 
