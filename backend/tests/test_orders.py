@@ -602,6 +602,58 @@ class TestCashBalance:
         assert data["currency"] == "KRW"
         assert Decimal(data["total_cash"]) == Decimal("1000000")
         assert Decimal(data["available_cash"]) == Decimal("900000")
+        # stock_eval = 5_000_000 - 1_000_000 = 4_000_000
+        # invested   = 4_000_000 - 500_000   = 3_500_000
+        # rate       = 500_000 / 3_500_000 * 100 ≈ 14.29
+        assert Decimal(data["profit_loss_rate"]) == Decimal("14.29")
+
+    async def test_cash_balance_recomputes_rate_when_kis_returns_zero(
+        self, client: AsyncClient
+    ) -> None:
+        """KIS `evlu_erng_rt`가 0으로 내려와도 total_profit_loss 기반으로 재계산해야 한다."""
+        token, pid, _kis_id = await _setup_portfolio_with_kis(
+            client, "cashbal_zero_rate@test.com"
+        )
+
+        from app.core.redis_cache import RedisCache
+        from app.core.config import settings as app_settings
+        from app.services.kis_balance import CashBalance
+
+        cache = RedisCache(app_settings.REDIS_URL)
+        await cache.delete(f"cash_balance:{pid}")
+
+        # KIS가 rate=0을 내려주는 상황을 재현
+        mock_balance = CashBalance(
+            total_cash=Decimal("1000000"),
+            available_cash=Decimal("1000000"),
+            total_evaluation=Decimal("3000000"),  # cash + stock(=2_000_000)
+            total_profit_loss=Decimal("200000"),  # stock 수익
+            profit_loss_rate=Decimal("0"),        # KIS 버그 시뮬레이션
+            currency="KRW",
+        )
+
+        with (
+            patch(
+                "app.api.orders.get_cash_balance", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "app.api.orders.fetch_overseas_account_holdings",
+                new_callable=AsyncMock,
+            ) as mock_overseas,
+        ):
+            mock_get.return_value = mock_balance
+            mock_overseas.return_value = ([], {})
+            resp = await client.get(
+                f"/portfolios/{pid}/cash-balance",
+                headers=_auth(token),
+            )
+
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        # stock_eval = 3_000_000 - 1_000_000 = 2_000_000
+        # invested   = 2_000_000 - 200_000   = 1_800_000
+        # rate       = 200_000 / 1_800_000 * 100 ≈ 11.11
+        assert Decimal(data["profit_loss_rate"]) == Decimal("11.11")
 
     async def test_cash_balance_kis_failure_returns_502(
         self, client: AsyncClient

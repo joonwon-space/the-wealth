@@ -475,12 +475,22 @@ async def get_portfolio_cash_balance(
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
+    # KIS `evlu_erng_rt`는 해외 손익이 반영되지 않거나 0으로 내려오는 경우가 있어,
+    # 합산된 total_profit_loss 기반으로 재계산한다.
+    stock_eval = balance.total_evaluation - balance.total_cash
+    invested = stock_eval - balance.total_profit_loss
+    computed_rate = (
+        (balance.total_profit_loss / invested * Decimal("100")).quantize(Decimal("0.01"))
+        if invested > 0
+        else Decimal("0")
+    )
+
     response = CashBalanceResponse(
         total_cash=balance.total_cash,
         available_cash=balance.available_cash,
         total_evaluation=balance.total_evaluation,
         total_profit_loss=balance.total_profit_loss,
-        profit_loss_rate=balance.profit_loss_rate,
+        profit_loss_rate=computed_rate,
         currency=balance.currency,
         foreign_cash=balance.foreign_cash,
         usd_krw_rate=balance.usd_krw_rate,
