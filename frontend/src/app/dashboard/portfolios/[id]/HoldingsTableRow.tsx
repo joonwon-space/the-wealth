@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PnLBadge } from "@/components/PnLBadge";
-import { formatKRW, formatNumber, formatPrice } from "@/lib/format";
+import { formatKRW, formatNumber, formatPrice, formatRate } from "@/lib/format";
 import type { Holding } from "./HoldingsSection";
 import type { ExistingHolding } from "@/components/OrderDialog";
 
@@ -138,7 +138,7 @@ export function HoldingsTableRow({
                 <PnLBadge value={h.pnl_amount} />
                 {h.pnl_rate != null && (
                   <div className="text-xs text-muted-foreground">
-                    {Number(h.pnl_rate) >= 0 ? "+" : ""}{Number(h.pnl_rate).toFixed(2)}%
+                    {Number(h.pnl_rate) > 0 ? "+" : ""}{formatRate(h.pnl_rate)}%
                   </div>
                 )}
               </div>

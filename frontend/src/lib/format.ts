@@ -27,10 +27,13 @@ export function formatNumber(value: number | string | null | undefined): string 
   return Number(value).toLocaleString("ko-KR");
 }
 
-/** 비율 포맷 — 소수점 둘째자리까지. */
+/** 비율 포맷 — 소수점 둘째자리까지. 0.01% 미만 소수값은 4자리로 표시. */
 export function formatRate(value: number | string | null | undefined): string {
   if (value == null) return "—";
-  return Number(value).toFixed(2);
+  const n = Number(value);
+  if (isNaN(n)) return "—";
+  if (n !== 0 && Math.abs(n) < 0.01) return n.toFixed(4);
+  return n.toFixed(2);
 }
 
 /** 금액 포맷 (부호 포함) — PnL용. */
