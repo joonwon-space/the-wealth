@@ -40,7 +40,7 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 - [x] Create `docs/architecture/feature-analytics.md` — monthly return / Sharpe / MDD / CAGR 계산식 및 입력 데이터 소스 (`price_snapshots`, `fx_rate_snapshots`), scheduler jobs 표 (`scheduler.py` + split 파일들): job 이름/crontab/실패 동작, benchmark (KOSPI200/S&P500) 데이터 수집 플로우
 
 ### DOC-209. Security model
-- [ ] Create `docs/architecture/security-model.md` — 위협 모델 (OWASP Top 10 중 어떤 걸 방어하는지), **암호화되지 않는 필드 명시** (`account_no`는 평문), AES-256-GCM 마스터키 회전 절차, `security_audit_logs` 테이블이 추적하는 이벤트 목록, bcrypt cost factor, JWT 서명 키 회전 계획(또는 미계획 고지)
+- [x] Create `docs/architecture/security-model.md` — 위협 모델 (OWASP Top 10 중 어떤 걸 방어하는지), **암호화되지 않는 필드 명시** (`account_no`는 평문), AES-256-GCM 마스터키 회전 절차, `security_audit_logs` 테이블이 추적하는 이벤트 목록, bcrypt cost factor, JWT 서명 키 회전 계획(또는 미계획 고지)
 
 ### DOC-210. Database schema & migration workflow
 - [ ] Create `docs/architecture/database-schema.md` — 14개 테이블 ERD(mermaid or ASCII), 각 테이블 목적 1줄, 주요 인덱스 근거, Alembic autogenerate 검증 체크리스트 (FK 누락, index 누락, NULL 기본값), seed 데이터 실행법 (있으면), `env.py` async 설정 주의사항
