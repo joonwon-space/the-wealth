@@ -12,48 +12,48 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 ### 🔴 P1 — Blocking new-contributor / debug flows
 
 ### DOC-201. Troubleshooting runbook
-- [ ] Create `docs/runbooks/troubleshooting.md` covering common dev issues: Redis 연결 실패 (check `REDIS_URL`, `docker compose ps`), pytest DB connection refused (integration tests need real Postgres), KIS 403 (expired token vs wrong credentials vs IP 차단), Alembic head conflict (두 PR 동시 머지 시), SSE not connecting in dev (ticket fetch 실패 확인), `next build` OOM on Windows. 각 항목: 증상 → 원인 → 해결 절차. 코드 라인 번호 실제 grep해서 인용.
+- [x] Create `docs/runbooks/troubleshooting.md` covering common dev issues: Redis 연결 실패 (check `REDIS_URL`, `docker compose ps`), pytest DB connection refused (integration tests need real Postgres), KIS 403 (expired token vs wrong credentials vs IP 차단), Alembic head conflict (두 PR 동시 머지 시), SSE not connecting in dev (ticket fetch 실패 확인), `next build` OOM on Windows. 각 항목: 증상 → 원인 → 해결 절차. 코드 라인 번호 실제 grep해서 인용.
 
 ### DOC-202. KIS integration reference
-- [ ] Create `docs/architecture/kis-integration.md` — extract from `backend/app/services/kis_*.py`: (1) TR_ID 표 (국내 주문/잔고/시세 + 해외 각각, 실전 vs 모의 TR_ID), (2) `KIS_MOCK_MODE` 동작 설명, (3) rate limiter token-bucket 파라미터 및 조정법, (4) KIS 토큰 lifecycle (Redis 캐시 키, 24h 만료, proactive 갱신), (5) 자주 보는 rt_cd/msg1 에러 코드 해석, (6) 국내↔해외 라우팅 결정 규칙 (`exchange_code`)
+- [x] Create `docs/architecture/kis-integration.md` — extract from `backend/app/services/kis_*.py`: (1) TR_ID 표 (국내 주문/잔고/시세 + 해외 각각, 실전 vs 모의 TR_ID), (2) `KIS_MOCK_MODE` 동작 설명, (3) rate limiter token-bucket 파라미터 및 조정법, (4) KIS 토큰 lifecycle (Redis 캐시 키, 24h 만료, proactive 갱신), (5) 자주 보는 rt_cd/msg1 에러 코드 해석, (6) 국내↔해외 라우팅 결정 규칙 (`exchange_code`)
 
 ### 🟠 P2 — 자주 필요하지만 부분적으로만 존재
 
 ### DOC-203. Getting started guide
-- [ ] Create `docs/architecture/getting-started.md` — fresh clone → 실행까지 단일 경로: 사전 요구사항(Python 3.13, Node 20, Docker), `docker compose -f docker-compose.dev.yml up` Postgres+Redis 기동, `backend/.env` 채울 값(모든 변수 1줄 설명), `alembic upgrade head`, `uvicorn app.main:app --reload`, frontend `npm install && npm run dev`, Windows에서 자주 막히는 PATH 이슈, `scripts/pg-init-hba.sh` 목적
+- [x] Create `docs/architecture/getting-started.md` — fresh clone → 실행까지 단일 경로: 사전 요구사항(Python 3.13, Node 20, Docker), `docker compose -f docker-compose.dev.yml up` Postgres+Redis 기동, `backend/.env` 채울 값(모든 변수 1줄 설명), `alembic upgrade head`, `uvicorn app.main:app --reload`, frontend `npm install && npm run dev`, Windows에서 자주 막히는 PATH 이슈, `scripts/pg-init-hba.sh` 목적
 
 ### DOC-204. Testing guide
-- [ ] Create `docs/architecture/testing-guide.md` — pytest 마커 사용 (`@pytest.mark.unit` vs `.integration`), `backend/tests/conftest.py`의 DB isolation (per-test transaction rollback), MSW handlers (`frontend/src/test/handlers.ts`) 작성법, E2E 로컬 실행 (`npx playwright test`), 커버리지 타겟 80% 유지 방법, 테스트 작성 순서(TDD) 체크리스트
+- [x] Create `docs/architecture/testing-guide.md` — pytest 마커 사용 (`@pytest.mark.unit` vs `.integration`), `backend/tests/conftest.py`의 DB isolation (per-test transaction rollback), MSW handlers (`frontend/src/test/handlers.ts`) 작성법, E2E 로컬 실행 (`npx playwright test`), 커버리지 타겟 80% 유지 방법, 테스트 작성 순서(TDD) 체크리스트
 
 ### DOC-205. Deployment runbook
-- [ ] Create `docs/runbooks/deploy.md` — CI/CD `.github/workflows/deploy.yml` 실패 시 대응, 롤백 절차 (이전 Docker image tag로 `docker compose up -d`), 핫픽스 프로세스 (main branch → direct push OK vs PR 필요), 수동 Alembic 실행 (SSH 후 `alembic upgrade head`), 배포 전/후 smoke 체크
+- [x] Create `docs/runbooks/deploy.md` — CI/CD `.github/workflows/deploy.yml` 실패 시 대응, 롤백 절차 (이전 Docker image tag로 `docker compose up -d`), 핫픽스 프로세스 (main branch → direct push OK vs PR 필요), 수동 Alembic 실행 (SSH 후 `alembic upgrade head`), 배포 전/후 smoke 체크
 
 ### 🟡 P3 — 구조적 이해 심화
 
 ### DOC-206. Auth flow deep-dive
-- [ ] Create `docs/architecture/auth-flow.md` — JWT access(30min) + refresh rotation + SSE ticket 전체 sequence diagram (ASCII), HttpOnly cookie dual-write 이유, Axios interceptor 자동 갱신, 세션 목록/revoke 플로우 (`/auth/sessions`, Redis `refresh_token:{jti}` 키 구조), 로그아웃 시 서버 revoke 절차
+- [x] Create `docs/architecture/auth-flow.md` — JWT access(30min) + refresh rotation + SSE ticket 전체 sequence diagram (ASCII), HttpOnly cookie dual-write 이유, Axios interceptor 자동 갱신, 세션 목록/revoke 플로우 (`/auth/sessions`, Redis `refresh_token:{jti}` 키 구조), 로그아웃 시 서버 revoke 절차
 
 ### DOC-207. Trading feature architecture
-- [ ] Create `docs/architecture/feature-trading.md` — 주문 lifecycle: placed → pending → filled/partial → settled/cancelled 상태 전이도, 각 상태에서 어떤 Redis 락/lock이 걸리는지, `kis_order_place.py` 함수 역할, `order_settlement.py` 정산 트리거 조건 (스케줄러 주기 포함), `reconciliation.py`가 해결하는 불일치 유형
+- [x] Create `docs/architecture/feature-trading.md` — 주문 lifecycle: placed → pending → filled/partial → settled/cancelled 상태 전이도, 각 상태에서 어떤 Redis 락/lock이 걸리는지, `kis_order_place.py` 함수 역할, `order_settlement.py` 정산 트리거 조건 (스케줄러 주기 포함), `reconciliation.py`가 해결하는 불일치 유형
 
 ### DOC-208. Analytics feature architecture
-- [ ] Create `docs/architecture/feature-analytics.md` — monthly return / Sharpe / MDD / CAGR 계산식 및 입력 데이터 소스 (`price_snapshots`, `fx_rate_snapshots`), scheduler jobs 표 (`scheduler.py` + split 파일들): job 이름/crontab/실패 동작, benchmark (KOSPI200/S&P500) 데이터 수집 플로우
+- [x] Create `docs/architecture/feature-analytics.md` — monthly return / Sharpe / MDD / CAGR 계산식 및 입력 데이터 소스 (`price_snapshots`, `fx_rate_snapshots`), scheduler jobs 표 (`scheduler.py` + split 파일들): job 이름/crontab/실패 동작, benchmark (KOSPI200/S&P500) 데이터 수집 플로우
 
 ### DOC-209. Security model
-- [ ] Create `docs/architecture/security-model.md` — 위협 모델 (OWASP Top 10 중 어떤 걸 방어하는지), **암호화되지 않는 필드 명시** (`account_no`는 평문), AES-256-GCM 마스터키 회전 절차, `security_audit_logs` 테이블이 추적하는 이벤트 목록, bcrypt cost factor, JWT 서명 키 회전 계획(또는 미계획 고지)
+- [x] Create `docs/architecture/security-model.md` — 위협 모델 (OWASP Top 10 중 어떤 걸 방어하는지), **암호화되지 않는 필드 명시** (`account_no`는 평문), AES-256-GCM 마스터키 회전 절차, `security_audit_logs` 테이블이 추적하는 이벤트 목록, bcrypt cost factor, JWT 서명 키 회전 계획(또는 미계획 고지)
 
 ### DOC-210. Database schema & migration workflow
-- [ ] Create `docs/architecture/database-schema.md` — 14개 테이블 ERD(mermaid or ASCII), 각 테이블 목적 1줄, 주요 인덱스 근거, Alembic autogenerate 검증 체크리스트 (FK 누락, index 누락, NULL 기본값), seed 데이터 실행법 (있으면), `env.py` async 설정 주의사항
+- [x] Create `docs/architecture/database-schema.md` — 14개 테이블 ERD(mermaid or ASCII), 각 테이블 목적 1줄, 주요 인덱스 근거, Alembic autogenerate 검증 체크리스트 (FK 누락, index 누락, NULL 기본값), seed 데이터 실행법 (있으면), `env.py` async 설정 주의사항
 
 ### 🔵 P4 — 스타일/품질
 
 ### DOC-211. Design system
-- [ ] Create `docs/architecture/design-system.md` — shadcn/ui `base-nova` + `neutral` base color 확장 규칙, Tailwind v4 theme token 맵 (`--color-*` 변수), 한국 증시 색 규칙 공식화(상승 red-500, 하락 blue-500), `cn()` helper 사용 규칙, 컴포넌트 작성 checklist (props 타입, forwardRef 필요 케이스), 다크모드 (`next-themes`) 구현 노트
+- [x] Create `docs/architecture/design-system.md` — shadcn/ui `base-nova` + `neutral` base color 확장 규칙, Tailwind v4 theme token 맵 (`--color-*` 변수), 한국 증시 색 규칙 공식화(상승 red-500, 하락 blue-500), `cn()` helper 사용 규칙, 컴포넌트 작성 checklist (props 타입, forwardRef 필요 케이스), 다크모드 (`next-themes`) 구현 노트
 
 ### ⚙️ Meta
 
 ### DOC-212. doc-updater agent 확장
-- [ ] Update `.claude/agents/doc-updater.md` so the agent knows about the new docs created in DOC-201~211. Changes: (1) Phase 2 doc list includes all new files (guarded with `if exists`), (2) Phase 3에 각 doc별 drift vector 명시 (예: `kis-integration.md` → `grep -E "tr_id = \"[A-Z]+[0-9]+\"" backend/app/services/` 결과와 TR_ID 표 비교), (3) Phase 4에 각 doc별 update 규칙 — code-derived facts만 자동 수정, narrative 섹션은 건드리지 않음, (4) Phase 5에 생성 템플릿 추가.
+- [x] Update `.claude/agents/doc-updater.md` so the agent knows about the new docs created in DOC-201~211. Changes: (1) Phase 2 doc list includes all new files (guarded with `if exists`), (2) Phase 3에 각 doc별 drift vector 명시 (예: `kis-integration.md` → `grep -E "tr_id = \"[A-Z]+[0-9]+\"" backend/app/services/` 결과와 TR_ID 표 비교), (3) Phase 4에 각 doc별 update 규칙 — code-derived facts만 자동 수정, narrative 섹션은 건드리지 않음, (4) Phase 5에 생성 템플릿 추가.
 
 ---
 
