@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,7 @@ interface MetricCardProps {
 
 function MetricTooltip({ text }: { text: string }) {
   const ref = useRef<HTMLSpanElement>(null);
+  const tooltipId = useId();
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
 
   const show = () => {
@@ -38,18 +39,27 @@ function MetricTooltip({ text }: { text: string }) {
     });
   };
 
+  const hide = () => setTooltipStyle(null);
+
   return (
     <>
       <span
         ref={ref}
-        className="cursor-help text-xs text-muted-foreground/60 hover:text-muted-foreground"
+        role="button"
+        tabIndex={0}
+        aria-describedby={tooltipId}
+        className="cursor-help text-xs text-muted-foreground/60 hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
         onMouseEnter={show}
-        onMouseLeave={() => setTooltipStyle(null)}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
       >
         ⓘ
       </span>
       {tooltipStyle && (
         <div
+          id={tooltipId}
+          role="tooltip"
           className="w-52 rounded-md border bg-popover px-2.5 py-2 text-xs text-popover-foreground shadow-lg"
           style={tooltipStyle}
         >
