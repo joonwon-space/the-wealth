@@ -48,7 +48,7 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 ### 🔵 P4 — 스타일/품질
 
 ### DOC-211. Design system
-- [ ] Create `docs/architecture/design-system.md` — shadcn/ui `base-nova` + `neutral` base color 확장 규칙, Tailwind v4 theme token 맵 (`--color-*` 변수), 한국 증시 색 규칙 공식화(상승 red-500, 하락 blue-500), `cn()` helper 사용 규칙, 컴포넌트 작성 checklist (props 타입, forwardRef 필요 케이스), 다크모드 (`next-themes`) 구현 노트
+- [x] Create `docs/architecture/design-system.md` — shadcn/ui `base-nova` + `neutral` base color 확장 규칙, Tailwind v4 theme token 맵 (`--color-*` 변수), 한국 증시 색 규칙 공식화(상승 red-500, 하락 blue-500), `cn()` helper 사용 규칙, 컴포넌트 작성 checklist (props 타입, forwardRef 필요 케이스), 다크모드 (`next-themes`) 구현 노트
 
 ### ⚙️ Meta
 
