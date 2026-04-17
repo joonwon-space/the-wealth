@@ -288,7 +288,8 @@ alembic upgrade head
 | `refresh_jti:{uuid}` | user_id (문자열) | 7일 | Refresh token JTI 저장 |
 | `cash_balance:{portfolio_id}` | JSON (CashBalance) | 30초 | 예수금 캐시 |
 | `order_lock:{portfolio_id}:{ticker}` | "1" | 10초 | 이중 주문 방지 락 |
-| `order_rate:{user_id}` | count | 60초 | 주문 레이트 리밋 (5회/분) |
+| `order_rate:{user_id}` | count | 60초 | 주문 레이트 리밋 (10회/분) |
+| `sse-ticket:{ticket}` | user_id (문자열) | 30초 | SSE 스트림 단기 인증 티켓 |
 
 ### 5.4 프론트엔드 연동
 
@@ -471,13 +472,20 @@ Docker Compose 헬스체크:
 | `R2_BUCKET` | - | R2 버킷 이름 | `the-wealth-backup` |
 | `R2_ACCESS_KEY_ID` | - | R2 액세스 키 | |
 | `R2_SECRET_ACCESS_KEY` | - | R2 시크릿 키 | |
-| `VISUAL_QA_EMAIL` | - | E2E 테스트용 계정 이메일 | `qa@example.com` |
-| `VISUAL_QA_PASSWORD` | - | E2E 테스트용 계정 비밀번호 | |
 | `KIS_RATE_LIMIT_PER_SEC` | - | KIS API 토큰 버킷 보충 속도 (기본: 5.0 req/s) | `5.0` |
 | `KIS_RATE_LIMIT_BURST` | - | KIS API 버스트 최대 크기 (기본: 20 토큰) | `20` |
 | `KIS_MOCK_MODE` | - | `true` 설정 시 KIS 레이트 리밋 비활성화 (로컬 개발/테스트용) | `false` |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
+
+### E2E / 테스트 전용 환경변수
+
+다음 환경변수는 백엔드 서버 환경변수가 아니라 E2E 테스트 실행 환경에서만 사용됩니다.
+
+| 키 | 설명 | 예시 |
+|----|------|------|
+| `VISUAL_QA_EMAIL` | E2E 테스트용 계정 이메일 | `qa@example.com` |
+| `VISUAL_QA_PASSWORD` | E2E 테스트용 계정 비밀번호 | |
 
 ---
 
