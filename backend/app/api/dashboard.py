@@ -23,7 +23,7 @@ from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
-from app.schemas.dashboard import AllocationItem, DashboardSummary, HoldingWithPnL, TriggeredAlert
+from app.schemas.dashboard import AllocationItem, DashboardSummary, DashboardSummaryResponse, HoldingWithPnL, TriggeredAlert
 from app.services.kis_price import (
     _cache_price,
     _get_cached_price,
@@ -270,7 +270,7 @@ def _build_allocation(
     return allocation
 
 
-@router.get("/summary", response_model=None)
+@router.get("/summary", response_model=DashboardSummaryResponse)
 @limiter.limit("120/minute")
 async def get_summary(
     request: Request,
