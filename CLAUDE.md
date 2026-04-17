@@ -93,6 +93,11 @@ For granular control, use individual commands:
 | `/next-task` | Execute single next task |
 | `/discover-tasks` | Refresh tasks.md and todo.md |
 | `/update-docs` | Sync docs with codebase |
+| `/fix-alerts` | Diagnose and fix price alert delivery issues |
+| `/log-check` | Review recent error logs for anomalies |
+| `/e2e-check` | Run Playwright E2E suite on critical flows |
+| `/fix-ui` | Fix UI bug from screenshot or user report |
+| `/visual-qa` | Run screenshot-based visual regression check |
 
 ### Team Commands (multi-agent analysis)
 
@@ -115,6 +120,11 @@ For granular control, use individual commands:
 | `code-reviewer` | sonnet | After every code change |
 | `security-reviewer` | sonnet | Auth, API endpoints, KIS credential handling |
 | `database-reviewer` | sonnet | Schema changes, SQL queries, Alembic migrations |
+| `migration-reviewer` | sonnet | Alembic migration safety and reversibility |
+| `perf-analyzer` | sonnet | Bundle size, query performance, caching |
+| `doc-updater` | sonnet | Keep docs in sync with codebase changes |
+| `e2e-runner` | sonnet | Playwright E2E tests for critical user flows |
+| `visual-qa` | sonnet | Screenshot-based UI regression checks |
 
 ## Hooks (`.claude/hooks/`)
 
