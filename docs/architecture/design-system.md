@@ -235,7 +235,7 @@ Recharts 컴포넌트에서 사용하는 8색 팔레트 (`globals.css:85-92`):
 | 변수 | 색상 | 용도 |
 |------|------|------|
 | `--chart-1` | `#1e90ff` (dodger blue) | 주 차트 색 (포트폴리오 히스토리) |
-| `--chart-2` | (neutral) | 보조 |
+| `--chart-2` | `#00ff00` (neon green, 라이트) / green (다크) | 보조 |
 | `--chart-3` | amber `#F59E0B` | 경고/황색 계열 |
 | `--chart-4` | rose `#F43F5E` | 위험/음수 계열 |
 | `--chart-5` | violet `#8B5CF6` | 섹터 차트 |
