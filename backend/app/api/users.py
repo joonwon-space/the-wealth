@@ -3,7 +3,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -139,13 +139,13 @@ async def delete_account(
 
 
 class KisAccountCreate(BaseModel):
-    label: str
-    account_no: str
+    label: str = Field(max_length=100)
+    account_no: str = Field(max_length=20)
     acnt_prdt_cd: str = "01"
     app_key: str
     app_secret: str
     is_paper_trading: bool = False
-    account_type: str = "일반"  # 일반, ISA, 연금저축, IRP, 해외주식
+    account_type: str = Field(default="일반", max_length=50)  # 일반, ISA, 연금저축, IRP, 해외주식
 
 
 @router.post("/kis-accounts", status_code=201)
@@ -220,9 +220,9 @@ async def list_kis_accounts(
 
 
 class KisAccountUpdate(BaseModel):
-    label: Optional[str] = None
+    label: Optional[str] = Field(None, max_length=100)
     is_paper_trading: Optional[bool] = None
-    account_type: Optional[str] = None
+    account_type: Optional[str] = Field(None, max_length=50)
 
 
 @router.patch("/kis-accounts/{account_id}")
