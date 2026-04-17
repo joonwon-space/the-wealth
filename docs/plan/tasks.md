@@ -23,7 +23,7 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 - [x] Create `docs/architecture/getting-started.md` — fresh clone → 실행까지 단일 경로: 사전 요구사항(Python 3.13, Node 20, Docker), `docker compose -f docker-compose.dev.yml up` Postgres+Redis 기동, `backend/.env` 채울 값(모든 변수 1줄 설명), `alembic upgrade head`, `uvicorn app.main:app --reload`, frontend `npm install && npm run dev`, Windows에서 자주 막히는 PATH 이슈, `scripts/pg-init-hba.sh` 목적
 
 ### DOC-204. Testing guide
-- [ ] Create `docs/architecture/testing-guide.md` — pytest 마커 사용 (`@pytest.mark.unit` vs `.integration`), `backend/tests/conftest.py`의 DB isolation (per-test transaction rollback), MSW handlers (`frontend/src/test/handlers.ts`) 작성법, E2E 로컬 실행 (`npx playwright test`), 커버리지 타겟 80% 유지 방법, 테스트 작성 순서(TDD) 체크리스트
+- [x] Create `docs/architecture/testing-guide.md` — pytest 마커 사용 (`@pytest.mark.unit` vs `.integration`), `backend/tests/conftest.py`의 DB isolation (per-test transaction rollback), MSW handlers (`frontend/src/test/handlers.ts`) 작성법, E2E 로컬 실행 (`npx playwright test`), 커버리지 타겟 80% 유지 방법, 테스트 작성 순서(TDD) 체크리스트
 
 ### DOC-205. Deployment runbook
 - [ ] Create `docs/runbooks/deploy.md` — CI/CD `.github/workflows/deploy.yml` 실패 시 대응, 롤백 절차 (이전 Docker image tag로 `docker compose up -d`), 핫픽스 프로세스 (main branch → direct push OK vs PR 필요), 수동 Alembic 실행 (SSH 후 `alembic upgrade head`), 배포 전/후 smoke 체크
