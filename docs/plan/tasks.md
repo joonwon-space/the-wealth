@@ -34,7 +34,7 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 - [x] Create `docs/architecture/auth-flow.md` — JWT access(30min) + refresh rotation + SSE ticket 전체 sequence diagram (ASCII), HttpOnly cookie dual-write 이유, Axios interceptor 자동 갱신, 세션 목록/revoke 플로우 (`/auth/sessions`, Redis `refresh_token:{jti}` 키 구조), 로그아웃 시 서버 revoke 절차
 
 ### DOC-207. Trading feature architecture
-- [ ] Create `docs/architecture/feature-trading.md` — 주문 lifecycle: placed → pending → filled/partial → settled/cancelled 상태 전이도, 각 상태에서 어떤 Redis 락/lock이 걸리는지, `kis_order_place.py` 함수 역할, `order_settlement.py` 정산 트리거 조건 (스케줄러 주기 포함), `reconciliation.py`가 해결하는 불일치 유형
+- [x] Create `docs/architecture/feature-trading.md` — 주문 lifecycle: placed → pending → filled/partial → settled/cancelled 상태 전이도, 각 상태에서 어떤 Redis 락/lock이 걸리는지, `kis_order_place.py` 함수 역할, `order_settlement.py` 정산 트리거 조건 (스케줄러 주기 포함), `reconciliation.py`가 해결하는 불일치 유형
 
 ### DOC-208. Analytics feature architecture
 - [ ] Create `docs/architecture/feature-analytics.md` — monthly return / Sharpe / MDD / CAGR 계산식 및 입력 데이터 소스 (`price_snapshots`, `fx_rate_snapshots`), scheduler jobs 표 (`scheduler.py` + split 파일들): job 이름/crontab/실패 동작, benchmark (KOSPI200/S&P500) 데이터 수집 플로우
