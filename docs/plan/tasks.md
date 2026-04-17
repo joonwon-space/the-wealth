@@ -53,7 +53,7 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 ### ⚙️ Meta
 
 ### DOC-212. doc-updater agent 확장
-- [ ] Update `.claude/agents/doc-updater.md` so the agent knows about the new docs created in DOC-201~211. Changes: (1) Phase 2 doc list includes all new files (guarded with `if exists`), (2) Phase 3에 각 doc별 drift vector 명시 (예: `kis-integration.md` → `grep -E "tr_id = \"[A-Z]+[0-9]+\"" backend/app/services/` 결과와 TR_ID 표 비교), (3) Phase 4에 각 doc별 update 규칙 — code-derived facts만 자동 수정, narrative 섹션은 건드리지 않음, (4) Phase 5에 생성 템플릿 추가.
+- [x] Update `.claude/agents/doc-updater.md` so the agent knows about the new docs created in DOC-201~211. Changes: (1) Phase 2 doc list includes all new files (guarded with `if exists`), (2) Phase 3에 각 doc별 drift vector 명시 (예: `kis-integration.md` → `grep -E "tr_id = \"[A-Z]+[0-9]+\"" backend/app/services/` 결과와 TR_ID 표 비교), (3) Phase 4에 각 doc별 update 규칙 — code-derived facts만 자동 수정, narrative 섹션은 건드리지 않음, (4) Phase 5에 생성 템플릿 추가.
 
 ---
 
