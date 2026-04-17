@@ -102,12 +102,16 @@ async def get_metrics(
     if not portfolio_ids:
         return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
 
-    hold_result = await db.execute(
-        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+    # 보유 종목 + KIS 계좌를 병렬로 조회 (독립적 쿼리)
+    hold_result, acct_result = await asyncio.gather(
+        db.execute(select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))),
+        db.execute(select(KisAccount).where(KisAccount.user_id == current_user.id).limit(1)),
     )
     holdings = hold_result.scalars().all()
     if not holdings:
         return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+
+    acct = acct_result.scalar_one_or_none()
 
     # ticker → market 매핑 (해외주식 routing용)
     ticker_to_market: dict[str, str] = {
@@ -118,12 +122,6 @@ async def get_metrics(
     domestic_tickers = [t for t in {h.ticker for h in holdings} if is_domestic(t)]
     overseas_tickers = [t for t in {h.ticker for h in holdings} if not is_domestic(t)]
     tickers = domestic_tickers + overseas_tickers
-
-    # 현재가 조회 — 국내/해외 각각 올바른 API 라우팅
-    acct_result = await db.execute(
-        select(KisAccount).where(KisAccount.user_id == current_user.id).limit(1)
-    )
-    acct = acct_result.scalar_one_or_none()
     current_prices: dict[str, Optional[Decimal]] = {}
     if acct:
         try:
