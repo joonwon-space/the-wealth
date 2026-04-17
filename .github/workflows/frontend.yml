@@ -1,11 +1,11 @@
 name: Frontend CI
 
+# Path filters are applied per-step via dorny/paths-filter so the required
+# status check always reports — even when the PR only touches unrelated files.
 on:
   push:
     branches: [main]
-    paths: ['frontend/**']
   pull_request:
-    paths: ['frontend/**']
 
 defaults:
   run:
@@ -18,27 +18,46 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            relevant:
+              - 'frontend/**'
+              - '.github/workflows/frontend.yml'
+
+      - name: Skip (no frontend changes)
+        if: steps.filter.outputs.relevant != 'true'
+        run: echo "::notice::No frontend changes in this PR — skipping lint/build/test, reporting success."
+
       - uses: actions/setup-node@v6
+        if: steps.filter.outputs.relevant == 'true'
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - run: npm ci
+      - if: steps.filter.outputs.relevant == 'true'
+        run: npm ci
 
       - name: Lint
+        if: steps.filter.outputs.relevant == 'true'
         run: npm run lint
 
       - name: Type check
+        if: steps.filter.outputs.relevant == 'true'
         run: npx tsc --noEmit
 
       - name: Test
+        if: steps.filter.outputs.relevant == 'true'
         run: npx vitest run
 
       - name: Build
+        if: steps.filter.outputs.relevant == 'true'
         run: npm run build
 
       - name: Bundle size budget check
+        if: steps.filter.outputs.relevant == 'true'
         run: |
           # Warn if total client JS chunks exceed 1MB (uncompressed)
           BUDGET_BYTES=1048576
