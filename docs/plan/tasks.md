@@ -12,7 +12,7 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 ### 🔴 P1 — Blocking new-contributor / debug flows
 
 ### DOC-201. Troubleshooting runbook
-- [ ] Create `docs/runbooks/troubleshooting.md` covering common dev issues: Redis 연결 실패 (check `REDIS_URL`, `docker compose ps`), pytest DB connection refused (integration tests need real Postgres), KIS 403 (expired token vs wrong credentials vs IP 차단), Alembic head conflict (두 PR 동시 머지 시), SSE not connecting in dev (ticket fetch 실패 확인), `next build` OOM on Windows. 각 항목: 증상 → 원인 → 해결 절차. 코드 라인 번호 실제 grep해서 인용.
+- [x] Create `docs/runbooks/troubleshooting.md` covering common dev issues: Redis 연결 실패 (check `REDIS_URL`, `docker compose ps`), pytest DB connection refused (integration tests need real Postgres), KIS 403 (expired token vs wrong credentials vs IP 차단), Alembic head conflict (두 PR 동시 머지 시), SSE not connecting in dev (ticket fetch 실패 확인), `next build` OOM on Windows. 각 항목: 증상 → 원인 → 해결 절차. 코드 라인 번호 실제 grep해서 인용.
 
 ### DOC-202. KIS integration reference
 - [ ] Create `docs/architecture/kis-integration.md` — extract from `backend/app/services/kis_*.py`: (1) TR_ID 표 (국내 주문/잔고/시세 + 해외 각각, 실전 vs 모의 TR_ID), (2) `KIS_MOCK_MODE` 동작 설명, (3) rate limiter token-bucket 파라미터 및 조정법, (4) KIS 토큰 lifecycle (Redis 캐시 키, 24h 만료, proactive 갱신), (5) 자주 보는 rt_cd/msg1 에러 코드 해석, (6) 국내↔해외 라우팅 결정 규칙 (`exchange_code`)
