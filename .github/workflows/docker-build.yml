@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-backend:
-    name: Build backend Docker image
+    name: Build backend image (no push)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   build-frontend:
-    name: Build frontend Docker image
+    name: Build frontend image (no push)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
