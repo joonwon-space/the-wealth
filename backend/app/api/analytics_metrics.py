@@ -242,6 +242,7 @@ async def get_metrics(
 @limiter.limit("30/minute")
 async def get_monthly_returns(
     request: Request,
+    since: Optional[date_type] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[MonthlyReturn]:
@@ -249,9 +250,13 @@ async def get_monthly_returns(
 
     price_snapshots에서 각 월의 마지막 거래일 종가를 취합하여
     전월 대비 수익률을 반환한다.
+
+    since: 조회 시작일 (기본값: 오늘 - 365일). 장기 조회 시 명시적으로 지정 가능.
     """
+    cutoff = since if since is not None else date_type.today() - timedelta(days=365)
+
     _cache = get_analytics_cache()
-    cache_key = analytics_key(current_user.id, "monthly-returns")
+    cache_key = analytics_key(current_user.id, f"monthly-returns:{cutoff.isoformat()}")
     cached = await _cache.get(cache_key)
     if cached:
         return [MonthlyReturn(**item) for item in json.loads(cached)]
@@ -275,7 +280,10 @@ async def get_monthly_returns(
 
     snap_result = await db.execute(
         select(PriceSnapshot)
-        .where(PriceSnapshot.ticker.in_(tickers))
+        .where(
+            PriceSnapshot.ticker.in_(tickers),
+            PriceSnapshot.snapshot_date >= cutoff,
+        )
         .order_by(PriceSnapshot.snapshot_date)
     )
     snapshots = snap_result.scalars().all()
