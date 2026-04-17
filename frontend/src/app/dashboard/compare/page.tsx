@@ -242,6 +242,7 @@ export default function ComparePage() {
           <button
             key={p}
             onClick={() => setPeriod(p)}
+            aria-pressed={period === p}
             className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
               period === p
                 ? "text-primary-foreground"
