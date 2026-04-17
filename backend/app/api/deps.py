@@ -51,13 +51,12 @@ async def get_current_user(
 
 async def get_current_user_sse(
     ticket: Optional[str] = Query(None),
-    token: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """SSE 전용 인증 — 단기 티켓(sse-ticket:{uuid}) 우선, fallback으로 JWT token 허용.
+    """SSE 전용 인증 — 단기 티켓(sse-ticket:{uuid}) 방식.
 
     티켓 방식: POST /auth/sse-ticket으로 30초 TTL UUID 발급 → ?ticket= 파라미터로 전달.
-    JWT 방식(레거시): ?token= 파라미터 (nginx 로그 노출 위험, 클라이언트 이전 후 제거 예정).
+    레거시 ?token= JWT fallback은 nginx 로그 노출 위험으로 제거됨.
     """
     user_id: Optional[int] = None
 
@@ -71,9 +70,6 @@ async def get_current_user_sse(
                     user_id = int(raw)
                 except (ValueError, TypeError):
                     user_id = None
-    elif token:
-        # Legacy JWT fallback
-        user_id = decode_access_token(token)
 
     if user_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid SSE credentials")

@@ -62,27 +62,43 @@ export default function StockDetailPage() {
 
   const [detail, setDetail] = useState<StockDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
+  const [chartError, setChartError] = useState(false);
   const [chartPending, startChartTransition] = useTransition();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("3M");
 
-  useEffect(() => {
+  const loadDetail = () => {
     if (!ticker) return;
+    setLoading(true);
+    setPageError(null);
     api.get<StockDetail>(`/stocks/${ticker}/detail`)
       .then((r) => setDetail(r.data))
+      .catch(() => setPageError("종목 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요."))
       .finally(() => setLoading(false));
-  }, [ticker]);
+  };
 
   useEffect(() => {
+    loadDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker]);
+
+  const loadChart = () => {
     if (!ticker) return;
+    setChartError(false);
     startChartTransition(async () => {
       await api
         .get<{ candles: Candle[] }>("/chart/daily", {
           params: { ticker, period, ...(detail?.market ? { market: detail.market } : {}) },
         })
         .then((r) => setCandles(r.data.candles))
-        .catch(() => setCandles([]));
+        .catch(() => setChartError(true));
     });
+  };
+
+  useEffect(() => {
+    loadChart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, period, detail?.market]);
 
   if (loading) {
@@ -99,13 +115,21 @@ export default function StockDetailPage() {
     );
   }
 
-  if (!detail || detail.error) {
+  if (pageError ?? (!detail || detail.error)) {
     return (
       <div className="space-y-4">
         <Link href="/dashboard" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> 돌아가기
         </Link>
-        <p className="text-muted-foreground">{detail?.error ?? "종목 정보를 불러올 수 없습니다"}</p>
+        <p className="text-muted-foreground">
+          {pageError ?? detail?.error ?? "종목 정보를 불러올 수 없습니다"}
+        </p>
+        <button
+          onClick={loadDetail}
+          className="text-sm underline hover:no-underline text-primary"
+        >
+          다시 시도
+        </button>
       </div>
     );
   }
@@ -172,6 +196,16 @@ export default function StockDetailPage() {
         </div>
         {chartPending ? (
           <ChartSkeleton height={400} />
+        ) : chartError ? (
+          <div className="flex items-center gap-2 h-[400px] justify-center text-sm text-destructive">
+            <span>차트 데이터를 불러오지 못했습니다.</span>
+            <button
+              onClick={loadChart}
+              className="underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            >
+              다시 시도
+            </button>
+          </div>
         ) : (
           <CandlestickChart
             candles={candles}

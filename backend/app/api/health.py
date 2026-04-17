@@ -23,12 +23,19 @@ router = APIRouter(prefix="/health", tags=["health"])
 # 디스크 사용량 경고 임계값 (기본 80%)
 _DISK_THRESHOLD_PCT = 80
 
-# 모니터링할 경로 목록
-_DISK_CHECK_PATHS = ["/", "/var/lib/docker", "/tmp"]
+# 모니터링할 경로 목록 (경로는 응답에 포함하지 않음 — 레이블만 노출)
+_DISK_CHECK_PATHS: list[tuple[str, str]] = [
+    ("/", "root"),
+    ("/var/lib/docker", "docker"),
+    ("/tmp", "tmp"),
+]
 
 
-def _disk_usage_for_path(path: str) -> Optional[dict]:
-    """경로의 디스크 사용량 정보를 반환. 경로가 없으면 None."""
+def _disk_usage_for_path(path: str, label: str) -> Optional[dict]:
+    """경로의 디스크 사용량 정보를 반환. 경로가 없으면 None.
+
+    응답에서 절대 경로는 노출하지 않고 레이블만 포함한다.
+    """
     try:
         usage = shutil.disk_usage(path)
     except (FileNotFoundError, PermissionError):
@@ -38,7 +45,7 @@ def _disk_usage_for_path(path: str) -> Optional[dict]:
     free_gb = usage.free / (1024**3)
     used_pct = round(usage.used / usage.total * 100, 1) if usage.total > 0 else 0.0
     return {
-        "path": path,
+        "label": label,
         "total_gb": round(total_gb, 2),
         "used_gb": round(used_gb, 2),
         "free_gb": round(free_gb, 2),
@@ -71,8 +78,8 @@ async def disk_check(
     }
     """
     volumes = []
-    for path in _DISK_CHECK_PATHS:
-        info = _disk_usage_for_path(path)
+    for path, label in _DISK_CHECK_PATHS:
+        info = _disk_usage_for_path(path, label)
         if info is not None:
             volumes.append(info)
 

@@ -79,10 +79,33 @@ export function AllocationDonut({ data, totalAsset }: Props) {
   const activeItem = hoverIndex != null ? numericData[hoverIndex] : null;
   const activeColor = hoverIndex != null ? CHART_COLORS[hoverIndex % CHART_COLORS.length] : null;
 
+  const ariaLabel = `자산 배분 도넛 차트: ${numericData.map((d) => `${d.name} ${formatRate(d.ratio)}%`).join(", ")}`;
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
       {/* Donut chart */}
-      <div className="relative flex items-center justify-center shrink-0" style={{ width: SIZE, height: SIZE }}>
+      <div
+        className="relative flex items-center justify-center shrink-0"
+        style={{ width: SIZE, height: SIZE }}
+        role="img"
+        aria-label={ariaLabel}
+      >
+        {/* Screen reader data table */}
+        <table className="sr-only">
+          <caption>자산 배분</caption>
+          <thead>
+            <tr><th>종목명</th><th>비중</th><th>금액</th></tr>
+          </thead>
+          <tbody>
+            {numericData.map((d) => (
+              <tr key={d.ticker}>
+                <td>{d.name} ({d.ticker})</td>
+                <td>{formatRate(d.ratio)}%</td>
+                <td>{formatKRW(d.value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         <PieChart width={SIZE} height={SIZE}>
           <Pie
             data={numericData}

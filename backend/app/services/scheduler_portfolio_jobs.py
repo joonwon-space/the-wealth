@@ -5,6 +5,7 @@ Imported and registered by app.services.scheduler.
 """
 
 from collections.abc import Callable
+from typing import cast
 
 from sqlalchemy import select
 
@@ -31,14 +32,14 @@ async def sync_all_accounts(
     try:
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(KisAccount))
-            kis_accounts = list(result.scalars().all())
+            kis_accounts = cast(list[KisAccount], result.scalars().all())
 
             if not kis_accounts:
                 logger.info("[Scheduler] No KIS accounts found, skipping")
                 record_success(job_id)
                 return
 
-            for acct in kis_accounts:  # type: ignore[assignment]
+            for acct in kis_accounts:
                 portfolio_result = await db.execute(
                     select(Portfolio)
                     .where(Portfolio.kis_account_id == acct.id)

@@ -267,7 +267,9 @@ async def _update_holdings(
 
 
 @router.get("/portfolios/{portfolio_id}/orders/orderable", response_model=OrderableInfoResponse)
+@limiter.limit("30/minute")
 async def get_orderable(
+    request: Request,
     portfolio_id: int,
     ticker: str = Query(..., min_length=1, max_length=20),
     price: int = Query(0, ge=0),
@@ -303,7 +305,9 @@ async def get_orderable(
 
 
 @router.get("/portfolios/{portfolio_id}/orders/pending", response_model=list[PendingOrderResponse])
+@limiter.limit("30/minute")
 async def list_pending_orders(
+    request: Request,
     portfolio_id: int,
     is_overseas: bool = Query(False),
     current_user: User = Depends(get_current_user),
@@ -393,7 +397,9 @@ async def cancel_order_endpoint(
 
 
 @router.post("/portfolios/{portfolio_id}/orders/settle")
+@limiter.limit("10/minute")
 async def settle_orders_endpoint(
+    request: Request,
     portfolio_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

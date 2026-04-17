@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -71,7 +72,7 @@ function CustomTooltip({ active, payload, label, gain }: CustomTooltipProps) {
 }
 
 export function PortfolioHistoryChart({ data, period, onPeriodChange }: Props) {
-  const filtered = filterByPeriod(data, period);
+  const filtered = useMemo(() => filterByPeriod(data, period), [data, period]);
 
   if (data.length === 0) {
     return (

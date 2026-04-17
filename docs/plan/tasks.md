@@ -5,6 +5,179 @@ Each item should be completable in a single commit.
 
 ---
 
+## Sprint 16 — Documentation Gaps (2026-04-17)
+
+Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs, each with a canonical home. Each task = one commit = one new file (or one agent update). Keep each doc **under 400 lines**, focus on code-derived facts not narrative.
+
+### 🔴 P1 — Blocking new-contributor / debug flows
+
+### DOC-201. Troubleshooting runbook
+- [ ] Create `docs/runbooks/troubleshooting.md` covering common dev issues: Redis 연결 실패 (check `REDIS_URL`, `docker compose ps`), pytest DB connection refused (integration tests need real Postgres), KIS 403 (expired token vs wrong credentials vs IP 차단), Alembic head conflict (두 PR 동시 머지 시), SSE not connecting in dev (ticket fetch 실패 확인), `next build` OOM on Windows. 각 항목: 증상 → 원인 → 해결 절차. 코드 라인 번호 실제 grep해서 인용.
+
+### DOC-202. KIS integration reference
+- [ ] Create `docs/architecture/kis-integration.md` — extract from `backend/app/services/kis_*.py`: (1) TR_ID 표 (국내 주문/잔고/시세 + 해외 각각, 실전 vs 모의 TR_ID), (2) `KIS_MOCK_MODE` 동작 설명, (3) rate limiter token-bucket 파라미터 및 조정법, (4) KIS 토큰 lifecycle (Redis 캐시 키, 24h 만료, proactive 갱신), (5) 자주 보는 rt_cd/msg1 에러 코드 해석, (6) 국내↔해외 라우팅 결정 규칙 (`exchange_code`)
+
+### 🟠 P2 — 자주 필요하지만 부분적으로만 존재
+
+### DOC-203. Getting started guide
+- [ ] Create `docs/architecture/getting-started.md` — fresh clone → 실행까지 단일 경로: 사전 요구사항(Python 3.13, Node 20, Docker), `docker compose -f docker-compose.dev.yml up` Postgres+Redis 기동, `backend/.env` 채울 값(모든 변수 1줄 설명), `alembic upgrade head`, `uvicorn app.main:app --reload`, frontend `npm install && npm run dev`, Windows에서 자주 막히는 PATH 이슈, `scripts/pg-init-hba.sh` 목적
+
+### DOC-204. Testing guide
+- [ ] Create `docs/architecture/testing-guide.md` — pytest 마커 사용 (`@pytest.mark.unit` vs `.integration`), `backend/tests/conftest.py`의 DB isolation (per-test transaction rollback), MSW handlers (`frontend/src/test/handlers.ts`) 작성법, E2E 로컬 실행 (`npx playwright test`), 커버리지 타겟 80% 유지 방법, 테스트 작성 순서(TDD) 체크리스트
+
+### DOC-205. Deployment runbook
+- [ ] Create `docs/runbooks/deploy.md` — CI/CD `.github/workflows/deploy.yml` 실패 시 대응, 롤백 절차 (이전 Docker image tag로 `docker compose up -d`), 핫픽스 프로세스 (main branch → direct push OK vs PR 필요), 수동 Alembic 실행 (SSH 후 `alembic upgrade head`), 배포 전/후 smoke 체크
+
+### 🟡 P3 — 구조적 이해 심화
+
+### DOC-206. Auth flow deep-dive
+- [ ] Create `docs/architecture/auth-flow.md` — JWT access(30min) + refresh rotation + SSE ticket 전체 sequence diagram (ASCII), HttpOnly cookie dual-write 이유, Axios interceptor 자동 갱신, 세션 목록/revoke 플로우 (`/auth/sessions`, Redis `refresh_token:{jti}` 키 구조), 로그아웃 시 서버 revoke 절차
+
+### DOC-207. Trading feature architecture
+- [ ] Create `docs/architecture/feature-trading.md` — 주문 lifecycle: placed → pending → filled/partial → settled/cancelled 상태 전이도, 각 상태에서 어떤 Redis 락/lock이 걸리는지, `kis_order_place.py` 함수 역할, `order_settlement.py` 정산 트리거 조건 (스케줄러 주기 포함), `reconciliation.py`가 해결하는 불일치 유형
+
+### DOC-208. Analytics feature architecture
+- [ ] Create `docs/architecture/feature-analytics.md` — monthly return / Sharpe / MDD / CAGR 계산식 및 입력 데이터 소스 (`price_snapshots`, `fx_rate_snapshots`), scheduler jobs 표 (`scheduler.py` + split 파일들): job 이름/crontab/실패 동작, benchmark (KOSPI200/S&P500) 데이터 수집 플로우
+
+### DOC-209. Security model
+- [ ] Create `docs/architecture/security-model.md` — 위협 모델 (OWASP Top 10 중 어떤 걸 방어하는지), **암호화되지 않는 필드 명시** (`account_no`는 평문), AES-256-GCM 마스터키 회전 절차, `security_audit_logs` 테이블이 추적하는 이벤트 목록, bcrypt cost factor, JWT 서명 키 회전 계획(또는 미계획 고지)
+
+### DOC-210. Database schema & migration workflow
+- [ ] Create `docs/architecture/database-schema.md` — 14개 테이블 ERD(mermaid or ASCII), 각 테이블 목적 1줄, 주요 인덱스 근거, Alembic autogenerate 검증 체크리스트 (FK 누락, index 누락, NULL 기본값), seed 데이터 실행법 (있으면), `env.py` async 설정 주의사항
+
+### 🔵 P4 — 스타일/품질
+
+### DOC-211. Design system
+- [ ] Create `docs/architecture/design-system.md` — shadcn/ui `base-nova` + `neutral` base color 확장 규칙, Tailwind v4 theme token 맵 (`--color-*` 변수), 한국 증시 색 규칙 공식화(상승 red-500, 하락 blue-500), `cn()` helper 사용 규칙, 컴포넌트 작성 checklist (props 타입, forwardRef 필요 케이스), 다크모드 (`next-themes`) 구현 노트
+
+### ⚙️ Meta
+
+### DOC-212. doc-updater agent 확장
+- [ ] Update `.claude/agents/doc-updater.md` so the agent knows about the new docs created in DOC-201~211. Changes: (1) Phase 2 doc list includes all new files (guarded with `if exists`), (2) Phase 3에 각 doc별 drift vector 명시 (예: `kis-integration.md` → `grep -E "tr_id = \"[A-Z]+[0-9]+\"" backend/app/services/` 결과와 TR_ID 표 비교), (3) Phase 4에 각 doc별 update 규칙 — code-derived facts만 자동 수정, narrative 섹션은 건드리지 않음, (4) Phase 5에 생성 템플릿 추가.
+
+---
+
+## Sprint 15 — Multi-Agent Audit Findings (2026-04-17)
+
+Findings from parallel audits: tech-debt, security-posture, perf-bottleneck, ux-gap, docs-drift analysts.
+
+### 🔴 CRITICAL — 사용자에게 잘못된 정보/에러 삼킴
+
+### BUG-C1. USD 거래내역을 KRW로 포맷 (journal)
+- [x] Fix `frontend/src/app/dashboard/journal/JournalTimeline.tsx:89-92` — use `formatUSD` when `txn.currency === "USD"`, else `formatKRW`; AAPL 매수가 `₩150.00`으로 표시되던 버그
+
+### BUG-C2. USD 거래내역을 KRW로 포맷 (portfolio detail)
+- [x] Fix `frontend/src/app/dashboard/portfolios/[id]/TransactionSection.tsx:264-265` — 해당 holding의 currency를 resolve해서 USD면 `formatUSD` 사용 (같은 파일 line 449-450의 KIS 블록이 올바른 패턴)
+
+### BUG-C3. Transaction fetch 에러 삼킴
+- [x] Fix `frontend/src/app/dashboard/portfolios/[id]/TransactionSection.tsx:97-116` — `useInfiniteQuery`의 catch가 `{ items: [], ... }` 반환하는 패턴 제거; 에러 propagate 후 `isError`일 때 `WidgetErrorFallback` 렌더
+
+### BUG-C4. Watchlist fetch 에러 삼킴
+- [x] Fix `frontend/src/components/WatchlistSection.tsx:27-29` — `.catch(() => {})` 제거, 에러 state 추가 후 retry 프롬프트 렌더
+
+### BUG-C5. 종목 상세 fetch 에러 처리 누락
+- [x] Fix `frontend/src/app/dashboard/stocks/[ticker]/page.tsx:69-74,102-108` — useEffect fetch에 `.catch()` 추가, `PageError` 컴포넌트로 `onRetry` 제공
+
+### 🟠 HIGH — 보안/신뢰성 리스크
+
+### SEC-101. /auth/refresh rate limit 추가
+- [x] Add `@limiter.limit("20/minute")` to `backend/app/api/auth.py:213` `refresh()` — 현재 유일하게 rate limit 없는 unauth 쓰기 경로; refresh token 탈취 시 무제한 갱신 가능. `@router.post → @limiter.limit → async def` 순서 유지, `request: Request` 파라미터 필요
+
+### SEC-102. KIS-proxy order endpoints rate limit 추가
+- [x] Add `@limiter.limit("30/minute")` to `get_orderable` (`orders.py:269`), `list_pending_orders` (`orders.py:305`), `settle` (`orders.py:380`) — KIS API amplification 방지; `settle`은 10/minute 권장
+
+### SEC-103. SSE 레거시 `?token=` fallback 제거
+- [x] Remove `elif token:` branch and `token: Optional[str] = Query(None)` param from `backend/app/api/deps.py:74-76` `get_current_user_sse` — nginx access log JWT 노출 위험 차단; 사전에 `frontend/src/hooks/usePriceStream.ts`가 ticket 방식만 쓰는지 확인
+
+### SEC-104. KIS account 입력 길이 제한
+- [x] Add `Field(max_length=100)` on `label`, `max_length=20` on `account_no`, `max_length=50` on `account_type` in `KisAccountCreate`/`KisAccountUpdate` (`backend/app/api/users.py:141-148,222-225`) — audit log JSONB meta에 저장되는 값이라 stored DoS 방어 필요
+
+### SEC-105. CSP `'unsafe-inline'` 제거 (nonce 도입)
+- [ ] Rewrite production CSP in `frontend/next.config.ts:40` — `'unsafe-inline'`을 nonce 방식으로 교체 (Next.js middleware로 nonce 주입, `script-src 'self' 'nonce-{nonce}' 'strict-dynamic'`)
+
+### TD-101. npm CVE 패치 (next + axios)
+- [x] Upgrade `next@16.2.2 → 16.2.4` (GHSA-q4gf-8mx6-v5v3 DoS) and `axios@1.13.6 → 1.15.0` (GHSA-3p68-rc4w-qgx5 SSRF) in `frontend/package.json`; verify `npm audit` clean
+
+### TD-102. Sprint 13 scheduler 분리 파일 배선 또는 삭제
+- [ ] Decide: complete the refactor or delete — `backend/app/services/scheduler_{portfolio,market,ops}_jobs.py` (합 426L) 모두 import되지 않음. 완성 시 `scheduler.py`의 inline 구현 제거하고 split 파일에 delegate, 목표 `scheduler.py ≤150L`
+
+### UX-101. KIS 계정 삭제 확인 다이얼로그
+- [x] Wrap delete action in `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx:180-188` with `AlertDialog` — 현재는 버튼 한 번 클릭으로 실계좌 자격증명 제거 + cascade sync 삭제
+
+### UX-102. KisCredentialsSection useEffect 에러 처리
+- [x] Add `.catch()` + toast/error state to `fetchKisAccounts()` and `fetchAlerts()` in `KisCredentialsSection.tsx:79,83`
+
+### 🟡 MEDIUM — 성능/구조 개선
+
+### PERF-101. monthly-returns 날짜 컷오프
+- [x] Add `price_snapshots.snapshot_date >= today - 365 days` filter to `backend/app/api/analytics_metrics.py:276-281` `get_monthly_returns` — 현재 전체 history 스캔; optional `?since=` 파라미터로 장기 조회 허용
+
+### PERF-102. analytics 쿼리 병렬화
+- [x] Replace sequential Portfolio → Holding queries with `asyncio.gather(...)` or single JOIN in `get_metrics` (`analytics_metrics.py:98-108`) and `get_monthly_returns` (`:259-269`) — Neon 기준 60-200ms 단축 예상
+
+### PERF-103. SSE alert DB 세션 재사용
+- [x] Load active alerts into per-connection memory dict at SSE connect; refresh every 5 min instead of per-tick DB session in `backend/app/api/prices.py:134-135` — `_check_alerts_and_emit`가 30초마다 새 `AsyncSessionLocal()` 개설
+
+### PERF-104. OrderDialog lazy load
+- [x] Wrap `OrderDialog` import in `HoldingsSection.tsx` with `next/dynamic({ ssr: false })` — DynamicCharts 패턴 재사용; ~15-30KB 번들 절감
+
+### PERF-105. PortfolioHistoryChart filterByPeriod memoization
+- [x] Wrap `filterByPeriod(data, period)` call in `useMemo` with `[data, period]` deps in `frontend/src/components/PortfolioHistoryChart.tsx:30-39,74` — SSE 30초 틱마다 불필요한 재계산 제거
+
+### TD-103. dashboard.py get_summary 함수 분리
+- [x] Extract `_fetch_prices()`, `_aggregate_holdings()`, `_build_allocation()` service functions from `backend/app/api/dashboard.py:76` (332L · 6-level nesting) — 컨벤션 50L/4-level 위반, unit test 불가능
+
+### TD-104. analytics_metrics.py get_metrics 분리
+- [x] Extract `_compute_holding_pnl()`, `_fetch_analytics_prices()` helpers from `backend/app/api/analytics_metrics.py:82` (161L · 6-level)
+
+### TD-105. kis_order_place.py 중복 제거
+- [x] Extract `_execute_order_request(headers, body, tr_id, client)` shared helper from `place_domestic_order` (line 133) and `place_overseas_order` (line 263) in `backend/app/services/kis_order_place.py` — 두 함수 각 120-130L의 header/rate-limit/lock/POST/parse 로직이 중복
+
+### TD-106. DashboardSummary response_model 추가
+- [x] Define `DashboardSummaryResponse` Pydantic model; replace `response_model=None` at `backend/app/api/dashboard.py:74` — openapi-typescript가 `unknown`을 생성하던 end-to-end 타입 단절 해결
+
+### TD-107. scalars() type: ignore 제거
+- [x] Replace `result.scalars().all()` with `cast(list[KisAccount], result.scalars().all())` at `scheduler.py:97,346`, `scheduler_portfolio_jobs.py:41`, `scheduler_ops_jobs.py:41` — 네 곳 모두 `# type: ignore[assignment]` 사용 중
+
+### 📚 Docs Drift
+
+### DOC-101. api-reference.md 정정
+- [x] Fix `docs/architecture/api-reference.md` — (1) `POST /auth/change-password` 삭제 (존재하지 않음, 실제는 `/users/me/change-password`), (2) `/auth/sessions`, `/auth/sessions/{jti}`, `/auth/sse-ticket` 상세 섹션 추가, (3) `/users/me` 계열 6개 엔드포인트(`GET`, `PATCH`, `change-password`, `change-email`, `DELETE`, `security-logs`) 상세 섹션 추가
+
+### DOC-102. infrastructure.md 정정
+- [x] Fix `docs/architecture/infrastructure.md` — (1) `order_rate:{user_id}` "5회/분" → "10회/분" 수정, (2) `sse-ticket:{ticket}` Redis 키 패턴 추가 (TTL 30s), (3) `VISUAL_QA_EMAIL`/`VISUAL_QA_PASSWORD`는 백엔드 env가 아니므로 E2E/test 섹션으로 이동 또는 삭제
+
+### DOC-103. frontend-guide.md 누락 컴포넌트
+- [x] Add `WidgetErrorFallback.tsx` to components table in `docs/architecture/frontend-guide.md` — Sprint 11 CQ-001로 추출된 컴포넌트가 문서에 없음
+
+### DOC-104. CLAUDE.md agents/commands 동기화
+- [x] Update `CLAUDE.md` agent table to include `migration-reviewer`, `perf-analyzer`, `doc-updater`, `e2e-runner`, `visual-qa`; commands table to include `/fix-alerts`, `/log-check`, `/e2e-check`, `/fix-ui`, `/visual-qa`
+
+### 🔵 LOW — a11y / minor polish
+
+### UX-103. Charts ARIA 지원
+- [x] Add `role="img"`, `aria-label`, hidden `<table>` data fallback to `frontend/src/components/AllocationDonut.tsx` and `CandlestickChart.tsx` — Recharts 컨테이너가 screen reader에 invisible
+
+### UX-104. Register 비밀번호 규칙 힌트
+- [x] Add inline `<p className="text-xs text-muted-foreground">8자 이상 입력하세요</p>` below password field in `frontend/src/app/register/page.tsx:65` — HTML `minLength`는 있으나 사전 안내 없음
+
+### UX-105. Compare period buttons aria-pressed
+- [x] Add `aria-pressed={period === p}` to period selector buttons in `frontend/src/app/dashboard/compare/page.tsx:241-254`
+
+### UX-106. Analytics chart fetch 에러 UI
+- [x] Replace `candles = []` silent fallback in `frontend/src/app/dashboard/analytics/page.tsx:80-91` with `chartError` state; render retry 프롬프트 in `StockChartSection`
+
+### UX-107. MetricTooltip 키보드 접근성
+- [x] Add `onFocus`/`onBlur` handlers + `role="tooltip"` + `aria-describedby` pairing to `frontend/src/app/dashboard/analytics/MetricsSection.tsx:43-59`
+
+### SEC-106. HSTS 헤더 추가
+- [x] Add `'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'` to `_SECURITY_HEADERS` in `backend/app/core/middleware.py:8-14`, conditionally on `settings.ENVIRONMENT == 'production'`
+
+### SEC-107. /health/disk 정보 노출 축소
+- [x] Restrict `GET /health/disk` (`backend/app/api/health.py:27-46`) — either admin-only or move behind `_verify_internal_secret`; as quick mitigation, omit absolute path strings from response
+
+---
+
 ## Sprint 14 — KIS Rate Limiting (2026-04-08)
 
 ### RL-002. Settings: KIS rate limit config

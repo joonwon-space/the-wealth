@@ -288,7 +288,8 @@ alembic upgrade head
 | `refresh_jti:{uuid}` | user_id (문자열) | 7일 | Refresh token JTI 저장 |
 | `cash_balance:{portfolio_id}` | JSON (CashBalance) | 30초 | 예수금 캐시 |
 | `order_lock:{portfolio_id}:{ticker}` | "1" | 10초 | 이중 주문 방지 락 |
-| `order_rate:{user_id}` | count | 60초 | 주문 레이트 리밋 (5회/분) |
+| `order_rate:{user_id}` | count | 60초 | 주문 레이트 리밋 (10회/분) |
+| `sse-ticket:{ticket}` | user_id (문자열) | 30초 | SSE 스트림 단기 인증 티켓 |
 
 ### 5.4 프론트엔드 연동
 
@@ -395,7 +396,10 @@ X-Frame-Options: DENY                    # 클릭재킹 방지
 Referrer-Policy: strict-origin-when-cross-origin  # Referer 정보 제한
 Permissions-Policy: camera=(), microphone=(), geolocation=()  # 브라우저 기능 제한
 X-XSS-Protection: 1; mode=block          # XSS 필터 활성화
+Strict-Transport-Security: max-age=31536000; includeSubDomains  # HSTS (프로덕션 환경에서만 추가)
 ```
+
+HSTS 헤더는 `ENVIRONMENT=production` 설정 시에만 응답에 포함됩니다 (로컬/개발 환경 HTTPS 미사용 고려).
 
 ---
 
@@ -408,6 +412,24 @@ slowapi 기반 IP별 레이트 리미팅:
 | 기본 제한 | 60 요청/분 (IP 기준) |
 | 키 함수 | `get_remote_address` |
 | 초과 시 | `429 Too Many Requests` |
+
+주요 엔드포인트별 개별 제한:
+
+| 엔드포인트 | 제한 | 비고 |
+|-----------|------|------|
+| `POST /auth/register` | 3/min | 무차별 대입 방지 |
+| `POST /auth/login` | 5/min | 무차별 대입 방지 |
+| `POST /auth/refresh` | 20/min | SEC-101: 토큰 재발급 남용 방지 |
+| `POST /auth/sse-ticket` | 30/min | SSE 티켓 남용 방지 |
+| `POST /portfolios/{id}/orders` | 10/min | 주문 남용 방지 (Sprint 10에서 30→10 강화) |
+| `GET /portfolios/{id}/orders/orderable` | 30/min | SEC-102: KIS API 보호 |
+| `GET /portfolios/{id}/orders/pending` | 30/min | SEC-102: KIS API 보호 |
+| `POST /portfolios/{id}/orders/settle` | 10/min | SEC-102: KIS API 보호 |
+| `POST /sync/balance` | 5/min | KIS API 보호 |
+| `POST /sync/{portfolio_id}` | 5/min | KIS API 보호 |
+| `POST /users/me/change-password` | 5/min | 보안 계정 작업 |
+| `POST /users/me/change-email` | 5/min | 보안 계정 작업 |
+| `DELETE /users/me` | 5/min | 보안 계정 작업 |
 
 ---
 
@@ -471,10 +493,20 @@ Docker Compose 헬스체크:
 | `R2_BUCKET` | - | R2 버킷 이름 | `the-wealth-backup` |
 | `R2_ACCESS_KEY_ID` | - | R2 액세스 키 | |
 | `R2_SECRET_ACCESS_KEY` | - | R2 시크릿 키 | |
-| `VISUAL_QA_EMAIL` | - | E2E 테스트용 계정 이메일 | `qa@example.com` |
-| `VISUAL_QA_PASSWORD` | - | E2E 테스트용 계정 비밀번호 | |
+| `KIS_RATE_LIMIT_PER_SEC` | - | KIS API 토큰 버킷 보충 속도 (기본: 5.0 req/s) | `5.0` |
+| `KIS_RATE_LIMIT_BURST` | - | KIS API 버스트 최대 크기 (기본: 20 토큰) | `20` |
+| `KIS_MOCK_MODE` | - | `true` 설정 시 KIS 레이트 리밋 비활성화 (로컬 개발/테스트용) | `false` |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
+
+### E2E / 테스트 전용 환경변수
+
+다음 환경변수는 백엔드 서버 환경변수가 아니라 E2E 테스트 실행 환경에서만 사용됩니다.
+
+| 키 | 설명 | 예시 |
+|----|------|------|
+| `VISUAL_QA_EMAIL` | E2E 테스트용 계정 이메일 | `qa@example.com` |
+| `VISUAL_QA_PASSWORD` | E2E 테스트용 계정 비밀번호 | |
 
 ---
 

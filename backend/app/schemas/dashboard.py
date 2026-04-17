@@ -40,6 +40,25 @@ class TriggeredAlert(BaseModel):
     current_price: float
 
 
+class DashboardSummaryResponse(BaseModel):
+    """Dashboard summary API response model — used as response_model for openapi-typescript generation."""
+
+    total_asset: Decimal
+    total_invested: Decimal
+    total_pnl_amount: Decimal
+    total_pnl_rate: Decimal
+    total_day_change_rate: Optional[Decimal]
+    day_change_pct: Optional[Decimal]
+    day_change_amount: Optional[Decimal]
+    holdings: list["HoldingWithPnL"]
+    allocation: list["AllocationItem"]
+    triggered_alerts: list["TriggeredAlert"] = []
+    usd_krw_rate: Optional[Decimal] = None
+    kis_status: str = "ok"
+    total_cash: Optional[Decimal] = None
+    total_assets: Optional[Decimal] = None
+
+
 class DashboardSummary(BaseModel):
     total_asset: Decimal
     total_invested: Decimal

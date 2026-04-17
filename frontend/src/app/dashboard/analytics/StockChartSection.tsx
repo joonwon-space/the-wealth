@@ -40,10 +40,12 @@ interface StockChartSectionProps {
   period: ChartPeriod;
   candles: Candle[];
   chartLoading: boolean;
+  chartError?: boolean;
   holdings: HoldingRow[];
   onPeriodChange: (p: ChartPeriod) => void;
   onSearchOpen: () => void;
   onSelectStock: (ticker: string, name: string) => void;
+  onRetryChart?: () => void;
 }
 
 export function StockChartSection({
@@ -53,10 +55,12 @@ export function StockChartSection({
   period,
   candles,
   chartLoading,
+  chartError = false,
   holdings,
   onPeriodChange,
   onSearchOpen,
   onSelectStock,
+  onRetryChart,
 }: StockChartSectionProps) {
   const [smaPeriod, setSmaPeriod] = useState<SmaPeriod>(0);
 
@@ -157,6 +161,18 @@ export function StockChartSection({
 
       {chartLoading ? (
         <Skeleton className="h-[400px] w-full" />
+      ) : chartError ? (
+        <div className="flex h-[400px] items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-destructive">
+          <span>차트 데이터를 불러오지 못했습니다.</span>
+          {onRetryChart && (
+            <button
+              onClick={onRetryChart}
+              className="underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            >
+              다시 시도
+            </button>
+          )}
+        </div>
       ) : selectedTicker ? (
         <CandlestickChart
           candles={candles}

@@ -10,6 +10,7 @@ KIS 자격증명이 등록된 사용자의 첫 번째 포트폴리오를 1시간
 
 import asyncio
 from decimal import Decimal
+from typing import cast
 
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -87,14 +88,14 @@ async def _sync_all_accounts(job_id: str = "kis_sync_us") -> None:
         async with AsyncSessionLocal() as db:
             # KIS 계좌가 연결된 포트폴리오를 KisAccount 테이블에서 조회
             result = await db.execute(select(KisAccount))
-            kis_accounts = list(result.scalars().all())
+            kis_accounts = cast(list[KisAccount], result.scalars().all())
 
             if not kis_accounts:
                 logger.info("[Scheduler] No KIS accounts found, skipping")
                 _record_job_success(job_id)
                 return
 
-            for acct in kis_accounts:  # type: ignore[assignment]
+            for acct in kis_accounts:
                 portfolio_result = await db.execute(
                     select(Portfolio)
                     .where(Portfolio.kis_account_id == acct.id)
@@ -337,13 +338,13 @@ async def _settle_pending_orders(job_id: str = "settle_orders") -> None:
     try:
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(KisAccount))
-            kis_accounts = list(result.scalars().all())
+            kis_accounts = cast(list[KisAccount], result.scalars().all())
 
             if not kis_accounts:
                 _record_job_success(job_id)
                 return
 
-            for acct in kis_accounts:  # type: ignore[assignment]
+            for acct in kis_accounts:
                 portfolio_result = await db.execute(
                     select(Portfolio)
                     .where(Portfolio.kis_account_id == acct.id)

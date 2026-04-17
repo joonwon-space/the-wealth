@@ -67,7 +67,9 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="8자 이상"
               className="h-11"
+              aria-describedby="password-hint"
             />
+            <p id="password-hint" className="text-xs text-muted-foreground">8자 이상 입력하세요</p>
           </div>
           <Button type="submit" disabled={loading} className="w-full h-11">
             {loading ? "가입 중..." : "회원가입"}

@@ -19,14 +19,22 @@ interface WatchlistItem {
 export function WatchlistSection() {
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  useEffect(() => {
+  const loadWatchlist = () => {
+    setLoading(true);
+    setFetchError(false);
     api
       .get<WatchlistItem[]>("/watchlist")
       .then(({ data }) => setItems(data))
-      .catch(() => {})
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadWatchlist();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAdd = async (ticker: string, name: string) => {
@@ -62,6 +70,26 @@ export function WatchlistSection() {
         {[1, 2].map((i) => (
           <Skeleton key={i} className="h-12 w-full" />
         ))}
+      </section>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <section className="space-y-2">
+        <h2 className="flex items-center gap-1.5 text-base font-semibold">
+          <Eye className="h-4 w-4 text-muted-foreground" />
+          관심 종목
+        </h2>
+        <div className="flex items-center gap-2 text-sm text-destructive">
+          <span>관심 종목을 불러오지 못했습니다.</span>
+          <button
+            onClick={loadWatchlist}
+            className="underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          >
+            다시 시도
+          </button>
+        </div>
       </section>
     );
   }

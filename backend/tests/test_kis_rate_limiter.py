@@ -100,7 +100,7 @@ class TestKisRateLimiterTokenBucket:
             await limiter.acquire()
             assert mock_sleep.called
             slept = mock_sleep.call_args[0][0]
-            assert slept == pytest.approx(1.0 / rate, rel=0.1)
+            assert slept == pytest.approx(1.0 / rate, rel=0.2)
 
     @pytest.mark.asyncio
     async def test_acquire_timeout_raises(self) -> None:

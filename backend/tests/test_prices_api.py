@@ -23,6 +23,12 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _get_sse_ticket(client: AsyncClient, token: str) -> str:
+    """Obtain a single-use SSE ticket via POST /auth/sse-ticket."""
+    resp = await client.post("/auth/sse-ticket", headers=_auth(token))
+    return resp.json()["ticket"]
+
+
 async def _insert_price_snapshots(client: AsyncClient, ticker: str, days: int = 5) -> None:
     """Insert PriceSnapshot records directly via DB for the test."""
     from app.db.session import get_db
@@ -242,19 +248,16 @@ class TestSSEStreamEndpoint:
         resp = await client.get("/prices/stream")
         assert resp.status_code == 401
 
-    async def test_invalid_token_returns_401(self, client: AsyncClient) -> None:
-        resp = await client.get("/prices/stream", params={"token": "invalid.token.here"})
+    async def test_invalid_ticket_returns_401(self, client: AsyncClient) -> None:
+        resp = await client.get("/prices/stream", params={"ticket": "00000000-0000-0000-0000-000000000000"})
         assert resp.status_code == 401
 
     async def test_stream_authenticated_starts_stream(
         self, client: AsyncClient
     ) -> None:
-        """Valid token triggers the SSE stream (200 response, not 401/403)."""
+        """Valid ticket triggers the SSE stream (200 response, not 401/403)."""
         token = await _register_and_login(client, "sse1@test.com")
-
-        # Patch the event_generator to avoid DB access via AsyncSessionLocal
-        async def _mock_generator():
-            yield 'data: {"error": "no_data"}\n\n'
+        ticket = await _get_sse_ticket(client, token)
 
         with patch("app.api.prices.AsyncSessionLocal") as mock_session:
             # Make the context manager return a mock session
@@ -268,7 +271,7 @@ class TestSSEStreamEndpoint:
             mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
 
             resp = await client.get(
-                "/prices/stream", params={"token": token}
+                "/prices/stream", params={"ticket": ticket}
             )
 
         # Should succeed (200) since authentication is valid
@@ -303,7 +306,8 @@ class TestSSEStreamEndpoint:
             prices_mod._active_connections[user_id] = prices_mod._SSE_MAX_CONNECTIONS
 
         try:
-            resp = await client.get("/prices/stream", params={"token": token})
+            ticket = await _get_sse_ticket(client, token)
+            resp = await client.get("/prices/stream", params={"ticket": ticket})
             assert resp.status_code == 429
         finally:
             # Clean up
@@ -456,8 +460,9 @@ class TestSSEEventGeneratorPaths:
         mock_session_local = MagicMock()
         mock_session_local.return_value = session
 
+        ticket = await _get_sse_ticket(client, token)
         with patch("app.api.prices.AsyncSessionLocal", mock_session_local):
-            resp = await client.get("/prices/stream", params={"token": token})
+            resp = await client.get("/prices/stream", params={"ticket": ticket})
 
         assert resp.status_code == 200
         assert b"no_data" in resp.content
@@ -546,13 +551,14 @@ class TestSSEEventGeneratorPaths:
         _first_session, mock_session_local = self._make_session_pair()
         mock_evt = self._make_one_shot_event()
 
+        ticket = await _get_sse_ticket(client, token)
         with (
             patch("app.api.prices.AsyncSessionLocal", mock_session_local),
             patch("app.api.prices._is_market_open", return_value=False),
             patch("app.api.prices.decrypt", return_value="mock_val"),
             patch.object(prices_mod, "_shutdown_event", mock_evt),
         ):
-            resp = await client.get("/prices/stream", params={"token": token})
+            resp = await client.get("/prices/stream", params={"ticket": ticket})
 
         assert resp.status_code == 200
         assert b"market_open" in resp.content
@@ -573,13 +579,14 @@ class TestSSEEventGeneratorPaths:
         )
         mock_evt = self._make_one_shot_event()
 
+        ticket = await _get_sse_ticket(client, token)
         with (
             patch("app.api.prices.AsyncSessionLocal", mock_session_local),
             patch("app.api.prices._is_market_open", return_value=True),
             patch("app.api.prices.decrypt", return_value="mock_val"),
             patch.object(prices_mod, "_shutdown_event", mock_evt),
         ):
-            resp = await client.get("/prices/stream", params={"token": token})
+            resp = await client.get("/prices/stream", params={"ticket": ticket})
 
         assert resp.status_code == 200
         assert b"prices" in resp.content
@@ -601,6 +608,7 @@ class TestSSEEventGeneratorPaths:
         )
         mock_evt = self._make_one_shot_event()
 
+        ticket = await _get_sse_ticket(client, token)
         with (
             patch("app.api.prices.AsyncSessionLocal", mock_session_local),
             patch("app.api.prices._is_market_open", return_value=True),
@@ -612,7 +620,7 @@ class TestSSEEventGeneratorPaths:
                 return_value=Decimal("70000"),
             ),
         ):
-            resp = await client.get("/prices/stream", params={"token": token})
+            resp = await client.get("/prices/stream", params={"ticket": ticket})
 
         assert resp.status_code == 200
         assert b"prices" in resp.content
@@ -630,13 +638,14 @@ class TestSSEEventGeneratorPaths:
         )
         mock_evt = self._make_one_shot_event()
 
+        ticket = await _get_sse_ticket(client, token)
         with (
             patch("app.api.prices.AsyncSessionLocal", mock_session_local),
             patch("app.api.prices._is_market_open", return_value=True),
             patch("app.api.prices.decrypt", return_value="mock_val"),
             patch.object(prices_mod, "_shutdown_event", mock_evt),
         ):
-            resp = await client.get("/prices/stream", params={"token": token})
+            resp = await client.get("/prices/stream", params={"ticket": ticket})
 
         assert resp.status_code == 200
         assert b"fetch_failed" in resp.content

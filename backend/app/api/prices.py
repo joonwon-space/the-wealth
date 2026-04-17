@@ -119,19 +119,12 @@ async def _decrement_connection(user_id: int) -> None:
             _active_connections[user_id] = count - 1
 
 
-async def _check_alerts_and_emit(
-    user_id: int,
-    prices: dict[str, str],
-) -> Optional[str]:
-    """활성 알림을 가격과 비교해 트리거된 알림 SSE 이벤트 문자열 반환.
+_ALERT_REFRESH_INTERVAL = 300  # refresh alert cache every 5 minutes
 
-    - 트리거된 알림은 last_triggered_at 기록 및 is_active=False 처리.
-    - 트리거 없으면 None 반환.
-    """
+
+async def _load_active_alerts(user_id: int) -> list[Alert]:
+    """DB에서 사용자의 활성 알림을 조회한다."""
     try:
-        decimal_prices: dict[str, Optional[Decimal]] = {
-            ticker: Decimal(price_str) for ticker, price_str in prices.items()
-        }
         async with AsyncSessionLocal() as db:
             result = await db.execute(
                 select(Alert).where(
@@ -139,14 +132,33 @@ async def _check_alerts_and_emit(
                     Alert.is_active.is_(True),
                 )
             )
-            alerts = list(result.scalars().all())
+            return list(result.scalars().all())
+    except Exception as exc:
+        logger.warning("Alert load error for user %s: %s", user_id, exc)
+        return []
 
-            if not alerts:
-                return None
 
-            triggered = check_and_dedup_alerts(alerts, decimal_prices)
+async def _check_alerts_and_emit(
+    user_id: int,
+    prices: dict[str, str],
+    alerts: list[Alert],
+) -> Optional[str]:
+    """활성 알림을 가격과 비교해 트리거된 알림 SSE 이벤트 문자열 반환.
 
-            if triggered:
+    - alerts: 호출자가 관리하는 인메모리 알림 목록 (per-tick DB 조회 제거).
+    - 트리거된 알림은 last_triggered_at 기록 및 is_active=False 처리.
+    - 트리거 없으면 None 반환.
+    """
+    if not alerts:
+        return None
+    try:
+        decimal_prices: dict[str, Optional[Decimal]] = {
+            ticker: Decimal(price_str) for ticker, price_str in prices.items()
+        }
+        triggered = check_and_dedup_alerts(alerts, decimal_prices)
+
+        if triggered:
+            async with AsyncSessionLocal() as db:
                 # Create notification records for each triggered alert
                 for alert_data in triggered:
                     condition_kr = "이상" if alert_data["condition"] == "above" else "이하"
@@ -161,7 +173,7 @@ async def _check_alerts_and_emit(
                     )
                     db.add(notification)
                 await db.commit()
-                return f"event: alerts\ndata: {json.dumps(triggered)}\n\n"
+            return f"event: alerts\ndata: {json.dumps(triggered)}\n\n"
     except Exception as exc:
         logger.warning("Alert check error for user %s: %s", user_id, exc)
     return None
@@ -249,6 +261,10 @@ async def stream_prices(
             app_key = decrypt(acct.app_key_enc)
             app_secret = decrypt(acct.app_secret_enc)
 
+            # 연결 시 알림 목록 로드 (5분마다 갱신)
+            active_alerts: list[Alert] = await _load_active_alerts(current_user.id)
+            last_alert_refresh = time.monotonic()
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 while elapsed < _SSE_TIMEOUT and not _shutdown_event.is_set():
                     if not _is_market_open():
@@ -307,9 +323,15 @@ async def stream_prices(
 
                             yield f"data: {json.dumps({'market_open': True, 'prices': prices})}\n\n"
 
+                            # 5분마다 알림 목록 갱신
+                            now_mono = time.monotonic()
+                            if now_mono - last_alert_refresh >= _ALERT_REFRESH_INTERVAL:
+                                active_alerts = await _load_active_alerts(current_user.id)
+                                last_alert_refresh = now_mono
+
                             # Check alerts and emit triggered events
                             alert_event = await _check_alerts_and_emit(
-                                current_user.id, prices
+                                current_user.id, prices, active_alerts
                             )
                             if alert_event:
                                 yield alert_event

@@ -143,5 +143,33 @@ export function CandlestickChart({ candles, avgPrice, smaData, smaPeriod }: Prop
     );
   }
 
-  return <div ref={containerRef} className="w-full" />;
+  const lastCandle = candles[candles.length - 1];
+  const ariaLabel = lastCandle
+    ? `캔들스틱 차트: ${candles.length}개 봉, 최근 종가 ${lastCandle.close.toLocaleString("ko-KR")}`
+    : "캔들스틱 차트";
+
+  return (
+    <div role="img" aria-label={ariaLabel}>
+      {/* Screen reader data table */}
+      <table className="sr-only">
+        <caption>캔들스틱 차트 데이터</caption>
+        <thead>
+          <tr><th>날짜</th><th>시가</th><th>고가</th><th>저가</th><th>종가</th><th>거래량</th></tr>
+        </thead>
+        <tbody>
+          {candles.slice(-10).map((c) => (
+            <tr key={c.time}>
+              <td>{c.time}</td>
+              <td>{c.open.toLocaleString("ko-KR")}</td>
+              <td>{c.high.toLocaleString("ko-KR")}</td>
+              <td>{c.low.toLocaleString("ko-KR")}</td>
+              <td>{c.close.toLocaleString("ko-KR")}</td>
+              <td>{c.volume.toLocaleString("ko-KR")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div ref={containerRef} className="w-full" aria-hidden="true" />
+    </div>
+  );
 }

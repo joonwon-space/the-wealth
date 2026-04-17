@@ -5,6 +5,7 @@ import { History, Trash2 } from "lucide-react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
+import { WidgetErrorFallback } from "@/components/WidgetErrorFallback";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,22 +95,20 @@ export function TransactionSection({ portfolioId, holdings, isKisConnected }: Tr
     fetchNextPage: fetchMoreTxns,
     hasNextPage: hasMorTxns,
     isFetchingNextPage: isFetchingMoreTxns,
+    isError: isTxnError,
+    refetch: refetchTxns,
   } = useInfiniteQuery<TxnPage>({
     queryKey: transactionsKey(portfolioId),
     queryFn: async ({ pageParam }) => {
       const cursor = typeof pageParam === "number" ? pageParam : 0;
-      try {
-        const { data } = await api.get<TxnPage>(
-          `/portfolios/${portfolioId}/transactions/paginated`,
-          { params: { cursor, limit: 20 } }
-        );
-        if (Array.isArray(data)) {
-          return { items: data as unknown as TxnRow[], next_cursor: null, has_more: false };
-        }
-        return data;
-      } catch {
-        return { items: [], next_cursor: null, has_more: false };
+      const { data } = await api.get<TxnPage>(
+        `/portfolios/${portfolioId}/transactions/paginated`,
+        { params: { cursor, limit: 20 } }
+      );
+      if (Array.isArray(data)) {
+        return { items: data as unknown as TxnRow[], next_cursor: null, has_more: false };
       }
+      return data;
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
@@ -232,7 +231,14 @@ export function TransactionSection({ portfolioId, holdings, isKisConnected }: Tr
           </div>
         )}
 
-        {transactions.length > 0 && (
+        {isTxnError && (
+          <WidgetErrorFallback
+            message="거래 이력을 불러오지 못했습니다."
+            onRetry={() => void refetchTxns()}
+          />
+        )}
+
+        {!isTxnError && transactions.length > 0 && (
           <>
             <TransactionChart transactions={transactions} />
             <div className="overflow-x-auto rounded-xl border">
@@ -247,6 +253,7 @@ export function TransactionSection({ portfolioId, holdings, isKisConnected }: Tr
                 <tbody>
                   {transactions.map((t) => {
                     const holdingMatch = holdings.find((h) => h.ticker === t.ticker);
+                    const isUSD = holdingMatch?.currency === "USD" || /^[A-Z]{1,5}$/.test(t.ticker);
                     const totalAmount = Number(t.quantity) * Number(t.price);
                     return (
                       <tr key={t.id} className="border-t">
@@ -261,8 +268,8 @@ export function TransactionSection({ portfolioId, holdings, isKisConnected }: Tr
                           {holdingMatch && <div className="text-xs text-muted-foreground">{holdingMatch.name}</div>}
                         </td>
                         <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
-                        <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
-                        <td className="px-4 py-2 tabular-nums">{formatKRW(totalAmount)}</td>
+                        <td className="px-4 py-2 tabular-nums">{isUSD ? formatUSD(t.price) : formatKRW(t.price)}</td>
+                        <td className="px-4 py-2 tabular-nums">{isUSD ? formatUSD(totalAmount) : formatKRW(totalAmount)}</td>
                         <td className="px-4 py-2 min-w-[140px]">
                           {editMemoId === t.id ? (
                             <input

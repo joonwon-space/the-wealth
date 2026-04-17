@@ -104,6 +104,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `QueryProvider.tsx` | TanStack Query provider (wraps app with QueryClientProvider) |
 | `ErrorBoundary.tsx` | React Error Boundary with fallback UI + Sentry captureException |
 | `PageError.tsx` | Page-level error display component |
+| `WidgetErrorFallback.tsx` | Inline widget-level error with optional retry button; used inside cards/sections (Sprint 11 CQ-001) |
 | `CardSkeleton.tsx` | Card loading skeleton |
 | `ChartSkeleton.tsx` | Chart loading skeleton |
 | `TableSkeleton.tsx` | Table loading skeleton |
@@ -156,7 +157,7 @@ Axios instance configured with:
 | Hook | File | Description |
 |------|------|-------------|
 | `useCountUp` | `hooks/useCountUp.ts` | Animated number count-up hook for dashboard metrics display. |
-| `usePriceStream` | `hooks/usePriceStream.ts` | SSE real-time price streaming. Connects to `GET /prices/stream?token={jwt}`. Updates prices every 30s during KST 09:00-15:30. Auto-reconnects on disconnect. |
+| `usePriceStream` | `hooks/usePriceStream.ts` | SSE real-time price streaming. Fetches a short-lived ticket via `POST /auth/sse-ticket`, then connects to `GET /prices/stream?ticket={uuid}`. Updates prices every 30s during KST 09:00-15:30. Auto-reconnects on disconnect. |
 | `useNotifications` | `hooks/useNotifications.ts` | TanStack Query hook for notification center. Provides `notifications` list, `markRead`, `markAllRead` mutations with optimistic updates. |
 | `useOrders` | `hooks/useOrders.ts` | TanStack Query hooks for trading: `usePlaceOrder` (mutation), `useCashBalance` (query, 30s refetch), `usePendingOrders` (query, 5s refetch), `useCancelOrder` (mutation), `useOrderableInfo` (query). |
 | `useDebounce` | `hooks/useDebounce.ts` | Generic debounce hook for search input delay. |

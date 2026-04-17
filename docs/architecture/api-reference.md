@@ -37,23 +37,71 @@ Rate-limited endpoints for brute force protection.
 - **Errors**: 401 (invalid credentials)
 
 ### POST /auth/refresh
+- **Rate limit**: 20/min
 - **Auth**: None (refresh token in body)
 - **Request body**: `{ "refresh_token": string }`
 - **Response** (200): `{ "access_token": string, "refresh_token": string, "token_type": "bearer" }`
 - **Side effect**: Consumes old JTI in Redis, issues new token pair
 - **Errors**: 401 (invalid/expired/consumed refresh token)
 
-### POST /auth/change-password
+### POST /auth/logout
+- **Auth**: Required
+- **Response** (204): No content
+- **Side effect**: Clears `access_token` cookie
+
+### GET /auth/sessions
+- **Auth**: Required
+- **Response** (200): `{ "sessions": [{ "jti": string, "created_at": datetime, "expires_at": datetime }] }`
+- **Notes**: Returns all active refresh token sessions for the authenticated user
+
+### DELETE /auth/sessions/{jti}
+- **Auth**: Required
+- **Response** (204): No content
+- **Notes**: Revokes a specific refresh token session; the user remains logged in on other devices
+
+### POST /auth/sse-ticket
+- **Rate limit**: 30/min
+- **Auth**: Required
+- **Response** (200): `{ "ticket": string }`
+- **Notes**: Issues a single-use 30-second TTL ticket for SSE stream authentication; avoids JWT exposure in server logs
+
+---
+
+## Users (`/users/me`)
+
+### GET /users/me
+- **Auth**: Required
+- **Response** (200): `{ "id": int, "email": string, "created_at": datetime }`
+
+### PATCH /users/me
+- **Auth**: Required
+- **Request body**: `{ "email"?: string }`
+- **Response** (200): Updated user object
+- **Errors**: 400 (duplicate email)
+
+### POST /users/me/change-password
 - **Auth**: Required
 - **Request body**: `{ "current_password": string, "new_password": string }`
 - **Response** (204): No content
 - **Side effect**: Revokes all refresh tokens for the user
 - **Errors**: 400 (incorrect current password)
 
-### POST /auth/logout
+### POST /users/me/change-email
 - **Auth**: Required
+- **Request body**: `{ "new_email": string, "current_password": string }`
 - **Response** (204): No content
-- **Side effect**: Clears `access_token` cookie
+- **Errors**: 400 (incorrect password or duplicate email)
+
+### DELETE /users/me
+- **Auth**: Required
+- **Request body**: `{ "password": string }`
+- **Response** (204): No content
+- **Side effect**: Deletes account and revokes all tokens; irreversible
+
+### GET /users/me/security-logs
+- **Auth**: Required
+- **Response** (200): `AuditLog[]`
+- **Notes**: Returns recent security-relevant actions (login, password change, etc.)
 
 ---
 
@@ -188,7 +236,7 @@ Rate-limited endpoints for brute force protection.
 - **Auth**: Required
 - **Rate limit**: 120/min
 - **Query params**: `refresh?: boolean` (clears price cache when true)
-- **Response** (200): `DashboardSummary` -- aggregated portfolio data with live prices
+- **Response** (200): `DashboardSummaryResponse` -- aggregated portfolio data with live prices
   - `kis_status`: `"ok"` | `"degraded"` -- indicates KIS API availability
   - `usd_krw_rate`: USD/KRW exchange rate used (when overseas holdings present)
   - `triggered_alerts`: list of alerts whose conditions are currently met
@@ -204,6 +252,7 @@ Rate-limited endpoints for brute force protection.
 
 ### GET /analytics/monthly-returns
 - **Auth**: Required
+- **Query params**: `since: string (YYYY-MM-DD)` (optional; default: today - 365 days). Use to extend the lookback window beyond one year.
 - **Response** (200): `MonthlyReturn[]` -- monthly return percentages from price snapshots
 
 ### GET /analytics/portfolio-history
@@ -314,16 +363,19 @@ Rate-limited endpoints for brute force protection.
 
 ### GET /portfolios/{portfolio_id}/orders/orderable
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 30/minute
 - **Query params**: `ticker: string`, `price: int` (default 0), `order_type: string` (default "BUY")
 - **Response** (200): `OrderableInfoResponse` -- `{ orderable_quantity, orderable_amount, current_price?, currency }`
 
 ### GET /portfolios/{portfolio_id}/orders/pending
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 30/minute
 - **Query params**: `is_overseas: bool` (default false)
 - **Response** (200): `PendingOrderResponse[]` -- list of unfilled orders from KIS API
 
 ### POST /portfolios/{portfolio_id}/orders/settle
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 10/minute
 - **Response** (200): `{ "settled": int, "failed": int }` — counts of orders checked against KIS API and updated in DB
 - **Description**: Manually triggers a check of all pending orders for the portfolio against KIS API. Updates order status to "filled" or "partial" where applicable. Useful when auto-settle has not yet run.
 - **Errors**: 400 (no KIS account linked), 502 (KIS API failure)
@@ -337,7 +389,7 @@ Rate-limited endpoints for brute force protection.
 ### GET /portfolios/{portfolio_id}/cash-balance
 - **Auth**: Required (ownership verified)
 - **Response** (200): `CashBalanceResponse` -- `{ total_cash, available_cash, total_evaluation, total_profit_loss, profit_loss_rate, currency, foreign_cash?, usd_krw_rate? }`
-- **Notes**: Combines domestic balance (TTTC8434R) with overseas holdings evaluation (converted to KRW). When overseas holdings have `frcr_evlu_pfls_amt == 0`, falls back to `sum(quantity * avg_price)`. Result cached in Redis for 30 seconds.
+- **Notes**: Combines domestic balance (TTTC8434R) with overseas holdings evaluation (converted to KRW). When overseas holdings have `frcr_evlu_pfls_amt == 0`, falls back to `sum(quantity * avg_price)`. `profit_loss_rate` is recomputed from the aggregated `total_profit_loss / invested_stock_amount` (where `invested_stock_amount = stock_evaluation - total_profit_loss`) rather than relying on KIS `evlu_erng_rt`, which does not reflect overseas P&L and can be zero. Result cached in Redis for 30 seconds.
 
 ---
 
@@ -394,7 +446,7 @@ Rate-limited endpoints for brute force protection.
 - **Response** (200): Historical price data from `price_snapshots` table
 
 ### GET /prices/stream
-- **Auth**: via query param `token` (SSE does not support headers)
+- **Auth**: via query param `ticket` (single-use 30-second SSE ticket issued by `POST /auth/sse-ticket`; `?token=` JWT fallback was removed in SEC-103 due to server log exposure risk)
 - **Response**: Server-Sent Events stream
 - **Behavior**:
   - 30-second interval price updates for user's holdings
@@ -402,6 +454,7 @@ Rate-limited endpoints for brute force protection.
   - 15-second heartbeat events
   - Per-user max 3 concurrent connections
   - 2-hour max connection duration
+  - Alert list cached per-connection (refreshed every 5 minutes) to avoid repeated DB queries (PERF-103)
 
 ---
 

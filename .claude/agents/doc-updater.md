@@ -93,14 +93,38 @@ cd backend && source venv/bin/activate && pytest -q --tb=no 2>&1 | tail -3
 
 ## Phase 2: Read All Docs
 
-Read every doc file in full:
+Read every doc file in full. Skip with a note if it does not exist (tracked in Sprint 16 if missing).
+
+**Core architecture (always required):**
 - `docs/architecture/overview.md`
 - `docs/architecture/api-reference.md` (if exists)
 - `docs/architecture/frontend-guide.md` (if exists)
 - `docs/architecture/analysis.md`
 - `docs/architecture/infrastructure.md`
-- `docs/plan/tasks.md` — read-only context
-- `docs/plan/todo.md` — read-only context
+- `docs/architecture/README.md` (index)
+
+**Extended architecture (Sprint 16+, each guarded with `if exists`):**
+- `docs/architecture/getting-started.md`
+- `docs/architecture/testing-guide.md`
+- `docs/architecture/kis-integration.md`
+- `docs/architecture/auth-flow.md`
+- `docs/architecture/feature-trading.md`
+- `docs/architecture/feature-analytics.md`
+- `docs/architecture/security-model.md`
+- `docs/architecture/database-schema.md`
+- `docs/architecture/design-system.md`
+- `docs/architecture/cost-management.md`
+
+**Runbooks (if exists):**
+- `docs/runbooks/troubleshooting.md`
+- `docs/runbooks/deploy.md`
+- `docs/runbooks/*.md` (other existing runbooks)
+
+**Read-only context:**
+- `docs/plan/tasks.md`
+- `docs/plan/todo.md`
+
+If a doc in this list is missing, record it in the final report as "Missing (tracked in Sprint 16)" — do NOT auto-create unless the task explicitly asks for it.
 
 ---
 
@@ -205,6 +229,98 @@ Update only if:
 
 ---
 
+## Phase 4b: Extended Doc Drift Vectors (Sprint 16 docs)
+
+For each file below, extract specific facts from code and patch only those. **Do not rewrite narrative sections** — only update code-derived tables/lists/versions.
+
+### `docs/architecture/kis-integration.md`
+
+Code-derived facts to verify:
+- **TR_ID table**: `grep -rn 'tr_id\s*=\s*"' backend/app/services/kis_*.py` → compare extracted TR_IDs against doc's table. Add missing rows, remove dead ones.
+- **Rate limiter params**: read `backend/app/core/config.py` for `KIS_RATE_LIMIT_PER_SEC`, `KIS_RATE_LIMIT_BURST`, `KIS_MOCK_MODE` defaults → sync with doc.
+- **Token cache key**: `grep -n "kis_access_token" backend/app/services/kis_token.py` → confirm Redis key pattern in doc matches.
+- **KIS base URLs**: `grep "KIS_BASE_URL\|KIS_MOCK_BASE_URL" backend/app/core/config.py` → verify doc.
+
+Narrative sections (error-handling philosophy, rationale) — leave alone.
+
+### `docs/architecture/auth-flow.md`
+
+Code-derived facts:
+- JWT TTL constants: `grep -n "ACCESS_TOKEN_EXPIRE\|REFRESH_TOKEN_EXPIRE" backend/app/core/config.py`
+- Cookie names and flags: `grep -n "set_cookie\|HttpOnly\|samesite" backend/app/api/auth.py`
+- Redis key patterns: `grep -rn "refresh_token:\|sse-ticket:" backend/app/`
+- Endpoint list: `/auth/login`, `/auth/register`, `/auth/refresh`, `/auth/logout`, `/auth/sessions`, `/auth/sessions/{jti}`, `/auth/sse-ticket`, `/auth/change-password` (if moved back)
+
+If the sequence diagram mentions an endpoint that no longer exists or a Redis key renamed, update the diagram.
+
+### `docs/architecture/feature-trading.md`
+
+Code-derived facts:
+- Order states enum: `grep -rn "class OrderStatus\|OrderStatus\." backend/app/models/ backend/app/schemas/`
+- Scheduler job names touching orders: `grep -rn "add_job\|@scheduler" backend/app/services/scheduler*.py` → filter for order/settlement jobs
+- Functions involved: list all public functions in `kis_order_place.py`, `order_settlement.py`, `reconciliation.py`
+
+### `docs/architecture/feature-analytics.md`
+
+Code-derived facts:
+- Analytics endpoints: `grep -n "@router\." backend/app/api/analytics*.py`
+- Scheduler job table: every `scheduler.add_job(...)` call across `scheduler.py`, `scheduler_portfolio_jobs.py`, `scheduler_market_jobs.py`, `scheduler_ops_jobs.py` — id, trigger, target function
+- Metrics formulas: update only if the actual calculation code changed (verify by reading the relevant handler)
+
+### `docs/architecture/security-model.md`
+
+Code-derived facts:
+- Encrypted fields: `grep -rn "encrypt_field\|decrypt_field\|EncryptedField" backend/app/` → list actually encrypted columns
+- Audit-logged events: `grep -rn "audit_service\.\|log_security_event" backend/app/` → enumerate event types
+- bcrypt cost: `grep -n "bcrypt\|CryptContext" backend/app/core/security.py`
+- Rate-limited endpoints count: from api-reference/infrastructure rate limit table
+
+### `docs/architecture/database-schema.md`
+
+Code-derived facts:
+- Table list + row count: `grep -rn "^class \w\+.*Base" backend/app/models/*.py` → sync ERD table count
+- FK relationships: `grep -rn "ForeignKey(" backend/app/models/` → verify every relationship drawn in ERD exists
+- Index definitions: `grep -rn "Index(\|index=True" backend/app/models/`
+- Latest migration: `ls -t backend/alembic/versions/*.py | head -1` → doc should reference the head revision
+
+### `docs/architecture/getting-started.md`
+
+Code-derived facts:
+- Python version: `grep "^python" backend/Dockerfile\|python_version` in `backend/requirements.txt` or `backend/pyproject.toml`
+- Node version: `cat frontend/package.json | grep '"engines"'` or `.nvmrc`
+- Env var list: diff `backend/.env.example` fields against doc's env table
+- Startup commands: verify each command in doc still works (e.g., `alembic upgrade head`, `uvicorn app.main:app --reload`)
+
+### `docs/architecture/testing-guide.md`
+
+Code-derived facts:
+- pytest markers: `grep -rn "pytestmark\|@pytest.mark" backend/tests/ | sed 's/.*@pytest.mark.\([a-z]*\).*/\1/' | sort -u`
+- MSW handlers list: `grep -n "http.get\|http.post" frontend/src/test/handlers.ts`
+- Coverage target: `grep "fail_under\|--cov-fail" backend/pytest.ini backend/pyproject.toml 2>/dev/null`
+- E2E spec count: `ls frontend/e2e/*.spec.ts | wc -l`
+
+### `docs/architecture/design-system.md`
+
+Code-derived facts:
+- Theme tokens: `grep "^  --" frontend/src/app/globals.css | head -40`
+- shadcn config: `cat frontend/components.json`
+- Installed UI components: `ls frontend/src/components/ui/`
+
+### `docs/runbooks/troubleshooting.md`
+
+Code-derived facts — verify each "증상 → 원인 → 해결" still matches:
+- Env var names referenced must exist in `backend/.env.example`
+- File paths mentioned must exist (`ls` check)
+- Error messages quoted should be greppable in the codebase
+
+### `docs/runbooks/deploy.md`
+
+Code-derived facts:
+- CI workflow jobs: `grep -A1 "^  [a-z-]*:" .github/workflows/deploy.yml | grep "name:" | head -10`
+- Docker image names: `grep "image:" docker-compose.prod.yml` (if present)
+
+---
+
 ## Phase 5: Create Missing Files
 
 ### If `docs/architecture/api-reference.md` doesn't exist
@@ -272,6 +388,28 @@ Auth: Bearer token required on all endpoints except /auth/* and /health
 
 ---
 
+## Phase 5b: Templates for Sprint 16 Docs (only if explicitly requested to create)
+
+**Default behavior: do NOT auto-create any Sprint 16 doc file.** Those are owned by explicit tasks in `docs/plan/tasks.md` (DOC-201~211). Creation from template loses the author's framing and rationale.
+
+If the task explicitly says "create `docs/architecture/<file>.md` from template", use these scaffolds:
+
+- `kis-integration.md` — sections: Overview / TR_ID table (domestic+overseas, real vs mock) / Rate limiter (token bucket params, mock mode) / Token lifecycle / Error codes / Domestic vs overseas routing
+- `auth-flow.md` — sections: JWT strategy / Refresh rotation sequence (ASCII diagram) / SSE ticket flow (ASCII diagram) / Session management / Cookie flags / Redis key patterns
+- `feature-trading.md` — sections: Order state diagram / Public service functions / Locks and idempotency / Settlement trigger / Reconciliation scope
+- `feature-analytics.md` — sections: Metric definitions + formulas / Data sources (tables) / Scheduler job table / Benchmark collection
+- `security-model.md` — sections: Threat model (scoped) / Encrypted fields / Non-encrypted sensitive fields / Key rotation / Audit events / bcrypt + JWT params
+- `database-schema.md` — sections: ERD / Table-by-table summary / Key indexes / Migration workflow (generate → review → apply → rollback) / Seed data
+- `getting-started.md` — sections: Prerequisites (versions) / Clone → install → env → DB → run / Windows-specific gotchas / Verifying the setup
+- `testing-guide.md` — sections: pytest markers / conftest fixtures / MSW handlers / E2E (Playwright) / Coverage policy / TDD checklist
+- `design-system.md` — sections: Theme tokens / Korean color convention / shadcn extension rules / `cn()` usage / Dark mode / Component authoring checklist
+- `runbooks/troubleshooting.md` — sections organized by symptom, each with: Symptom / Root cause / Resolution steps (command-level)
+- `runbooks/deploy.md` — sections: Normal deploy flow / Rollback / Hotfix / Manual migration / Smoke tests
+
+Each template is a skeleton — the task author is responsible for filling narrative. The agent's job on re-runs is to keep code-derived facts (tables, version numbers, keys) in sync with code.
+
+---
+
 ## Phase 6: Commit
 
 ```bash
@@ -311,6 +449,11 @@ git commit -m "docs: sync documentation with current codebase state"
 
 ## Unchanged (verified accurate)
 - docs/architecture/infrastructure.md (no env var or service changes)
+
+## Missing (tracked in Sprint 16)
+- docs/architecture/kis-integration.md (DOC-202)
+- docs/runbooks/troubleshooting.md (DOC-201)
+- ... (list files that were in Phase 2 but did not exist)
 
 ## Build Status
   TypeScript: ✓ / ✗ (N errors)

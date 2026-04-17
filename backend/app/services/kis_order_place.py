@@ -130,6 +130,58 @@ async def _acquire_order_lock(portfolio_id: int, ticker: str) -> bool:
     return True
 
 
+async def _execute_order_request(
+    headers: dict[str, str],
+    body: dict[str, str],
+    url: str,
+    ticker: str,
+    order_type: str,
+    quantity: int,
+    price: Decimal,
+    client: httpx.AsyncClient,
+) -> OrderResult:
+    """KIS 주문 API POST 요청을 실행하고 결과를 파싱한다.
+
+    국내/해외 주문 공통 로직 — rate-limit·lock은 호출자가 처리한다.
+    """
+    resp = await client.post(url, headers=headers, json=body)
+    resp.raise_for_status()
+    data = resp.json()
+
+    rt_cd = data.get("rt_cd")
+    if rt_cd != "0":
+        msg1 = data.get("msg1", "")
+        msg2 = data.get("msg2", "")
+        msg = " ".join(filter(None, [msg1, msg2])) or "Unknown KIS API error"
+        logger.warning(
+            "KIS order failed: ticker=%s rt_cd=%s msg=%s",
+            ticker,
+            rt_cd,
+            msg,
+        )
+        return OrderResult(
+            order_no="",
+            ticker=ticker,
+            order_type=order_type,
+            quantity=Decimal(quantity),
+            price=price,
+            status="failed",
+            message=msg,
+        )
+
+    output = data.get("output", {})
+    order_no = output.get("ODNO", "")
+    return OrderResult(
+        order_no=order_no,
+        ticker=ticker,
+        order_type=order_type,
+        quantity=Decimal(quantity),
+        price=price,
+        status="pending",
+        message=data.get("msg1", ""),
+    )
+
+
 async def place_domestic_order(
     app_key: str,
     app_secret: str,
@@ -208,52 +260,24 @@ async def place_domestic_order(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/order-cash",
+            result = await _execute_order_request(
                 headers=headers,
-                json=body,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-
-        rt_cd = data.get("rt_cd")
-        if rt_cd != "0":
-            msg1 = data.get("msg1", "")
-            msg2 = data.get("msg2", "")
-            msg = " ".join(filter(None, [msg1, msg2])) or "Unknown KIS API error"
-            logger.warning(
-                "KIS domestic order failed: ticker=%s rt_cd=%s msg=%s",
-                ticker,
-                rt_cd,
-                msg,
-            )
-            return OrderResult(
-                order_no="",
+                body=body,
+                url=f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/order-cash",
                 ticker=ticker,
                 order_type=order_type,
-                quantity=Decimal(quantity),
+                quantity=quantity,
                 price=price,
-                status="failed",
-                message=msg,
+                client=client,
             )
-
-        output = data.get("output", {})
-        order_no = output.get("ODNO", "")
-        logger.info(
-            "Domestic order placed: ticker=%s order_type=%s order_no=%s",
-            ticker,
-            order_type,
-            order_no,
-        )
-        return OrderResult(
-            order_no=order_no,
-            ticker=ticker,
-            order_type=order_type,
-            quantity=Decimal(quantity),
-            price=price,
-            status="pending",
-            message=data.get("msg1", ""),
-        )
+        if result.status == "pending":
+            logger.info(
+                "Domestic order placed: ticker=%s order_type=%s order_no=%s",
+                ticker,
+                order_type,
+                result.order_no,
+            )
+        return result
 
     except Exception as e:
         logger.warning("Domestic order exception: ticker=%s error=%s", ticker, e)
@@ -332,52 +356,24 @@ async def place_overseas_order(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/order",
+            result = await _execute_order_request(
                 headers=headers,
-                json=body,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-
-        rt_cd = data.get("rt_cd")
-        if rt_cd != "0":
-            msg1 = data.get("msg1", "")
-            msg2 = data.get("msg2", "")
-            msg = " ".join(filter(None, [msg1, msg2])) or "Unknown KIS API error"
-            logger.warning(
-                "KIS overseas order failed: ticker=%s rt_cd=%s msg=%s",
-                ticker,
-                rt_cd,
-                msg,
-            )
-            return OrderResult(
-                order_no="",
+                body=body,
+                url=f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/order",
                 ticker=ticker,
                 order_type=order_type,
-                quantity=Decimal(quantity),
+                quantity=quantity,
                 price=price,
-                status="failed",
-                message=msg,
+                client=client,
             )
-
-        output = data.get("output", {})
-        order_no = output.get("ODNO", "")
-        logger.info(
-            "Overseas order placed: ticker=%s order_type=%s order_no=%s",
-            ticker,
-            order_type,
-            order_no,
-        )
-        return OrderResult(
-            order_no=order_no,
-            ticker=ticker,
-            order_type=order_type,
-            quantity=Decimal(quantity),
-            price=price,
-            status="pending",
-            message=data.get("msg1", ""),
-        )
+        if result.status == "pending":
+            logger.info(
+                "Overseas order placed: ticker=%s order_type=%s order_no=%s",
+                ticker,
+                order_type,
+                result.order_no,
+            )
+        return result
 
     except Exception as e:
         logger.warning("Overseas order exception: ticker=%s error=%s", ticker, e)

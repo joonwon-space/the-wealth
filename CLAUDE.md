@@ -36,7 +36,34 @@ cd frontend && npx shadcn@latest add <component>
 ### Monorepo structure
 - `frontend/` — Next.js 16 App Router (React 19, TypeScript, Tailwind v4)
 - `backend/` — FastAPI with async SQLAlchemy + Alembic migrations
-- `docs/plan/todo.md` — 6-milestone implementation roadmap
+- `docs/` — architecture, plans, runbooks, reviews (see Docs Reference Map below)
+
+### Docs Reference Map
+
+`docs/` is **not auto-loaded**. Use `Read` when the question matches the table below.
+Index: `docs/architecture/README.md` lists every file with a one-line summary.
+
+| Looking for | File |
+|-------------|------|
+| System modules & big picture | `docs/architecture/overview.md` |
+| API endpoint specs | `docs/architecture/api-reference.md` |
+| Frontend pages / components / hooks | `docs/architecture/frontend-guide.md` |
+| Deployment, env vars, Redis keys, rate limits | `docs/architecture/infrastructure.md` |
+| Project strengths, weaknesses, risks | `docs/architecture/analysis.md` |
+| Infra cost tracking | `docs/architecture/cost-management.md` |
+| Operational procedures (backup, restore, logging, tools) | `docs/runbooks/*.md` |
+| Current sprint tasks | `docs/plan/tasks.md` |
+| Future backlog | `docs/plan/todo.md` |
+| Items requiring user action | `docs/plan/manual-tasks.md` |
+| Historical audits and reviews | `docs/reviews/YYYYMMDD-*.md` |
+| Runtime alert dumps | `docs/alerts/` (owned by `/fix-alerts`) |
+
+**Onboarding protocol** — before a new feature/fix, read in this order:
+1. `overview.md` → big picture
+2. File(s) directly relevant to the task (`api-reference.md` / `frontend-guide.md` / `infrastructure.md`)
+3. `analysis.md` → current gaps + priorities context
+
+**Keep docs fresh** — after significant code changes, run `/update-docs` so these files stay the source of truth.
 
 ### Frontend
 - **App Router** with server components for initial SSR load optimization
@@ -93,6 +120,11 @@ For granular control, use individual commands:
 | `/next-task` | Execute single next task |
 | `/discover-tasks` | Refresh tasks.md and todo.md |
 | `/update-docs` | Sync docs with codebase |
+| `/fix-alerts` | Diagnose and fix price alert delivery issues |
+| `/log-check` | Review recent error logs for anomalies |
+| `/e2e-check` | Run Playwright E2E suite on critical flows |
+| `/fix-ui` | Fix UI bug from screenshot or user report |
+| `/visual-qa` | Run screenshot-based visual regression check |
 
 ### Team Commands (multi-agent analysis)
 
@@ -115,6 +147,11 @@ For granular control, use individual commands:
 | `code-reviewer` | sonnet | After every code change |
 | `security-reviewer` | sonnet | Auth, API endpoints, KIS credential handling |
 | `database-reviewer` | sonnet | Schema changes, SQL queries, Alembic migrations |
+| `migration-reviewer` | sonnet | Alembic migration safety and reversibility |
+| `perf-analyzer` | sonnet | Bundle size, query performance, caching |
+| `doc-updater` | sonnet | Keep docs in sync with codebase changes |
+| `e2e-runner` | sonnet | Playwright E2E tests for critical user flows |
+| `visual-qa` | sonnet | Screenshot-based UI regression checks |
 
 ## Hooks (`.claude/hooks/`)
 

@@ -360,7 +360,11 @@ class TestGetMonthlyReturns:
             db.add(PriceSnapshot(ticker="005930", snapshot_date=date(2024, 2, 29), close=Decimal(77000)))
             await db.commit()
 
-        resp = await client.get("/analytics/monthly-returns", headers=_auth(token))
+        resp = await client.get(
+            "/analytics/monthly-returns",
+            params={"since": "2024-01-01"},
+            headers=_auth(token),
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
