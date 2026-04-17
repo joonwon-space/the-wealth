@@ -68,6 +68,7 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<ChartPeriod>("3M");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Shares the cached response with dashboard/page.tsx
@@ -79,13 +80,14 @@ export default function AnalyticsPage() {
 
   const fetchChart = async (ticker: string, p: string) => {
     setChartLoading(true);
+    setChartError(false);
     try {
       const { data } = await api.get<{ candles: Candle[] }>("/chart/daily", {
         params: { ticker, period: p },
       });
       setCandles(data.candles);
     } catch {
-      setCandles([]);
+      setChartError(true);
     } finally {
       setChartLoading(false);
     }
@@ -203,10 +205,12 @@ export default function AnalyticsPage() {
         period={period}
         candles={candles}
         chartLoading={chartLoading}
+        chartError={chartError}
         holdings={s.holdings}
         onPeriodChange={handlePeriodChange}
         onSearchOpen={() => setSearchOpen(true)}
         onSelectStock={handleSelectStock}
+        onRetryChart={() => selectedTicker && void fetchChart(selectedTicker, period)}
       />
 
       {s.allocation.length > 0 && (
