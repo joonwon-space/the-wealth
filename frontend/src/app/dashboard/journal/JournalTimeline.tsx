@@ -4,7 +4,18 @@ import { BookOpen, ArrowUpCircle, ArrowDownCircle, MessageSquare, TrendingUp, Tr
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatPrice } from "@/lib/format";
+import { formatKRW, formatUSD } from "@/lib/format";
+
+/** Infer currency from ticker: 1-5 uppercase letters → USD, else KRW */
+function getCurrencyFromTicker(ticker: string): "KRW" | "USD" {
+  return /^[A-Z]{1,5}$/.test(ticker) ? "USD" : "KRW";
+}
+
+function formatTxnPrice(value: string | number, ticker: string): string {
+  return getCurrencyFromTicker(ticker) === "USD"
+    ? formatUSD(value)
+    : formatKRW(value);
+}
 import type { Transaction } from "./useJournalData";
 
 function formatDateGroup(iso: string): string {
@@ -86,10 +97,10 @@ function TransactionCard({ txn, stockName }: TransactionCardProps) {
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
           <span>
             {Number(txn.quantity).toLocaleString("ko-KR")}주 &times;{" "}
-            {formatPrice(Number(txn.price), "KRW")}
+            {formatTxnPrice(Number(txn.price), txn.ticker)}
           </span>
           <span className="font-medium text-foreground">
-            = {formatPrice(total, "KRW")}
+            = {formatTxnPrice(total, txn.ticker)}
           </span>
         </div>
 
