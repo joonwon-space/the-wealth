@@ -247,6 +247,7 @@ export function TransactionSection({ portfolioId, holdings, isKisConnected }: Tr
                 <tbody>
                   {transactions.map((t) => {
                     const holdingMatch = holdings.find((h) => h.ticker === t.ticker);
+                    const isUSD = holdingMatch?.currency === "USD" || /^[A-Z]{1,5}$/.test(t.ticker);
                     const totalAmount = Number(t.quantity) * Number(t.price);
                     return (
                       <tr key={t.id} className="border-t">
@@ -261,8 +262,8 @@ export function TransactionSection({ portfolioId, holdings, isKisConnected }: Tr
                           {holdingMatch && <div className="text-xs text-muted-foreground">{holdingMatch.name}</div>}
                         </td>
                         <td className="px-4 py-2 tabular-nums">{formatNumber(t.quantity)}</td>
-                        <td className="px-4 py-2 tabular-nums">{formatKRW(t.price)}</td>
-                        <td className="px-4 py-2 tabular-nums">{formatKRW(totalAmount)}</td>
+                        <td className="px-4 py-2 tabular-nums">{isUSD ? formatUSD(t.price) : formatKRW(t.price)}</td>
+                        <td className="px-4 py-2 tabular-nums">{isUSD ? formatUSD(totalAmount) : formatKRW(totalAmount)}</td>
                         <td className="px-4 py-2 min-w-[140px]">
                           {editMemoId === t.id ? (
                             <input
