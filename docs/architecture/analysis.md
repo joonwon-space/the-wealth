@@ -244,7 +244,7 @@ frontend/src/
 
 `usePriceStream` 훅 동작 방식:
 
-1. `GET /prices/stream?token={jwt}` 엔드포인트에 SSE 연결
+1. `POST /auth/sse-ticket` → 30초 TTL 단기 티켓 발급 후 `GET /prices/stream?ticket={uuid}` 엔드포인트에 SSE 연결 (`?token=` JWT fallback은 SEC-103으로 제거됨)
 2. 30초 간격으로 보유종목 현재가 전송
 3. KST 09:00~15:30 (한국 장중)에만 활성화
 4. 연결 해제 시 자동 재연결

@@ -396,7 +396,10 @@ X-Frame-Options: DENY                    # 클릭재킹 방지
 Referrer-Policy: strict-origin-when-cross-origin  # Referer 정보 제한
 Permissions-Policy: camera=(), microphone=(), geolocation=()  # 브라우저 기능 제한
 X-XSS-Protection: 1; mode=block          # XSS 필터 활성화
+Strict-Transport-Security: max-age=31536000; includeSubDomains  # HSTS (프로덕션 환경에서만 추가)
 ```
+
+HSTS 헤더는 `ENVIRONMENT=production` 설정 시에만 응답에 포함됩니다 (로컬/개발 환경 HTTPS 미사용 고려).
 
 ---
 
@@ -409,6 +412,24 @@ slowapi 기반 IP별 레이트 리미팅:
 | 기본 제한 | 60 요청/분 (IP 기준) |
 | 키 함수 | `get_remote_address` |
 | 초과 시 | `429 Too Many Requests` |
+
+주요 엔드포인트별 개별 제한:
+
+| 엔드포인트 | 제한 | 비고 |
+|-----------|------|------|
+| `POST /auth/register` | 3/min | 무차별 대입 방지 |
+| `POST /auth/login` | 5/min | 무차별 대입 방지 |
+| `POST /auth/refresh` | 20/min | SEC-101: 토큰 재발급 남용 방지 |
+| `POST /auth/sse-ticket` | 30/min | SSE 티켓 남용 방지 |
+| `POST /portfolios/{id}/orders` | 10/min | 주문 남용 방지 (Sprint 10에서 30→10 강화) |
+| `GET /portfolios/{id}/orders/orderable` | 30/min | SEC-102: KIS API 보호 |
+| `GET /portfolios/{id}/orders/pending` | 30/min | SEC-102: KIS API 보호 |
+| `POST /portfolios/{id}/orders/settle` | 10/min | SEC-102: KIS API 보호 |
+| `POST /sync/balance` | 5/min | KIS API 보호 |
+| `POST /sync/{portfolio_id}` | 5/min | KIS API 보호 |
+| `POST /users/me/change-password` | 5/min | 보안 계정 작업 |
+| `POST /users/me/change-email` | 5/min | 보안 계정 작업 |
+| `DELETE /users/me` | 5/min | 보안 계정 작업 |
 
 ---
 

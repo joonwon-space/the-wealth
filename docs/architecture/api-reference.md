@@ -37,6 +37,7 @@ Rate-limited endpoints for brute force protection.
 - **Errors**: 401 (invalid credentials)
 
 ### POST /auth/refresh
+- **Rate limit**: 20/min
 - **Auth**: None (refresh token in body)
 - **Request body**: `{ "refresh_token": string }`
 - **Response** (200): `{ "access_token": string, "refresh_token": string, "token_type": "bearer" }`
@@ -235,7 +236,7 @@ Rate-limited endpoints for brute force protection.
 - **Auth**: Required
 - **Rate limit**: 120/min
 - **Query params**: `refresh?: boolean` (clears price cache when true)
-- **Response** (200): `DashboardSummary` -- aggregated portfolio data with live prices
+- **Response** (200): `DashboardSummaryResponse` -- aggregated portfolio data with live prices
   - `kis_status`: `"ok"` | `"degraded"` -- indicates KIS API availability
   - `usd_krw_rate`: USD/KRW exchange rate used (when overseas holdings present)
   - `triggered_alerts`: list of alerts whose conditions are currently met
@@ -251,6 +252,7 @@ Rate-limited endpoints for brute force protection.
 
 ### GET /analytics/monthly-returns
 - **Auth**: Required
+- **Query params**: `since: string (YYYY-MM-DD)` (optional; default: today - 365 days). Use to extend the lookback window beyond one year.
 - **Response** (200): `MonthlyReturn[]` -- monthly return percentages from price snapshots
 
 ### GET /analytics/portfolio-history
@@ -361,16 +363,19 @@ Rate-limited endpoints for brute force protection.
 
 ### GET /portfolios/{portfolio_id}/orders/orderable
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 30/minute
 - **Query params**: `ticker: string`, `price: int` (default 0), `order_type: string` (default "BUY")
 - **Response** (200): `OrderableInfoResponse` -- `{ orderable_quantity, orderable_amount, current_price?, currency }`
 
 ### GET /portfolios/{portfolio_id}/orders/pending
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 30/minute
 - **Query params**: `is_overseas: bool` (default false)
 - **Response** (200): `PendingOrderResponse[]` -- list of unfilled orders from KIS API
 
 ### POST /portfolios/{portfolio_id}/orders/settle
 - **Auth**: Required (ownership verified)
+- **Rate limit**: 10/minute
 - **Response** (200): `{ "settled": int, "failed": int }` — counts of orders checked against KIS API and updated in DB
 - **Description**: Manually triggers a check of all pending orders for the portfolio against KIS API. Updates order status to "filled" or "partial" where applicable. Useful when auto-settle has not yet run.
 - **Errors**: 400 (no KIS account linked), 502 (KIS API failure)
@@ -441,7 +446,7 @@ Rate-limited endpoints for brute force protection.
 - **Response** (200): Historical price data from `price_snapshots` table
 
 ### GET /prices/stream
-- **Auth**: via query param `token` (SSE does not support headers)
+- **Auth**: via query param `ticket` (single-use 30-second SSE ticket issued by `POST /auth/sse-ticket`; `?token=` JWT fallback was removed in SEC-103 due to server log exposure risk)
 - **Response**: Server-Sent Events stream
 - **Behavior**:
   - 30-second interval price updates for user's holdings
@@ -449,6 +454,7 @@ Rate-limited endpoints for brute force protection.
   - 15-second heartbeat events
   - Per-user max 3 concurrent connections
   - 2-hour max connection duration
+  - Alert list cached per-connection (refreshed every 5 minutes) to avoid repeated DB queries (PERF-103)
 
 ---
 
