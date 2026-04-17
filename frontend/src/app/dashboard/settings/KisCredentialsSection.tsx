@@ -8,6 +8,16 @@ import { formatKRW, formatNumber, formatUSD } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface BalanceHolding {
   ticker: string;
@@ -66,6 +76,7 @@ export function KisCredentialsSection() {
   const [addingAcct, setAddingAcct] = useState(false);
   const [testingAcctId, setTestingAcctId] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, boolean | null>>({});
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceAccounts, setBalanceAccounts] = useState<AccountBalance[] | null>(null);
@@ -322,7 +333,7 @@ export function KisCredentialsSection() {
                       테스트
                     </button>
                     <button
-                      onClick={() => handleDeleteAccount(a.id)}
+                      onClick={() => setDeleteConfirmId(a.id)}
                       aria-label={`${a.label} 계좌 삭제`}
                       className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive"
                     >
@@ -511,6 +522,36 @@ export function KisCredentialsSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* KIS 계좌 삭제 확인 다이얼로그 */}
+      <AlertDialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>KIS 계좌를 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              계좌 자격증명이 삭제되며, 연결된 포트폴리오 동기화가 중단됩니다.
+              이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId !== null) {
+                  void handleDeleteAccount(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                }
+              }}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
