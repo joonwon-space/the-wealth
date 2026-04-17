@@ -104,6 +104,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `QueryProvider.tsx` | TanStack Query provider (wraps app with QueryClientProvider) |
 | `ErrorBoundary.tsx` | React Error Boundary with fallback UI + Sentry captureException |
 | `PageError.tsx` | Page-level error display component |
+| `WidgetErrorFallback.tsx` | Inline widget-level error with optional retry button; used inside cards/sections (Sprint 11 CQ-001) |
 | `CardSkeleton.tsx` | Card loading skeleton |
 | `ChartSkeleton.tsx` | Chart loading skeleton |
 | `TableSkeleton.tsx` | Table loading skeleton |
