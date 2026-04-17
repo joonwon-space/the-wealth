@@ -87,11 +87,17 @@ export function KisCredentialsSection() {
   const [addingAlert, setAddingAlert] = useState(false);
 
   const fetchKisAccounts = () => {
-    api.get<KisAccount[]>("/users/kis-accounts").then(({ data }) => setKisAccounts(data));
+    api
+      .get<KisAccount[]>("/users/kis-accounts")
+      .then(({ data }) => setKisAccounts(data))
+      .catch(() => toast.error("KIS 계좌 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요."));
   };
 
   const fetchAlerts = () => {
-    api.get<AlertItem[]>("/alerts").then(({ data }) => setAlerts(data));
+    api
+      .get<AlertItem[]>("/alerts")
+      .then(({ data }) => setAlerts(data))
+      .catch(() => toast.error("알림 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요."));
   };
 
   useEffect(() => {
