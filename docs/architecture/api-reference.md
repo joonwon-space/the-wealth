@@ -43,17 +43,64 @@ Rate-limited endpoints for brute force protection.
 - **Side effect**: Consumes old JTI in Redis, issues new token pair
 - **Errors**: 401 (invalid/expired/consumed refresh token)
 
-### POST /auth/change-password
+### POST /auth/logout
+- **Auth**: Required
+- **Response** (204): No content
+- **Side effect**: Clears `access_token` cookie
+
+### GET /auth/sessions
+- **Auth**: Required
+- **Response** (200): `{ "sessions": [{ "jti": string, "created_at": datetime, "expires_at": datetime }] }`
+- **Notes**: Returns all active refresh token sessions for the authenticated user
+
+### DELETE /auth/sessions/{jti}
+- **Auth**: Required
+- **Response** (204): No content
+- **Notes**: Revokes a specific refresh token session; the user remains logged in on other devices
+
+### POST /auth/sse-ticket
+- **Rate limit**: 30/min
+- **Auth**: Required
+- **Response** (200): `{ "ticket": string }`
+- **Notes**: Issues a single-use 30-second TTL ticket for SSE stream authentication; avoids JWT exposure in server logs
+
+---
+
+## Users (`/users/me`)
+
+### GET /users/me
+- **Auth**: Required
+- **Response** (200): `{ "id": int, "email": string, "created_at": datetime }`
+
+### PATCH /users/me
+- **Auth**: Required
+- **Request body**: `{ "email"?: string }`
+- **Response** (200): Updated user object
+- **Errors**: 400 (duplicate email)
+
+### POST /users/me/change-password
 - **Auth**: Required
 - **Request body**: `{ "current_password": string, "new_password": string }`
 - **Response** (204): No content
 - **Side effect**: Revokes all refresh tokens for the user
 - **Errors**: 400 (incorrect current password)
 
-### POST /auth/logout
+### POST /users/me/change-email
 - **Auth**: Required
+- **Request body**: `{ "new_email": string, "current_password": string }`
 - **Response** (204): No content
-- **Side effect**: Clears `access_token` cookie
+- **Errors**: 400 (incorrect password or duplicate email)
+
+### DELETE /users/me
+- **Auth**: Required
+- **Request body**: `{ "password": string }`
+- **Response** (204): No content
+- **Side effect**: Deletes account and revokes all tokens; irreversible
+
+### GET /users/me/security-logs
+- **Auth**: Required
+- **Response** (200): `AuditLog[]`
+- **Notes**: Returns recent security-relevant actions (login, password change, etc.)
 
 ---
 
