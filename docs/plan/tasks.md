@@ -26,7 +26,7 @@ Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs,
 - [x] Create `docs/architecture/testing-guide.md` — pytest 마커 사용 (`@pytest.mark.unit` vs `.integration`), `backend/tests/conftest.py`의 DB isolation (per-test transaction rollback), MSW handlers (`frontend/src/test/handlers.ts`) 작성법, E2E 로컬 실행 (`npx playwright test`), 커버리지 타겟 80% 유지 방법, 테스트 작성 순서(TDD) 체크리스트
 
 ### DOC-205. Deployment runbook
-- [ ] Create `docs/runbooks/deploy.md` — CI/CD `.github/workflows/deploy.yml` 실패 시 대응, 롤백 절차 (이전 Docker image tag로 `docker compose up -d`), 핫픽스 프로세스 (main branch → direct push OK vs PR 필요), 수동 Alembic 실행 (SSH 후 `alembic upgrade head`), 배포 전/후 smoke 체크
+- [x] Create `docs/runbooks/deploy.md` — CI/CD `.github/workflows/deploy.yml` 실패 시 대응, 롤백 절차 (이전 Docker image tag로 `docker compose up -d`), 핫픽스 프로세스 (main branch → direct push OK vs PR 필요), 수동 Alembic 실행 (SSH 후 `alembic upgrade head`), 배포 전/후 smoke 체크
 
 ### 🟡 P3 — 구조적 이해 심화
 
