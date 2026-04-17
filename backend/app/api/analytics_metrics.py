@@ -77,6 +77,60 @@ def _calc_sharpe(daily_returns: list[float]) -> Optional[float]:
     return (annual_return - _RISK_FREE_RATE) / annual_std
 
 
+async def _fetch_analytics_prices(
+    holdings: list[Holding],
+    acct: Optional[KisAccount],
+) -> dict[str, Optional[Decimal]]:
+    """보유 종목의 현재가를 KIS API에서 조회한다. 실패 시 캐시 값 사용."""
+    ticker_to_market: dict[str, str] = {
+        h.ticker: (h.market or "NAS") for h in holdings if not is_domestic(h.ticker)
+    }
+    domestic_tickers = [h.ticker for h in holdings if is_domestic(h.ticker)]
+    overseas_tickers = [h.ticker for h in holdings if not is_domestic(h.ticker)]
+    tickers = domestic_tickers + overseas_tickers
+    current_prices: dict[str, Optional[Decimal]] = {}
+
+    if acct:
+        try:
+            app_key = decrypt(acct.app_key_enc)
+            app_secret = decrypt(acct.app_secret_enc)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                all_details = await asyncio.gather(
+                    *[fetch_domestic_price_detail(t, app_key, app_secret, client) for t in domestic_tickers],
+                    *[fetch_overseas_price_detail(t, ticker_to_market[t], app_key, app_secret, client) for t in overseas_tickers],
+                    return_exceptions=True,
+                )
+            for ticker, detail in zip(tickers, all_details):
+                if detail and not isinstance(detail, Exception):
+                    current_prices[ticker] = detail.current
+                    await _cache_price(ticker, detail.current)
+                else:
+                    cached_price = await _get_cached_price(ticker)
+                    if cached_price is not None:
+                        current_prices[ticker] = cached_price
+        except Exception as e:
+            logger.warning("Failed to fetch prices for metrics: %s", e)
+            fallback_results = await asyncio.gather(*[_get_cached_price(t) for t in tickers], return_exceptions=True)
+            for ticker, cached_price in zip(tickers, fallback_results):
+                if cached_price is not None and not isinstance(cached_price, Exception):
+                    current_prices[ticker] = cached_price
+
+    return current_prices
+
+
+def _compute_holding_pnl(
+    holdings: list[Holding],
+    current_prices: dict[str, Optional[Decimal]],
+) -> tuple[float, float]:
+    """보유 종목 현재가 기반 총 투자금액과 현재 가치를 반환한다."""
+    total_invested = sum(float(h.quantity) * float(h.avg_price) for h in holdings)
+    total_current = sum(
+        float(h.quantity) * float(current_prices.get(h.ticker) or h.avg_price)
+        for h in holdings
+    )
+    return total_invested, total_current
+
+
 @router.get("/metrics")
 @limiter.limit("30/minute")
 async def get_metrics(
@@ -113,58 +167,9 @@ async def get_metrics(
 
     acct = acct_result.scalar_one_or_none()
 
-    # ticker → market 매핑 (해외주식 routing용)
-    ticker_to_market: dict[str, str] = {
-        h.ticker: (h.market or "NAS")
-        for h in holdings
-        if not is_domestic(h.ticker)
-    }
-    domestic_tickers = [t for t in {h.ticker for h in holdings} if is_domestic(t)]
-    overseas_tickers = [t for t in {h.ticker for h in holdings} if not is_domestic(t)]
-    tickers = domestic_tickers + overseas_tickers
-    current_prices: dict[str, Optional[Decimal]] = {}
-    if acct:
-        try:
-            app_key = decrypt(acct.app_key_enc)
-            app_secret = decrypt(acct.app_secret_enc)
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                domestic_coros = [
-                    fetch_domestic_price_detail(t, app_key, app_secret, client)
-                    for t in domestic_tickers
-                ]
-                overseas_coros = [
-                    fetch_overseas_price_detail(t, ticker_to_market[t], app_key, app_secret, client)
-                    for t in overseas_tickers
-                ]
-                all_details = await asyncio.gather(
-                    *domestic_coros,
-                    *overseas_coros,
-                    return_exceptions=True,
-                )
-            for ticker, detail in zip(tickers, all_details):
-                if detail and not isinstance(detail, Exception):
-                    current_prices[ticker] = detail.current
-                    await _cache_price(ticker, detail.current)
-                else:
-                    cached_price = await _get_cached_price(ticker)
-                    if cached_price is not None:
-                        current_prices[ticker] = cached_price
-        except Exception as e:
-            logger.warning("Failed to fetch prices for metrics: %s", e)
-            # 캐시에서 병렬 조회 (fallback)
-            fallback_results = await asyncio.gather(
-                *[_get_cached_price(t) for t in tickers], return_exceptions=True
-            )
-            for ticker, cached_price in zip(tickers, fallback_results):
-                if cached_price is not None and not isinstance(cached_price, Exception):
-                    current_prices[ticker] = cached_price
-
-    # 현재 포트폴리오 가치 계산
-    total_invested = sum(float(h.quantity) * float(h.avg_price) for h in holdings)
-    total_current = sum(
-        float(h.quantity) * float(current_prices.get(h.ticker) or h.avg_price)
-        for h in holdings
-    )
+    current_prices = await _fetch_analytics_prices(list(holdings), acct)
+    tickers = [h.ticker for h in holdings]
+    total_invested, total_current = _compute_holding_pnl(list(holdings), current_prices)
 
     if total_invested <= 0:
         return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
