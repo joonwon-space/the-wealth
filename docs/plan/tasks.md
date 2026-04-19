@@ -5,6 +5,30 @@ Each item should be completable in a single commit.
 
 ---
 
+## Feature: Portfolio P&L Summary on List Screen (2026-04-20)
+
+PRD: `docs/reviews/feature/prd.md` — portfolio list row shows evaluation value, total invested, P&L amount, return rate % normalized to KRW. Korean color convention (red=profit, blue=loss). Graceful fallback `—` when KIS not connected.
+
+### TASK-PNL-1. Backend: Add `PortfolioWithPricesResponse` schema (S)
+- [ ] In `backend/app/schemas/portfolio.py`, add `PortfolioWithPricesResponse` extending `PortfolioResponse` with optional fields: `market_value_krw: Optional[Decimal]`, `pnl_amount_krw: Optional[Decimal]`, `pnl_rate: Optional[Decimal]`, `exchange_rate: Optional[Decimal]`. All optional — `None` means price unavailable (renders as `—` in UI).
+
+### TASK-PNL-2. Backend: Implement `GET /portfolios/with-prices` endpoint (M)
+- [ ] In `backend/app/api/portfolios.py`, add `GET /portfolios/with-prices` endpoint (below the existing list endpoint). Logic: (1) Run existing `list_portfolios` SQL query to get all portfolios + total_invested. (2) Collect all holdings across all portfolios via a single `SELECT holdings WHERE portfolio_id IN (...)` query. (3) Deduplicate tickers before KIS calls (domestic/overseas separate). (4) Fetch KIS account for the user (prefer first linked account, fallback to any user account). (5) Run `asyncio.gather` for all unique tickers + FX rate. (6) Per portfolio: sum `quantity * current_price` per holding → `market_value_krw` (convert overseas holdings with FX rate), sum KRW-denominated `total_invested`, compute `pnl_amount_krw = market_value_krw - total_invested_krw`, `pnl_rate = pnl_amount_krw / total_invested_krw * 100`. (7) Return `list[PortfolioWithPricesResponse]`. Wrap entire KIS block in try/except — on failure, return portfolios with price fields as `None`. Import helpers from `app.services.kis_price` and `app.core.encryption`. Reuse `_MARKET_MAP` and `is_domestic` already in `portfolio_holdings.py`. Rate limit: `@limiter.limit("10/minute")`.
+
+### TASK-PNL-3. Backend: Unit + integration tests (M)
+- [ ] Create `backend/tests/test_portfolios_with_prices.py`. Unit tests (mock KIS, `@pytest.mark.unit`): (a) endpoint returns `market_value_krw`, `pnl_amount_krw`, `pnl_rate` when KIS prices available; (b) returns `None` for price fields when KIS not linked; (c) USD portfolio FX-converts correctly (multiply by exchange_rate); (d) de-duplication: two portfolios sharing same ticker → KIS called once. Integration tests (`@pytest.mark.integration`): (e) unauthenticated request → 401; (f) authenticated user with no portfolios → empty list `[]`; (g) authenticated user with KRW portfolio and holdings but no KIS account → list with `None` price fields.
+
+### TASK-PNL-4. Frontend: Extend `Portfolio` type and switch fetch URL (S)
+- [ ] In `frontend/src/app/dashboard/portfolios/page.tsx`, extend the `Portfolio` interface to add optional fields: `market_value_krw?: string | null`, `pnl_amount_krw?: string | null`, `pnl_rate?: string | null`. Update `fetchPortfolios` to call `/portfolios/with-prices`. Update the `PORTFOLIOS_QUERY_KEY` constant to `["portfolios-with-prices"]` to avoid stale-cache collisions with any other component using `["portfolios"]`. The rename mutation `onSuccess` updater uses `p.id` match — no change needed there since it reads from the existing item.
+
+### TASK-PNL-5. Frontend: Extend `SortablePortfolioRow` stats with P&L + Korean colors (M)
+- [ ] In `frontend/src/app/dashboard/portfolios/page.tsx`, update the stats block (currently lines ~167-170) in `SortablePortfolioRow`. New layout (all `hidden sm:flex`): Row 1: evaluation value `formatKRW(portfolio.market_value_krw)` (or `—` if null). Row 2: `formatPnL(portfolio.pnl_amount_krw)` + `(${formatRate(portfolio.pnl_rate)}%)` colored with Korean convention: positive → `text-red-500`, negative → `text-blue-500`, null → `text-muted-foreground`. Keep existing `holdings_count` display. Use `formatKRW`, `formatPnL`, `formatRate` from `@/lib/format`. Color helper: inline ternary `pnl_rate > 0 ? "text-red-500" : pnl_rate < 0 ? "text-blue-500" : "text-muted-foreground"` — parse as `Number`.
+
+### TASK-PNL-6. Frontend: Component tests (S)
+- [ ] Create `frontend/src/test/portfolios-with-prices.test.tsx`. Use `@testing-library/react` + MSW handlers. Tests: (a) renders `₩` evaluation value when `market_value_krw` provided; (b) renders `—` when `market_value_krw` is null; (c) positive P&L has `text-red-500` class (Korean profit color); (d) negative P&L has `text-blue-500` class (Korean loss color); (e) zero P&L has `text-muted-foreground` class. Add MSW handler in `frontend/src/test/handlers.ts` for `GET /portfolios/with-prices` returning mock data with and without price fields.
+
+---
+
 ## Sprint 16 — Documentation Gaps (2026-04-17)
 
 Created from doc-gap audit. New `docs/` files fill 10 realistic developer needs, each with a canonical home. Each task = one commit = one new file (or one agent update). Keep each doc **under 400 lines**, focus on code-derived facts not narrative.
