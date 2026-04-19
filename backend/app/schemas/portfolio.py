@@ -56,6 +56,19 @@ class PortfolioResponse(BaseModel):
     target_value: Optional[int] = None
 
 
+class PortfolioWithPricesResponse(PortfolioResponse):
+    """PortfolioResponse extended with real-time KIS price aggregates (KRW-normalized).
+
+    All price fields are None when KIS is not connected or prices are unavailable.
+    The frontend renders None as '—'.
+    """
+
+    market_value_krw: Optional[Decimal] = None
+    pnl_amount_krw: Optional[Decimal] = None
+    pnl_rate: Optional[Decimal] = None
+    exchange_rate: Optional[Decimal] = None
+
+
 class HoldingCreate(BaseModel):
     ticker: str
     name: str
