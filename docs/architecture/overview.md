@@ -175,7 +175,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 80개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 81개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 > 주문 (`POST /portfolios/{id}/orders`) 레이트 리밋: 10/minute (Sprint 10에서 30→10으로 강화)
 
@@ -191,10 +191,11 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/auth/sessions` | 활성 세션 목록 조회 (refresh token 기반) |
 | DELETE | `/auth/sessions/{jti}` | 특정 세션 취소 |
 
-### 포트폴리오 (20)
+### 포트폴리오 (21)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/portfolios` | 포트폴리오 목록 |
+| GET | `/portfolios/with-prices` | 포트폴리오 목록 + 시가총액/P&L (KRW 환산) |
 | POST | `/portfolios` | 포트폴리오 생성 |
 | PATCH | `/portfolios/reorder` | 포트폴리오 순서 변경 |
 | PATCH | `/portfolios/{id}` | 포트폴리오 수정 |

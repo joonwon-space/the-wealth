@@ -341,7 +341,8 @@ backend/app/
 │   └── user.py
 ├── services/                  # 비즈니스 로직
 │   ├── kis_token.py           # KIS OAuth2 토큰 관리
-│   ├── kis_rate_limiter.py    # KIS API 토큰 버킷 레이트 리미터 (asyncio-safe, 5/s, burst=20)
+│   ├── kis_rate_limiter.py    # KIS API 토큰 버킷 레이트 리미터 (asyncio-safe, 5/s, burst=15; 전용 토큰 발급 리미터 acquire_token_issuance() 포함)
+│   ├── kis_retry.py           # KIS HTTP 재시도 래퍼 (429 / rt_cd=EGW00201 감지, 지터 후 1회 재시도)
 │   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬); FX 함수는 kis_fx.py 위임 re-export
 │   ├── kis_fx.py              # USD/KRW 환율 조회·캐시·DB 스냅샷 (kis_price.py에서 분리)
 │   ├── kis_account.py         # KIS 잔고 조회
@@ -418,35 +419,55 @@ async def fetch_prices_parallel(
 - **일별 OHLCV**: `FHKST01010400` TR — open/high/low/close/volume
 - **폴백 전략**: KIS API 실패 시 Redis 캐시(`price:{ticker}`, TTL 300초)에서 마지막 가격 사용
 
-### 3.3a KIS API 레이트 리미팅 (Sprint 14)
+### 3.3a KIS API 레이트 리미팅 (Sprint 14 + 정책 강화)
 
-KIS API 호출 속도를 서버 측 토큰 버킷으로 제어하는 `kis_rate_limiter.py` 모듈을 추가했습니다.
+KIS API 호출 속도를 서버 측 토큰 버킷으로 제어하는 `kis_rate_limiter.py` 모듈과, HTTP 429 / `rt_cd=EGW00201` 수신 시 재시도하는 `kis_retry.py` 래퍼를 운영합니다.
 
 ```
-kis_price.py / price_snapshot.py 내 KIS HTTP 호출 (6개 call site)
+읽기 전용 KIS HTTP 호출 (9개 call site: kis_price 5, kis_balance 2, kis_account 2,
+                                        kis_benchmark 2, kis_order_query 3,
+                                        kis_transaction 2, price_snapshot 1)
   │
-  ▼ await _rate_limit_acquire()  ← 토큰 버킷에서 토큰 1개 소비
+  ▼ kis_get() / kis_request()  ← kis_retry.py 래퍼 (429 감지 → 지터+재시도)
+  │
+  ▼ await acquire()  ← 토큰 버킷에서 토큰 1개 소비 (재시도 시도 시도 시도 재소비)
   │
   ├── 토큰 있음 → 즉시 통과
   └── 토큰 없음 → asyncio.sleep(deficit / rate) 대기
                   └── wait > timeout → asyncio.TimeoutError
                   └── wait >= 0.5s  → WARNING: P95 slow acquire
+
+KIS 토큰 발급 (/oauth2/tokenP) 전용 경로:
+  ▼ await acquire_token_issuance()  ← 별도 1/s 토큰 버킷
 ```
+
+**KIS 레이트 리밋 신호 2가지**:
+1. HTTP 429 (네트워크 계층)
+2. HTTP 200 + body `rt_cd="EGW00201"` (애플리케이션 계층 — "초당 거래건수 초과")
 
 **설정 (환경변수 / `config.py`)**:
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
 | `KIS_RATE_LIMIT_PER_SEC` | `5.0` | 초당 토큰 보충 속도 (tokens/second) |
-| `KIS_RATE_LIMIT_BURST` | `20` | 최대 버스트 크기 (시작 시 사용 가능 토큰) |
+| `KIS_RATE_LIMIT_BURST` | `15` | 최대 버스트 크기 (KIS 18/s 정책 반영; 구 기본값 20) |
+| `KIS_TOKEN_RATE_LIMIT_PER_SEC` | `1.0` | 토큰 발급 전용 리미터 보충 속도 (tokens/second) |
+| `KIS_TOKEN_RATE_LIMIT_BURST` | `1` | 토큰 발급 전용 버스트 크기 |
+| `KIS_HTTP_MAX_RETRIES` | `1` | 429/EGW00201 수신 시 재시도 횟수 |
 | `KIS_MOCK_MODE` | `false` | `true` 설정 시 레이트 리밋 비활성화 (로컬 개발/테스트용) |
 
-**Wrapped call sites**:
+**Wrapped call sites (읽기 전용 — 9개)**:
 - `kis_price.fetch_domestic_price` — 국내주식 현재가 (TR FHKST01010100)
 - `kis_price.fetch_overseas_price` — 해외주식 현재가 (TR HHDFS00000300)
 - `kis_price.fetch_domestic_daily_ohlcv` — 국내주식 OHLCV (TR FHKST01010400)
 - `kis_price.fetch_overseas_price_detail` — 해외주식 상세 (TR HHDFS00000300 + HHDFS76200200 fallback)
+- `kis_price.fetch_fx_rate` — USD/KRW 환율 조회 (kis_fx.py 포함)
+- `kis_balance.fetch_balance` — 잔고 조회
+- `kis_account.fetch_account_info` — 계좌 정보 조회
+- `kis_benchmark.fetch_benchmark` — 벤치마크 지수 조회
 - `price_snapshot.fetch_domestic_price_detail` — 국내주식 상세 (TR FHKST01010100)
+
+**주문 생성/취소 (`kis_order_place.py`)는 중복 실행 위험 때문에 재시도 대상 제외.**
 
 **Observability**:
 - `get_timeout_counter()` — 누적 timeout 횟수 (thread-safe 카운터)
@@ -924,7 +945,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 보안 강화 (sprint-3) | 완료 | bcrypt DoS 방지(max_length=128), Sentry 자격증명 스크러빙, CSP 수정, tags 길이 제한 |
 | 성능 최적화 (sprint-3) | 완료 | Redis ConnectionPool 싱글턴, DISTINCT ON prev_close 쿼리, fx-gain-loss 캐시, SSE React Compiler 호환 |
 | 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
-| KIS API 레이트 리미터 (Sprint 14) | 완료 | 토큰 버킷 5/s, burst=20; 6개 call site 래핑; KIS_MOCK_MODE 지원 |
+| KIS API 레이트 리미터 (Sprint 14) | 완료 | 토큰 버킷 5/s, burst=15 (KIS 18/s 정책 반영); 9개 call site 래핑 (kis_retry.py); 토큰 발급 전용 1/s 리미터; KIS_MOCK_MODE 지원 |
 | KIS 토큰 중복 발급 방지 (Sprint 14) | 완료 | Redis asyncio.Lock 기반 동시 요청 직렬화 |
 | 예수금 수익률 재계산 (Sprint 14) | 완료 | profit_loss_rate를 KIS evlu_erng_rt 대신 합산 P&L 기준으로 재계산 |
 | 코드 파일 분할 (Sprint 9/10) | 완료 | analytics.py→3분할, portfolios.py→holdings+transactions, kis_order.py→place+cancel+query, dashboard/page.tsx→DashboardMetrics+PortfolioList |
@@ -1079,7 +1100,9 @@ CI 수정 사항:
 - **[Sprint 13/TD-003]** HoldingsSection.tsx → HoldingsTableRow.tsx + useHoldingsInlineEdit.ts 분리
 - **[Sprint 13/TD-004]** scheduler.py → scheduler_market_jobs.py + scheduler_portfolio_jobs.py + scheduler_ops_jobs.py 분리 (scheduler.py thin orchestrator 유지)
 - **[Sprint 13/TD-007]** kis_price.py → kis_fx.py FX 로직 분리 (USD/KRW 환율 조회·캐시·DB 스냅샷; kis_price.py re-export shim 유지)
-- **[Sprint 14/RL-001~RL-008]** KIS API 토큰 버킷 레이트 리미터 추가: kis_rate_limiter.py (5/s, burst=20), 6개 KIS HTTP call site 래핑, KIS_RATE_LIMIT_PER_SEC / KIS_RATE_LIMIT_BURST / KIS_MOCK_MODE 환경변수 지원
+- **[Sprint 14/RL-001~RL-008]** KIS API 토큰 버킷 레이트 리미터 추가: kis_rate_limiter.py (5/s, burst=20→15), 9개 KIS HTTP call site 래핑, KIS_RATE_LIMIT_PER_SEC / KIS_RATE_LIMIT_BURST / KIS_MOCK_MODE 환경변수 지원
+- **[Sprint 14+]** KIS 정책 준수 강화: KIS_RATE_LIMIT_BURST 기본값 20→15 (KIS 18/s 정책), kis_retry.py 추가 (HTTP 429 + rt_cd=EGW00201 감지, 지터 후 1회 재시도), 토큰 발급 전용 1/s 리미터 acquire_token_issuance(), KIS_TOKEN_RATE_LIMIT_PER_SEC / KIS_TOKEN_RATE_LIMIT_BURST / KIS_HTTP_MAX_RETRIES 환경변수 추가
+- **[Sprint 14+]** GET /portfolios/with-prices 엔드포인트 추가: 포트폴리오 목록 화면에서 포트폴리오별 시가총액/P&L 금액/P&L 비율 표시 (KRW 환산, 한국 컬러 컨벤션 적용)
 - **[Sprint 14]** KIS 토큰 중복 발급 방지: Redis asyncio.Lock 기반 동시 요청 직렬화 (b277160)
 - **[Sprint 14]** KIS 계좌 미연결 포트폴리오 가격 조회 수정: reconcile_holdings 시 KIS 계좌 없는 포트폴리오도 처리 (73d448c)
 - **[Sprint 14]** 예수금 profit_loss_rate 재계산 수정: KIS evlu_erng_rt 대신 합산된 total_profit_loss / invested_stock_amount 기준으로 재계산 (해외 손익 미반영 문제 해결) (38c63b8)
