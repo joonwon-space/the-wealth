@@ -21,7 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { formatKRW } from "@/lib/format";
+import { formatKRW, formatPnL, formatRate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,12 +50,16 @@ interface Portfolio {
   created_at: string;
   holdings_count: number;
   total_invested: string;
+  // Real-time KIS price aggregates (KRW-normalized). Null when KIS unavailable.
+  market_value_krw?: string | null;
+  pnl_amount_krw?: string | null;
+  pnl_rate?: string | null;
 }
 
-const PORTFOLIOS_QUERY_KEY = ["portfolios"] as const;
+const PORTFOLIOS_QUERY_KEY = ["portfolios-with-prices"] as const;
 
 async function fetchPortfolios(): Promise<Portfolio[]> {
-  const { data } = await api.get<Portfolio[]>("/portfolios");
+  const { data } = await api.get<Portfolio[]>("/portfolios/with-prices");
   return data;
 }
 
@@ -164,9 +168,30 @@ function SortablePortfolioRow({
       </div>
 
       {/* 통계 */}
-      <div className="hidden sm:flex flex-col items-end text-xs text-muted-foreground tabular-nums shrink-0">
-        <span>{portfolio.holdings_count}개 종목</span>
-        <span>{formatKRW(portfolio.total_invested)}</span>
+      <div className="hidden sm:flex flex-col items-end text-xs tabular-nums shrink-0 gap-0.5">
+        <span className="text-muted-foreground">{portfolio.holdings_count}개 종목</span>
+        <span className="text-foreground font-medium">
+          {portfolio.market_value_krw != null
+            ? formatKRW(portfolio.market_value_krw)
+            : "—"}
+        </span>
+        <span
+          className={
+            portfolio.pnl_rate != null
+              ? Number(portfolio.pnl_rate) > 0
+                ? "text-red-500"
+                : Number(portfolio.pnl_rate) < 0
+                  ? "text-blue-500"
+                  : "text-muted-foreground"
+              : "text-muted-foreground"
+          }
+        >
+          {portfolio.pnl_amount_krw != null
+            ? `${formatPnL(portfolio.pnl_amount_krw)} (${
+                Number(portfolio.pnl_rate) > 0 ? "+" : ""
+              }${formatRate(portfolio.pnl_rate)}%)`
+            : "—"}
+        </span>
       </div>
 
       {/* 삭제 */}

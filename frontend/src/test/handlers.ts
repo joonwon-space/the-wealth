@@ -98,6 +98,44 @@ export const handlers = [
     ]);
   }),
 
+  // Portfolios with prices (P&L aggregation)
+  http.get(`${API_BASE}/portfolios/with-prices`, () => {
+    return HttpResponse.json([
+      {
+        id: 1,
+        user_id: 1,
+        name: "국내주식",
+        currency: "KRW",
+        display_order: 0,
+        created_at: "2025-01-01T00:00:00",
+        holdings_count: 2,
+        total_invested: "700000",
+        kis_account_id: 1,
+        target_value: null,
+        market_value_krw: "800000",
+        pnl_amount_krw: "100000",
+        pnl_rate: "14.2857",
+        exchange_rate: null,
+      },
+      {
+        id: 2,
+        user_id: 1,
+        name: "US주식",
+        currency: "USD",
+        display_order: 1,
+        created_at: "2025-01-02T00:00:00",
+        holdings_count: 1,
+        total_invested: "150",
+        kis_account_id: null,
+        target_value: null,
+        market_value_krw: null,
+        pnl_amount_krw: null,
+        pnl_rate: null,
+        exchange_rate: null,
+      },
+    ]);
+  }),
+
   // Watchlist
   http.get(`${API_BASE}/watchlist`, () => {
     return HttpResponse.json([]);
