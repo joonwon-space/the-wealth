@@ -12,6 +12,7 @@ import httpx
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
 logger = get_logger(__name__)
@@ -86,7 +87,8 @@ async def _get_domestic_balance(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-balance",
                 headers=headers,
                 params=params,
@@ -175,7 +177,8 @@ async def _get_overseas_balance(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/inquire-balance",
                 headers=headers,
                 params=params,

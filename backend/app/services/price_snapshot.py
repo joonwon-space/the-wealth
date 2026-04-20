@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.price_snapshot import PriceSnapshot
 from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
 logger = get_logger(__name__)
@@ -52,7 +53,8 @@ async def fetch_domestic_price_detail(
         "fid_input_iscd": ticker,
     }
     try:
-        resp = await client.get(
+        resp = await kis_get(
+            client,
             f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
             headers=headers,
             params=params,

@@ -17,6 +17,7 @@ from app.core.logging import get_logger
 from app.core.redis_cache import RedisCache
 from app.services.kis_health import get_kis_availability
 from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
 # FX utilities extracted to kis_fx.py — re-exported here for backward compatibility
@@ -112,7 +113,8 @@ async def fetch_domestic_price(
         "fid_input_iscd": ticker,
     }
     try:
-        resp = await client.get(
+        resp = await kis_get(
+            client,
             f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
             headers=headers,
             params=params,
@@ -139,7 +141,8 @@ async def fetch_overseas_price(
         "SYMB": ticker,
     }
     try:
-        resp = await client.get(
+        resp = await kis_get(
+            client,
             f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
             headers=headers,
             params=params,
@@ -204,7 +207,8 @@ async def fetch_domestic_daily_ohlcv(
         "fid_org_adj_prc": "0",
     }
     try:
-        resp = await client.get(
+        resp = await kis_get(
+            client,
             f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
             headers=headers,
             params=params,
@@ -297,7 +301,8 @@ async def fetch_overseas_price_detail(
         "SYMB": ticker,
     }
     try:
-        resp = await client.get(
+        resp = await kis_get(
+            client,
             f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
             headers={**headers, "tr_id": "HHDFS00000300"},
             params=params,
@@ -321,7 +326,8 @@ async def fetch_overseas_price_detail(
         if not w52_high_str or w52_high_str == "0":
             try:
                 await _rate_limit_acquire()
-                detail_resp = await client.get(
+                detail_resp = await kis_get(
+                    client,
                     f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
                     headers={**headers, "tr_id": "HHDFS76200200"},
                     params=params,
