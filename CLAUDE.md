@@ -125,6 +125,14 @@ For granular control, use individual commands:
 | `/e2e-check` | Run Playwright E2E suite on critical flows |
 | `/fix-ui` | Fix UI bug from screenshot or user report |
 | `/visual-qa` | Run screenshot-based visual regression check |
+| `/refactor-clean` | Detect and remove dead code safely |
+| `/review-pr` | Multi-agent PR review (correctness, security, types, tests) |
+| `/test-coverage` | Analyze coverage and generate missing tests to reach 80%+ |
+| `/quality-gate` | Run full lint/format/type check pipeline |
+| `/checkpoint` | Create or verify a workflow checkpoint |
+| `/save-session` | Save session state to resume in a future conversation |
+| `/resume-session` | Load saved session and resume from last context |
+| `/sync-ecc` | Pull latest everything-claude-code and sync agents/commands |
 
 ### Team Commands (multi-agent analysis)
 
@@ -149,9 +157,17 @@ For granular control, use individual commands:
 | `database-reviewer` | sonnet | Schema changes, SQL queries, Alembic migrations |
 | `migration-reviewer` | sonnet | Alembic migration safety and reversibility |
 | `perf-analyzer` | sonnet | Bundle size, query performance, caching |
+| `performance-optimizer` | sonnet | Deep performance profiling, bundle optimization, React render |
 | `doc-updater` | sonnet | Keep docs in sync with codebase changes |
 | `e2e-runner` | sonnet | Playwright E2E tests for critical user flows |
 | `visual-qa` | sonnet | Screenshot-based UI regression checks |
+| `refactor-cleaner` | sonnet | Dead code detection and safe removal (knip, ts-prune) |
+| `silent-failure-hunter` | sonnet | Find swallowed errors and missing error propagation |
+| `build-error-resolver` | sonnet | Fix TypeScript/build errors with minimal diffs |
+| `code-explorer` | sonnet | Trace execution paths and map architecture before new work |
+| `code-simplifier` | sonnet | Simplify and refine recently changed code |
+| `typescript-reviewer` | sonnet | TypeScript type safety, async correctness, security |
+| `python-reviewer` | sonnet | Python PEP 8, type hints, security, Pythonic patterns |
 
 ## Hooks (`.claude/hooks/`)
 
