@@ -213,7 +213,6 @@ async def list_portfolios_with_prices(
         market_value_krw: Decimal | None = None
         pnl_amount_krw: Decimal | None = None
         pnl_rate: Decimal | None = None
-        fx: Decimal | None = exchange_rate if all_overseas else None
 
         if holdings:
             mv_total = Decimal("0")
