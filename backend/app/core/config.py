@@ -44,11 +44,17 @@ class Settings(BaseSettings):
     R2_BUCKET: str = ""
 
     # KIS API rate limiting (token bucket).
-    # KIS_RATE_LIMIT_PER_SEC: steady-state token refill rate (requests/second).
-    # KIS_RATE_LIMIT_BURST: maximum burst capacity (tokens available upfront).
-    # KIS_MOCK_MODE: when True, rate limiter is bypassed (useful for local dev / tests).
+    # Policy (실전투자): 1초당 18건 per account; /oauth2/tokenP 1초당 1건.
+    # BURST kept below the per-second cap so an idle-bucket cold start cannot
+    # exceed 18 requests in any 1-second window.
     KIS_RATE_LIMIT_PER_SEC: float = 5.0
-    KIS_RATE_LIMIT_BURST: int = 20
+    KIS_RATE_LIMIT_BURST: int = 15
+    # /oauth2/tokenP dedicated limiter (1/s policy).
+    KIS_TOKEN_RATE_LIMIT_PER_SEC: float = 1.0
+    KIS_TOKEN_RATE_LIMIT_BURST: int = 1
+    # 429 / rate-limit-rejection retry: KIS recommends immediate retry.
+    KIS_HTTP_MAX_RETRIES: int = 1
+    # When True, rate limiter is bypassed (useful for local dev / tests).
     KIS_MOCK_MODE: bool = False
 
     @model_validator(mode="after")
