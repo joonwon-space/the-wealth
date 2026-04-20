@@ -30,18 +30,21 @@ _JITTER_MAX_MS = 150
 
 
 def _is_rate_limited(resp: httpx.Response) -> bool:
-    """429 OR 200+rt_cd=EGW00201 — KIS 레이트 거절의 두 경로 모두 감지."""
+    """429 OR 200+rt_cd=EGW00201 — KIS 레이트 거절의 두 경로 모두 감지.
+
+    Tolerant of mock Response objects in tests: any exception raised while
+    inspecting the body is treated as "not rate-limited" so a bogus/partial
+    mock response cannot accidentally trigger a retry.
+    """
     if resp.status_code == 429:
         return True
     if resp.status_code != 200:
         return False
-    content_type = resp.headers.get("content-type", "")
-    if not content_type.startswith("application/json"):
-        return False
     try:
-        return resp.json().get("rt_cd") == _KIS_RATELIMIT_RT_CD
-    except ValueError:
+        body = resp.json()
+    except Exception:
         return False
+    return isinstance(body, dict) and body.get("rt_cd") == _KIS_RATELIMIT_RT_CD
 
 
 async def kis_request(
