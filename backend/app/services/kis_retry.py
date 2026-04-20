@@ -70,9 +70,19 @@ async def kis_request(
 
     retries = settings.KIS_HTTP_MAX_RETRIES if max_retries is None else max_retries
     attempts = retries + 1
+    method_upper = method.upper()
+
+    # Dispatch via the convenience methods on httpx.AsyncClient so tests that
+    # mock `client.get` / `client.post` directly continue to work.
+    async def _do_request() -> httpx.Response:
+        if method_upper == "GET":
+            return await client.get(url, **kwargs)
+        if method_upper == "POST":
+            return await client.post(url, **kwargs)
+        return await client.request(method_upper, url, **kwargs)
 
     for attempt in range(1, attempts + 1):
-        resp = await client.request(method, url, **kwargs)
+        resp = await _do_request()
         if not _is_rate_limited(resp) or attempt == attempts:
             return resp
 

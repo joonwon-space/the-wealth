@@ -23,8 +23,16 @@ class _FakeClient:
         self._responses = list(responses)
         self.calls: list[tuple[str, str, dict]] = []
 
+    async def get(self, url: str, **kwargs) -> httpx.Response:  # noqa: ANN003
+        self.calls.append(("GET", url, kwargs))
+        return self._responses.pop(0)
+
+    async def post(self, url: str, **kwargs) -> httpx.Response:  # noqa: ANN003
+        self.calls.append(("POST", url, kwargs))
+        return self._responses.pop(0)
+
     async def request(self, method: str, url: str, **kwargs) -> httpx.Response:  # noqa: ANN003
-        self.calls.append((method, url, kwargs))
+        self.calls.append((method.upper(), url, kwargs))
         return self._responses.pop(0)
 
 
