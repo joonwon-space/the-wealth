@@ -24,6 +24,8 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.session import AsyncSessionLocal
 from app.models.index_snapshot import IndexSnapshot
+from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
 logger = get_logger(__name__)
@@ -72,7 +74,9 @@ async def _fetch_domestic_index(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            await _rate_limit_acquire()
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-index-price",
                 headers=headers,
                 params=params,
@@ -133,7 +137,9 @@ async def _fetch_overseas_index(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            await _rate_limit_acquire()
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
                 headers=headers,
                 params=params,

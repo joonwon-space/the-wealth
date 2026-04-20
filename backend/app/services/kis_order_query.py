@@ -16,6 +16,8 @@ import httpx
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_retry import kis_get
 
 logger = get_logger(__name__)
 
@@ -95,7 +97,9 @@ async def get_orderable_quantity(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            await _rate_limit_acquire()
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-psbl-order",
                 headers=headers,
                 params=params,
@@ -177,7 +181,8 @@ async def get_pending_orders(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=headers, params=params)
+            await _rate_limit_acquire()
+            resp = await kis_get(client, url, headers=headers, params=params)
             resp.raise_for_status()
             data = resp.json()
 
@@ -286,7 +291,9 @@ async def check_filled_orders(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            await _rate_limit_acquire()
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
                 headers=headers,
                 params=params,

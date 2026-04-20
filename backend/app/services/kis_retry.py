@@ -1,7 +1,11 @@
 """KIS HTTP 요청 재시도 래퍼.
 
 KIS 정책: "서버 내 분산 정책에 따라 일부 유량이 통과되지 않는 경우, 즉시 재호출"
-→ HTTP 429 수신 시 짧은 지터 후 1회 재시도.
+→ 레이트 거절(HTTP 429 또는 200+rt_cd=EGW00201) 수신 시 짧은 지터 후 1회 재시도.
+
+KIS는 레이트 초과를 두 경로로 알린다:
+  1. HTTP 429 (네트워크 계층)
+  2. HTTP 200 + body `rt_cd="EGW00201"` (애플리케이션 계층 — "초당 거래건수 초과")
 
 주의: 본 래퍼는 **읽기 전용/멱등 요청에만** 사용한다. 주문 생성/취소는 중복
 실행 위험이 있으므로 재시도 대상이 아니다 (각 콜사이트에서 직접 사용 금지).
@@ -20,9 +24,24 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-_RETRY_STATUS_CODES: frozenset[int] = frozenset({429})
+_KIS_RATELIMIT_RT_CD = "EGW00201"
 _JITTER_MIN_MS = 50
 _JITTER_MAX_MS = 150
+
+
+def _is_rate_limited(resp: httpx.Response) -> bool:
+    """429 OR 200+rt_cd=EGW00201 — KIS 레이트 거절의 두 경로 모두 감지."""
+    if resp.status_code == 429:
+        return True
+    if resp.status_code != 200:
+        return False
+    content_type = resp.headers.get("content-type", "")
+    if not content_type.startswith("application/json"):
+        return False
+    try:
+        return resp.json().get("rt_cd") == _KIS_RATELIMIT_RT_CD
+    except ValueError:
+        return False
 
 
 async def kis_request(
@@ -46,30 +65,35 @@ async def kis_request(
         최종 응답. 재시도 후에도 429면 그 응답을 반환 — 호출부에서
         raise_for_status() 또는 rt_cd 검사로 실패 처리.
     """
+    # Local import: avoid circular-import risk at module load time.
+    from app.services.kis_rate_limiter import acquire as _reacquire_token
+
     retries = settings.KIS_HTTP_MAX_RETRIES if max_retries is None else max_retries
     attempts = retries + 1
 
-    last_resp: httpx.Response | None = None
     for attempt in range(1, attempts + 1):
         resp = await client.request(method, url, **kwargs)
-        last_resp = resp
-        if resp.status_code not in _RETRY_STATUS_CODES or attempt == attempts:
+        if not _is_rate_limited(resp) or attempt == attempts:
             return resp
 
         wait_ms = random.randint(_JITTER_MIN_MS, _JITTER_MAX_MS)
         logger.warning(
-            "KIS %s %s returned %d — retry %d/%d after %dms",
+            "KIS %s %s rate-limited (status=%d rt_cd=%s) — retry %d/%d after %dms",
             method,
             url,
             resp.status_code,
+            resp.json().get("rt_cd") if resp.status_code == 200 else None,
             attempt,
             retries,
             wait_ms,
         )
         await asyncio.sleep(wait_ms / 1000.0)
+        # Re-consume a rate-limiter token so the retry respects the 18/s budget.
+        # Without this, N concurrent 429s would spike past the per-second cap.
+        await _reacquire_token()
 
-    assert last_resp is not None  # loop guarantees assignment
-    return last_resp
+    # Unreachable: the loop either returns on success/final attempt or continues.
+    raise RuntimeError("kis_retry: unreachable")
 
 
 async def kis_get(

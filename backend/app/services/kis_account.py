@@ -8,6 +8,8 @@ import httpx
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
 logger = get_logger(__name__)
@@ -56,7 +58,9 @@ async def fetch_account_holdings(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            await _rate_limit_acquire()
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-balance",
                 headers=headers,
                 params=params,
@@ -142,7 +146,9 @@ async def fetch_overseas_account_holdings(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
+            await _rate_limit_acquire()
+            resp = await kis_get(
+                client,
                 f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/inquire-balance",
                 headers=headers,
                 params=params,
