@@ -38,7 +38,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `/dashboard/analytics` | `app/dashboard/analytics/page.tsx` | Analytics: monthly heatmap, sector allocation, portfolio history |
 | `/dashboard/compare` | `app/dashboard/compare/page.tsx` | Portfolio comparison page |
 | `/dashboard/journal` | `app/dashboard/journal/page.tsx` | Investment journal: transaction memos across all portfolios |
-| `/dashboard/portfolios` | `app/dashboard/portfolios/page.tsx` | Portfolio list |
+| `/dashboard/portfolios` | `app/dashboard/portfolios/page.tsx` | Portfolio list with real-time P&L (evaluation value, P&L amount/rate via `/portfolios/with-prices`; red=profit blue=loss Korean convention; `—` fallback) |
 | `/dashboard/portfolios/[id]` | `app/dashboard/portfolios/[id]/page.tsx` | Portfolio detail: holdings, transactions |
 | `/dashboard/stocks/[ticker]` | `app/dashboard/stocks/[ticker]/page.tsx` | Stock detail: candlestick chart, stock info |
 | `/dashboard/settings` | `app/dashboard/settings/page.tsx` | KIS account management, user settings |

@@ -112,6 +112,12 @@ Rate-limited endpoints for brute force protection.
 - **Response** (200): `PortfolioResponse[]`
 - **Notes**: Returns only portfolios owned by the authenticated user
 
+### GET /portfolios/with-prices
+- **Auth**: Required
+- **Rate limit**: 10/min
+- **Response** (200): `PortfolioWithPricesResponse[]`
+- **Notes**: Aggregates real-time KIS market value + P&L per portfolio, KRW-normalized. Deduplicates tickers across portfolios before KIS calls (stays within 5/s rate limit). `market_value_krw`, `pnl_amount_krw`, `pnl_rate`, `exchange_rate` are `null` when KIS is not connected or price lookup fails. USD holdings are FX-converted to KRW using live USD/KRW rate. Used by `/dashboard/portfolios` list screen.
+
 ### POST /portfolios
 - **Auth**: Required
 - **Request body**: `{ "name": string, "currency"?: string }`
