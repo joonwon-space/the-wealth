@@ -84,7 +84,7 @@ jobs:
         run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         if: always() && steps.filter.outputs.relevant == 'true'
         with:
           files: ./coverage.xml
