@@ -16,6 +16,7 @@ import httpx
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.redis_cache import RedisCache
+from app.services.kis_rate_limiter import acquire_token_issuance
 
 logger = get_logger(__name__)
 
@@ -76,6 +77,7 @@ async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
         "appkey": app_key,
         "appsecret": app_secret,
     }
+    await acquire_token_issuance()
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             resp = await client.post(url, json=payload)

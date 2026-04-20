@@ -10,7 +10,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.kis_rate_limiter import KisRateLimiter, acquire, _limiter
+from app.services.kis_rate_limiter import (
+    KisRateLimiter,
+    _limiter,
+    _token_limiter,
+    acquire,
+    acquire_token_issuance,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -245,3 +251,34 @@ class TestRateLimiterIntegration:
             await limiter.acquire()
 
         assert any("P95" in r.message or "slow" in r.message.lower() for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# /oauth2/tokenP dedicated limiter — 1/s per KIS policy
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestTokenIssuanceLimiter:
+    """Token-issuance limiter must not share budget with the general REST bucket."""
+
+    def test_token_limiter_is_separate_instance(self) -> None:
+        assert _token_limiter is not _limiter
+
+    def test_token_limiter_defaults_to_one_per_second(self) -> None:
+        assert _token_limiter._rate == 1.0
+        assert _token_limiter._burst == 1.0
+
+    @pytest.mark.asyncio
+    async def test_acquire_token_issuance_enforces_one_per_second(self) -> None:
+        """After burst drains, the second acquire must wait ~1s."""
+        limiter = KisRateLimiter(rate=1.0, burst=1)
+        with patch(
+            "app.services.kis_rate_limiter._token_limiter", limiter
+        ):
+            await acquire_token_issuance()  # immediate
+            with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+                await acquire_token_issuance()
+                mock_sleep.assert_awaited_once()
+                wait = mock_sleep.call_args.args[0]
+                assert wait > 0.5  # should be ~1s

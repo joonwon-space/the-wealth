@@ -154,10 +154,19 @@ class KisRateLimiter:
 
 
 # ---------------------------------------------------------------------------
-# Module-level singleton (RL-003/004 call sites use this)
+# Module-level singletons
 # ---------------------------------------------------------------------------
 
 _limiter = KisRateLimiter()
+
+# /oauth2/tokenP has its own 1/s cap per KIS policy — must not share the
+# general REST bucket, otherwise a token refresh burst would starve price
+# lookups and vice-versa.
+_token_limiter = KisRateLimiter(
+    rate=settings.KIS_TOKEN_RATE_LIMIT_PER_SEC,
+    burst=settings.KIS_TOKEN_RATE_LIMIT_BURST,
+    mock_mode=settings.KIS_MOCK_MODE,
+)
 
 
 async def acquire(n: int = 1, timeout: Optional[float] = None) -> None:
@@ -168,3 +177,8 @@ async def acquire(n: int = 1, timeout: Optional[float] = None) -> None:
         await acquire()
     """
     await _limiter.acquire(n=n, timeout=timeout)
+
+
+async def acquire_token_issuance(timeout: Optional[float] = None) -> None:
+    """/oauth2/tokenP 1건/s 전용 리미터. kis_token._issue_token에서만 호출."""
+    await _token_limiter.acquire(n=1, timeout=timeout)
