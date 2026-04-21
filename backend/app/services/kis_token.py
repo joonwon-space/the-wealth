@@ -2,13 +2,15 @@
 
 KIS tokens are valid for 24 hours.
 - Cached in Redis under key `kis:token:{app_key_hash}`
-- TTL derived from `access_token_token_expired` in the issuance response
+- TTL derived from `access_token_token_expired` in the issuance response (KST)
+- Application-layer expiry check prevents serving stale tokens even if Redis TTL is wrong
 - Proactively rotated 10 minutes before expiry
 """
 
 import asyncio
 import hashlib
-from datetime import datetime
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -22,6 +24,11 @@ logger = get_logger(__name__)
 
 _ROTATION_BUFFER_SECONDS = 600  # rotate 10 min before expiry
 _TOKEN_TTL_SECONDS = 86400  # 24 h fallback (KIS spec)
+_KST = timezone(timedelta(hours=9))  # KIS expiry strings are KST
+
+# Cache value format: "{token}:::{unix_expiry_timestamp}"
+# Legacy entries (plain string) are returned as-is for backward compatibility.
+_SEPARATOR = ":::"
 
 _cache = RedisCache(settings.REDIS_URL)
 
@@ -43,18 +50,45 @@ async def _get_issue_lock(cache_key: str) -> asyncio.Lock:
         return _issue_locks[cache_key]
 
 
+def _parse_cached(cached: str) -> tuple[str, bool]:
+    """Parse cached value and validate application-layer expiry.
+
+    Returns (token, is_valid). is_valid=False means the token is within
+    the rotation buffer window and should be evicted and reissued.
+    """
+    if _SEPARATOR not in cached:
+        # Legacy format (plain token string) — assume valid, no expiry info.
+        return cached, True
+
+    token_val, exp_str = cached.split(_SEPARATOR, 1)
+    try:
+        expires_at = float(exp_str)
+        is_valid = expires_at > time.time() + _ROTATION_BUFFER_SECONDS
+        return token_val, is_valid
+    except ValueError:
+        # Malformed expiry — return as-is and let Redis TTL handle eviction.
+        return token_val, True
+
+
 async def get_kis_access_token(app_key: str, app_secret: str) -> str:
     """Return a valid KIS access token, fetching from cache or issuing a new one.
 
     Uses double-checked locking: fast cache read first, then per-key lock to
     prevent concurrent coroutines from each issuing a new token on cache miss.
+
+    Application-layer expiry validation ensures stale tokens are evicted even
+    if the Redis TTL was set incorrectly (e.g., due to timezone mismatches).
     """
     cache_key = _cache_key_for(app_key)
 
-    # Fast path — cache hit, no lock needed.
+    # Fast path — cache hit with valid expiry.
     cached = await _cache.get(cache_key)
     if cached:
-        return cached
+        token, valid = _parse_cached(cached)
+        if valid:
+            return token
+        logger.info("KIS token near/past expiry (app-layer check), evicting and reissuing")
+        await _cache.delete(cache_key)
 
     # Slow path — acquire per-key lock so only one coroutine issues a token.
     lock = await _get_issue_lock(cache_key)
@@ -62,15 +96,19 @@ async def get_kis_access_token(app_key: str, app_secret: str) -> str:
         # Re-check: another coroutine may have populated the cache while we waited.
         cached = await _cache.get(cache_key)
         if cached:
-            return cached
+            token, valid = _parse_cached(cached)
+            if valid:
+                return token
+            await _cache.delete(cache_key)
 
-        token, ttl = await _issue_token(app_key, app_secret)
-        await _cache.setex(cache_key, max(ttl - _ROTATION_BUFFER_SECONDS, 60), token)
+        token, ttl, expires_at_unix = await _issue_token(app_key, app_secret)
+        cache_value = f"{token}{_SEPARATOR}{expires_at_unix}"
+        await _cache.setex(cache_key, max(ttl - _ROTATION_BUFFER_SECONDS, 60), cache_value)
         return token
 
 
-async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
-    """Call KIS token issuance endpoint and return (access_token, ttl_seconds)."""
+async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int, float]:
+    """Call KIS token issuance endpoint and return (access_token, ttl_seconds, expires_at_unix)."""
     url = f"{settings.KIS_BASE_URL}/oauth2/tokenP"
     payload = {
         "grant_type": "client_credentials",
@@ -94,17 +132,27 @@ async def _issue_token(app_key: str, app_secret: str) -> tuple[str, int]:
     if not token:
         raise ValueError("KIS token endpoint returned unexpected response format")
 
+    # Default: 24h fallback
     ttl = _TOKEN_TTL_SECONDS
+    expires_at_unix = time.time() + _TOKEN_TTL_SECONDS
+
     expires_str: Optional[str] = data.get("access_token_token_expired")
     if expires_str:
         try:
-            expires_at = datetime.strptime(expires_str, "%Y-%m-%d %H:%M:%S")
-            ttl = max(int((expires_at - datetime.now()).total_seconds()), 60)
+            # KIS returns expiry in KST (e.g. "2026-04-22 13:47:51").
+            # Must attach KST tzinfo before comparing with UTC-based time.time().
+            expires_dt = datetime.strptime(expires_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_KST)
+            expires_at_unix = expires_dt.timestamp()
+            ttl = max(int(expires_at_unix - time.time()), 60)
         except (ValueError, OverflowError):
-            logger.warning("Could not parse KIS token expiry '%s', using default TTL", expires_str)
+            logger.warning(
+                "Could not parse KIS token expiry '%s', using default TTL", expires_str
+            )
 
-    logger.info("KIS token issued, TTL=%ds (expires=%s)", ttl, expires_str)
-    return token, ttl
+    logger.info(
+        "KIS token issued, TTL=%ds (expires=%s KST)", ttl, expires_str
+    )
+    return token, ttl, expires_at_unix
 
 
 async def invalidate_kis_token(app_key: str) -> None:
