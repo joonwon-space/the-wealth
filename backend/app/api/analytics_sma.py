@@ -13,6 +13,7 @@ from app.core.logging import get_logger
 from app.db.session import get_db
 from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
+from app.schemas.analytics import SmaPoint
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = get_logger(__name__)
@@ -38,7 +39,7 @@ def _compute_sma(closes: list[float], period: int) -> list[Optional[float]]:
     return result
 
 
-@router.get("/stocks/{ticker}/sma")
+@router.get("/stocks/{ticker}/sma", response_model=list[SmaPoint])
 @limiter.limit("30/minute")
 async def get_stock_sma(
     request: Request,
@@ -61,7 +62,7 @@ async def get_stock_sma(
     ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[SmaPoint]:
     """종목별 단순 이동평균(SMA) 시계열 반환.
 
     price_snapshots 테이블에서 해당 ticker의 날짜별 종가를 조회하고
@@ -113,12 +114,12 @@ async def get_stock_sma(
     sma_values = _compute_sma(closes, period)
 
     # 응답: from_date 이후 날짜 + SMA 값이 있는 포인트만 포함
-    output: list[dict] = []
+    output: list[SmaPoint] = []
     for date_str, sma in zip(dates, sma_values):
         if sma is None:
             continue
         if from_date is not None and date_str < from_date.isoformat():
             continue
-        output.append({"date": date_str, "sma": sma})
+        output.append(SmaPoint(date=date_str, sma=sma))
 
     return output

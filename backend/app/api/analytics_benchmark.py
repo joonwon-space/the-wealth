@@ -13,6 +13,7 @@ from app.core.logging import get_logger
 from app.db.session import get_db
 from app.models.index_snapshot import IndexSnapshot
 from app.models.user import User
+from app.schemas.analytics import BenchmarkPoint
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = get_logger(__name__)
@@ -20,7 +21,7 @@ logger = get_logger(__name__)
 _VALID_INDEX_CODES = {"KOSPI200", "SP500"}
 
 
-@router.get("/benchmark")
+@router.get("/benchmark", response_model=list[BenchmarkPoint])
 @limiter.limit("30/minute")
 async def get_benchmark(
     request: Request,
@@ -40,7 +41,7 @@ async def get_benchmark(
     ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[BenchmarkPoint]:
     """벤치마크 지수 일별 종가 시계열 반환.
 
     index_snapshots 테이블에서 지정 지수의 날짜별 종가를 조회하여
@@ -78,12 +79,11 @@ async def get_benchmark(
     snapshots = result.scalars().all()
 
     # Deduplicate by date (take the last snapshot per calendar day)
-    seen_dates: dict[str, dict] = {}
+    seen_dates: dict[str, BenchmarkPoint] = {}
     for snap in snapshots:
         day_str = snap.timestamp.date().isoformat()
-        seen_dates[day_str] = {
-            "date": day_str,
-            "close_price": float(snap.close_price),
-        }
+        seen_dates[day_str] = BenchmarkPoint(
+            date=day_str, close_price=float(snap.close_price)
+        )
 
     return list(seen_dates.values())

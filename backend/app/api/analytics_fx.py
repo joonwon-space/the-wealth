@@ -18,6 +18,7 @@ from app.models.fx_rate_snapshot import FxRateSnapshot
 from app.models.holding import Holding
 from app.models.portfolio import Portfolio
 from app.models.user import User
+from app.schemas.analytics import FxGainLossItem
 from app.services.analytics_utils import (
     ANALYTICS_CACHE_TTL,
     analytics_key,
@@ -29,13 +30,13 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = get_logger(__name__)
 
 
-@router.get("/fx-gain-loss")
+@router.get("/fx-gain-loss", response_model=list[FxGainLossItem])
 @limiter.limit("30/minute")
 async def get_fx_gain_loss(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[FxGainLossItem]:
     """해외주식 보유 종목별 환차익/환차손 분리 계산.
 
     각 해외주식에 대해 주가 수익(USD 기준)과 환차익(KRW 기준)을 분리하여 반환한다.
@@ -50,7 +51,7 @@ async def get_fx_gain_loss(
     cache_key = analytics_key(current_user.id, "fx-gain-loss")
     cached = await _cache.get(cache_key)
     if cached:
-        return json.loads(cached)
+        return [FxGainLossItem(**item) for item in json.loads(cached)]
 
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
@@ -113,7 +114,7 @@ async def get_fx_gain_loss(
     # 현재가 병렬 조회 (sequential 대신 gather로 최적화)
     cached_prices = await asyncio.gather(*[_get_cached_price(h.ticker) for h in overseas])
 
-    result_items: list[dict] = []
+    result_items: list[FxGainLossItem] = []
     for h, cached_price in zip(overseas, cached_prices):
         # 현재가 (USD)
         current_price_usd = float(cached_price) if cached_price is not None else float(h.avg_price)
@@ -138,21 +139,25 @@ async def get_fx_gain_loss(
         # 총 손익 (KRW)
         total_pnl_krw = stock_gain_krw + fx_gain_krw
 
-        result_items.append({
-            "ticker": h.ticker,
-            "name": h.name,
-            "quantity": qty,
-            "avg_price_usd": round(avg_price_usd, 4),
-            "current_price_usd": round(current_price_usd, 4),
-            "stock_pnl_usd": round(stock_pnl_usd, 2),
-            "fx_rate_at_buy": round(fx_at_buy, 2),
-            "fx_rate_current": round(fx_current, 2),
-            "fx_gain_krw": round(fx_gain_krw, 0),
-            "stock_gain_krw": round(stock_gain_krw, 0),
-            "total_pnl_krw": round(total_pnl_krw, 0),
-        })
+        result_items.append(FxGainLossItem(
+            ticker=h.ticker,
+            name=h.name,
+            quantity=qty,
+            avg_price_usd=round(avg_price_usd, 4),
+            current_price_usd=round(current_price_usd, 4),
+            stock_pnl_usd=round(stock_pnl_usd, 2),
+            fx_rate_at_buy=round(fx_at_buy, 2),
+            fx_rate_current=round(fx_current, 2),
+            fx_gain_krw=round(fx_gain_krw, 0),
+            stock_gain_krw=round(stock_gain_krw, 0),
+            total_pnl_krw=round(total_pnl_krw, 0),
+        ))
 
-    await _cache.setex(cache_key, ANALYTICS_CACHE_TTL, json.dumps(result_items))
+    await _cache.setex(
+        cache_key,
+        ANALYTICS_CACHE_TTL,
+        json.dumps([item.model_dump() for item in result_items]),
+    )
     return result_items
 
 
