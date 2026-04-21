@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { PackageOpen, RefreshCw, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -91,6 +91,28 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
     },
   });
 
+  const summary = useMemo(() => {
+    let investedKrw = 0;
+    let marketValueKrw = 0;
+    let pnlKrw = 0;
+    let hasPrices = false;
+    for (const h of holdings) {
+      const qty = Number(h.quantity);
+      const avg = Number(h.avg_price);
+      const fx = h.currency === "USD" ? Number(h.exchange_rate ?? 0) || 1 : 1;
+      investedKrw += qty * avg * fx;
+      if (h.market_value_krw != null) {
+        marketValueKrw += Number(h.market_value_krw);
+        hasPrices = true;
+      }
+      if (h.pnl_amount != null) {
+        pnlKrw += Number(h.pnl_amount);
+      }
+    }
+    const pnlRate = investedKrw > 0 ? (pnlKrw / investedKrw) * 100 : 0;
+    return { investedKrw, marketValueKrw, pnlKrw, pnlRate, hasPrices };
+  }, [holdings]);
+
   const addHoldingMutation = useMutation({
     mutationFn: (form: AddForm) =>
       api.post<Holding>(`/portfolios/${portfolioId}/holdings`, {
@@ -170,6 +192,48 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
               업데이트: {new Date(cashBalanceUpdatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             </div>
           )}
+        </div>
+      )}
+      {!(isKisConnected && cashBalance) && holdings.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground mb-1">총 매입원가</div>
+            <div className="font-semibold text-sm">{formatKRW(summary.investedKrw)}</div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <TrendingUp className="h-3.5 w-3.5" />
+              총 평가금액
+            </div>
+            <div className="font-semibold text-sm">
+              {summary.hasPrices ? formatKRW(summary.marketValueKrw) : "-"}
+            </div>
+            {!summary.hasPrices && (
+              <div className="text-[10px] text-muted-foreground">현재가 미조회</div>
+            )}
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              {summary.pnlKrw >= 0 ? (
+                <TrendingUp className="h-3.5 w-3.5 text-red-500" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5 text-blue-500" />
+              )}
+              평가손익
+            </div>
+            {summary.hasPrices ? (
+              <>
+                <div className={`font-semibold text-sm ${summary.pnlKrw >= 0 ? "text-red-600" : "text-blue-600"}`}>
+                  {summary.pnlKrw >= 0 ? "+" : ""}{formatKRW(summary.pnlKrw)}
+                </div>
+                <div className={`text-xs ${summary.pnlRate >= 0 ? "text-red-500" : "text-blue-500"}`}>
+                  {summary.pnlRate > 0 ? "+" : ""}{formatRate(summary.pnlRate)}%
+                </div>
+              </>
+            ) : (
+              <div className="font-semibold text-sm text-muted-foreground">-</div>
+            )}
+          </div>
         </div>
       )}
       {isKisConnected && cashBalance && (
