@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,8 +23,8 @@ _ALERT_COOLDOWN_SECONDS = 3600  # 1 hour between repeated triggers for same aler
 
 
 class AlertCreate(BaseModel):
-    ticker: str
-    name: str = ""
+    ticker: str = Field(max_length=20)
+    name: str = Field(default="", max_length=200)
     condition: Literal["above", "below"]
     threshold: Decimal
 

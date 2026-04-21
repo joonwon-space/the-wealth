@@ -1,7 +1,7 @@
 """관심 종목 API."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,9 +18,9 @@ logger = get_logger(__name__)
 
 
 class WatchlistCreate(BaseModel):
-    ticker: str
-    name: str = ""
-    market: str = "KRX"
+    ticker: str = Field(max_length=20)
+    name: str = Field(default="", max_length=200)
+    market: str = Field(default="KRX", max_length=10)
 
     @field_validator("ticker")
     @classmethod

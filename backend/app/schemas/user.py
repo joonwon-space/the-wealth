@@ -17,7 +17,7 @@ class UserMe(BaseModel):
 class UserUpdate(BaseModel):
     """Request schema for updating the current user's profile (name only)."""
 
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, max_length=100)
 
 
 class ChangePasswordRequest(BaseModel):

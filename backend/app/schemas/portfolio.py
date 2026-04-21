@@ -71,10 +71,10 @@ class PortfolioWithPricesResponse(PortfolioResponse):
 
 class HoldingCreate(BaseModel):
     ticker: str
-    name: str
+    name: str = Field(max_length=200)
     quantity: Decimal = Field(gt=0)
     avg_price: Decimal = Field(gt=0)
-    market: Optional[str] = None  # e.g. "NAS", "NYS" for overseas; None for domestic
+    market: Optional[str] = Field(None, max_length=10)  # e.g. "NAS", "NYS"
 
     @field_validator("ticker")
     @classmethod
@@ -91,10 +91,10 @@ class BulkHoldingItem(BaseModel):
     """보유 종목 일괄 등록 항목."""
 
     ticker: str
-    name: str
+    name: str = Field(max_length=200)
     quantity: Decimal = Field(gt=0)
     avg_price: Decimal = Field(gt=0)
-    market: Optional[str] = None
+    market: Optional[str] = Field(None, max_length=10)
 
     @field_validator("ticker")
     @classmethod
