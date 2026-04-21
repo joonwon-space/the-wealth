@@ -1,7 +1,7 @@
 """KIS OpenAPI 주문 취소 서비스 (국내 + 해외).
 
-국내: TTTC0803U / VTTC0803U
-해외: JTTT1004U
+국내: TTTC0013U / VTTC0013U
+해외: TTTT1004U
 """
 
 import httpx
@@ -27,17 +27,17 @@ async def cancel_order(
 ) -> bool:
     """주문 취소.
 
-    국내: TTTC0803U / VTTC0803U
-    해외: JTTT1004U
+    국내: TTTC0013U / VTTC0013U
+    해외: TTTT1004U
     """
     from app.services.kis_token import get_kis_access_token
 
     if is_overseas:
-        tr_id = "JTTT1004U"
+        tr_id = "TTTT1004U"
     elif is_paper_trading:
-        tr_id = "VTTC0803U"
+        tr_id = "VTTC0013U"
     else:
-        tr_id = "TTTC0803U"
+        tr_id = "TTTC0013U"
 
     token = await get_kis_access_token(app_key, app_secret)
     headers = {

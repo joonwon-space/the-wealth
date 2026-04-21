@@ -1,10 +1,10 @@
 """KIS OpenAPI 주문 조회 서비스 (미체결 조회 + 체결 확인 + 주문 가능 수량).
 
 TR_IDs:
-- 국내 미체결: TTTC8036R / VTTC8036R
-- 해외 미체결: JTTT3018R
+- 국내 미체결: TTTC0084R / VTTC0084R
+- 해외 미체결: TTTS3018R
 - 국내 주문 가능: TTTC8908R / VTTC8908R
-- 국내 체결 확인: TTTC8001R / VTTC8001R
+- 국내 체결 확인: TTTC0081R / VTTC0081R
 """
 
 from dataclasses import dataclass, field
@@ -137,17 +137,17 @@ async def get_pending_orders(
 ) -> list[PendingOrder]:
     """미체결 주문 조회.
 
-    국내: TTTC8036R / VTTC8036R
-    해외: JTTT3018R (모의 없음)
+    국내: TTTC0084R / VTTC0084R
+    해외: TTTS3018R (모의 없음)
     """
     from app.services.kis_token import get_kis_access_token
 
     if is_overseas:
-        tr_id = "JTTT3018R"
+        tr_id = "TTTS3018R"
     elif is_paper_trading:
-        tr_id = "VTTC8036R"
+        tr_id = "VTTC0084R"
     else:
-        tr_id = "TTTC8036R"
+        tr_id = "TTTC0084R"
 
     token = await get_kis_access_token(app_key, app_secret)
     headers = {
@@ -253,12 +253,12 @@ async def check_filled_orders(
 ) -> list[FilledOrderInfo]:
     """당일 체결 내역을 조회하여 지정된 주문번호의 체결 정보를 반환.
 
-    국내: TTTC8001R (주식일별주문체결조회) — 체결분만 조회.
+    국내: TTTC0081R (주식일별주문체결조회) — 체결분만 조회.
     order_nos에 포함된 주문번호만 필터링하여 반환한다.
     """
     from app.services.kis_token import get_kis_access_token
 
-    tr_id = "VTTC8001R" if is_paper_trading else "TTTC8001R"
+    tr_id = "VTTC0081R" if is_paper_trading else "TTTC0081R"
     today = datetime.now(_KST).strftime("%Y%m%d")
 
     token = await get_kis_access_token(app_key, app_secret)
