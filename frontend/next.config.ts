@@ -31,21 +31,8 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
   },
-  {
-    key: "Content-Security-Policy",
-    // unsafe-eval is required by Next.js HMR in development only.
-    // In production it is omitted to prevent arbitrary script execution.
-    value: [
-      "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com`,
-      "style-src 'self' 'unsafe-inline'", // inline styles used by Tailwind + shadcn
-      "img-src 'self' data: blob:",
-      "font-src 'self'",
-      "connect-src 'self' http://localhost:8000 https://localhost:8000 https://api.joonwon.dev https://cloudflareinsights.com https://*.ingest.us.sentry.io",
-      "worker-src 'self' blob:",
-      "frame-ancestors 'none'",
-    ].join("; "),
-  },
+  // Content-Security-Policy is emitted per-request by src/middleware.ts
+  // because it requires a per-response nonce for script-src.
 ];
 
 const nextConfig: NextConfig = {
