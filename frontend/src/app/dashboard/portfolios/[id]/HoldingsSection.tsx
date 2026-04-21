@@ -247,7 +247,20 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSearchOpen(true)}
+              disabled={!!addForm}
+              className="gap-2"
+            >
+              <Search className="h-4 w-4" />
+              종목 추가
+            </Button>
+          </div>
+          <div className="overflow-x-auto rounded-xl border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -345,6 +358,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
