@@ -134,13 +134,15 @@ async def get_pending_orders(
     account_product_code: str,
     is_overseas: bool = False,
     is_paper_trading: bool = False,
+    *,
+    _retried: bool = False,
 ) -> list[PendingOrder]:
     """미체결 주문 조회.
 
     국내: TTTC0084R / VTTC0084R
     해외: TTTS3018R (모의 없음)
     """
-    from app.services.kis_token import get_kis_access_token
+    from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 
     if is_overseas:
         tr_id = "TTTS3018R"
@@ -183,8 +185,21 @@ async def get_pending_orders(
         async with httpx.AsyncClient(timeout=10.0) as client:
             await _rate_limit_acquire()
             resp = await kis_get(client, url, headers=headers, params=params)
-            resp.raise_for_status()
-            data = resp.json()
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS pending orders returned %d for %s — invalidating token and retrying",
+                resp.status_code,
+                account_no,
+            )
+            await invalidate_kis_token(app_key)
+            return await get_pending_orders(
+                app_key, app_secret, account_no, account_product_code,
+                is_overseas, is_paper_trading, _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":

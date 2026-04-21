@@ -13,7 +13,7 @@ import httpx
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.kis_retry import kis_get
-from app.services.kis_token import get_kis_access_token
+from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 
 logger = get_logger(__name__)
 
@@ -60,6 +60,8 @@ async def _get_domestic_balance(
     account_no: str,
     account_product_code: str,
     is_paper_trading: bool = False,
+    *,
+    _retried: bool = False,
 ) -> CashBalance:
     """국내 예수금 상세현황 조회 (TTTC8434R)."""
     tr_id = "VTTC8434R" if is_paper_trading else "TTTC8434R"
@@ -93,8 +95,21 @@ async def _get_domestic_balance(
                 headers=headers,
                 params=params,
             )
-            resp.raise_for_status()
-            data = resp.json()
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS domestic balance returned %d for %s — invalidating token and retrying",
+                resp.status_code,
+                account_no,
+            )
+            await invalidate_kis_token(app_key)
+            return await _get_domestic_balance(
+                app_key, app_secret, account_no, account_product_code,
+                is_paper_trading, _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":
@@ -151,6 +166,8 @@ async def _get_overseas_balance(
     app_secret: str,
     account_no: str,
     account_product_code: str,
+    *,
+    _retried: bool = False,
 ) -> CashBalance:
     """해외주식 체결기준잔고 조회 (TTTS3012R)."""
     token = await get_kis_access_token(app_key, app_secret)
@@ -183,8 +200,21 @@ async def _get_overseas_balance(
                 headers=headers,
                 params=params,
             )
-            resp.raise_for_status()
-            data = resp.json()
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS overseas balance returned %d for %s — invalidating token and retrying",
+                resp.status_code,
+                account_no,
+            )
+            await invalidate_kis_token(app_key)
+            return await _get_overseas_balance(
+                app_key, app_secret, account_no, account_product_code,
+                _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":
