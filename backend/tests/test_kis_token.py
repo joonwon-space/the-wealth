@@ -1,9 +1,12 @@
 """Unit tests for KIS token service TTL parsing and cache logic."""
 
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+_KST = timezone(timedelta(hours=9))
 
 
 @pytest.mark.unit
@@ -15,8 +18,8 @@ class TestIssueTokenTtlParsing:
         """TTL is calculated correctly from access_token_token_expired."""
         from app.services.kis_token import _issue_token
 
-        # Set expiry 12 hours from now
-        future = datetime.now() + timedelta(hours=12)
+        # Set expiry 12 hours from now in KST (as KIS returns)
+        future = datetime.now(tz=_KST) + timedelta(hours=12)
         expires_str = future.strftime("%Y-%m-%d %H:%M:%S")
 
         mock_resp = MagicMock()
@@ -32,11 +35,12 @@ class TestIssueTokenTtlParsing:
         mock_client.post = AsyncMock(return_value=mock_resp)
         mock_client_cls.return_value = mock_client
 
-        token, ttl = await _issue_token("key", "secret")
+        token, ttl, expires_at = await _issue_token("key", "secret")
 
         assert token == "test_token_abc"
         # 12 hours = 43200 seconds; allow ±60 seconds tolerance
         assert abs(ttl - 43200) < 60
+        assert abs(expires_at - (time.time() + 43200)) < 60
 
     @patch("app.services.kis_token.httpx.AsyncClient")
     async def test_ttl_falls_back_to_default_on_missing_expiry(
@@ -55,10 +59,11 @@ class TestIssueTokenTtlParsing:
         mock_client.post = AsyncMock(return_value=mock_resp)
         mock_client_cls.return_value = mock_client
 
-        token, ttl = await _issue_token("key", "secret")
+        token, ttl, expires_at = await _issue_token("key", "secret")
 
         assert token == "test_token_abc"
         assert ttl == _TOKEN_TTL_SECONDS
+        assert abs(expires_at - (time.time() + _TOKEN_TTL_SECONDS)) < 60
 
     @patch("app.services.kis_token.httpx.AsyncClient")
     async def test_ttl_falls_back_on_invalid_expiry_format(
@@ -80,18 +85,19 @@ class TestIssueTokenTtlParsing:
         mock_client.post = AsyncMock(return_value=mock_resp)
         mock_client_cls.return_value = mock_client
 
-        token, ttl = await _issue_token("key", "secret")
+        token, ttl, expires_at = await _issue_token("key", "secret")
 
         assert token == "test_token_abc"
         assert ttl == _TOKEN_TTL_SECONDS
+        assert abs(expires_at - (time.time() + _TOKEN_TTL_SECONDS)) < 60
 
     @patch("app.services.kis_token.httpx.AsyncClient")
     async def test_ttl_minimum_60_seconds(self, mock_client_cls: MagicMock) -> None:
         """TTL is at least 60 seconds even if expiry is already past."""
         from app.services.kis_token import _issue_token
 
-        # Already-expired token
-        past = datetime.now() - timedelta(hours=1)
+        # Already-expired token (KST, as KIS returns)
+        past = datetime.now(tz=_KST) - timedelta(hours=1)
         expires_str = past.strftime("%Y-%m-%d %H:%M:%S")
 
         mock_resp = MagicMock()
@@ -107,7 +113,7 @@ class TestIssueTokenTtlParsing:
         mock_client.post = AsyncMock(return_value=mock_resp)
         mock_client_cls.return_value = mock_client
 
-        token, ttl = await _issue_token("key", "secret")
+        token, ttl, expires_at = await _issue_token("key", "secret")
 
         assert token == "test_token_abc"
         assert ttl >= 60
@@ -150,7 +156,7 @@ class TestGetKisAccessToken:
         mock_redis.setex = AsyncMock()
         mock_get_client.return_value = self._make_redis_ctx(mock_redis)
 
-        mock_issue.return_value = ("fresh_token_abc", 86400)
+        mock_issue.return_value = ("fresh_token_abc", 86400, time.time() + 86400)
 
         token = await get_kis_access_token("key", "secret")
 
