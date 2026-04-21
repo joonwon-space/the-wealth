@@ -72,9 +72,11 @@ async def get_orderable_quantity(
     price: int,
     order_type: str = "BUY",
     is_paper_trading: bool = False,
+    *,
+    _retried: bool = False,
 ) -> OrderableInfo:
     """국내 주식 매수 가능 수량 조회 (TTTC8908R / VTTC8908R)."""
-    from app.services.kis_token import get_kis_access_token
+    from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 
     tr_id = "VTTC8908R" if is_paper_trading else "TTTC8908R"
     token = await get_kis_access_token(app_key, app_secret)
@@ -104,8 +106,21 @@ async def get_orderable_quantity(
                 headers=headers,
                 params=params,
             )
-            resp.raise_for_status()
-            data = resp.json()
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS orderable quantity returned %d for %s — invalidating token and retrying",
+                resp.status_code,
+                ticker,
+            )
+            await invalidate_kis_token(app_key)
+            return await get_orderable_quantity(
+                app_key, app_secret, account_no, account_product_code,
+                ticker, price, order_type, is_paper_trading, _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":
@@ -265,13 +280,15 @@ async def check_filled_orders(
     account_product_code: str,
     order_nos: list[str],
     is_paper_trading: bool = False,
+    *,
+    _retried: bool = False,
 ) -> list[FilledOrderInfo]:
     """당일 체결 내역을 조회하여 지정된 주문번호의 체결 정보를 반환.
 
     국내: TTTC0081R (주식일별주문체결조회) — 체결분만 조회.
     order_nos에 포함된 주문번호만 필터링하여 반환한다.
     """
-    from app.services.kis_token import get_kis_access_token
+    from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 
     tr_id = "VTTC0081R" if is_paper_trading else "TTTC0081R"
     today = datetime.now(_KST).strftime("%Y%m%d")
@@ -313,8 +330,21 @@ async def check_filled_orders(
                 headers=headers,
                 params=params,
             )
-            resp.raise_for_status()
-            data = resp.json()
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS check_filled_orders returned %d for %s — invalidating token and retrying",
+                resp.status_code,
+                account_no,
+            )
+            await invalidate_kis_token(app_key)
+            return await check_filled_orders(
+                app_key, app_secret, account_no, account_product_code,
+                order_nos, is_paper_trading, _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":

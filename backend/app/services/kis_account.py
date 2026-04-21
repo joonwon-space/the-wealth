@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
 from app.services.kis_retry import kis_get
-from app.services.kis_token import get_kis_access_token
+from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 
 logger = get_logger(__name__)
 
@@ -29,6 +29,8 @@ async def fetch_account_holdings(
     app_secret: str,
     account_no: str,
     account_product_code: str = "01",
+    *,
+    _retried: bool = False,
 ) -> list[KisHolding]:
     """KIS 계좌 잔고 조회 (TTTC8434R).
 
@@ -65,8 +67,21 @@ async def fetch_account_holdings(
                 headers=headers,
                 params=params,
             )
-            resp.raise_for_status()
-            data = resp.json()
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS account holdings returned %d for %s-%s — invalidating token and retrying",
+                resp.status_code,
+                account_no,
+                account_product_code,
+            )
+            await invalidate_kis_token(app_key)
+            return await fetch_account_holdings(
+                app_key, app_secret, account_no, account_product_code, _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":
@@ -114,6 +129,8 @@ async def fetch_overseas_account_holdings(
     app_secret: str,
     account_no: str,
     account_product_code: str = "01",
+    *,
+    _retried: bool = False,
 ) -> tuple[list[KisHolding], dict]:
     """KIS 해외주식 잔고 조회 (TTTS3012R).
 
@@ -153,8 +170,21 @@ async def fetch_overseas_account_holdings(
                 headers=headers,
                 params=params,
             )
-            resp.raise_for_status()
-            data = resp.json()
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS overseas holdings returned %d for %s-%s — invalidating token and retrying",
+                resp.status_code,
+                account_no,
+                account_product_code,
+            )
+            await invalidate_kis_token(app_key)
+            return await fetch_overseas_account_holdings(
+                app_key, app_secret, account_no, account_product_code, _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
 
         rt_cd = data.get("rt_cd")
         if rt_cd != "0":
