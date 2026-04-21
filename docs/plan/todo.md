@@ -568,12 +568,12 @@ tasks.md에 즉시 실행 가능 항목 8개 추가 (P0/P1):
 | 28 | OrderDialog/KIS cash balance --rise/--fall 변수 통일 | -- | 다크모드 색상 일관성 | UX-003 |
 | 29 | CSV/XLSX 다운로드 에러 핸들링 + 로딩 상태 | -- | 네트워크 에러 시 무반응 해소 | UX-005 |
 | 30 | analytics 페이지 에러 상태 + per-section 로딩 | -- | 7개 쿼리 에러/로딩 미처리 | UX-002/UX-010 |
-| 31 | 입력 필드 max_length 제약 (name, ticker, tags) | -- | DoS 방어 | SEC-005/SEC-006 |
+| 31 | ~~입력 필드 max_length 제약 (name, ticker, tags)~~ ✅ 2026-04-21 | -- | DoS 방어 | SEC-005/SEC-006 |
 | 32 | SSE DB 세션 재사용 (30초마다 새 세션 불필요) | -- | DB 부하 97% 감소 | PERF-008 |
 | 33 | SSE httpx 클라이언트 루프 외부로 이동 | -- | TLS 핸드셰이크 반복 제거 | PERF-009 |
 | 34 | SSE 해외종목 실시간 가격 지원 | -- | 해외 보유종목 가격 고정 해소 | PERF-010 |
 | 35 | analytics 순차 DB 쿼리 asyncio.gather 병렬화 | -- | 라운드트립 1회 절약 (5-15ms) | PERF-012 |
-| 36 | response_model 누락 3개 엔드포인트 추가 | -- | openapi-typescript 타입 생성 | TD-007 |
+| 36 | ~~response_model 누락 3개 엔드포인트 추가~~ ✅ 2026-04-21 (SMA/benchmark/fx-gain-loss) | -- | openapi-typescript 타입 생성 | TD-007 |
 | 37 | alert 비즈니스 로직 services 레이어 이동 | -- | api 레이어 횡단 의존성 해소 | TD-008 |
 
 ### P3 -- 부가 기능 + DX (18개)
