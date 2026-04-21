@@ -1,49 +1,29 @@
 """APScheduler 기반 자동 동기화 스케줄러.
 
 FastAPI 앱 startup/shutdown 이벤트에 연결하여 사용합니다.
-KIS 자격증명이 등록된 사용자의 첫 번째 포트폴리오를 1시간 간격으로 동기화.
-장 마감(KST 16:10) 후 보유 종목 OHLCV를 price_snapshots에 저장.
-
-연속 실패 감지: 각 스케줄러 잡이 CONSECUTIVE_FAILURE_THRESHOLD 회 이상 연속으로
-실패하면 CRITICAL 레벨 로그를 남겨 운영자가 인지할 수 있도록 한다.
+Job 구현은 도메인별로 `scheduler_portfolio_jobs`, `scheduler_market_jobs`,
+`scheduler_ops_jobs`에 분리되어 있으며, 이 모듈은 트리거 등록과 연속 실패
+추적(`_consecutive_failures`)만 담당한다.
 """
 
-import asyncio
-from decimal import Decimal
-from typing import cast
-
-import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select
 
-from app.core.encryption import decrypt
 from app.core.logging import get_logger
-from app.db.session import AsyncSessionLocal
-from app.models.holding import Holding
-from app.models.kis_account import KisAccount
-from app.models.portfolio import Portfolio
-from app.models.sync_log import SyncLog
-from app.services.kis_account import fetch_account_holdings, fetch_overseas_account_holdings
-from app.services.kis_price import (
-    fetch_domestic_daily_ohlcv,
-    fetch_domestic_price,
-    fetch_and_cache_domestic_price,
-    fetch_usd_krw_rate,
-    get_or_fetch_overseas_price,
-    save_fx_rate_snapshot,
+from app.services.scheduler_market_jobs import (
+    collect_benchmark_snapshots,
+    preload_prices,
+    save_fx_rate_snapshot_job,
+    snapshot_daily_close,
 )
-from app.services.price_snapshot import OhlcvData, save_ohlcv_snapshots, save_snapshots
-from app.services.order_settlement import settle_pending_orders
-from app.services.reconciliation import reconcile_holdings
+from app.services.scheduler_ops_jobs import settle_orders_job
+from app.services.scheduler_portfolio_jobs import sync_all_accounts
 
 logger = get_logger(__name__)
 
 scheduler = AsyncIOScheduler()
 
-# Consecutive failure threshold before CRITICAL alert is emitted
 CONSECUTIVE_FAILURE_THRESHOLD = 3
 
-# In-memory consecutive failure counters, keyed by job id
 _consecutive_failures: dict[str, int] = {
     "kis_sync_us": 0,
     "daily_close_snapshot": 0,
@@ -61,14 +41,11 @@ def _record_job_success(job_id: str) -> None:
 
 
 def _record_job_failure(job_id: str, exc: Exception) -> None:
-    """Increment consecutive failure counter and emit CRITICAL log at threshold."""
+    """Increment consecutive failure counter; emit CRITICAL log at threshold."""
     count = _consecutive_failures.get(job_id, 0) + 1
     _consecutive_failures[job_id] = count
     logger.warning(
-        "[Scheduler] Job '%s' failed (consecutive=%d): %s",
-        job_id,
-        count,
-        exc,
+        "[Scheduler] Job '%s' failed (consecutive=%d): %s", job_id, count, exc
     )
     if count >= CONSECUTIVE_FAILURE_THRESHOLD:
         logger.critical(
@@ -81,440 +58,84 @@ def _record_job_failure(job_id: str, exc: Exception) -> None:
 
 
 async def _sync_all_accounts(job_id: str = "kis_sync_us") -> None:
-    """KIS 계좌가 등록된 모든 포트폴리오를 순차 동기화."""
-    logger.info("[Scheduler] Starting periodic KIS account sync")
-
-    try:
-        async with AsyncSessionLocal() as db:
-            # KIS 계좌가 연결된 포트폴리오를 KisAccount 테이블에서 조회
-            result = await db.execute(select(KisAccount))
-            kis_accounts = cast(list[KisAccount], result.scalars().all())
-
-            if not kis_accounts:
-                logger.info("[Scheduler] No KIS accounts found, skipping")
-                _record_job_success(job_id)
-                return
-
-            for acct in kis_accounts:
-                portfolio_result = await db.execute(
-                    select(Portfolio)
-                    .where(Portfolio.kis_account_id == acct.id)
-                    .limit(1)
-                )
-                portfolio = portfolio_result.scalar_one_or_none()
-                if not portfolio:
-                    continue
-
-                try:
-                    app_key = decrypt(acct.app_key_enc)
-                    app_secret = decrypt(acct.app_secret_enc)
-                    account_no = acct.account_no
-
-                    domestic_holdings = await fetch_account_holdings(
-                        app_key, app_secret, account_no, acct.acnt_prdt_cd
-                    )
-                    overseas_holdings, _ = await fetch_overseas_account_holdings(
-                        app_key, app_secret, account_no, acct.acnt_prdt_cd
-                    )
-                    kis_holdings = domestic_holdings + overseas_holdings
-                    counts = await reconcile_holdings(db, portfolio.id, kis_holdings)
-
-                    log_entry = SyncLog(
-                        user_id=acct.user_id,
-                        portfolio_id=portfolio.id,
-                        status="success",
-                        inserted=counts["inserted"],
-                        updated=counts["updated"],
-                        deleted=counts["deleted"],
-                    )
-                    db.add(log_entry)
-                    await db.commit()
-
-                    logger.info(
-                        "[Scheduler] Synced user=%d portfolio=%d: +%d ~%d -%d",
-                        acct.user_id,
-                        portfolio.id,
-                        counts["inserted"],
-                        counts["updated"],
-                        counts["deleted"],
-                    )
-                except Exception as exc:
-                    log_entry = SyncLog(
-                        user_id=acct.user_id,
-                        portfolio_id=portfolio.id,
-                        status="error",
-                        message=str(exc)[:500],
-                    )
-                    db.add(log_entry)
-                    await db.commit()
-                    logger.warning("[Scheduler] Sync failed user=%d: %s", acct.user_id, exc)
-
-        _record_job_success(job_id)
-
-    except Exception as exc:
-        _record_job_failure(job_id, exc)
+    await sync_all_accounts(_record_job_success, _record_job_failure, job_id=job_id)
 
 
 async def _snapshot_daily_close() -> None:
-    """장 마감 후 보유 종목 OHLCV를 price_snapshots에 저장.
-
-    KST 16:10 (UTC 07:10) 평일 실행.
-    """
-    job_id = "daily_close_snapshot"
-    logger.info("[Scheduler] Starting daily close snapshot")
-
-    try:
-        async with AsyncSessionLocal() as db:
-            # 모든 KIS 계좌 중 첫 번째 계정 크리덴셜 사용
-            acct_result = await db.execute(select(KisAccount).limit(1))
-            acct = acct_result.scalar_one_or_none()
-            if not acct:
-                logger.info("[Scheduler] No KIS accounts found, skipping snapshot")
-                _record_job_success(job_id)
-                return
-
-            app_key = decrypt(acct.app_key_enc)
-            app_secret = decrypt(acct.app_secret_enc)
-
-            # 전체 보유 종목 ticker 수집
-            hold_result = await db.execute(select(Holding.ticker).distinct())
-            tickers = [row[0] for row in hold_result.all()]
-            if not tickers:
-                logger.info("[Scheduler] No holdings found, skipping snapshot")
-                _record_job_success(job_id)
-                return
-
-            # 일별 OHLCV 병렬 조회
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                results = await asyncio.gather(
-                    *[fetch_domestic_daily_ohlcv(t, app_key, app_secret, client) for t in tickers],
-                    return_exceptions=True,
-                )
-
-            ohlcv_map: dict[str, OhlcvData] = {}
-            for ticker, result in zip(tickers, results):
-                if isinstance(result, dict) and result.get("close"):
-                    ohlcv_map[ticker] = OhlcvData(
-                        open=result.get("open"),
-                        high=result.get("high"),
-                        low=result.get("low"),
-                        close=result["close"],
-                        volume=result.get("volume"),
-                    )
-
-            if ohlcv_map:
-                count = await save_ohlcv_snapshots(db, ohlcv_map)
-            else:
-                # OHLCV 조회 실패 시 현재가 폴백
-                prices: dict[str, Decimal] = {}
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    price_results = await asyncio.gather(
-                        *[fetch_domestic_price(t, app_key, app_secret, client) for t in tickers],
-                        return_exceptions=True,
-                    )
-                for ticker, price in zip(tickers, price_results):
-                    if isinstance(price, Decimal) and price > 0:
-                        prices[ticker] = price
-                count = await save_snapshots(db, prices)
-
-            logger.info("[Scheduler] Saved %d price snapshots", count)
-
-        _record_job_success(job_id)
-
-    except Exception as exc:
-        _record_job_failure(job_id, exc)
-
-
-_DOMESTIC_TICKER_RE_SCHED = __import__("re").compile(r"^[0-9A-Z]{6}$")
-_MARKET_MAP_SCHED = {
-    "NASD": "NAS", "NYSE": "NYS", "AMEX": "AMS",
-    "SEHK": "HKS", "TKSE": "TSE", "SHAA": "SHS",
-    "SZAA": "SZS", "HASE": "HNX", "VNSE": "HSX",
-}
+    await snapshot_daily_close(_record_job_success, _record_job_failure)
 
 
 async def _preload_prices(job_id: str = "preload_prices") -> None:
-    """장 개시 전 보유 종목을 KIS에서 동기화한 뒤 가격 캐시를 워밍.
-
-    KST 08:00 평일 실행:
-    1. 모든 KIS 계좌의 보유 종목을 reconcile_holdings로 최신화 (어제 종가 이후 변동 반영)
-    2. 갱신된 보유 종목 전체의 가격을 Redis에 캐싱 (접속 시 즉시 최신 가격 제공)
-    """
-    logger.info("[Scheduler] Starting pre-market holdings sync + price preload")
-    try:
-        # Step 1: holdings 동기화 (모든 KIS 계좌)
-        await _sync_all_accounts(job_id=job_id)
-        logger.info("[Scheduler] Pre-market holdings sync complete, starting price preload")
-
-        # Step 2: 갱신된 holdings 기준으로 가격 캐시 워밍
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(KisAccount).limit(1))
-            acct = result.scalar_one_or_none()
-            if not acct:
-                logger.info("[Scheduler] No KIS account found, skipping preload")
-                _record_job_success(job_id)
-                return
-
-            app_key = decrypt(acct.app_key_enc)
-            app_secret = decrypt(acct.app_secret_enc)
-
-            hold_result = await db.execute(
-                select(Holding.ticker, Holding.market).distinct()
-            )
-            rows = hold_result.all()
-
-        if not rows:
-            logger.info("[Scheduler] No holdings found, skipping preload")
-            _record_job_success(job_id)
-            return
-
-        domestic = [r[0] for r in rows if _DOMESTIC_TICKER_RE_SCHED.match(r[0])]
-        overseas = [(r[0], r[1]) for r in rows if not _DOMESTIC_TICKER_RE_SCHED.match(r[0])]
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            tasks = [
-                fetch_and_cache_domestic_price(t, app_key, app_secret, client)
-                for t in domestic
-            ] + [
-                get_or_fetch_overseas_price(
-                    t, _MARKET_MAP_SCHED.get(m or "", "NAS"), app_key, app_secret, client
-                )
-                for t, m in overseas
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        success = sum(1 for r in results if isinstance(r, Decimal) and r > 0)
-        logger.info(
-            "[Scheduler] Pre-market preload complete: %d/%d tickers cached",
-            success,
-            len(rows),
-        )
-        _record_job_success(job_id)
-    except Exception as exc:
-        _record_job_failure(job_id, exc)
+    await preload_prices(
+        _sync_all_accounts, _record_job_success, _record_job_failure, job_id=job_id
+    )
 
 
 async def _save_fx_rate_snapshot(job_id: str = "fx_rate_snapshot") -> None:
-    """장 마감 후 USD/KRW 환율을 조회해 fx_rate_snapshots에 저장.
-
-    KST 16:30 (UTC 07:30) 실행 — 한국 장 마감 후 당일 환율을 기록한다.
-    KIS 자격증명이 없으면 frankfurter.app을 통해 환율을 조회한다.
-    """
-    logger.info("[Scheduler] Starting FX rate snapshot job")
-    try:
-        async with AsyncSessionLocal() as db:
-            # KIS 자격증명 조회 (선택적)
-            result = await db.execute(select(KisAccount).limit(1))
-            acct = result.scalar_one_or_none()
-
-            if acct:
-                app_key = decrypt(acct.app_key_enc)
-                app_secret = decrypt(acct.app_secret_enc)
-            else:
-                app_key = ""
-                app_secret = ""
-
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                rate = await fetch_usd_krw_rate(app_key, app_secret, client)
-
-            saved = await save_fx_rate_snapshot(db, "USDKRW", float(rate))
-            if saved:
-                logger.info("[Scheduler] FX rate snapshot saved: USDKRW = %s", rate)
-            else:
-                logger.warning("[Scheduler] FX rate snapshot save failed")
-
-        _record_job_success(job_id)
-    except Exception as exc:
-        _record_job_failure(job_id, exc)
+    await save_fx_rate_snapshot_job(
+        _record_job_success, _record_job_failure, job_id=job_id
+    )
 
 
 async def _settle_pending_orders(job_id: str = "settle_orders") -> None:
-    """미체결 주문의 체결 여부를 KIS API로 확인하고 반영.
-
-    장중(KST 09:05~15:35) 5분 간격 실행.
-    """
-    logger.info("[Scheduler] Starting pending order settlement check")
-
-    try:
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(KisAccount))
-            kis_accounts = cast(list[KisAccount], result.scalars().all())
-
-            if not kis_accounts:
-                _record_job_success(job_id)
-                return
-
-            for acct in kis_accounts:
-                portfolio_result = await db.execute(
-                    select(Portfolio)
-                    .where(Portfolio.kis_account_id == acct.id)
-                    .limit(1)
-                )
-                portfolio = portfolio_result.scalar_one_or_none()
-                if not portfolio:
-                    continue
-
-                try:
-                    app_key = decrypt(acct.app_key_enc)
-                    app_secret = decrypt(acct.app_secret_enc)
-
-                    counts = await settle_pending_orders(
-                        db=db,
-                        portfolio_id=portfolio.id,
-                        app_key=app_key,
-                        app_secret=app_secret,
-                        account_no=acct.account_no,
-                        account_product_code=acct.acnt_prdt_cd,
-                        is_paper_trading=acct.is_paper_trading,
-                    )
-
-                    if counts["settled"] > 0 or counts["partial"] > 0:
-                        logger.info(
-                            "[Scheduler] Settlement user=%d portfolio=%d: "
-                            "settled=%d partial=%d unchanged=%d",
-                            acct.user_id,
-                            portfolio.id,
-                            counts["settled"],
-                            counts["partial"],
-                            counts["unchanged"],
-                        )
-                except Exception as exc:
-                    logger.warning(
-                        "[Scheduler] Settlement failed user=%d: %s",
-                        acct.user_id,
-                        exc,
-                    )
-
-        _record_job_success(job_id)
-
-    except Exception as exc:
-        _record_job_failure(job_id, exc)
+    await settle_orders_job(_record_job_success, _record_job_failure, job_id=job_id)
 
 
 async def _collect_benchmark_snapshots(job_id: str = "collect_benchmark") -> None:
-    """KOSPI200 + S&P500 지수 스냅샷 수집 후 index_snapshots에 저장.
-
-    KST 16:20 평일 실행 (국내 장 마감 후).
-    첫 번째 KIS 계좌 자격증명을 사용하여 API를 호출한다.
-    """
-    from app.services.kis_benchmark import collect_snapshots
-
-    logger.info("[Scheduler] Starting benchmark snapshot collection")
-
-    try:
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(KisAccount).limit(1))
-            acct = result.scalar_one_or_none()
-            if not acct:
-                logger.info("[Scheduler] No KIS account found, skipping benchmark collection")
-                _record_job_success(job_id)
-                return
-
-            app_key = decrypt(acct.app_key_enc)
-            app_secret = decrypt(acct.app_secret_enc)
-
-        status = await collect_snapshots(app_key, app_secret)
-        logger.info("[Scheduler] Benchmark collection results: %s", status)
-
-        if any(status.values()):
-            _record_job_success(job_id)
-        else:
-            _record_job_failure(job_id, RuntimeError("All benchmark fetches failed"))
-
-    except Exception as exc:
-        _record_job_failure(job_id, exc)
+    await collect_benchmark_snapshots(
+        _record_job_success, _record_job_failure, job_id=job_id
+    )
 
 
 def start_scheduler() -> None:
     # 미국 장 마감 후 동기화: EST 16:00 ≈ UTC 21:30 (= KST 06:30)
     scheduler.add_job(
         _sync_all_accounts,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour=21,
-        minute=30,
-        timezone="UTC",
-        id="kis_sync_us",
-        kwargs={"job_id": "kis_sync_us"},
-        replace_existing=True,
+        trigger="cron", day_of_week="mon-fri", hour=21, minute=30, timezone="UTC",
+        id="kis_sync_us", kwargs={"job_id": "kis_sync_us"}, replace_existing=True,
     )
     scheduler.add_job(
         _snapshot_daily_close,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour=7,
-        minute=10,
-        timezone="UTC",
-        id="daily_close_snapshot",
-        replace_existing=True,
+        trigger="cron", day_of_week="mon-fri", hour=7, minute=10, timezone="UTC",
+        id="daily_close_snapshot", replace_existing=True,
     )
-    # 오전 동기화 + 가격 캐시 워밍: KST 08:00 평일 (장 개시 1시간 전)
+    # 오전 홀딩 동기화 + 가격 캐시 워밍: KST 08:00 평일
     scheduler.add_job(
         _preload_prices,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour=8,
-        minute=0,
-        timezone="Asia/Seoul",
-        id="preload_prices_am",
-        kwargs={"job_id": "preload_prices_am"},
-        replace_existing=True,
+        trigger="cron", day_of_week="mon-fri", hour=8, minute=0, timezone="Asia/Seoul",
+        id="preload_prices_am", kwargs={"job_id": "preload_prices_am"}, replace_existing=True,
     )
-    # 오후 동기화 + 가격 캐시 워밍: KST 16:00 평일 (국내 장 마감 직후)
+    # 오후 홀딩 동기화 + 가격 캐시 워밍: KST 16:00 평일
     scheduler.add_job(
         _preload_prices,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour=16,
-        minute=0,
-        timezone="Asia/Seoul",
-        id="preload_prices_pm",
-        kwargs={"job_id": "preload_prices_pm"},
-        replace_existing=True,
+        trigger="cron", day_of_week="mon-fri", hour=16, minute=0, timezone="Asia/Seoul",
+        id="preload_prices_pm", kwargs={"job_id": "preload_prices_pm"}, replace_existing=True,
     )
-    # 장 마감 후 환율 스냅샷: KST 16:30 = UTC 07:30 평일
+    # 장 마감 후 환율 스냅샷: KST 16:30 평일
     scheduler.add_job(
         _save_fx_rate_snapshot,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour=7,
-        minute=30,
-        timezone="UTC",
-        id="fx_rate_snapshot",
-        kwargs={"job_id": "fx_rate_snapshot"},
-        replace_existing=True,
+        trigger="cron", day_of_week="mon-fri", hour=7, minute=30, timezone="UTC",
+        id="fx_rate_snapshot", kwargs={"job_id": "fx_rate_snapshot"}, replace_existing=True,
     )
     # 미체결 주문 체결 확인: KST 09:05~15:35 평일 5분 간격
     scheduler.add_job(
         _settle_pending_orders,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour="9-15",
-        minute="*/5",
+        trigger="cron", day_of_week="mon-fri", hour="9-15", minute="*/5",
         timezone="Asia/Seoul",
-        id="settle_orders",
-        kwargs={"job_id": "settle_orders"},
-        replace_existing=True,
+        id="settle_orders", kwargs={"job_id": "settle_orders"}, replace_existing=True,
     )
-    # 벤치마크 지수 스냅샷: KST 16:20 = UTC 07:20 평일 (국내 장 마감 후)
+    # 벤치마크 지수 스냅샷: KST 16:20 평일
     scheduler.add_job(
         _collect_benchmark_snapshots,
-        trigger="cron",
-        day_of_week="mon-fri",
-        hour=7,
-        minute=20,
-        timezone="UTC",
-        id="collect_benchmark",
-        kwargs={"job_id": "collect_benchmark"},
-        replace_existing=True,
+        trigger="cron", day_of_week="mon-fri", hour=7, minute=20, timezone="UTC",
+        id="collect_benchmark", kwargs={"job_id": "collect_benchmark"}, replace_existing=True,
     )
     scheduler.start()
     logger.info(
         "[Scheduler] APScheduler started — "
         "holdings sync + price preload at KST 08:00 & 16:00, "
-        "US close sync at KST 06:30, "
-        "daily close snapshot at KST 16:10, FX snapshot at KST 16:30, "
-        "benchmark snapshot at KST 16:20, "
+        "US close sync at KST 06:30, daily close snapshot at KST 16:10, "
+        "FX snapshot at KST 16:30, benchmark snapshot at KST 16:20, "
         "order settlement every 5min during market hours"
     )
 

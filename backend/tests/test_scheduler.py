@@ -90,7 +90,7 @@ class TestSyncAllAccounts:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_portfolio_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
         ):
@@ -114,22 +114,25 @@ class TestSyncAllAccounts:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_portfolio_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
-            patch("app.services.scheduler.decrypt", side_effect=lambda x: x.decode()),
             patch(
-                "app.services.scheduler.fetch_account_holdings",
+                "app.services.scheduler_portfolio_jobs.decrypt",
+                side_effect=lambda x: x.decode(),
+            ),
+            patch(
+                "app.services.scheduler_portfolio_jobs.fetch_account_holdings",
                 new_callable=AsyncMock,
                 return_value=[],
             ),
             patch(
-                "app.services.scheduler.fetch_overseas_account_holdings",
+                "app.services.scheduler_portfolio_jobs.fetch_overseas_account_holdings",
                 new_callable=AsyncMock,
                 return_value=([], None),
             ),
             patch(
-                "app.services.scheduler.reconcile_holdings",
+                "app.services.scheduler_portfolio_jobs.reconcile_holdings",
                 new_callable=AsyncMock,
                 return_value=reconcile_counts,
             ),
@@ -158,12 +161,15 @@ class TestSyncAllAccounts:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_portfolio_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
-            patch("app.services.scheduler.decrypt", side_effect=lambda x: x.decode()),
             patch(
-                "app.services.scheduler.fetch_account_holdings",
+                "app.services.scheduler_portfolio_jobs.decrypt",
+                side_effect=lambda x: x.decode(),
+            ),
+            patch(
+                "app.services.scheduler_portfolio_jobs.fetch_account_holdings",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("KIS API timeout"),
             ),
@@ -187,10 +193,13 @@ class TestSyncAllAccounts:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_portfolio_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
-            patch("app.services.scheduler.decrypt", side_effect=lambda x: x.decode()),
+            patch(
+                "app.services.scheduler_portfolio_jobs.decrypt",
+                side_effect=lambda x: x.decode(),
+            ),
         ):
             from app.services.scheduler import _sync_all_accounts
 
@@ -221,7 +230,7 @@ class TestSnapshotDailyClose:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_market_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
         ):
@@ -253,10 +262,13 @@ class TestSnapshotDailyClose:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_market_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
-            patch("app.services.scheduler.decrypt", side_effect=lambda x: x.decode()),
+            patch(
+                "app.services.scheduler_market_jobs.decrypt",
+                side_effect=lambda x: x.decode(),
+            ),
         ):
             from app.services.scheduler import _snapshot_daily_close
 
@@ -289,17 +301,20 @@ class TestSnapshotDailyClose:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_market_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
-            patch("app.services.scheduler.decrypt", side_effect=lambda x: x.decode()),
             patch(
-                "app.services.scheduler.fetch_domestic_daily_ohlcv",
+                "app.services.scheduler_market_jobs.decrypt",
+                side_effect=lambda x: x.decode(),
+            ),
+            patch(
+                "app.services.scheduler_market_jobs.fetch_domestic_daily_ohlcv",
                 new_callable=AsyncMock,
                 return_value=ohlcv_data,
             ),
             patch(
-                "app.services.scheduler.save_ohlcv_snapshots",
+                "app.services.scheduler_market_jobs.save_ohlcv_snapshots",
                 new_callable=AsyncMock,
                 return_value=2,
             ) as mock_save,
@@ -336,27 +351,30 @@ class TestSnapshotDailyClose:
 
         with (
             patch(
-                "app.services.scheduler.AsyncSessionLocal",
+                "app.services.scheduler_market_jobs.AsyncSessionLocal",
                 return_value=_make_async_ctx(db),
             ),
-            patch("app.services.scheduler.decrypt", side_effect=lambda x: x.decode()),
             patch(
-                "app.services.scheduler.fetch_domestic_daily_ohlcv",
+                "app.services.scheduler_market_jobs.decrypt",
+                side_effect=lambda x: x.decode(),
+            ),
+            patch(
+                "app.services.scheduler_market_jobs.fetch_domestic_daily_ohlcv",
                 new_callable=AsyncMock,
                 return_value={"close": None},  # no close → ohlcv_map empty
             ),
             patch(
-                "app.services.scheduler.fetch_domestic_price",
+                "app.services.scheduler_market_jobs.fetch_domestic_price",
                 new_callable=AsyncMock,
                 return_value=Decimal("75000"),
             ),
             patch(
-                "app.services.scheduler.save_snapshots",
+                "app.services.scheduler_market_jobs.save_snapshots",
                 new_callable=AsyncMock,
                 return_value=1,
             ) as mock_save_spots,
             patch(
-                "app.services.scheduler.save_ohlcv_snapshots",
+                "app.services.scheduler_market_jobs.save_ohlcv_snapshots",
                 new_callable=AsyncMock,
                 return_value=0,
             ),
@@ -434,7 +452,7 @@ class TestConsecutiveFailureTracking:
         broken_ctx.__aexit__ = AsyncMock(return_value=None)
 
         with patch(
-            "app.services.scheduler.AsyncSessionLocal",
+            "app.services.scheduler_portfolio_jobs.AsyncSessionLocal",
             return_value=broken_ctx,
         ):
             await sched_mod._sync_all_accounts()
@@ -450,7 +468,7 @@ class TestConsecutiveFailureTracking:
 
         db = _make_db_session(kis_accounts=[])
         with patch(
-            "app.services.scheduler.AsyncSessionLocal",
+            "app.services.scheduler_portfolio_jobs.AsyncSessionLocal",
             return_value=_make_async_ctx(db),
         ):
             await sched_mod._sync_all_accounts()

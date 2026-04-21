@@ -117,13 +117,13 @@ Findings from parallel audits: tech-debt, security-posture, perf-bottleneck, ux-
 - [x] Add `Field(max_length=100)` on `label`, `max_length=20` on `account_no`, `max_length=50` on `account_type` in `KisAccountCreate`/`KisAccountUpdate` (`backend/app/api/users.py:141-148,222-225`) — audit log JSONB meta에 저장되는 값이라 stored DoS 방어 필요
 
 ### SEC-105. CSP `'unsafe-inline'` 제거 (nonce 도입)
-- [ ] Rewrite production CSP in `frontend/next.config.ts:40` — `'unsafe-inline'`을 nonce 방식으로 교체 (Next.js middleware로 nonce 주입, `script-src 'self' 'nonce-{nonce}' 'strict-dynamic'`)
+- [x] Rewrite production CSP in `frontend/next.config.ts:40` — `'unsafe-inline'`을 nonce 방식으로 교체 (Next.js middleware로 nonce 주입, `script-src 'self' 'nonce-{nonce}' 'strict-dynamic'`) — 2026-04-21 proxy.ts에서 per-request nonce 발급, layout.tsx가 headers()로 읽어 ThemeProvider에 전달
 
 ### TD-101. npm CVE 패치 (next + axios)
 - [x] Upgrade `next@16.2.2 → 16.2.4` (GHSA-q4gf-8mx6-v5v3 DoS) and `axios@1.13.6 → 1.15.0` (GHSA-3p68-rc4w-qgx5 SSRF) in `frontend/package.json`; verify `npm audit` clean
 
 ### TD-102. Sprint 13 scheduler 분리 파일 배선 또는 삭제
-- [ ] Decide: complete the refactor or delete — `backend/app/services/scheduler_{portfolio,market,ops}_jobs.py` (합 426L) 모두 import되지 않음. 완성 시 `scheduler.py`의 inline 구현 제거하고 split 파일에 delegate, 목표 `scheduler.py ≤150L`
+- [x] Decide: complete the refactor or delete — `backend/app/services/scheduler_{portfolio,market,ops}_jobs.py` (합 426L) 모두 import되지 않음. 완성 시 `scheduler.py`의 inline 구현 제거하고 split 파일에 delegate, 목표 `scheduler.py ≤150L` — 2026-04-21 리팩터 완성: `scheduler.py` 524L → 145L, wrapper는 `_record_job_success`/`_record_job_failure` 콜백을 split 모듈 함수에 전달. 테스트 patch 경로도 split 모듈로 업데이트하고 `scripts/regression_scheduler.py`로 DB 없이 검증 가능하도록 함
 
 ### UX-101. KIS 계정 삭제 확인 다이얼로그
 - [x] Wrap delete action in `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx:180-188` with `AlertDialog` — 현재는 버튼 한 번 클릭으로 실계좌 자격증명 제거 + cascade sync 삭제
