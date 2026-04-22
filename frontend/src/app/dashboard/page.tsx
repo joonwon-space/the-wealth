@@ -413,7 +413,15 @@ export default function DashboardPage() {
   };
 
   const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
-  const dayChangePct = s.day_change_pct ?? s.total_day_change_rate;
+  const dayChangePct = (() => {
+    const explicit = s.day_change_pct ?? s.total_day_change_rate;
+    if (explicit != null) return explicit;
+    // day_change_amount만 있을 때 전일 기준가로 % 역산
+    if (s.day_change_amount != null && s.total_asset != null && s.total_asset !== s.day_change_amount) {
+      return (s.day_change_amount / (s.total_asset - s.day_change_amount)) * 100;
+    }
+    return null;
+  })();
 
   // Sparkline stub — /analytics/portfolio-history 연결은 TASK-RD-6. 여기선
   // 투자원금→현재자산을 잇는 사인파로 시각적 리듬만 주고 결정론적이게 계산.
@@ -424,7 +432,7 @@ export default function DashboardPage() {
     const v = base + (s.total_asset - base) * t + wobble;
     return { v };
   });
-  const isPositiveDay = (dayChangePct ?? 0) >= 0;
+  const isPositiveDay = (dayChangePct ?? (s.day_change_amount ?? 0)) >= 0;
 
   const sectorList = Array.isArray(sectorAllocation) ? sectorAllocation : [];
   const sectorSegments = sectorList.slice(0, 8).map((row, i) => ({
