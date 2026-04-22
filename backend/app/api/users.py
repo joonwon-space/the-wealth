@@ -47,9 +47,13 @@ async def update_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Update the current user's display name."""
+    """Update the current user's display name and/or Dual-brain strategy."""
     if body.name is not None:
         current_user.name = body.name or None
+    if body.strategy_tag is not None:
+        current_user.strategy_tag = body.strategy_tag
+    if body.long_short_ratio is not None:
+        current_user.long_short_ratio = body.long_short_ratio
     await db.commit()
     await db.refresh(current_user)
     return current_user

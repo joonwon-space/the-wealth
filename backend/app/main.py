@@ -12,7 +12,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import alerts, analytics_benchmark, analytics_metrics, analytics_history, analytics_fx, analytics_sma, auth, chart, dashboard, health, internal, notifications, orders, portfolio_export, portfolio_holdings, portfolio_transactions, portfolios, prices, stocks, sync, users, watchlist
+from app.api import alerts, analytics_benchmark, analytics_metrics, analytics_history, analytics_fx, analytics_sma, auth, chart, dashboard, dividends, health, internal, notifications, orders, portfolio_export, portfolio_holdings, portfolio_transactions, portfolios, portfolios_allocation, prices, stocks, stream, sync, tasks, users, watchlist
 from app.api.prices import signal_sse_shutdown
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -123,6 +123,11 @@ v1_router.include_router(notifications.router)
 v1_router.include_router(orders.router)
 v1_router.include_router(health.router)
 v1_router.include_router(internal.router)
+# Redesign (Phase 3 / Step 3) — APIs behind the new Hybrid home/stream/rebalance.
+v1_router.include_router(portfolios_allocation.router)
+v1_router.include_router(dividends.router)
+v1_router.include_router(stream.router)
+v1_router.include_router(tasks.router)
 
 
 @v1_router.get("/health")
