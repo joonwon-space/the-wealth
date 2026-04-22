@@ -134,36 +134,49 @@ export default function PortfolioDetailPage() {
             </div>
             <Card>
               <CardContent className="space-y-3 p-4">
-                {!rebalance || rebalance.rows.length === 0 ? (
-                  <div className="py-6 text-center text-sm text-muted-foreground">
-                    목표 비중이 설정되지 않았습니다.{" "}
-                    <Link
-                      href={`/dashboard/rebalance?portfolio=${portfolioId}`}
-                      className="text-primary hover:underline"
-                    >
-                      지금 설정하기
-                    </Link>
-                    .
-                  </div>
-                ) : (
-                  rebalance.rows.slice(0, 6).map((r, i) => (
-                    <SectorBar
-                      key={r.sector}
-                      sector={r.sector}
-                      pct={r.current_pct}
-                      target={r.target_pct}
-                      color={SECTOR_COLORS[i % SECTOR_COLORS.length]}
-                    />
-                  ))
-                )}
-                {rebalance && rebalance.rows.some((r) => r.suggested_action !== "HOLD") && (
-                  <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                    <span className="text-muted-foreground">임계치 초과 섹터</span>
-                    <Badge tone="warn">
-                      {rebalance.rows.filter((r) => r.suggested_action !== "HOLD").length}개
-                    </Badge>
-                  </div>
-                )}
+                {(() => {
+                  // API가 아직 응답 전이거나 비정상 페이로드 (mock/빈 배열 등) 를
+                  // 안전하게 처리. rows 가 배열 형태일 때만 실제 목록을 그린다.
+                  const rows = Array.isArray(rebalance?.rows)
+                    ? rebalance.rows
+                    : [];
+                  if (rows.length === 0) {
+                    return (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        목표 비중이 설정되지 않았습니다.{" "}
+                        <Link
+                          href={`/dashboard/rebalance?portfolio=${portfolioId}`}
+                          className="text-primary hover:underline"
+                        >
+                          지금 설정하기
+                        </Link>
+                        .
+                      </div>
+                    );
+                  }
+                  const overCount = rows.filter(
+                    (r) => r.suggested_action !== "HOLD",
+                  ).length;
+                  return (
+                    <>
+                      {rows.slice(0, 6).map((r, i) => (
+                        <SectorBar
+                          key={r.sector}
+                          sector={r.sector}
+                          pct={r.current_pct}
+                          target={r.target_pct}
+                          color={SECTOR_COLORS[i % SECTOR_COLORS.length]}
+                        />
+                      ))}
+                      {overCount > 0 && (
+                        <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
+                          <span className="text-muted-foreground">임계치 초과 섹터</span>
+                          <Badge tone="warn">{overCount}개</Badge>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </section>
