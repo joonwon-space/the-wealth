@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, BookOpen, GitCompare, Home, LogOut, Menu, Moon, Settings, Sun, Wallet, X } from "lucide-react";
+import { BarChart3, BookOpen, GitCompare, Home, LogOut, Menu, Moon, Radio, Settings, Sun, Wallet, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "대시보드", icon: Home },
   { href: "/dashboard/portfolios", label: "포트폴리오", icon: Wallet },
+  { href: "/dashboard/stream", label: "스트림", icon: Radio },
   { href: "/dashboard/analytics", label: "분석", icon: BarChart3 },
   { href: "/dashboard/compare", label: "비교", icon: GitCompare },
   { href: "/dashboard/journal", label: "투자 일지", icon: BookOpen },

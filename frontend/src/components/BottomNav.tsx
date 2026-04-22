@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, Home, Settings, Wallet } from "lucide-react";
+import { Home, Radio, Settings, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Mobile tab bar (redesign-spec.md §4). 5개 항목이 spec 권장이나 "종목" 탭은
+// 독립된 /dashboard/stocks 랜딩이 Step 6 에 완성될 때 추가한다.
 const navItems = [
   { href: "/dashboard", label: "홈", icon: Home },
   { href: "/dashboard/portfolios", label: "포트폴리오", icon: Wallet },
-  { href: "/dashboard/analytics", label: "분석", icon: BarChart3 },
-  { href: "/dashboard/journal", label: "일지", icon: BookOpen },
-  { href: "/dashboard/settings", label: "설정", icon: Settings },
+  { href: "/dashboard/stream", label: "스트림", icon: Radio },
+  { href: "/dashboard/settings", label: "내정보", icon: Settings },
 ];
 
 export function BottomNav() {
