@@ -73,9 +73,9 @@ describe("PortfoliosPage — P&L display", () => {
       expect(screen.getByText("국내주식")).toBeDefined();
     });
 
-    // Evaluation value formatted as KRW (₩800,000)
-    const evalEl = screen.getByText(/₩800,000/);
-    expect(evalEl).toBeDefined();
+    // Evaluation value formatted as KRW (₩800,000) — shown in both mobile and desktop slots
+    const evalEls = screen.getAllByText(/₩800,000/);
+    expect(evalEls.length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders dash when market_value_krw is null (KIS not connected)", async () => {
