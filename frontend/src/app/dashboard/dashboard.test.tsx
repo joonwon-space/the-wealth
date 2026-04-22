@@ -55,16 +55,37 @@ describe("DashboardPage", () => {
   });
 
   it("shows empty state when no portfolios", async () => {
-    vi.mocked(api.get).mockResolvedValue({
-      data: {
-        total_asset: 0,
-        total_invested: 0,
-        total_pnl_amount: 0,
-        total_pnl_rate: 0,
-        holdings: [],
-        allocation: [],
-        triggered_alerts: [],
-      },
+    // Dashboard now fires multiple parallel queries — each satellite endpoint
+    // needs its own shape. Route per URL.
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === "/dashboard/summary") {
+        return {
+          data: {
+            total_asset: 0,
+            total_invested: 0,
+            total_pnl_amount: 0,
+            total_pnl_rate: 0,
+            holdings: [],
+            allocation: [],
+            triggered_alerts: [],
+          },
+        };
+      }
+      if (url === "/tasks/today") return { data: { count: 0, tasks: [] } };
+      if (url.startsWith("/analytics/sector-allocation")) return { data: [] };
+      if (url.startsWith("/analytics/benchmark-delta")) {
+        return {
+          data: {
+            index_code: "KOSPI200",
+            period: "6M",
+            mine_pct: 0,
+            benchmark_pct: 0,
+            delta_pct_points: 0,
+          },
+        };
+      }
+      if (url.startsWith("/dividends/upcoming")) return { data: [] };
+      return { data: [] };
     });
 
     renderWithQuery(<DashboardPage />);

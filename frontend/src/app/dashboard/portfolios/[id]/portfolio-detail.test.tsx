@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -44,6 +44,9 @@ describe("PortfolioDetailPage", () => {
     vi.mocked(api.get).mockResolvedValue({ data: [] });
 
     renderWithQuery(<PortfolioDetailPage />);
+    // Step 7: portfolio detail 이 Tabs 구조라 "보유" 탭에서 empty state 렌더링.
+    const holdingsTab = await screen.findByRole("tab", { name: "보유" });
+    fireEvent.click(holdingsTab);
     const text = await screen.findByText("보유 종목이 없습니다");
     expect(text).toBeInTheDocument();
   });
@@ -56,6 +59,8 @@ describe("PortfolioDetailPage", () => {
     });
 
     renderWithQuery(<PortfolioDetailPage />);
+    const holdingsTab = await screen.findByRole("tab", { name: "보유" });
+    fireEvent.click(holdingsTab);
     const names = await screen.findAllByText("삼성전자");
     expect(names[0]).toBeInTheDocument();
   });

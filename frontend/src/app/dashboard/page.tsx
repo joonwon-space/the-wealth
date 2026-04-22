@@ -431,12 +431,15 @@ export default function DashboardPage() {
   });
   const isPositiveDay = (dayChangePct ?? 0) >= 0;
 
-  const sectorSegments =
-    sectorAllocation?.slice(0, 8).map((row, i) => ({
-      pct: row.weight / 100,
-      color: `var(--chart-${(i % 8) + 1})`,
-      label: row.sector,
-    })) ?? [];
+  const sectorList = Array.isArray(sectorAllocation) ? sectorAllocation : [];
+  const sectorSegments = sectorList.slice(0, 8).map((row, i) => ({
+    pct: row.weight / 100,
+    color: `var(--chart-${(i % 8) + 1})`,
+    label: row.sector,
+  }));
+  const dividendList = Array.isArray(upcomingDividends) ? upcomingDividends : [];
+  const todayTasksList =
+    todayTasks && Array.isArray(todayTasks.tasks) ? todayTasks : { count: 0, tasks: [] };
 
   const goalPortfolio = (s as Summary & { target_value?: number }).target_value
     ? { total: s.total_asset, target: (s as Summary & { target_value: number }).target_value }
@@ -618,10 +621,12 @@ export default function DashboardPage() {
           </div>
 
           {/* ----- Tasks (오늘 할 것) ----- */}
-          {todayTasks && todayTasks.count > 0 && (
+          {todayTasksList.count > 0 && (
             <section className="space-y-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-section-header">오늘 할 것 · {todayTasks.count}</h2>
+                <h2 className="text-section-header">
+                  오늘 할 것 · {todayTasksList.count}
+                </h2>
                 <Link
                   href="/dashboard/stream"
                   className="text-xs font-medium text-primary hover:underline"
@@ -630,7 +635,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="space-y-2">
-                {todayTasks.tasks.slice(0, 4).map((t) => {
+                {todayTasksList.tasks.slice(0, 4).map((t) => {
                   const Icon = TASK_ICONS[t.kind] ?? Sparkles;
                   return (
                     <TaskCard
@@ -700,17 +705,17 @@ export default function DashboardPage() {
 
             <section className="space-y-2">
               <h2 className="text-section-header">
-                다음 배당 · {upcomingDividends?.length ?? 0}
+                다음 배당 · {dividendList.length}
               </h2>
               <Card>
                 <CardContent className="divide-y p-0">
-                  {(upcomingDividends?.length ?? 0) === 0 && (
+                  {dividendList.length === 0 && (
                     <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
                       <Coins className="size-4" />
                       30일 내 예정 배당이 없습니다.
                     </div>
                   )}
-                  {upcomingDividends?.slice(0, 4).map((d) => (
+                  {dividendList.slice(0, 4).map((d) => (
                     <div
                       key={`${d.ticker}-${d.record_date}-${d.kind}`}
                       className="flex items-center justify-between p-3"
