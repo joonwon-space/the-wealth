@@ -1,10 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePendingOrders } from "@/hooks/useOrders";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { SectorBar } from "@/components/sector-bar";
+import { Badge } from "@/components/ui/badge";
 import { PortfolioHeader } from "./PortfolioHeader";
 import { HoldingsSection } from "./HoldingsSection";
 import { TransactionSection } from "./TransactionSection";
@@ -17,6 +23,32 @@ interface PortfolioInfo {
   kis_account_id: number | null;
   target_value: number | null;
 }
+
+interface RebalanceRow {
+  sector: string;
+  current_pct: number;
+  target_pct: number;
+  diff_pct: number;
+  delta_krw: number;
+  suggested_action: "BUY" | "SELL" | "HOLD";
+}
+
+interface RebalanceResponse {
+  portfolio_id: number;
+  total_value_krw: number;
+  rows: RebalanceRow[];
+}
+
+const SECTOR_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-3)",
+  "var(--chart-5)",
+  "var(--chart-6)",
+  "var(--chart-7)",
+  "var(--chart-8)",
+  "var(--chart-2)",
+  "var(--chart-4)",
+];
 
 function holdingsKey(portfolioId: number) {
   return ["portfolios", portfolioId, "holdings"] as const;
@@ -31,7 +63,15 @@ export default function PortfolioDetailPage() {
     queryKey: ["portfolio", portfolioId],
     queryFn: async () => {
       const { data } = await api.get<PortfolioInfo[]>("/portfolios");
-      return data.find((p) => p.id === portfolioId) ?? { id: portfolioId, name: "", currency: "KRW", kis_account_id: null, target_value: null };
+      return (
+        data.find((p) => p.id === portfolioId) ?? {
+          id: portfolioId,
+          name: "",
+          currency: "KRW",
+          kis_account_id: null,
+          target_value: null,
+        }
+      );
     },
     staleTime: 60_000,
   });
@@ -41,12 +81,26 @@ export default function PortfolioDetailPage() {
   const { data: holdings = [] } = useQuery<Holding[]>({
     queryKey: holdingsKey(portfolioId),
     queryFn: async () => {
-      const { data } = await api.get<Holding[]>(`/portfolios/${portfolioId}/holdings/with-prices`);
+      const { data } = await api.get<Holding[]>(
+        `/portfolios/${portfolioId}/holdings/with-prices`,
+      );
       return data;
     },
   });
 
   const { data: pendingOrders = [] } = usePendingOrders(isKisConnected ? portfolioId : 0);
+
+  const { data: rebalance } = useQuery<RebalanceResponse>({
+    queryKey: ["portfolios", portfolioId, "rebalance"],
+    queryFn: async () =>
+      (
+        await api.get<RebalanceResponse>(
+          `/portfolios/${portfolioId}/rebalance-suggestion`,
+        )
+      ).data,
+    staleTime: 5 * 60_000,
+    enabled: portfolioId > 0,
+  });
 
   return (
     <div className="space-y-6">
@@ -59,16 +113,74 @@ export default function PortfolioDetailPage() {
         onTogglePendingOrders={() => setShowPendingOrders((v) => !v)}
       />
 
-      <HoldingsSection
-        portfolioId={portfolioId}
-        isKisConnected={isKisConnected}
-      />
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">개요</TabsTrigger>
+          <TabsTrigger value="holdings">보유</TabsTrigger>
+          <TabsTrigger value="transactions">거래내역</TabsTrigger>
+        </TabsList>
 
-      <TransactionSection
-        portfolioId={portfolioId}
-        holdings={holdings}
-        isKisConnected={isKisConnected}
-      />
+        <TabsContent value="overview" className="space-y-4">
+          <section className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-section-header">섹터 현재 vs 목표</h2>
+              <Link
+                href={`/dashboard/rebalance?portfolio=${portfolioId}`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                리밸런싱 상세
+                <ArrowRight className="size-3" />
+              </Link>
+            </div>
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                {!rebalance || rebalance.rows.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    목표 비중이 설정되지 않았습니다.{" "}
+                    <Link
+                      href={`/dashboard/rebalance?portfolio=${portfolioId}`}
+                      className="text-primary hover:underline"
+                    >
+                      지금 설정하기
+                    </Link>
+                    .
+                  </div>
+                ) : (
+                  rebalance.rows.slice(0, 6).map((r, i) => (
+                    <SectorBar
+                      key={r.sector}
+                      sector={r.sector}
+                      pct={r.current_pct}
+                      target={r.target_pct}
+                      color={SECTOR_COLORS[i % SECTOR_COLORS.length]}
+                    />
+                  ))
+                )}
+                {rebalance && rebalance.rows.some((r) => r.suggested_action !== "HOLD") && (
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
+                    <span className="text-muted-foreground">임계치 초과 섹터</span>
+                    <Badge tone="warn">
+                      {rebalance.rows.filter((r) => r.suggested_action !== "HOLD").length}개
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="holdings">
+          <HoldingsSection portfolioId={portfolioId} isKisConnected={isKisConnected} />
+        </TabsContent>
+
+        <TabsContent value="transactions">
+          <TransactionSection
+            portfolioId={portfolioId}
+            holdings={holdings}
+            isKisConnected={isKisConnected}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
