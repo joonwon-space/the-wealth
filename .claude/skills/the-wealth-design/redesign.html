@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Phase 3 · Hybrid Redesign Prototype</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  body { margin:0; font-family: var(--font-sans); }
+  /* phone artboard clip — design_canvas cards expect exact size */
+  .phone-wrap { width:390px; height:844px; border-radius:24px; overflow:hidden; background:var(--background); position:relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .phone-wrap > div { width:100%; height:100%; display:flex; flex-direction:column; position:relative; }
+  .flow-box { background:#fff; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 12px; font-size:12px; line-height:1.3; min-width:120px; text-align:center; }
+  .flow-box.primary { background:#dbeafe; border-color:#1e90ff; color:#0b3a6b; font-weight:700; }
+  .flow-box.new { background:#f0fdf4; border-style:dashed; border-color:#16a34a; color:#166534; }
+  .flow-arrow { color:#94a3b8; font-size:18px; }
+</style>
+</head>
+<body>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="redesign/data.js"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="redesign/primitives.jsx"></script>
+<script type="text/babel" src="redesign/screens.jsx"></script>
+<script type="text/babel" src="redesign/web.jsx"></script>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ──────────────── Tweakable defaults ────────────────
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "defaultMode": "long",
+  "density": "comfortable",
+  "darkPhones": false,
+  "showKoreanFormat": true
+}/*EDITMODE-END*/;
+
+function PhoneStage({ screen, dark=false, setScreen, setMode, mode }) {
+  // Renders one mobile screen + matching tab bar inside a framed phone.
+  const active = screen === 'stream' ? 'stream' : (screen==='folio' ? 'folio' : (screen==='stock'?'stock':'home'));
+  return (
+    <div className="phone-wrap">
+      <PhoneFrame dark={dark}>
+        {screen==='home' && mode==='long' && <HomeLong setScreen={setScreen} setMode={setMode}/>}
+        {screen==='home' && mode==='short' && <HomeShort setScreen={setScreen} setMode={setMode}/>}
+        {screen==='folio' && <PortfolioScreen setScreen={setScreen} setMode={setMode}/>}
+        {screen==='stock' && <StockDetail setScreen={setScreen}/>}
+        {screen==='stream' && <StreamScreen setScreen={setScreen}/>}
+        <TabBar active={active} onChange={(k)=>{
+          if (k==='home') setScreen('home');
+          else if (k==='folio') setScreen('folio');
+          else if (k==='stock') setScreen('stock');
+          else if (k==='stream') setScreen('stream');
+        }}/>
+      </PhoneFrame>
+    </div>
+  );
+}
+
+function StaticPhone({ screen, dark=false, mode='long' }) {
+  const [s, setS] = useState(screen);
+  const [m, setM] = useState(mode);
+  useEffect(()=>{ setS(screen); setM(mode); }, [screen, mode]);
+  return <PhoneStage screen={s} mode={m} dark={dark} setScreen={setS} setMode={setM}/>;
+}
+
+// ──────────────── Tweaks panel ────────────────
+function TweaksPanel({ state, setState }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(()=>{
+    const onMsg = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setVisible(true);
+      if (e.data?.type === '__deactivate_edit_mode') setVisible(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({type:'__edit_mode_available'}, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  if (!visible) return null;
+  const persist = (patch) => {
+    setState({...state, ...patch});
+    window.parent.postMessage({type:'__edit_mode_set_keys', edits: patch}, '*');
+  };
+  return (
+    <div style={{
+      position:'fixed', right:16, bottom:16, width:280, zIndex:999,
+      background:'#fff', border:'1px solid #cbd5e1', borderRadius:12, padding:'14px 16px',
+      boxShadow:'0 12px 40px rgba(0,0,0,0.18)', fontFamily:'var(--font-sans)',
+    }}>
+      <div style={{fontSize:13, fontWeight:700, marginBottom:10}}>Tweaks</div>
+      <label style={{display:'block', fontSize:11, color:'#64748b', marginTop:8}}>기본 모드</label>
+      <div style={{display:'flex', gap:4, marginTop:4}}>
+        {['long','short'].map(m=>(
+          <button key={m} onClick={()=>persist({defaultMode:m})} style={{
+            flex:1, padding:'6px 0', fontSize:12, borderRadius:6, border:'1px solid #cbd5e1', cursor:'pointer',
+            background: state.defaultMode===m?'#1e90ff':'#fff', color: state.defaultMode===m?'#fff':'#0f172a',
+          }}>{m==='long'?'📚 장기':'⚡ 단타'}</button>
+        ))}
+      </div>
+      <label style={{display:'block', fontSize:11, color:'#64748b', marginTop:12}}>정보 밀도</label>
+      <div style={{display:'flex', gap:4, marginTop:4}}>
+        {['compact','comfortable','spacious'].map(d=>(
+          <button key={d} onClick={()=>persist({density:d})} style={{
+            flex:1, padding:'6px 0', fontSize:11, borderRadius:6, border:'1px solid #cbd5e1', cursor:'pointer',
+            background: state.density===d?'#0f172a':'#fff', color: state.density===d?'#fff':'#0f172a',
+          }}>{d}</button>
+        ))}
+      </div>
+      <label style={{display:'flex', alignItems:'center', gap:8, fontSize:12, marginTop:14, cursor:'pointer'}}>
+        <input type="checkbox" checked={state.darkPhones} onChange={e=>persist({darkPhones:e.target.checked})}/>
+        모바일 다크모드
+      </label>
+      <label style={{display:'flex', alignItems:'center', gap:8, fontSize:12, marginTop:8, cursor:'pointer'}}>
+        <input type="checkbox" checked={state.showKoreanFormat} onChange={e=>persist({showKoreanFormat:e.target.checked})}/>
+        한국식 수 표기 (만/억)
+      </label>
+    </div>
+  );
+}
+
+// ──────────────── Flow diagram ────────────────
+function FlowDiagram() {
+  const Box = ({children, kind='', style})=>(<div className={`flow-box ${kind}`} style={style}>{children}</div>);
+  const Arr = ()=>(<span className="flow-arrow">→</span>);
+  return (
+    <div style={{padding:'24px 32px', height:'100%', fontFamily:'var(--font-sans)', fontSize:12, background:'#fafafa', overflow:'auto', boxSizing:'border-box'}}>
+      <h3 style={{margin:'0 0 4px', fontSize:16}}>주요 플로우 · 정적 다이어그램</h3>
+      <div style={{color:'#64748b', marginBottom:18}}>프로토타입에 없는 서브 플로우들. 각 박스는 실 화면이 필요한 스팟.</div>
+
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:8}}>F1 · 목표 설정 (신규)</div>
+        <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+          <Box>내정보</Box><Arr/><Box>목표 설정</Box><Arr/><Box kind="new">금액 입력</Box><Arr/><Box kind="new">기간 선택</Box><Arr/><Box kind="primary">홈 링 활성</Box>
+        </div>
+      </div>
+
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:8}}>F2 · 주문 체결</div>
+        <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+          <Box>종목 상세</Box><Arr/><Box kind="primary">매수/매도</Box><Arr/><Box>수량·가격</Box><Arr/><Box>확인 시트</Box><Arr/><Box>주문 전송</Box><Arr/><Box kind="new">체결 카드 → 스트림</Box>
+        </div>
+      </div>
+
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:8}}>F3 · 리밸런싱 (신규)</div>
+        <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+          <Box>스트림 카드</Box><Arr/><Box kind="new">리밸런싱 상세</Box><Arr/><Box kind="new">목표 비중 조정</Box><Arr/><Box kind="new">제안 주문 리스트</Box><Arr/><Box>개별 주문 진행</Box>
+        </div>
+      </div>
+
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:8}}>F4 · 알림 생성</div>
+        <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+          <Box>종목 상세</Box><Arr/><Box>🔔 아이콘</Box><Arr/><Box>조건 선택 (이상/이하/%)</Box><Arr/><Box>임계값</Box><Arr/><Box>저장</Box>
+        </div>
+      </div>
+
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:8}}>F5 · 온보딩 (빈 상태)</div>
+        <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+          <Box>회원가입</Box><Arr/><Box kind="new">KIS 연동</Box><Arr/><Box kind="new">전략 선택 (장기/단타/혼합)</Box><Arr/><Box kind="new">목표 금액</Box><Arr/><Box kind="new">관심종목 3</Box><Arr/><Box kind="primary">홈</Box>
+        </div>
+      </div>
+
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:8}}>F6 · 투자일지 (체결 후 프롬프트)</div>
+        <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+          <Box>체결 알림</Box><Arr/><Box kind="new">"왜 샀나?" 프롬프트</Box><Arr/><Box>memo + tags[] 입력</Box><Arr/><Box>저장 → Transaction</Box>
+        </div>
+      </div>
+
+      <div style={{background:'#fffbeb', border:'1px solid #fbbf24', borderRadius:8, padding:'10px 14px', marginTop:10}}>
+        <b style={{color:'#92400e'}}>신규 백엔드 요구</b> · <span style={{color:'#78350f'}}>Portfolio.target_allocation (JSONB) · dividends 테이블 · routine_logs 테이블 · 전략 태그 · KIS 배당 API 연동</span>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────── Page entry ────────────────
+function App() {
+  const [state, setState] = useState(TWEAKS);
+  const [homeScreen, setHomeScreen] = useState('home');
+  const [homeMode, setHomeMode] = useState(state.defaultMode);
+  useEffect(()=>{ setHomeMode(state.defaultMode); }, [state.defaultMode]);
+
+  const dark = state.darkPhones;
+
+  return (
+    <>
+      <TweaksPanel state={state} setState={setState}/>
+      <DesignCanvas>
+        <DCSection id="intro" title="Phase 3 · Hybrid Redesign"
+          subtitle="D1 Glance (오늘 변동 hero) + D3 Mission (목표 링·Todo·리밸런싱) + D4 Stream (카드 피드) + D5 Dual Brain (장기/단타 토글). 모바일 5화면 · 웹 홈 1화면 · 나머지 플로우는 다이어그램.">
+        </DCSection>
+
+        <DCSection id="mobile" title="모바일 · 하이파이 프로토타입 (5화면)"
+          subtitle="상단 첫 카드는 인터랙티브 (탭바/모드토글/화면이동 작동). 나머지는 개별 화면 고정 뷰.">
+          <DCArtboard id="interactive" label="인터랙티브 데모 (클릭·모드 전환)" width={390} height={844}>
+            <PhoneStage screen={homeScreen} mode={homeMode} dark={dark}
+              setScreen={setHomeScreen} setMode={setHomeMode}/>
+          </DCArtboard>
+          <DCArtboard id="m1" label="① 홈 · 장기 모드" width={390} height={844}>
+            <StaticPhone screen="home" mode="long" dark={dark}/>
+          </DCArtboard>
+          <DCArtboard id="m2" label="② 홈 · 단타 모드" width={390} height={844}>
+            <StaticPhone screen="home" mode="short" dark={dark}/>
+          </DCArtboard>
+          <DCArtboard id="m3" label="③ 포트폴리오 상세" width={390} height={844}>
+            <StaticPhone screen="folio" dark={dark}/>
+          </DCArtboard>
+          <DCArtboard id="m4" label="④ 종목 상세" width={390} height={844}>
+            <StaticPhone screen="stock" dark={dark}/>
+          </DCArtboard>
+          <DCArtboard id="m5" label="⑤ 스트림" width={390} height={844}>
+            <StaticPhone screen="stream" dark={dark}/>
+          </DCArtboard>
+          <DCArtboard id="m1d" label="홈 · 장기 · 다크" width={390} height={844}>
+            <StaticPhone screen="home" mode="long" dark={true}/>
+          </DCArtboard>
+          <DCArtboard id="m5d" label="스트림 · 다크" width={390} height={844}>
+            <StaticPhone screen="stream" dark={true}/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="web" title="웹 · 대시보드 홈 (1440 × 900)"
+          subtitle="모바일 홈의 2-컬럼 확장. 좌 사이드바 · 상단 모드 토글 · 보유 테이블 + mover 사이드.">
+          <DCArtboard id="w1" label="웹 홈 · 라이트" width={1440} height={900}>
+            <WebHome dark={false}/>
+          </DCArtboard>
+          <DCArtboard id="w2" label="웹 홈 · 다크" width={1440} height={900}>
+            <WebHome dark={true}/>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="flow" title="나머지 플로우 · 다이어그램"
+          subtitle="하이파이로 그리지 않은 6개 서브 플로우. 신규 백엔드 요구사항 포함.">
+          <DCArtboard id="flow1" label="플로우 다이어그램" width={880} height={620}>
+            <FlowDiagram/>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

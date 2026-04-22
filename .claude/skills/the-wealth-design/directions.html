@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>개편 방향 비교 · 5 Directions</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font-family: var(--font-sans, Pretendard, system-ui, sans-serif); }
+  /* mobile artboard base */
+  .mb { width: 390px; height: 844px; background: #fff; display: flex; flex-direction: column; overflow: hidden; position: relative; font-feature-settings: "tnum"; }
+  .mb.dark { background: oklch(0.13 0.01 250); color: oklch(0.94 0.005 250); }
+  .mb .statusbar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 15px; font-weight: 600; }
+  .mb .tabbar { position: absolute; bottom: 0; left: 0; right: 0; height: 83px; border-top: 1px solid rgba(0,0,0,.08); display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; background: rgba(255,255,255,.92); backdrop-filter: blur(12px); }
+  .mb.dark .tabbar { background: rgba(24,27,37,.92); border-top-color: rgba(255,255,255,.08); }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: #7a7f87; font-weight: 500; }
+  .tab.active { color: #1e90ff; }
+  .mb.dark .tab { color: #6b7280; }
+  .mb.dark .tab.active { color: #1e90ff; }
+  .scroll { flex: 1; overflow: hidden; padding: 0 20px; }
+  .section-h { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #7a7f87; margin: 20px 0 10px; }
+  .rise { color: #E31F26; }
+  .fall { color: #1A56DB; }
+  .mb.dark .rise { color: #FF4D4F; }
+  .mb.dark .fall { color: #4B8EF5; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .card { background: #fff; border: 1px solid oklch(0.88 0.01 250); border-radius: 14px; padding: 14px 16px; }
+  .mb.dark .card { background: oklch(0.18 0.01 250); border-color: oklch(1 0 0 / 10%); }
+  /* IA diagram */
+  .ia { width: 640px; height: 560px; background: #fafafa; padding: 24px; font-size: 12px; line-height: 1.5; }
+  .ia h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+  .ia .sub { color: #6b7280; font-size: 11px; margin-bottom: 14px; }
+  .ia .box { border: 1.5px solid #cbd0d6; border-radius: 6px; padding: 8px 10px; font-size: 11px; background: #fff; }
+  .ia .box.root { background: #1e90ff; color: #fff; border-color: #1e90ff; font-weight: 700; }
+  .ia .box.primary { background: #eaf3ff; border-color: #1e90ff; color: #0b3a6b; font-weight: 600; }
+  .ia .box.new { border-style: dashed; border-color: #16a34a; background: #f0fdf4; color: #166534; }
+  .ia .box.kill { text-decoration: line-through; opacity: 0.5; border-color: #dc2626; color: #dc2626; }
+  .ia .tree { display: flex; flex-direction: column; gap: 6px; }
+  .ia .row { display: flex; gap: 8px; align-items: flex-start; }
+  .ia .rail { width: 2px; background: #cbd0d6; margin: 0 8px; }
+  .ia .children { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .ia .pros { background: #f0fdf4; border-left: 3px solid #16a34a; padding: 8px 10px; margin-top: 10px; border-radius: 0 6px 6px 0; }
+  .ia .cons { background: #fef2f2; border-left: 3px solid #dc2626; padding: 8px 10px; margin-top: 6px; border-radius: 0 6px 6px 0; }
+  .ia .cost { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .ia .cost.l { background: #dcfce7; color: #166534; }
+  .ia .cost.m { background: #fef3c7; color: #854d0e; }
+  .ia .cost.h { background: #fee2e2; color: #991b1b; }
+  /* mini icons */
+  .ico { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; }
+  .ico svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .row-flex { display: flex; align-items: center; gap: 10px; }
+  .avatar-sq { width: 32px; height: 32px; border-radius: 8px; background: #f1f5f9; display:flex; align-items:center; justify-content:center; font-size: 11px; font-weight: 700; color: #475569; flex-shrink: 0;}
+  .mb.dark .avatar-sq { background: #1e293b; color: #cbd5e1; }
+  hr.sep { border: 0; border-top: 1px solid oklch(0.88 0.01 250); margin: 14px 0; }
+  .mb.dark hr.sep { border-top-color: rgba(255,255,255,.08); }
+  .mini-chart { height: 32px; display: flex; align-items: flex-end; gap: 2px; }
+  .mini-chart span { flex: 1; background: currentColor; border-radius: 1px; opacity: .7; }
+</style>
+</head>
+<body>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+
+<div id="root"></div>
+
+<script type="text/babel">
+// ─── shared UI bits ──────────────────────────────────────────────────
+const I = {
+  home: <svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>,
+  chart: <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 3 6-7"/></svg>,
+  wallet: <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 12h4"/></svg>,
+  bell: <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 004 0"/></svg>,
+  user: <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>,
+  search: <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>,
+  arrow: <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>,
+  target: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+  refresh: <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>,
+  layers: <svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>,
+  plus: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>,
+  stream: <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h16"/></svg>,
+  brain: <svg viewBox="0 0 24 24"><path d="M9 3a3 3 0 00-3 3v1a3 3 0 00-2 5 3 3 0 002 5v1a3 3 0 003 3h1V3H9z"/><path d="M15 3a3 3 0 013 3v1a3 3 0 012 5 3 3 0 01-2 5v1a3 3 0 01-3 3h-1V3h1z"/></svg>,
+};
+
+function StatusBar({ dark }) {
+  return (
+    <div className="statusbar" style={{color: dark?'#fff':'#0f172a'}}>
+      <span>9:41</span>
+      <span style={{display:'flex', gap:6, fontSize:12}}>●●●● 5G 􀛨</span>
+    </div>
+  );
+}
+
+function TabBar({ active, dark, items }) {
+  const list = items || [
+    { k:'home', label:'홈', icon: I.home },
+    { k:'chart', label:'종목', icon: I.chart },
+    { k:'wallet', label:'포트폴리오', icon: I.wallet },
+    { k:'bell', label:'알림', icon: I.bell },
+    { k:'user', label:'내정보', icon: I.user },
+  ];
+  return (
+    <div className="tabbar">
+      {list.map(it => (
+        <div key={it.k} className={`tab ${active===it.k?'active':''}`}>
+          <span className="ico">{it.icon}</span>
+          {it.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// tiny area-chart as inline SVG
+function MiniArea({ up=true, width=160, height=44, dark }) {
+  const pts = up
+    ? "0,38 15,32 30,34 45,26 60,28 75,20 90,22 105,14 120,10 135,12 150,6 160,4"
+    : "0,8 15,14 30,10 45,18 60,14 75,22 90,18 105,26 120,30 135,26 150,34 160,38";
+  const color = up ? (dark?'#FF4D4F':'#E31F26') : (dark?'#4B8EF5':'#1A56DB');
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}>
+      <defs>
+        <linearGradient id={`g${up?1:2}${dark?'d':'l'}`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity="0.25"/>
+          <stop offset="1" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points={`${pts} 160,${height} 0,${height}`} fill={`url(#g${up?1:2}${dark?'d':'l'})`}/>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.8"/>
+    </svg>
+  );
+}
+
+function BigChart({ up=true, width=350, height=140, dark }) {
+  const path = up
+    ? "M0,110 C30,100 60,115 90,90 C130,60 160,80 200,50 C240,30 280,40 320,20 L350,15"
+    : "M0,20 C30,30 60,18 90,50 C130,70 160,60 200,85 C240,105 280,95 320,115 L350,125";
+  const color = up ? (dark?'#FF4D4F':'#E31F26') : (dark?'#4B8EF5':'#1A56DB');
+  const gid = `bg${up?1:2}${dark?'d':'l'}${width}`;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}>
+      <defs>
+        <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity="0.25"/>
+          <stop offset="1" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {[30,60,90,120].map(y => <line key={y} x1="0" x2={width} y1={y} y2={y} stroke={dark?'#334155':'#e2e8f0'} strokeDasharray="2 4" strokeWidth="1"/>)}
+      <path d={`${path} L${width},${height} L0,${height} Z`} fill={`url(#${gid})`}/>
+      <path d={path} fill="none" stroke={color} strokeWidth="2.2"/>
+      <circle cx={width-30} cy={up?20:115} r="4" fill={color}/>
+      <circle cx={width-30} cy={up?20:115} r="8" fill={color} opacity="0.3"/>
+    </svg>
+  );
+}
+
+function Donut({ segments, size=88, dark }) {
+  const C = 2 * Math.PI * 36;
+  let offset = 0;
+  return (
+    <svg width={size} height={size} viewBox="0 0 88 88">
+      <circle cx="44" cy="44" r="36" fill="none" stroke={dark?'#1e293b':'#f1f5f9'} strokeWidth="12"/>
+      {segments.map((s, i) => {
+        const len = C * s.pct;
+        const el = <circle key={i} cx="44" cy="44" r="36" fill="none" stroke={s.color} strokeWidth="12"
+          strokeDasharray={`${len} ${C-len}`} strokeDashoffset={-offset} transform="rotate(-90 44 44)" strokeLinecap="butt"/>;
+        offset += len;
+        return el;
+      })}
+    </svg>
+  );
+}
+
+// ─── D1 GLANCE — 빠른 현황 파악 극대화 ──────────────────────────────
+function D1Home({ dark }) {
+  return (
+    <div className={`mb ${dark?'dark':''}`}>
+      <StatusBar dark={dark}/>
+      <div className="scroll" style={{paddingBottom:100}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0 4px'}}>
+          <span style={{fontSize:18, fontWeight:700}}>오늘</span>
+          <span style={{fontSize:11, color:'#7a7f87'}}>• 실시간 · 14:32</span>
+        </div>
+        {/* Hero: today's change 극대화 */}
+        <div style={{marginTop:14}}>
+          <div style={{fontSize:11, color:'#7a7f87', letterSpacing:'0.06em', textTransform:'uppercase'}}>오늘 내 자산</div>
+          <div className="num rise" style={{fontSize:44, fontWeight:800, letterSpacing:'-0.02em', marginTop:4, lineHeight:1}}>+2,340,500</div>
+          <div style={{display:'flex', gap:8, alignItems:'baseline', marginTop:6}}>
+            <span className="num rise" style={{fontSize:16, fontWeight:700}}>+1.84%</span>
+            <span style={{fontSize:13, color:'#7a7f87'}}>총 129,450,000원</span>
+          </div>
+        </div>
+        <div style={{marginTop:18}}>
+          <BigChart up={true} width={350} height={110} dark={dark}/>
+          <div style={{display:'flex', justifyContent:'space-between', fontSize:10, color:'#7a7f87', marginTop:4}}>
+            <span>09:00</span><span>10:30</span><span>12:00</span><span>13:30</span><span>현재</span>
+          </div>
+        </div>
+        <div className="section-h">오늘의 mover</div>
+        <div style={{display:'flex', flexDirection:'column', gap:8}}>
+          {[
+            {t:'005930', n:'삼성전자', p:'+3.42%', r:'+1,240', up:true},
+            {t:'NVDA', n:'NVIDIA', p:'+2.18%', r:'+580', up:true},
+            {t:'373220', n:'LG에너지솔루션', p:'-1.85%', r:'-420', up:false},
+          ].map((s,i)=>(
+            <div key={i} className="row-flex" style={{justifyContent:'space-between'}}>
+              <div className="row-flex">
+                <div className="avatar-sq">{s.n[0]}</div>
+                <div>
+                  <div style={{fontSize:14, fontWeight:600}}>{s.n}</div>
+                  <div style={{fontSize:11, color:'#7a7f87'}} className="num">{s.t}</div>
+                </div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div className={`num ${s.up?'rise':'fall'}`} style={{fontWeight:700, fontSize:14}}>{s.p}</div>
+                <div className={`num ${s.up?'rise':'fall'}`} style={{fontSize:11, opacity:.7}}>{s.r}k</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <TabBar active="home" dark={dark}/>
+    </div>
+  );
+}
+
+// ─── D2 STUDIO — 차트/종목 상세 몰입 ──────────────────────────────
+function D2Home({ dark }) {
+  return (
+    <div className={`mb ${dark?'dark':''}`}>
+      <StatusBar dark={dark}/>
+      <div className="scroll" style={{paddingBottom:100}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0'}}>
+          <div style={{display:'flex', gap:16, fontSize:13, fontWeight:600}}>
+            <span style={{color: dark?'#fff':'#0f172a'}}>포트폴리오</span>
+            <span style={{opacity:.4}}>관심종목</span>
+            <span style={{opacity:.4}}>지수</span>
+          </div>
+          <span className="ico" style={{color:'#7a7f87'}}>{I.search}</span>
+        </div>
+        <div style={{padding:'14px 0 6px'}}>
+          <div style={{fontSize:11, color:'#7a7f87'}}>총 평가금액 · KRW</div>
+          <div className="num" style={{fontSize:32, fontWeight:800, letterSpacing:'-0.02em'}}>129,450,000</div>
+          <div className="num rise" style={{fontSize:13, fontWeight:600}}>+2,340,500 <span style={{opacity:.7}}>(+1.84%)</span> 오늘</div>
+        </div>
+        {/* BIG CHART dominates */}
+        <div style={{margin:'6px -4px 0'}}>
+          <BigChart up={true} width={360} height={200} dark={dark}/>
+          <div style={{display:'flex', gap:4, justifyContent:'center', marginTop:8}}>
+            {['1일','1주','1달','3달','1년','전체'].map((l,i)=>(
+              <div key={l} style={{padding:'4px 10px', fontSize:11, fontWeight:600,
+                background: i===2 ? '#1e90ff' : (dark?'#1e293b':'#f1f5f9'),
+                color: i===2 ? '#fff' : (dark?'#cbd5e1':'#475569'),
+                borderRadius:6}}>{l}</div>
+            ))}
+          </div>
+        </div>
+        <div className="section-h">보유 종목 · 8</div>
+        {[
+          {n:'삼성전자', pct:24, v:'31,068,000', p:'+1.82%', up:true},
+          {n:'NVIDIA', pct:18, v:'23,301,000', p:'+2.40%', up:true},
+          {n:'LG에너지솔루션', pct:12, v:'15,534,000', p:'-0.91%', up:false},
+        ].map((s,i)=>(
+          <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0'}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14, fontWeight:600}}>{s.n} <span style={{opacity:.5, fontSize:11}}>· {s.pct}%</span></div>
+              <div className="num" style={{fontSize:11, color:'#7a7f87'}}>{s.v}</div>
+            </div>
+            <div style={{flex:1}}><MiniArea up={s.up} width={90} height={24} dark={dark}/></div>
+            <div className={`num ${s.up?'rise':'fall'}`} style={{fontWeight:700, fontSize:13, width:60, textAlign:'right'}}>{s.p}</div>
+          </div>
+        ))}
+      </div>
+      <TabBar active="home" dark={dark}
+        items={[
+          {k:'home', label:'차트', icon:I.chart},
+          {k:'wallet', label:'보유', icon:I.wallet},
+          {k:'plus', label:'주문', icon:I.plus},
+          {k:'bell', label:'알림', icon:I.bell},
+          {k:'user', label:'내정보', icon:I.user},
+        ]}/>
+    </div>
+  );
+}
+
+// ─── D3 MISSION CONTROL — 목표·리밸런싱·루틴 ───────────────────────
+function D3Home({ dark }) {
+  return (
+    <div className={`mb ${dark?'dark':''}`}>
+      <StatusBar dark={dark}/>
+      <div className="scroll" style={{paddingBottom:100}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'8px 0 14px'}}>
+          <span style={{fontSize:22, fontWeight:800}}>Mission</span>
+          <span style={{fontSize:11, color:'#7a7f87'}}>4월 22일</span>
+        </div>
+        {/* Goal progress ring */}
+        <div className="card" style={{display:'flex', gap:14, alignItems:'center'}}>
+          <svg width="76" height="76" viewBox="0 0 76 76">
+            <circle cx="38" cy="38" r="30" stroke={dark?'#1e293b':'#eef2f7'} strokeWidth="8" fill="none"/>
+            <circle cx="38" cy="38" r="30" stroke="#1e90ff" strokeWidth="8" fill="none"
+              strokeDasharray={`${2*Math.PI*30*0.647} ${2*Math.PI*30}`} strokeDashoffset="0"
+              transform="rotate(-90 38 38)" strokeLinecap="round"/>
+            <text x="38" y="43" textAnchor="middle" fontSize="16" fontWeight="800" fill={dark?'#fff':'#0f172a'}>64.7%</text>
+          </svg>
+          <div>
+            <div style={{fontSize:11, color:'#7a7f87'}}>2억 목표 · 진척도</div>
+            <div className="num" style={{fontSize:18, fontWeight:700}}>129,450,000</div>
+            <div style={{fontSize:11, color:'#7a7f87'}}>남은 70,550,000 · 예상 14개월</div>
+          </div>
+        </div>
+        <div className="section-h">오늘 할 것 · 3</div>
+        <div style={{display:'flex', flexDirection:'column', gap:8}}>
+          {[
+            {icon:'!', title:'IT 비중 45% — 목표 30% 초과', sub:'리밸런싱 검토', color:'#E31F26'},
+            {icon:'$', title:'삼성전자 배당락일 (4/28)', sub:'4거래일 남음', color:'#f59e0b'},
+            {icon:'✓', title:'월 리밸런싱 체크', sub:'매월 마지막 영업일', color:'#1e90ff'},
+          ].map((t,i)=>(
+            <div key={i} className="card" style={{display:'flex', gap:12, alignItems:'center', padding:'12px 14px'}}>
+              <div style={{width:28, height:28, borderRadius:8, background:t.color+'22', color:t.color, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:14}}>{t.icon}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13, fontWeight:600}}>{t.title}</div>
+                <div style={{fontSize:11, color:'#7a7f87'}}>{t.sub}</div>
+              </div>
+              <span className="ico" style={{color:'#7a7f87'}}>{I.arrow}</span>
+            </div>
+          ))}
+        </div>
+        <div className="section-h">자산</div>
+        <div className="card" style={{padding:'12px 14px'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+            <span style={{fontSize:11, color:'#7a7f87'}}>오늘</span>
+            <span className="num rise" style={{fontSize:13, fontWeight:700}}>+1.84%</span>
+          </div>
+          <div className="num" style={{fontSize:22, fontWeight:800, marginTop:2}}>129,450,000</div>
+        </div>
+      </div>
+      <TabBar active="home" dark={dark}
+        items={[
+          {k:'home', label:'미션', icon:I.target},
+          {k:'chart', label:'자산', icon:I.chart},
+          {k:'wallet', label:'리밸런싱', icon:I.layers},
+          {k:'bell', label:'알림', icon:I.bell},
+          {k:'user', label:'내정보', icon:I.user},
+        ]}/>
+    </div>
+  );
+}
+
+// ─── D4 STREAM — 카드 피드 ───────────────────────────────────
+function D4Home({ dark }) {
+  return (
+    <div className={`mb ${dark?'dark':''}`}>
+      <StatusBar dark={dark}/>
+      <div className="scroll" style={{paddingBottom:100}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0 14px'}}>
+          <span style={{fontSize:22, fontWeight:800}}>스트림</span>
+          <div style={{display:'flex', gap:6}}>
+            <span style={{padding:'4px 10px', fontSize:11, fontWeight:600, background:'#1e90ff', color:'#fff', borderRadius:999}}>전체</span>
+            <span style={{padding:'4px 10px', fontSize:11, fontWeight:500, color:'#7a7f87', borderRadius:999}}>알림</span>
+            <span style={{padding:'4px 10px', fontSize:11, fontWeight:500, color:'#7a7f87', borderRadius:999}}>체결</span>
+          </div>
+        </div>
+        <div style={{display:'flex', flexDirection:'column', gap:10}}>
+          {/* compact summary strip */}
+          <div className="card" style={{padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:10, color:'#7a7f87', textTransform:'uppercase', letterSpacing:'0.06em'}}>오늘</div>
+              <div className="num rise" style={{fontSize:22, fontWeight:800}}>+2,340,500</div>
+              <div className="num rise" style={{fontSize:11, fontWeight:600}}>+1.84%</div>
+            </div>
+            <MiniArea up={true} width={130} height={50} dark={dark}/>
+          </div>
+          {/* alert card */}
+          <div className="card" style={{padding:'12px 14px', borderLeft:'3px solid #E31F26'}}>
+            <div style={{display:'flex', gap:6, alignItems:'center', marginBottom:4}}>
+              <span className="pill" style={{background:'#fee', color:'#E31F26'}}>🔔 목표가 도달</span>
+              <span style={{fontSize:10, color:'#7a7f87'}}>14:32</span>
+            </div>
+            <div style={{fontSize:13, fontWeight:600}}>NVIDIA — $145 돌파</div>
+            <div style={{fontSize:11, color:'#7a7f87', marginTop:2}}>목표 $140 이상 · 현재 $145.22</div>
+          </div>
+          {/* rebalance card */}
+          <div className="card" style={{padding:'12px 14px'}}>
+            <div style={{fontSize:10, color:'#7a7f87', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>리밸런싱 제안</div>
+            <div style={{fontSize:13, fontWeight:600, marginBottom:8}}>IT 섹터 비중 45% → 목표 30%</div>
+            <div style={{display:'flex', gap:6, fontSize:10}}>
+              <span className="pill" style={{background:'#dcfce7', color:'#166534'}}>+15%p 초과</span>
+              <span className="pill" style={{background:'#1e293b', color:'#fff'}}>검토</span>
+            </div>
+          </div>
+          {/* order filled */}
+          <div className="card" style={{padding:'12px 14px'}}>
+            <div style={{fontSize:10, color:'#7a7f87', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>체결 완료 · 09:12</div>
+            <div className="row-flex" style={{justifyContent:'space-between'}}>
+              <div>
+                <div style={{fontSize:13, fontWeight:600}}>삼성전자 매수</div>
+                <div className="num" style={{fontSize:11, color:'#7a7f87'}}>10주 @ 72,400</div>
+              </div>
+              <span className="num" style={{fontSize:13, fontWeight:700}}>724,000</span>
+            </div>
+          </div>
+          {/* dividend card */}
+          <div className="card" style={{padding:'12px 14px'}}>
+            <div style={{fontSize:10, color:'#7a7f87', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4}}>배당 입금 예정 · 4/28</div>
+            <div className="row-flex" style={{justifyContent:'space-between'}}>
+              <div style={{fontSize:13, fontWeight:600}}>삼성전자 분기배당</div>
+              <span className="num rise" style={{fontSize:13, fontWeight:700}}>+36,000</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <TabBar active="home" dark={dark}
+        items={[
+          {k:'home', label:'스트림', icon:I.stream},
+          {k:'wallet', label:'자산', icon:I.wallet},
+          {k:'plus', label:'주문', icon:I.plus},
+          {k:'bell', label:'알림', icon:I.bell},
+          {k:'user', label:'내정보', icon:I.user},
+        ]}/>
+    </div>
+  );
+}
+
+// ─── D5 DUAL BRAIN — 장기/단타 모드 전환 ────────────────────────
+function D5Home({ dark, mode='long' }) {
+  const isLong = mode==='long';
+  return (
+    <div className={`mb ${dark?'dark':''}`}>
+      <StatusBar dark={dark}/>
+      <div style={{padding:'4px 20px 0'}}>
+        <div style={{display:'flex', background: dark?'#1e293b':'#f1f5f9', borderRadius:10, padding:3, marginTop:6}}>
+          <div style={{flex:1, textAlign:'center', padding:'8px 0', fontSize:13, fontWeight:700, borderRadius:8,
+            background: isLong ? '#1e90ff' : 'transparent', color: isLong ? '#fff' : (dark?'#94a3b8':'#64748b')}}>
+            📚 장기 · 70%
+          </div>
+          <div style={{flex:1, textAlign:'center', padding:'8px 0', fontSize:13, fontWeight:700, borderRadius:8,
+            background: !isLong ? '#E31F26' : 'transparent', color: !isLong ? '#fff' : (dark?'#94a3b8':'#64748b')}}>
+            ⚡ 단타 · 30%
+          </div>
+        </div>
+      </div>
+      <div className="scroll" style={{paddingBottom:100, paddingTop:4}}>
+        {isLong ? (
+          <>
+            <div style={{padding:'20px 0 4px'}}>
+              <div style={{fontSize:11, color:'#7a7f87'}}>장기 자산 · 목표 2억</div>
+              <div className="num" style={{fontSize:30, fontWeight:800, letterSpacing:'-0.02em'}}>90,615,000</div>
+              <div style={{display:'flex', gap:8, alignItems:'baseline'}}>
+                <span className="num rise" style={{fontSize:13, fontWeight:600}}>+6.4% YTD</span>
+                <span className="num" style={{fontSize:11, color:'#7a7f87'}}>· 연수익률 +8.2%</span>
+              </div>
+            </div>
+            <div style={{margin:'10px 0'}}>
+              <BigChart up={true} width={350} height={100} dark={dark}/>
+            </div>
+            <div className="section-h">자산 배분</div>
+            <div className="card" style={{display:'flex', alignItems:'center', gap:14}}>
+              <Donut dark={dark} segments={[
+                {pct:0.45, color:'#1e90ff'},{pct:0.22, color:'#8b5cf6'},{pct:0.18, color:'#f59e0b'},{pct:0.15, color:'#16a34a'},
+              ]}/>
+              <div style={{flex:1, fontSize:11, display:'grid', gridTemplateColumns:'1fr', gap:4}}>
+                {[
+                  {c:'#1e90ff', n:'IT', v:'45%', t:'40,776,750'},
+                  {c:'#8b5cf6', n:'금융', v:'22%', t:'19,935,300'},
+                  {c:'#f59e0b', n:'소비재', v:'18%', t:'16,310,700'},
+                  {c:'#16a34a', n:'기타', v:'15%', t:'13,592,250'},
+                ].map((r,i)=>(
+                  <div key={i} style={{display:'flex', gap:6, alignItems:'center', fontSize:11}}>
+                    <span style={{width:8, height:8, borderRadius:2, background:r.c}}/>
+                    <span style={{flex:1}}>{r.n}</span>
+                    <span className="num" style={{fontWeight:600}}>{r.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="section-h">다음 배당 · 3</div>
+            <div className="card" style={{padding:'10px 14px'}}>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:12, padding:'4px 0'}}>
+                <span>삼성전자 <span style={{color:'#7a7f87'}}>4/28</span></span>
+                <span className="num rise" style={{fontWeight:700}}>+36,000</span>
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:12, padding:'4px 0'}}>
+                <span>AAPL <span style={{color:'#7a7f87'}}>5/16</span></span>
+                <span className="num rise" style={{fontWeight:700}}>+$12</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{padding:'20px 0 4px'}}>
+              <div style={{fontSize:11, color:'#7a7f87'}}>단타 계좌 · 실시간</div>
+              <div className="num rise" style={{fontSize:30, fontWeight:800, letterSpacing:'-0.02em'}}>+870,200</div>
+              <div className="num rise" style={{fontSize:13, fontWeight:600}}>+2.24% 오늘 · 38,835,000</div>
+            </div>
+            <div style={{margin:'10px 0'}}>
+              <BigChart up={true} width={350} height={100} dark={dark}/>
+            </div>
+            <div className="section-h">미체결 · 2</div>
+            <div className="card" style={{padding:'10px 14px'}}>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:12, padding:'4px 0'}}>
+                <span>NVDA 매수 <span style={{color:'#7a7f87'}}>$142.00</span></span>
+                <span style={{color:'#f59e0b', fontWeight:700}}>대기</span>
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:12, padding:'4px 0'}}>
+                <span>005930 매도 <span style={{color:'#7a7f87'}}>73,000</span></span>
+                <span style={{color:'#f59e0b', fontWeight:700}}>대기</span>
+              </div>
+            </div>
+            <div className="section-h">Top mover</div>
+            {[
+              {n:'NVIDIA', p:'+3.42%', v:'$145.22'},
+              {n:'TSLA', p:'+2.18%', v:'$242.80'},
+              {n:'삼성전자', p:'-1.85%', v:'72,400'},
+            ].map((s,i)=>(
+              <div key={i} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:13}}>
+                <span>{s.n}</span>
+                <div><span className="num" style={{color:'#7a7f87', marginRight:8}}>{s.v}</span><span className={`num ${s.p[0]==='+'?'rise':'fall'}`} style={{fontWeight:700}}>{s.p}</span></div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+      <TabBar active="home" dark={dark}/>
+    </div>
+  );
+}
+
+// ─── IA Diagrams ─────────────────────────────────────────────
+function IA({ title, sub, tabs, proText, conText, cost, newData, killed }) {
+  return (
+    <div className="ia">
+      <h3>{title}</h3>
+      <div className="sub">{sub}</div>
+      <div className="tree">
+        <div className="box root">📱 홈 (탭 1)</div>
+        {tabs.map((t,i)=>(
+          <div key={i} className="row">
+            <div style={{width:18, fontSize:11, color:'#94a3b8', paddingTop:6, textAlign:'center'}}>└</div>
+            <div className="children">
+              <div className={`box ${t.primary?'primary':''} ${t.new?'new':''} ${t.kill?'kill':''}`}>
+                {t.label}
+                {t.tag && <span style={{float:'right', fontSize:9, opacity:.7}}>{t.tag}</span>}
+              </div>
+              {t.children && t.children.map((c,j)=>(
+                <div key={j} className="row" style={{marginLeft:14}}>
+                  <div style={{width:12, fontSize:10, color:'#cbd5e1', paddingTop:6}}>└</div>
+                  <div className={`box ${c.new?'new':''} ${c.kill?'kill':''}`} style={{flex:1, fontSize:10, padding:'6px 8px'}}>{c.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="pros"><b>👍 장점</b> · {proText}</div>
+      <div className="cons"><b>👎 단점</b> · {conText}</div>
+      <div style={{display:'flex', gap:6, marginTop:10, flexWrap:'wrap', alignItems:'center'}}>
+        <span className={`cost ${cost}`}>구현 비용 {cost==='l'?'LOW':cost==='m'?'MID':'HIGH'}</span>
+        {newData && <span style={{fontSize:10, color:'#166534'}}>📌 새 데이터: {newData}</span>}
+        {killed && <span style={{fontSize:10, color:'#dc2626'}}>🗑 제거: {killed}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN CANVAS ─────────────────────────────────────────────
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="intro" title="The Wealth · 전면 개편 5개 방향"
+        subtitle="Phase 2 · 각 방향을 모바일 홈 1급 화면 + IA + 장단점/구현비용으로 비교. 다크/라이트 둘 다 완성도 있는 안으로 설계.">
+      </DCSection>
+
+      <DCSection id="d1" title="D1 · Glance"
+        subtitle="북극성 그대로 — 3초 안에 '오늘 얼마 변했나'를 알려준다. 숫자를 키우고 맥락은 압축.">
+        <DCArtboard id="d1-light" label="홈 · 라이트"><D1Home dark={false}/></DCArtboard>
+        <DCArtboard id="d1-dark" label="홈 · 다크"><D1Home dark={true}/></DCArtboard>
+        <DCArtboard id="d1-ia" label="IA & 분석" width={640} height={560}>
+          <IA title="D1 · Glance"
+            sub="홈=일일변동 스포트라이트. 나머지는 얇은 탭."
+            tabs={[
+              {label:'오늘 (일일 변동 hero + 차트 + mover)', primary:true},
+              {label:'종목 (검색/상세/차트)'},
+              {label:'포트폴리오 (보유/주문/배당)', children:[{label:'미체결 주문', new:false}]},
+              {label:'알림'},
+              {label:'내정보'},
+            ]}
+            proText="북극성과 100% 정렬. 진입 비용 최저. 기존 컴포넌트 대부분 재활용 가능."
+            conText="장기 투자자 니즈(목표/배당) 와 단타 니즈(미체결/mover)가 한 탭에 몰림 → 탭 이동 여전히 발생."
+            cost="l"
+            killed="/analytics, /compare, /journal 숨김 (일부는 포트폴리오 탭 안으로 병합)"/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="d2" title="D2 · Studio"
+        subtitle="Robinhood 계보 — 차트가 가장 크다. '숫자'보다 '추세'를 먼저 본다.">
+        <DCArtboard id="d2-light" label="홈 · 라이트"><D2Home dark={false}/></DCArtboard>
+        <DCArtboard id="d2-dark" label="홈 · 다크"><D2Home dark={true}/></DCArtboard>
+        <DCArtboard id="d2-ia" label="IA & 분석" width={640} height={560}>
+          <IA title="D2 · Studio"
+            sub="차트 탭을 홈으로 승격. 홈의 sub-tab으로 포트폴리오/관심/지수."
+            tabs={[
+              {label:'차트 (큰 차트 + sub-tab: 포트폴리오/관심/지수)', primary:true, children:[
+                {label:'포트폴리오 · 내 자산 라인'},
+                {label:'관심종목 · 선택 종목 차트'},
+                {label:'지수 · KOSPI/S&P500 비교', new:true},
+              ]},
+              {label:'보유 (테이블 + 섹터 비중)'},
+              {label:'주문 (매수/매도/미체결)', primary:true},
+              {label:'알림'},
+              {label:'내정보'},
+            ]}
+            proText="차트 중심 니즈 충족. 벤치마크 비교 데이터(IndexSnapshot)가 드디어 활용됨. 시각적 몰입감 최고."
+            conText="'목표' '배당' '리밸런싱' 같은 장기 관점 지표가 약해짐. 작은 화면에서 차트가 지배적이라 요약 숫자 이탈."
+            cost="m"
+            newData="지수 비교 오버레이, 차트 인터랙션 (크로스헤어, 이벤트 마커)"/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="d3" title="D3 · Mission Control"
+        subtitle="장기 투자자 모드 — 목표/루틴/리밸런싱/배당. 자산 숫자는 부차적.">
+        <DCArtboard id="d3-light" label="홈 · 라이트"><D3Home dark={false}/></DCArtboard>
+        <DCArtboard id="d3-dark" label="홈 · 다크"><D3Home dark={true}/></DCArtboard>
+        <DCArtboard id="d3-ia" label="IA & 분석" width={640} height={560}>
+          <IA title="D3 · Mission Control"
+            sub="홈=목표 진척 + 오늘 할 일. 액션 중심."
+            tabs={[
+              {label:'미션 (목표 진척도 + Todo + 배당 캘린더)', primary:true, new:true, children:[
+                {label:'목표 진척 링', new:true},
+                {label:'Today 카드 (리밸런싱 알림/배당일/루틴)', new:true},
+                {label:'배당 캘린더', new:true},
+              ]},
+              {label:'자산 (금액/수익률/벤치마크)'},
+              {label:'리밸런싱 (섹터비중, 목표 vs 현재)', new:true},
+              {label:'알림'},
+              {label:'내정보'},
+            ]}
+            proText="장기 투자자의 루틴을 강하게 지원. Portfolio.target_value · IndexSnapshot 전부 활용. 기존 개편 요구(배당/루틴/목표)와 완벽 매칭."
+            conText="단타 사용자에겐 답답할 수 있음. 실시간 체감 ↓. '오늘 얼마 벌었나' 1급 정보에서 후순위."
+            cost="h"
+            newData="배당 스케줄, 리밸런싱 목표 비중(target_allocation), 루틴 체크 로그, Todo 엔진"/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="d4" title="D4 · Stream"
+        subtitle="상황 기반 피드 — 알림·체결·리밸런싱·배당 등을 시간순 카드로. 상태가 없으면 카드도 없다.">
+        <DCArtboard id="d4-light" label="홈 · 라이트"><D4Home dark={false}/></DCArtboard>
+        <DCArtboard id="d4-dark" label="홈 · 다크"><D4Home dark={true}/></DCArtboard>
+        <DCArtboard id="d4-ia" label="IA & 분석" width={640} height={560}>
+          <IA title="D4 · Stream"
+            sub="카드 피드가 홈. 상태 없으면 카드 없음 → 정보 과밀 자동 해결."
+            tabs={[
+              {label:'스트림 (상황별 카드 피드)', primary:true, new:true, children:[
+                {label:'오늘 요약 카드 (상단 고정)'},
+                {label:'알림 트리거 카드', new:false},
+                {label:'체결 완료 카드'},
+                {label:'리밸런싱 제안 카드', new:true},
+                {label:'배당/공시 카드', new:true},
+              ]},
+              {label:'자산 (상세·차트·섹터)'},
+              {label:'주문'},
+              {label:'알림 (아카이브)'},
+              {label:'내정보'},
+            ]}
+            proText="정보 과밀 문제를 구조로 해결. 상태 머신처럼 카드가 뜨고 사라짐 → 홈이 항상 신선함. 개인화/AI 인사이트와 궁합 좋음."
+            conText="카드 규칙 설계 비용이 큼. '항상 같은 자리의 숫자'를 원하는 사용자에게 혼란. 초기 빈 상태 처리가 까다로움."
+            cost="h"
+            newData="카드 트리거 엔진, 각 카드 타입별 설정, 공시/뉴스 피드 (외부 API)"/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="d5" title="D5 · Dual Brain"
+        subtitle="장기/단타 토글. 같은 데이터를 두 관점으로 본다. 페르소나(70/30)와 정렬.">
+        <DCArtboard id="d5-long" label="장기 모드 · 라이트"><D5Home dark={false} mode="long"/></DCArtboard>
+        <DCArtboard id="d5-short" label="단타 모드 · 라이트"><D5Home dark={false} mode="short"/></DCArtboard>
+        <DCArtboard id="d5-long-dark" label="장기 모드 · 다크"><D5Home dark={true} mode="long"/></DCArtboard>
+        <DCArtboard id="d5-ia" label="IA & 분석" width={640} height={560}>
+          <IA title="D5 · Dual Brain"
+            sub="홈 상단 세그먼트로 모드 전환. 같은 DB, 다른 렌즈."
+            tabs={[
+              {label:'홈 [장기 ↔ 단타 토글]', primary:true, children:[
+                {label:'장기 → 수익률/배당/목표/섹터'},
+                {label:'단타 → 실시간/미체결/mover/주문'},
+              ]},
+              {label:'종목'},
+              {label:'포트폴리오'},
+              {label:'알림'},
+              {label:'내정보'},
+            ]}
+            proText="페르소나 70/30 과 가장 정확히 정렬. 두 관점을 억지로 합치지 않음. 한투 MTS 감성과도 호환."
+            conText="'지금 모드가 뭐더라?' 인지 부담. 초보자에게 복잡. 두 모드 각각이 1급 수준이어야 해서 디자인 비용 2배."
+            cost="h"
+            newData="포트폴리오별 '전략 태그' (장기/단타 분류), 모드별 랜딩 설정"/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="decide" title="▸ 다음 단계 — 방향 선택"
+        subtitle="하나를 고르거나 혼합(예: D1 기반 + D3 의 목표 링 + D5 의 토글)을 지정해 주세요. Phase 3에서 선택안을 하이파이로 설계합니다.">
+        <DCArtboard id="matrix" label="방향 × 축 매트릭스" width={760} height={360}>
+          <div style={{padding:24, fontFamily:'Pretendard, system-ui', fontSize:12, height:'100%', boxSizing:'border-box'}}>
+            <table style={{width:'100%', borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{background:'#1e90ff', color:'#fff'}}>
+                  <th style={{padding:'8px 10px', textAlign:'left', fontSize:11}}>방향</th>
+                  <th style={{padding:'8px 10px', textAlign:'left', fontSize:11}}>북극성 정렬</th>
+                  <th style={{padding:'8px 10px', textAlign:'left', fontSize:11}}>구현 비용</th>
+                  <th style={{padding:'8px 10px', textAlign:'left', fontSize:11}}>정보 과밀 해소</th>
+                  <th style={{padding:'8px 10px', textAlign:'left', fontSize:11}}>활용 데이터</th>
+                  <th style={{padding:'8px 10px', textAlign:'left', fontSize:11}}>페르소나(70/30) 적합</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['D1 Glance', '★★★★★', 'LOW', '★★★☆☆', '기존 대부분', '★★★☆☆'],
+                  ['D2 Studio', '★★★☆☆', 'MID', '★★★★☆', '+ IndexSnapshot', '★★★☆☆'],
+                  ['D3 Mission', '★★☆☆☆', 'HIGH', '★★★★☆', '+ 배당, target, 루틴', '★★★★☆ (장기에 강함)'],
+                  ['D4 Stream', '★★★☆☆', 'HIGH', '★★★★★', '+ 카드엔진, 뉴스/공시', '★★★★☆'],
+                  ['D5 Dual',   '★★★★☆', 'HIGH', '★★★★★', '+ 전략 태그', '★★★★★ (페르소나 직격)'],
+                ].map((r,i)=>(
+                  <tr key={i} style={{borderBottom:'1px solid #e5e7eb'}}>
+                    {r.map((c,j)=>(<td key={j} style={{padding:'9px 10px', fontSize:12, fontWeight: j===0?700:400}}>{c}</td>))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{marginTop:16, fontSize:11, color:'#475569', lineHeight:1.6}}>
+              <b>추천 조합</b> · 단일안이라면 <b>D5 Dual Brain</b> (페르소나 직격) · 보수적 선택이라면 <b>D1 Glance</b> · <b>하이브리드 제안</b>: <b>D5 껍데기 + D3 의 목표 링/Todo (장기 모드) + D1 의 mover (단타 모드) + D4 의 카드 피드를 알림탭에서</b> — 이 조합이 페르소나 70/30 과 6개 축(A~F) 을 골고루 만족.
+            </div>
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
