@@ -21,9 +21,12 @@ function easeOutExpo(t: number): number {
 }
 
 /**
- * Animates a number from `start` to `target` over `duration` milliseconds.
- * Uses requestAnimationFrame for smooth 60fps animation.
- * Returns the current animated value.
+ * Animates a number toward `target` over `duration` milliseconds.
+ *
+ * - 첫 렌더: `start` (기본 0) → `target` 카운트업.
+ * - 이후 `target` 이 바뀔 때는 **현재 표시값 → 새 target** 으로 부드럽게 이행.
+ *   (SSE 등 실시간 업데이트에서 매번 0 부터 다시 애니메이션해 "spinner" 처럼
+ *    보이는 문제를 막는다.)
  */
 export function useCountUp({
   target,
@@ -33,12 +36,15 @@ export function useCountUp({
   easing = easeOutExpo,
 }: UseCountUpOptions): number {
   const [current, setCurrent] = useState<number>(start);
+  const currentRef = useRef<number>(start);
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 매 렌더 시점의 최신 current 를 ref 에 스냅샷 — effect 안에서 from 값으로 사용.
+  currentRef.current = current;
+
   useEffect(() => {
-    // Cancel any previous animation
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
     }
@@ -46,11 +52,10 @@ export function useCountUp({
       clearTimeout(delayTimerRef.current);
     }
 
-    const startValue = start;
-    const diff = target - startValue;
+    const fromValue = currentRef.current;
+    const diff = target - fromValue;
 
     if (diff === 0) {
-      // Use rAF to avoid calling setState synchronously in an effect
       const id = requestAnimationFrame(() => setCurrent(target));
       return () => cancelAnimationFrame(id);
     }
@@ -65,7 +70,7 @@ export function useCountUp({
         const elapsed = timestamp - startTimeRef.current;
         const progress = Math.min(elapsed / duration, 1);
         const easedProgress = easing(progress);
-        const value = startValue + diff * easedProgress;
+        const value = fromValue + diff * easedProgress;
         setCurrent(value);
 
         if (progress < 1) {
@@ -90,7 +95,9 @@ export function useCountUp({
         clearTimeout(delayTimerRef.current);
       }
     };
-  }, [target, duration, delay, start, easing]);
+    // `start` 는 첫 마운트의 초기값으로만 의미가 있으므로 dep 에서 제외.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, duration, delay, easing]);
 
   return current;
 }
