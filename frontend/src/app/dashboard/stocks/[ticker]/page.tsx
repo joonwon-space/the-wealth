@@ -5,12 +5,13 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatKRW, formatUSD, formatRate } from "@/lib/format";
+import { formatKRW, formatUSD } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PnLBadge } from "@/components/PnLBadge";
 import { CandlestickChart } from "@/components/DynamicCharts";
 import { ChartSkeleton } from "@/components/ChartSkeleton";
+import { RangeIndicator } from "@/components/range-indicator";
 
 const PERIODS = ["1M", "3M", "6M", "1Y", "3Y"] as const;
 
@@ -137,11 +138,6 @@ export default function StockDetailPage() {
   const isUSD = detail.currency === "USD";
   const fmt = isUSD ? formatUSD : formatKRW;
 
-  const w52Range =
-    detail.w52_high && detail.w52_low && detail.current_price
-      ? ((detail.current_price - detail.w52_low) / (detail.w52_high - detail.w52_low)) * 100
-      : null;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -174,8 +170,8 @@ export default function StockDetailPage() {
       )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">시가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.open ? fmt(detail.open) : "—"}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">고가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#e31f26]">{detail.high ? fmt(detail.high) : "—"}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">저가</p><p className="mt-1 font-medium tabular-nums text-sm text-[#1a56db]">{detail.low ? fmt(detail.low) : "—"}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">고가</p><p className="mt-1 font-medium tabular-nums text-sm text-rise">{detail.high ? fmt(detail.high) : "—"}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">저가</p><p className="mt-1 font-medium tabular-nums text-sm text-fall">{detail.low ? fmt(detail.low) : "—"}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">전일 종가</p><p className="mt-1 font-medium tabular-nums text-sm">{detail.prev_close ? fmt(detail.prev_close) : "—"}</p></CardContent></Card>
       </div>
 
@@ -237,25 +233,18 @@ export default function StockDetailPage() {
         <section className="space-y-1">
           <h2 className="text-base font-semibold">52주 범위</h2>
           <Card>
-            <CardContent className="p-4 space-y-4">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{detail.w52_low ? fmt(detail.w52_low) : "—"}</span>
-                <span>{detail.w52_high ? fmt(detail.w52_high) : "—"}</span>
-              </div>
-              {w52Range != null ? (
-                <div className="relative h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="absolute left-0 top-0 h-full rounded-full bg-primary"
-                    style={{ width: `${Math.min(Math.max(w52Range, 0), 100)}%` }}
-                  />
-                </div>
+            <CardContent className="p-4">
+              {detail.w52_low != null &&
+              detail.w52_high != null &&
+              detail.current_price != null ? (
+                <RangeIndicator
+                  low={detail.w52_low}
+                  high={detail.w52_high}
+                  current={detail.current_price}
+                  formatValue={(v) => fmt(v)}
+                />
               ) : (
                 <p className="text-sm text-muted-foreground">데이터 없음</p>
-              )}
-              {w52Range != null && (
-                <p className="text-xs text-center text-muted-foreground">
-                  52주 범위의 {formatRate(w52Range)}% 위치
-                </p>
               )}
             </CardContent>
           </Card>
@@ -277,6 +266,35 @@ export default function StockDetailPage() {
             </Card>
           )}
         </section>
+      </div>
+
+      {/* Mobile sticky 매수/매도 CTA — 탭바(56px) 위 여유(10px). 데스크탑은 숨김. */}
+      <div
+        className="fixed inset-x-0 bottom-16 z-30 flex gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur md:hidden"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
+      >
+        <button
+          type="button"
+          className="flex-1 rounded-xl bg-rise py-3 text-sm font-bold text-white active:opacity-90"
+          onClick={() => {
+            // Step 6 의 buy/sell은 기존 OrderDialog 재사용 — 실제 dialog 연결은
+            // 포트폴리오 상세의 매수/매도 버튼 패턴을 Step 7 에서 통합한다.
+            window.dispatchEvent(new CustomEvent("the-wealth:order", { detail: { ticker, action: "BUY" } }));
+          }}
+          aria-label="매수 주문"
+        >
+          매수
+        </button>
+        <button
+          type="button"
+          className="flex-1 rounded-xl bg-fall py-3 text-sm font-bold text-white active:opacity-90"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent("the-wealth:order", { detail: { ticker, action: "SELL" } }));
+          }}
+          aria-label="매도 주문"
+        >
+          매도
+        </button>
       </div>
     </div>
   );
