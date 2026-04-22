@@ -7,7 +7,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePendingOrders } from "@/hooks/useOrders";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectorBar } from "@/components/sector-bar";
 import { Badge } from "@/components/ui/badge";
@@ -113,87 +112,71 @@ export default function PortfolioDetailPage() {
         onTogglePendingOrders={() => setShowPendingOrders((v) => !v)}
       />
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">개요</TabsTrigger>
-          <TabsTrigger value="holdings">보유</TabsTrigger>
-          <TabsTrigger value="transactions">거래내역</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        {/* 보유 */}
+        <HoldingsSection portfolioId={portfolioId} isKisConnected={isKisConnected} />
 
-        <TabsContent value="overview" className="space-y-4">
-          <section className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-section-header">섹터 현재 vs 목표</h2>
-              <Link
-                href={`/dashboard/rebalance?portfolio=${portfolioId}`}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                리밸런싱 상세
-                <ArrowRight className="size-3" />
-              </Link>
-            </div>
-            <Card>
-              <CardContent className="space-y-3 p-4">
-                {(() => {
-                  // API가 아직 응답 전이거나 비정상 페이로드 (mock/빈 배열 등) 를
-                  // 안전하게 처리. rows 가 배열 형태일 때만 실제 목록을 그린다.
-                  const rows = Array.isArray(rebalance?.rows)
-                    ? rebalance.rows
-                    : [];
-                  if (rows.length === 0) {
-                    return (
-                      <div className="py-6 text-center text-sm text-muted-foreground">
-                        목표 비중이 설정되지 않았습니다.{" "}
-                        <Link
-                          href={`/dashboard/rebalance?portfolio=${portfolioId}`}
-                          className="text-primary hover:underline"
-                        >
-                          지금 설정하기
-                        </Link>
-                        .
-                      </div>
-                    );
-                  }
-                  const overCount = rows.filter(
-                    (r) => r.suggested_action !== "HOLD",
-                  ).length;
+        {/* 개요 — 섹터 현재 vs 목표 */}
+        <section className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Link
+              href={`/dashboard/rebalance?portfolio=${portfolioId}`}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              리밸런싱 상세
+              <ArrowRight className="size-3" />
+            </Link>
+          </div>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              {(() => {
+                const rows = Array.isArray(rebalance?.rows) ? rebalance.rows : [];
+                if (rows.length === 0) {
                   return (
-                    <>
-                      {rows.slice(0, 6).map((r, i) => (
-                        <SectorBar
-                          key={r.sector}
-                          sector={r.sector}
-                          pct={r.current_pct}
-                          target={r.target_pct}
-                          color={SECTOR_COLORS[i % SECTOR_COLORS.length]}
-                        />
-                      ))}
-                      {overCount > 0 && (
-                        <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                          <span className="text-muted-foreground">임계치 초과 섹터</span>
-                          <Badge tone="warn">{overCount}개</Badge>
-                        </div>
-                      )}
-                    </>
+                    <div className="py-6 text-center text-sm text-muted-foreground">
+                      목표 비중이 설정되지 않았습니다.{" "}
+                      <Link
+                        href={`/dashboard/rebalance?portfolio=${portfolioId}`}
+                        className="text-primary hover:underline"
+                      >
+                        지금 설정하기
+                      </Link>
+                      .
+                    </div>
                   );
-                })()}
-              </CardContent>
-            </Card>
-          </section>
-        </TabsContent>
+                }
+                const overCount = rows.filter((r) => r.suggested_action !== "HOLD").length;
+                return (
+                  <>
+                    {rows.slice(0, 6).map((r, i) => (
+                      <SectorBar
+                        key={r.sector}
+                        sector={r.sector}
+                        pct={r.current_pct}
+                        target={r.target_pct}
+                        color={SECTOR_COLORS[i % SECTOR_COLORS.length]}
+                      />
+                    ))}
+                    {overCount > 0 && (
+                      <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
+                        <span className="text-muted-foreground">임계치 초과 섹터</span>
+                        <Badge tone="warn">{overCount}개</Badge>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </section>
 
-        <TabsContent value="holdings">
-          <HoldingsSection portfolioId={portfolioId} isKisConnected={isKisConnected} />
-        </TabsContent>
-
-        <TabsContent value="transactions">
-          <TransactionSection
-            portfolioId={portfolioId}
-            holdings={holdings}
-            isKisConnected={isKisConnected}
-          />
-        </TabsContent>
-      </Tabs>
+        {/* 거래내역 */}
+        <TransactionSection
+          portfolioId={portfolioId}
+          holdings={holdings}
+          isKisConnected={isKisConnected}
+        />
+      </div>
     </div>
   );
 }

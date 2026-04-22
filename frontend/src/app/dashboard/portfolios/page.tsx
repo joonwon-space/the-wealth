@@ -116,7 +116,7 @@ function SortablePortfolioRow({
         <Wallet className="h-4 w-4 text-primary" />
       </div>
 
-      {/* 이름 + 통화 */}
+      {/* 이름 + 통화 + 모바일 통계 */}
       <div className="flex-1 min-w-0">
         {isEditing ? (
           <div className="flex items-center gap-1">
@@ -164,10 +164,31 @@ function SortablePortfolioRow({
             </button>
           </div>
         )}
-        <p className="text-xs text-muted-foreground">{portfolio.currency}</p>
+        <p className="text-xs text-muted-foreground">{portfolio.currency} · {portfolio.holdings_count}개 종목</p>
+        {/* 모바일 전용 통계 */}
+        <div className="flex sm:hidden items-center gap-2 mt-1 text-xs tabular-nums">
+          <span className="font-medium">
+            {portfolio.market_value_krw != null ? formatKRW(portfolio.market_value_krw) : "—"}
+          </span>
+          <span
+            className={
+              portfolio.pnl_rate != null
+                ? Number(portfolio.pnl_rate) > 0
+                  ? "text-rise"
+                  : Number(portfolio.pnl_rate) < 0
+                    ? "text-fall"
+                    : "text-muted-foreground"
+                : "text-muted-foreground"
+            }
+          >
+            {portfolio.pnl_amount_krw != null
+              ? `${Number(portfolio.pnl_rate) > 0 ? "+" : ""}${formatRate(portfolio.pnl_rate)}%`
+              : "—"}
+          </span>
+        </div>
       </div>
 
-      {/* 통계 */}
+      {/* 데스크톱 통계 */}
       <div className="hidden sm:flex flex-col items-end text-xs tabular-nums shrink-0 gap-0.5">
         <span className="text-muted-foreground">{portfolio.holdings_count}개 종목</span>
         <span className="text-foreground font-medium">
