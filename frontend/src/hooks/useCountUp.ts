@@ -5,19 +5,26 @@ import { useEffect, useRef, useState } from "react";
 interface UseCountUpOptions {
   /** Target value to animate to */
   target: number;
-  /** Animation duration in milliseconds (default: 1200) */
+  /** Animation duration in milliseconds (default: 700) */
   duration?: number;
   /** Delay before starting in milliseconds (default: 0) */
   delay?: number;
   /** Start value (default: 0) */
   start?: number;
-  /** Easing function (default: easeOutExpo) */
+  /** Easing function (default: linear — all digits climb at the same rate) */
   easing?: (t: number) => number;
 }
 
-/** Ease-out expo: fast start, smooth deceleration */
-function easeOutExpo(t: number): number {
-  return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+/**
+ * Linear easing.
+ *
+ * 비선형 이징(예: easeOutExpo)을 쓰면 보간값이 초반에 target 근처로 급히
+ * 도달해서 높은 자리수는 일찍 확정되고 낮은 자리수만 계속 바뀌는
+ * "위에서부터 순서대로 올라가는" 착시가 생긴다. linear 를 쓰면
+ * 모든 자리가 균일한 속도로 함께 증가한다.
+ */
+function linear(t: number): number {
+  return t;
 }
 
 /**
@@ -30,10 +37,10 @@ function easeOutExpo(t: number): number {
  */
 export function useCountUp({
   target,
-  duration = 1200,
+  duration = 700,
   delay = 0,
   start = 0,
-  easing = easeOutExpo,
+  easing = linear,
 }: UseCountUpOptions): number {
   const [current, setCurrent] = useState<number>(start);
   const currentRef = useRef<number>(start);
