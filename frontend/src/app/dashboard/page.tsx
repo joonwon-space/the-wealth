@@ -21,7 +21,6 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
-import { useCountUp } from "@/hooks/useCountUp";
 import { useInvestMode } from "@/hooks/useInvestMode";
 import { useAuthStore } from "@/store/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -363,10 +362,7 @@ export default function DashboardPage() {
 
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
-  const animatedTotalAsset = useCountUp({
-    target: summary?.total_asset ?? 0,
-    duration: 300,
-  });
+  const animatedTotalAsset = summary?.total_asset ?? 0;
 
   if (isLoading) {
     return (
