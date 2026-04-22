@@ -34,7 +34,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="fixed right-4 top-3 z-40 md:right-6">
         <NotificationBell />
       </div>
-      <main className="flex-1 overflow-y-auto p-4 pr-14 pt-14 pb-20 md:p-6 md:pr-16 md:pt-6 md:pb-6">{children}</main>
+      <main
+        // 모바일: 탭바(56px) + safe-area 여유. 데스크탑(md 이상): 일반 패딩.
+        className="flex-1 overflow-y-auto p-4 pr-14 pt-14 pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:p-6 md:pr-16 md:pt-6 md:pb-6"
+      >
+        {children}
+      </main>
       <BottomNav />
       <StockSearchDialog
         open={searchOpen}
