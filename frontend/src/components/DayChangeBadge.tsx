@@ -9,7 +9,7 @@ interface Props {
 
 /**
  * 전일 대비 배지 — ▲ +2.3% / ▼ -1.5% 형식.
- * 한국 증시 컬러: 상승 = text-red-500 (#e31f26), 하락 = text-blue-500 (#1a56db).
+ * 한국 증시 컬러: 상승 = text-rise (var(--rise)), 하락 = text-fall (var(--fall)).
  * pct가 null/undefined면 null을 반환하여 아무것도 렌더링하지 않음.
  */
 export function DayChangeBadge({ pct }: Props) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Download, Loader2, RefreshCw, Target, X } from "lucide-react";
+import { Check, Download, Loader2, Pencil, RefreshCw, Target, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW } from "@/lib/format";
@@ -160,7 +160,7 @@ export function PortfolioHeader({
               >
                 미체결 주문
                 {pendingOrdersCount > 0 && (
-                  <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] text-white">
+                  <span className="ml-1 rounded-full bg-rise px-1.5 text-[10px] text-white">
                     {pendingOrdersCount}
                   </span>
                 )}
@@ -237,7 +237,13 @@ export function PortfolioHeader({
                 <Target className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">목표 달성률</span>
                 {isAchieved && (
-                  <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 dark:bg-green-900/30 dark:text-green-400">
+                  <span
+                    className="text-xs rounded-full px-2 py-0.5"
+                    style={{
+                      background: "color-mix(in oklch, var(--chart-8) 15%, transparent)",
+                      color: "var(--chart-8)",
+                    }}
+                  >
                     달성!
                   </span>
                 )}
@@ -259,7 +265,7 @@ export function PortfolioHeader({
                   <button
                     onClick={handleTargetSave}
                     disabled={updateTargetMutation.isPending}
-                    className="p-1 text-green-600 hover:text-green-700"
+                    className="p-1 text-primary hover:opacity-80"
                   >
                     <Check className="h-3.5 w-3.5" />
                   </button>
@@ -277,9 +283,9 @@ export function PortfolioHeader({
                     setEditingTarget(true);
                   }}
                   className="p-1 text-muted-foreground hover:text-foreground"
+                  aria-label="목표 금액 편집"
                 >
-                  <span className="sr-only">목표 금액 편집</span>
-                  ✏️
+                  <Pencil className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>

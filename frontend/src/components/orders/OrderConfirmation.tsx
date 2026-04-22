@@ -94,7 +94,7 @@ export function OrderConfirmation({
           {isBuy && estimatedAvgPrice !== null && heldQuantity > 0 && (
             <div className="flex justify-between text-xs text-muted-foreground border-t pt-2">
               <span>예상 평단가</span>
-              <span className={avgPriceDiff !== null && avgPriceDiff > 0 ? "text-red-600" : "text-blue-600"}>
+              <span className={avgPriceDiff !== null && avgPriceDiff > 0 ? "text-rise" : "text-fall"}>
                 {formatKRW(heldAvgPrice)} → {formatKRW(estimatedAvgPrice)}
               </span>
             </div>
@@ -103,7 +103,7 @@ export function OrderConfirmation({
           {!isBuy && realizedPnl !== null && (
             <div className="flex justify-between text-xs border-t pt-2">
               <span className="text-muted-foreground">예상 실현손익</span>
-              <span className={realizedPnl >= 0 ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
+              <span className={realizedPnl >= 0 ? "text-rise font-medium" : "text-fall font-medium"}>
                 {realizedPnl >= 0 ? "+" : ""}{formatKRW(realizedPnl)}
                 {realizedPnlRate !== null && (
                   <span className="ml-1">

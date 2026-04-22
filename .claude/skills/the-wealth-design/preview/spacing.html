@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; }
+  .row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 12px; font-family: var(--font-mono); color: var(--muted-foreground);}
+  .bar { background: var(--primary); height: 14px; border-radius: 4px; }
+  .label { min-width: 70px; }
+</style>
+</head>
+<body class="tw-body">
+  <div class="row"><span class="label">space-1</span><div class="bar" style="width:4px"></div><span>4px</span></div>
+  <div class="row"><span class="label">space-2</span><div class="bar" style="width:8px"></div><span>8px</span></div>
+  <div class="row"><span class="label">space-3</span><div class="bar" style="width:12px"></div><span>12px · 카드 내부 padding-sm</span></div>
+  <div class="row"><span class="label">space-4</span><div class="bar" style="width:16px"></div><span>16px · 카드 padding 기본</span></div>
+  <div class="row"><span class="label">space-6</span><div class="bar" style="width:24px"></div><span>24px · 섹션 gap</span></div>
+  <div class="row"><span class="label">space-8</span><div class="bar" style="width:32px"></div><span>32px · 섹션 gap-lg</span></div>
+  <div class="row"><span class="label">space-12</span><div class="bar" style="width:48px"></div><span>48px · page gutter</span></div>
+</body>
+</html>

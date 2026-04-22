@@ -179,9 +179,9 @@ function SortablePortfolioRow({
           className={
             portfolio.pnl_rate != null
               ? Number(portfolio.pnl_rate) > 0
-                ? "text-red-500"
+                ? "text-rise"
                 : Number(portfolio.pnl_rate) < 0
-                  ? "text-blue-500"
+                  ? "text-fall"
                   : "text-muted-foreground"
               : "text-muted-foreground"
           }

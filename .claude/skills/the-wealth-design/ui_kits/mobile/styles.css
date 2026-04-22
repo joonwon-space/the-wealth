@@ -1,0 +1,80 @@
+/* Mobile UI kit — iOS-ish phone frame */
+.tw-phone {
+  width: 390px;
+  height: 780px;
+  background: var(--background);
+  border-radius: 48px;
+  box-shadow: 0 0 0 10px #111, 0 0 0 12px #2a2a2a, 0 30px 60px rgba(0,0,0,0.25);
+  margin: 20px auto;
+  overflow: hidden;
+  position: relative;
+  display: flex; flex-direction: column;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+.tw-phone::before {
+  content:""; position:absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 110px; height: 30px; background: #000; border-radius: 18px; z-index: 50;
+}
+.tw-statusbar {
+  height: 48px; padding: 18px 28px 0;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size: 14px; font-weight: 600; flex-shrink: 0;
+}
+.tw-statusbar .r { display:flex; gap: 6px; align-items:center; }
+.tw-statusbar svg { width: 16px; height: 16px; }
+
+.tw-mhead { padding: 10px 20px 8px; display:flex; justify-content:space-between; align-items:center; }
+.tw-mhead h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.tw-mhead .actions { display:flex; gap: 4px; }
+.tw-mhead button { width: 34px; height: 34px; border: 0; background: transparent; color: var(--foreground); border-radius: 50%; display:flex; align-items:center; justify-content:center;}
+.tw-mhead button:active { background: var(--accent); }
+
+.tw-mscroll { flex: 1; overflow-y: auto; padding: 0 20px 80px; }
+
+.tw-hero {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+}
+.tw-hero .lbl { font-size: 12px; color: var(--muted-foreground); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+.tw-hero .val { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.tw-hero .delta { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.tw-hero .row { display:flex; gap: 8px; margin-top: 12px; }
+.tw-hero .mini { flex: 1; padding: 10px; background: var(--muted); border-radius: 12px; }
+.tw-hero .mini .mlbl { font-size: 11px; color: var(--muted-foreground); }
+.tw-hero .mini .mval { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+.tw-section-title { font-size: 15px; font-weight: 700; margin: 18px 4px 10px; display:flex; justify-content:space-between; align-items:center; }
+.tw-section-title a { color: var(--primary); font-size: 13px; font-weight: 500; text-decoration: none; }
+
+.tw-list { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.tw-list-item { padding: 14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); }
+.tw-list-item:last-child { border: 0; }
+.tw-list-item:active { background: var(--accent); }
+.tw-list-item .name { font-size: 15px; font-weight: 600; }
+.tw-list-item .code { font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); margin-top: 2px; }
+.tw-list-item .right { text-align: right; }
+.tw-list-item .price { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tw-list-item .rate { font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+.tw-tabbar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 70px; padding-bottom: 14px;
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  display:flex; justify-content: space-around; align-items:center;
+  z-index: 20;
+}
+.tw-tabbar button { border: 0; background: transparent; display:flex; flex-direction: column; align-items:center; gap: 2px; color: var(--muted-foreground); font-size: 10px; font-weight: 500; padding: 6px 8px; }
+.tw-tabbar button.active { color: var(--primary); }
+.tw-tabbar svg { width: 22px; height: 22px; stroke: currentColor; fill:none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;}
+
+.tw-alert-chip {
+  display:flex; align-items:center; gap: 8px;
+  padding: 8px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+}

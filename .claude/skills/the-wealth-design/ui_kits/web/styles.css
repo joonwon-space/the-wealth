@@ -1,0 +1,97 @@
+/* UI kit styles — scoped to dashboard */
+.tw-app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: 56px 1fr;
+  min-height: 100vh;
+}
+.tw-topbar {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 20px;
+  padding: 0 20px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 40;
+  backdrop-filter: blur(6px);
+  background-color: color-mix(in oklab, var(--background) 92%, transparent);
+}
+.tw-topbar-left { display:flex; align-items:center; gap: 14px; width: 240px; }
+.tw-logo { width: 28px; height: 28px; border-radius: 8px; background: var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; letter-spacing:-0.02em;}
+.tw-wordmark { font-weight: 700; font-size: 15px; letter-spacing: -0.02em;}
+.tw-crumbs { display:none; }
+.tw-topbar-search { flex:1; max-width: 460px; position: relative; color: var(--muted-foreground); }
+.tw-topbar-search svg { position:absolute; left: 10px; top: 50%; transform: translateY(-50%); }
+.tw-topbar-search input { width:100%; box-sizing: border-box; height: 34px; padding: 0 40px 0 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--muted); color: var(--foreground); font-family: var(--font-sans); font-size: 13px; }
+.tw-topbar-search input:focus { outline:none; border-color: var(--primary); background: var(--background); }
+.tw-kbd { position:absolute; right: 8px; top:50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); background: var(--background); padding: 2px 6px; border-radius: 4px; border:1px solid var(--border); }
+.tw-topbar-right { display:flex; align-items:center; gap: 6px; margin-left: auto; }
+.tw-iconbtn { width: 34px; height: 34px; border-radius: 8px; border: 0; background: transparent; color: var(--foreground); cursor: pointer; display:flex; align-items:center; justify-content:center; position: relative; transition: background .15s ease-out; }
+.tw-iconbtn:hover { background: var(--accent); }
+.tw-dot { position: absolute; top: 8px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--rise); }
+.tw-avatar { width: 30px; height: 30px; border-radius: 50%; background: color-mix(in oklab, var(--primary) 18%, transparent); color: var(--primary); display:flex; align-items:center; justify-content:center; font-size: 13px; font-weight: 600; }
+
+.tw-side {
+  border-right: 1px solid var(--border);
+  padding: 14px 12px;
+  display:flex; flex-direction: column;
+}
+.tw-side ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+.tw-side-item {
+  display:flex; align-items:center; gap: 12px;
+  padding: 8px 10px; border-radius: 8px;
+  color: var(--muted-foreground); font-size: 14px; cursor: pointer;
+  transition: background .15s ease-out, color .15s ease-out;
+}
+.tw-side-item:hover { background: var(--accent); color: var(--foreground); }
+.tw-side-item svg { width: 18px; height: 18px; stroke: currentColor; fill:none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;}
+.tw-side-active { background: color-mix(in oklab, var(--primary) 10%, transparent); color: var(--primary); font-weight: 500; }
+.tw-side-active:hover { background: color-mix(in oklab, var(--primary) 14%, transparent); color: var(--primary); }
+.tw-side-footer { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.tw-side-sync { display:flex; align-items:center; gap: 10px; padding: 6px 10px; }
+.tw-side-sync svg { color: var(--chart-8); }
+
+.tw-main { padding: 20px 24px; max-width: 1440px; width: 100%; box-sizing:border-box; }
+.tw-page-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom: 16px; }
+.tw-page-head h1 { font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+.tw-page-head .tw-small { margin-top: 4px; }
+
+.tw-statrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.tw-stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.tw-stat-label { font-size: 11px; color: var(--muted-foreground); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+.tw-stat-val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; margin-top: 4px; }
+.tw-stat-delta { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.tw-stat-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 6px; }
+
+.tw-grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+.tw-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.tw-card-head { display:flex; align-items:flex-start; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+.tw-card-head .tw-h3 { margin: 0; }
+.tw-card-actions { display:flex; gap: 6px; }
+.tw-btn { display:inline-flex; align-items:center; gap: 6px; height: 30px; padding: 0 12px; font-family: var(--font-sans); font-size: 13px; font-weight: 500; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--foreground); cursor: pointer; transition: background .15s ease-out;}
+.tw-btn-ghost { color: var(--muted-foreground); }
+.tw-btn-ghost:hover { background: var(--accent); color: var(--foreground); }
+.tw-btn-primary { background: var(--primary); color: var(--primary-foreground); }
+.tw-btn-primary:hover { background: color-mix(in oklab, var(--primary) 90%, black); }
+
+.tw-tabs { display:flex; gap: 2px; padding: 2px; background: var(--muted); border-radius: 8px; }
+.tw-tab { border: 0; background: transparent; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; color: var(--muted-foreground); cursor: pointer; }
+.tw-tab-active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-sm); }
+
+.tw-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tw-table th { text-align: right; padding: 8px 10px; font-size: 11px; font-weight: 500; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+.tw-table td { text-align: right; padding: 10px; border-bottom: 1px solid var(--border); }
+.tw-table tbody tr:hover { background: color-mix(in oklab, var(--muted) 60%, transparent); }
+.tw-table tbody tr:last-child td { border-bottom: 0; }
+.tw-holding-name { font-weight: 600; font-size: 14px; }
+.tw-holding-code { font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); }
+.tw-chip { font-size: 11px; padding: 2px 8px; background: var(--muted); border-radius: 6px; color: var(--muted-foreground); font-weight: 500; }
+
+.tw-legend { list-style: none; padding: 0; margin: 0; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+.tw-legend li { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 10px; }
+.tw-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+.tw-legend-val { font-variant-numeric: tabular-nums; color: var(--muted-foreground); font-weight: 600; }
+
+.tw-watch { list-style: none; padding: 0; margin: 0; }
+.tw-watch li { display:flex; justify-content:space-between; align-items:center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.tw-watch li:last-child { border: 0; }

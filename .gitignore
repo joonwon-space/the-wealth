@@ -23,6 +23,11 @@ frontend/.env.local
 
 # Claude Code runtime
 .claude/scheduled_tasks.lock
+.claude/settings.local.json
+
+# Skill-bundled font binaries (Pretendard is loaded from CDN in the app)
+.claude/skills/the-wealth-design/fonts/
+.claude/skills/the-wealth-design/uploads/
 
 # Playwright MCP
 .playwright-mcp/

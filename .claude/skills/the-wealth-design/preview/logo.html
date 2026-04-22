@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--background); }
+  .card { border: 1px solid var(--border); border-radius: 12px; padding: 20px; display:flex; align-items:center; gap: 12px; background: var(--card); }
+  .wordmark { font-size: 14px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: var(--foreground); }
+  .dark-card { background: oklch(0.13 0.01 250); border-color: oklch(1 0 0 / 10%); }
+  .dark-card .wordmark { color: oklch(0.94 0.005 250); }
+  small { display:block; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); margin-top: 8px; }
+  .lg { padding: 28px; gap: 14px; }
+  .lg .wordmark { font-size: 18px; letter-spacing: 0.28em; }
+  .diamond { flex-shrink: 0; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="card lg">
+      <svg class="diamond" width="28" height="28" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 2L17 8L10 18L3 8L10 2Z" fill="#1e90ff" fill-opacity="0.9"/>
+        <path d="M10 2L17 8H3L10 2Z" fill="#1e90ff" fill-opacity="0.5"/>
+      </svg>
+      <div class="wordmark">THE WEALTH</div>
+    </div>
+    <small>Light · diamond mark (dodger blue) + wordmark, letter-spacing 0.22em</small>
+  </div>
+  <div>
+    <div class="card dark-card lg">
+      <svg class="diamond" width="28" height="28" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 2L17 8L10 18L3 8L10 2Z" fill="#1e90ff" fill-opacity="0.9"/>
+        <path d="M10 2L17 8H3L10 2Z" fill="#1e90ff" fill-opacity="0.5"/>
+      </svg>
+      <div class="wordmark">THE WEALTH</div>
+    </div>
+    <small>Dark · identical mark, inverted canvas (deep slate)</small>
+  </div>
+  <div>
+    <div class="card">
+      <svg class="diamond" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 2L17 8L10 18L3 8L10 2Z" fill="#1e90ff" fill-opacity="0.9"/>
+        <path d="M10 2L17 8H3L10 2Z" fill="#1e90ff" fill-opacity="0.5"/>
+      </svg>
+      <div class="wordmark" style="font-size:12px">THE WEALTH</div>
+    </div>
+    <small>Sidebar size · 20×20, actual production spec</small>
+  </div>
+  <div>
+    <div class="card">
+      <svg class="diamond" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 2L17 8L10 18L3 8L10 2Z" fill="#1e90ff" fill-opacity="0.9"/>
+      </svg>
+      <svg class="diamond" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" style="opacity:.6">
+        <path d="M10 2L17 8L10 18L3 8L10 2Z" fill="#1e90ff" fill-opacity="0.9"/>
+        <path d="M10 2L17 8H3L10 2Z" fill="#1e90ff" fill-opacity="0.5"/>
+      </svg>
+      <svg class="diamond" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" style="opacity:.3">
+        <path d="M10 2L17 8L10 18L3 8L10 2Z" fill="#1e90ff" fill-opacity="0.9"/>
+        <path d="M10 2L17 8H3L10 2Z" fill="#1e90ff" fill-opacity="0.5"/>
+      </svg>
+    </div>
+    <small>Mark alone · solid / two-tone / fade variants</small>
+  </div>
+</body>
+</html>

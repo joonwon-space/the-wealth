@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .tile { background: var(--card); border: 1px solid var(--border); padding: 16px; display:flex; flex-direction: column; justify-content: space-between; height: 92px; }
+  .tile b { font-size: 12px; }
+  .tile small { font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); }
+  .r-sm { border-radius: 6px; }
+  .r-md { border-radius: 8px; }
+  .r-lg { border-radius: 10px; }
+  .r-xl { border-radius: 16px; }
+  .sh-sm { box-shadow: var(--shadow-sm); }
+  .sh-md { box-shadow: var(--shadow-md); }
+  .sh-lg { box-shadow: var(--shadow-lg); }
+</style>
+</head>
+<body class="tw-body">
+  <div class="tile r-sm"><b>rounded-sm</b><small>6px</small></div>
+  <div class="tile r-md"><b>rounded-md</b><small>8px</small></div>
+  <div class="tile r-lg"><b>rounded-lg</b><small>10px · 기본 카드</small></div>
+  <div class="tile r-xl"><b>rounded-xl</b><small>16px · 모바일 카드</small></div>
+  <div class="tile r-lg sh-sm"><b>shadow-sm</b><small>카드 기본</small></div>
+  <div class="tile r-lg sh-md"><b>shadow-md</b><small>popover / dropdown</small></div>
+  <div class="tile r-lg sh-lg"><b>shadow-lg</b><small>modal</small></div>
+  <div class="tile r-lg" style="border:none;background:var(--muted)"><b>no-shadow</b><small>inline card</small></div>
+</body>
+</html>

@@ -216,11 +216,11 @@ export function OrderDialog({
   }
 
   const isBuy = activeTab === "BUY";
-  // 한국 컬러 컨벤션: 매수=빨간색, 매도=파란색
+  // 한국 컬러 컨벤션: 매수=빨간색(--rise), 매도=파란색(--fall)
   const actionColor = isBuy
-    ? "bg-red-500 hover:bg-red-600 text-white"
-    : "bg-blue-600 hover:bg-blue-700 text-white";
-  const labelColor = isBuy ? "text-red-600" : "text-blue-600";
+    ? "bg-rise hover:bg-rise/90 text-white"
+    : "bg-fall hover:bg-fall/90 text-white";
+  const labelColor = isBuy ? "text-rise" : "text-fall";
 
   if (successMessage) {
     return (
@@ -234,7 +234,7 @@ export function OrderDialog({
             <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 py-2 mb-3">
               잔여 예수금: <span className="font-medium text-foreground">{formatKRW(availableCash)}</span>
               {pendingCash > 0 && (
-                <span className="ml-2 text-amber-600">(대기 중: {formatKRW(pendingCash)})</span>
+                <span className="ml-2 text-accent-amber">(대기 중: {formatKRW(pendingCash)})</span>
               )}
             </div>
           )}

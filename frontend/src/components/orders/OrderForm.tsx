@@ -100,7 +100,7 @@ export function OrderForm({
           {heldPnlAmount !== null && heldPnlRate !== null && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">평가손익</span>
-              <span className={heldPnlAmount >= 0 ? "font-medium text-red-600" : "font-medium text-blue-600"}>
+              <span className={heldPnlAmount >= 0 ? "font-medium text-rise" : "font-medium text-fall"}>
                 {heldPnlAmount >= 0 ? "+" : ""}{formatKRW(heldPnlAmount)}
                 {" "}({heldPnlRate >= 0 ? "+" : ""}{heldPnlRate.toFixed(1)}%)
               </span>
@@ -111,10 +111,10 @@ export function OrderForm({
 
       <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as OrderType)}>
         <TabsList className="w-full">
-          <TabsTrigger value="BUY" className="flex-1 data-[state=active]:text-red-600">
+          <TabsTrigger value="BUY" className="flex-1 data-[state=active]:text-rise">
             매수
           </TabsTrigger>
-          <TabsTrigger value="SELL" className="flex-1 data-[state=active]:text-blue-600">
+          <TabsTrigger value="SELL" className="flex-1 data-[state=active]:text-fall">
             매도
           </TabsTrigger>
         </TabsList>
@@ -149,7 +149,7 @@ export function OrderForm({
                   <span className="font-medium">{formatKRW(availableCash)}</span>
                 </div>
                 {pendingCash > 0 && (
-                  <div className="flex justify-between text-amber-600">
+                  <div className="flex justify-between text-accent-amber">
                     <span>체결 대기 중</span>
                     <span className="font-medium">{formatKRW(pendingCash)}</span>
                   </div>
@@ -160,7 +160,7 @@ export function OrderForm({
                     <button
                       type="button"
                       onClick={onMaxQuantity}
-                      className="font-medium text-red-600 hover:text-red-800 underline underline-offset-2"
+                      className="font-medium text-rise hover:opacity-80 underline underline-offset-2"
                     >
                       {maxBuyQuantity.toLocaleString()}주
                     </button>
@@ -195,7 +195,7 @@ export function OrderForm({
                   <button
                     type="button"
                     onClick={onMaxQuantity}
-                    className="text-xs text-red-600 hover:text-red-800 font-medium"
+                    className="text-xs text-rise hover:opacity-80 font-medium"
                   >
                     최대 ({maxBuyQuantity.toLocaleString()}주)
                   </button>
@@ -204,7 +204,7 @@ export function OrderForm({
                   <button
                     type="button"
                     onClick={onSellAll}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    className="text-xs text-fall hover:opacity-80 font-medium"
                   >
                     전량 ({Math.floor(heldQuantity).toLocaleString()}주)
                   </button>
@@ -241,7 +241,7 @@ export function OrderForm({
             {tab === "BUY" && estimatedAvgPrice !== null && heldQuantity > 0 && parsedQuantity > 0 && (
               <div className="flex justify-between text-xs border rounded px-2 py-1.5 bg-muted/30">
                 <span className="text-muted-foreground">추가 매수 후 평단가</span>
-                <span className={avgPriceDiff !== null && avgPriceDiff > 0 ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
+                <span className={avgPriceDiff !== null && avgPriceDiff > 0 ? "text-rise font-medium" : "text-fall font-medium"}>
                   {formatKRW(heldAvgPrice)} → {formatKRW(estimatedAvgPrice)}
                   {avgPriceDiff !== null && (
                     <span className="ml-1 text-muted-foreground">
@@ -256,7 +256,7 @@ export function OrderForm({
             {tab === "SELL" && realizedPnl !== null && parsedQuantity > 0 && (
               <div className="flex justify-between text-xs border rounded px-2 py-1.5 bg-muted/30">
                 <span className="text-muted-foreground">예상 실현손익</span>
-                <span className={realizedPnl >= 0 ? "text-red-600 font-medium" : "text-blue-600 font-medium"}>
+                <span className={realizedPnl >= 0 ? "text-rise font-medium" : "text-fall font-medium"}>
                   {realizedPnl >= 0 ? "+" : ""}{formatKRW(realizedPnl)}
                   {realizedPnlRate !== null && (
                     <span className="ml-1">

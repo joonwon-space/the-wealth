@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  th { text-align: right; color: var(--muted-foreground); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td:first-child, th:first-child { text-align: left; }
+</style>
+</head>
+<body class="tw-body">
+  <table>
+    <thead><tr><th>종목</th><th>현재가</th><th>평가금액</th><th>수익률</th></tr></thead>
+    <tbody>
+      <tr><td>삼성전자</td><td>₩71,200</td><td>₩8,900,000</td><td class="text-rise">+1.71%</td></tr>
+      <tr><td>NAVER</td><td>₩186,500</td><td>₩5,595,000</td><td class="text-fall">−1.11%</td></tr>
+      <tr><td>SK하이닉스</td><td>₩158,000</td><td>₩6,320,000</td><td class="text-muted-foreground">0.00%</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

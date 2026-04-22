@@ -179,7 +179,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
       {isKisConnected && (cashBalance || cashBalanceError) && (
         <div className="space-y-1.5">
           {cashBalanceError && (
-            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-2 text-xs text-accent-amber">
               <RefreshCw className="h-3 w-3" />
               <span>잔액 조회 실패 — 마지막 데이터 표시 중</span>
               <button onClick={() => void refetchCashBalance()} className="underline hover:no-underline">
@@ -215,18 +215,18 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
           <div className="rounded-lg border p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               {summary.pnlKrw >= 0 ? (
-                <TrendingUp className="h-3.5 w-3.5 text-red-500" />
+                <TrendingUp className="h-3.5 w-3.5 text-rise" />
               ) : (
-                <TrendingDown className="h-3.5 w-3.5 text-blue-500" />
+                <TrendingDown className="h-3.5 w-3.5 text-fall" />
               )}
               평가손익
             </div>
             {summary.hasPrices ? (
               <>
-                <div className={`font-semibold text-sm ${summary.pnlKrw >= 0 ? "text-red-600" : "text-blue-600"}`}>
+                <div className={`font-semibold text-sm ${summary.pnlKrw >= 0 ? "text-rise" : "text-fall"}`}>
                   {summary.pnlKrw >= 0 ? "+" : ""}{formatKRW(summary.pnlKrw)}
                 </div>
-                <div className={`text-xs ${summary.pnlRate >= 0 ? "text-red-500" : "text-blue-500"}`}>
+                <div className={`text-xs ${summary.pnlRate >= 0 ? "text-rise" : "text-fall"}`}>
                   {summary.pnlRate > 0 ? "+" : ""}{formatRate(summary.pnlRate)}%
                 </div>
               </>
@@ -246,7 +246,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
             <div className="font-semibold text-sm">{formatKRW(cashBalance.total_cash)}</div>
             <div className="text-xs text-muted-foreground">사용가능: {formatKRW(cashBalance.available_cash)}</div>
             {Number(cashBalance.total_cash) - Number(cashBalance.available_cash) > 0 && (
-              <div className="text-xs text-amber-600">
+              <div className="text-xs text-accent-amber">
                 대기 중: {formatKRW(String(Number(cashBalance.total_cash) - Number(cashBalance.available_cash)))}
               </div>
             )}
@@ -261,16 +261,16 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
           <div className="rounded-lg border p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               {Number(cashBalance.total_profit_loss) >= 0 ? (
-                <TrendingUp className="h-3.5 w-3.5 text-red-500" />
+                <TrendingUp className="h-3.5 w-3.5 text-rise" />
               ) : (
-                <TrendingDown className="h-3.5 w-3.5 text-blue-500" />
+                <TrendingDown className="h-3.5 w-3.5 text-fall" />
               )}
               평가손익
             </div>
-            <div className={`font-semibold text-sm ${Number(cashBalance.total_profit_loss) >= 0 ? "text-red-600" : "text-blue-600"}`}>
+            <div className={`font-semibold text-sm ${Number(cashBalance.total_profit_loss) >= 0 ? "text-rise" : "text-fall"}`}>
               {Number(cashBalance.total_profit_loss) >= 0 ? "+" : ""}{formatKRW(cashBalance.total_profit_loss)}
             </div>
-            <div className={`text-xs ${Number(cashBalance.profit_loss_rate) >= 0 ? "text-red-500" : "text-blue-500"}`}>
+            <div className={`text-xs ${Number(cashBalance.profit_loss_rate) >= 0 ? "text-rise" : "text-fall"}`}>
               {Number(cashBalance.profit_loss_rate) > 0 ? "+" : ""}{formatRate(cashBalance.profit_loss_rate)}%
             </div>
           </div>

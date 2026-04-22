@@ -108,7 +108,7 @@ export function HoldingsTableRow({
             <div className="text-xs text-muted-foreground">
               {h.ticker}
               {isUSD && (
-                <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                <span className="ml-1 rounded bg-accent px-1 text-accent-foreground">
                   USD
                 </span>
               )}
@@ -164,13 +164,13 @@ export function HoldingsTableRow({
                 <>
                   <button
                     onClick={() => handleOpenOrder("BUY")}
-                    className="rounded border px-2 py-0.5 text-xs font-medium text-red-600 border-red-200 hover:bg-red-50"
+                    className="rounded border px-2 py-0.5 text-xs font-medium text-rise border-rise/30 hover:bg-rise-soft"
                   >
                     매수
                   </button>
                   <button
                     onClick={() => handleOpenOrder("SELL")}
-                    className="rounded border px-2 py-0.5 text-xs font-medium text-blue-600 border-blue-200 hover:bg-blue-50"
+                    className="rounded border px-2 py-0.5 text-xs font-medium text-fall border-fall/30 hover:bg-fall-soft"
                   >
                     매도
                   </button>

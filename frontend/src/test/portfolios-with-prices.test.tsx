@@ -109,7 +109,7 @@ describe("PortfoliosPage — P&L display", () => {
     expect(statsSection.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("applies text-red-500 class for positive P&L (Korean profit convention)", async () => {
+  it("applies text-rise class for positive P&L (Korean profit convention)", async () => {
     mockWithPrices([
       {
         id: 3,
@@ -135,12 +135,12 @@ describe("PortfoliosPage — P&L display", () => {
       expect(screen.getByText("수익포트")).toBeDefined();
     });
 
-    // Profit P&L text element should have text-red-500
-    const redEl = container.querySelector(".text-red-500");
-    expect(redEl).not.toBeNull();
+    // Profit P&L text element should have the Korean-market rise token class
+    const riseEl = container.querySelector(".text-rise");
+    expect(riseEl).not.toBeNull();
   });
 
-  it("applies text-blue-500 class for negative P&L (Korean loss convention)", async () => {
+  it("applies text-fall class for negative P&L (Korean loss convention)", async () => {
     mockWithPrices([
       {
         id: 4,
@@ -166,9 +166,9 @@ describe("PortfoliosPage — P&L display", () => {
       expect(screen.getByText("손실포트")).toBeDefined();
     });
 
-    // Loss P&L text element should have text-blue-500
-    const blueEl = container.querySelector(".text-blue-500");
-    expect(blueEl).not.toBeNull();
+    // Loss P&L text element should have the Korean-market fall token class
+    const fallEl = container.querySelector(".text-fall");
+    expect(fallEl).not.toBeNull();
   });
 
   it("applies text-muted-foreground class for zero P&L", async () => {

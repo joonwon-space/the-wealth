@@ -124,7 +124,7 @@ export function PendingOrdersPanel({
           <TableBody>
             {orders.map((order) => {
               const isBuy = order.order_type === "BUY";
-              const typeColor = isBuy ? "text-red-600" : "text-blue-600";
+              const typeColor = isBuy ? "text-rise" : "text-fall";
               return (
                 <TableRow key={order.order_no}>
                   <TableCell>

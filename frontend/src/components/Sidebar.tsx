@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, BookOpen, GitCompare, Home, LogOut, Menu, Moon, Settings, Sun, Wallet, X } from "lucide-react";
@@ -17,27 +18,15 @@ const navItems = [
   { href: "/dashboard/settings", label: "설정", icon: Settings },
 ];
 
-// Diamond logo SVG for THE WEALTH brand
-function DiamondLogo() {
+function BrandMark() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M10 2L17 8L10 18L3 8L10 2Z"
-        fill="var(--accent-indigo)"
-        fillOpacity="0.9"
-      />
-      <path
-        d="M10 2L17 8H3L10 2Z"
-        fill="var(--accent-indigo)"
-        fillOpacity="0.5"
-      />
-    </svg>
+    <Image
+      src="/logo-mark.svg"
+      alt="The Wealth"
+      width={20}
+      height={20}
+      priority
+    />
   );
 }
 
@@ -66,7 +55,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       {/* Logo & brand */}
       <div className="mb-6 px-2 flex items-center gap-2.5">
-        <DiamondLogo />
+        <BrandMark />
         <span className="text-sm font-bold tracking-widest uppercase text-foreground">
           THE WEALTH
         </span>

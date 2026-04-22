@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; }
+  .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .sw { border-radius: 10px; height: 80px; border: 1px solid var(--border); display:flex; flex-direction:column; justify-content:flex-end; padding: 8px 10px; font-size: 11px; }
+  .sw b { font-size: 12px; font-weight: 600; display:block; }
+  .sw small { font-family: var(--font-mono); opacity: 0.7; }
+</style>
+</head>
+<body class="tw-body">
+  <div class="row">
+    <div class="sw" style="background:var(--background);color:var(--foreground)"><b>background</b><small>--background</small></div>
+    <div class="sw" style="background:var(--card);color:var(--card-foreground)"><b>card</b><small>--card</small></div>
+    <div class="sw" style="background:var(--muted);color:var(--foreground)"><b>muted</b><small>--muted</small></div>
+    <div class="sw" style="background:var(--accent);color:var(--foreground)"><b>accent</b><small>--accent</small></div>
+    <div class="sw" style="background:var(--border);color:var(--foreground)"><b>border</b><small>--border</small></div>
+    <div class="sw" style="background:var(--foreground);color:var(--background)"><b>foreground</b><small>--foreground</small></div>
+  </div>
+</body>
+</html>

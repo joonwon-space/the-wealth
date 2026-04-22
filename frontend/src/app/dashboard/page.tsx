@@ -95,7 +95,13 @@ interface StreamStatusBadgeProps {
 function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
   if (status === "connected") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+        style={{
+          background: "color-mix(in oklch, var(--primary) 12%, transparent)",
+          color: "var(--primary)",
+        }}
+      >
         <Wifi className="h-3 w-3" />
         실시간
       </span>
@@ -103,7 +109,13 @@ function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
   }
   if (status === "connecting") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+        style={{
+          background: "color-mix(in oklch, var(--accent-amber) 15%, transparent)",
+          color: "var(--accent-amber)",
+        }}
+      >
         <Loader2 className="h-3 w-3 animate-spin" />
         연결 중
       </span>
@@ -353,11 +365,18 @@ export default function DashboardPage() {
 
       {/* KIS API 일시 오류 배너 */}
       {s.kis_status === "degraded" && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+        <div
+          className="flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm"
+          style={{
+            borderColor: "color-mix(in oklch, var(--accent-amber) 40%, transparent)",
+            background: "color-mix(in oklch, var(--accent-amber) 12%, transparent)",
+            color: "var(--accent-amber)",
+          }}
+        >
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <span className="font-medium">KIS API 일시 오류</span>
-            <span className="ml-1 text-amber-700 dark:text-amber-400">
+            <span className="ml-1 opacity-80">
               — 가격 정보가 최신이 아닐 수 있습니다. 30초마다 자동으로 재시도합니다.
             </span>
           </div>

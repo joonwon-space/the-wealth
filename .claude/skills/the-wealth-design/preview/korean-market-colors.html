@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; display: flex; gap: 16px; }
+  .card { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .card .big { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 6px; }
+  .card .sub { font-size: 12px; color: var(--muted-foreground); margin-top: 2px; font-family: var(--font-mono); }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+</style>
+</head>
+<body class="tw-body">
+  <div class="card">
+    <span class="tag bg-rise" style="color:#fff">상승 RISE</span>
+    <div class="big text-rise">+3.24%</div>
+    <div class="sub">--rise &nbsp; #E31F26 / #FF4D4F</div>
+  </div>
+  <div class="card">
+    <span class="tag bg-fall" style="color:#fff">하락 FALL</span>
+    <div class="big text-fall">−1.08%</div>
+    <div class="sub">--fall &nbsp; #1A56DB / #4B8EF5</div>
+  </div>
+  <div class="card">
+    <span class="tag" style="background:var(--muted);color:var(--foreground)">보합 FLAT</span>
+    <div class="big text-muted-foreground">0.00%</div>
+    <div class="sub">--muted-foreground</div>
+  </div>
+</body>
+</html>

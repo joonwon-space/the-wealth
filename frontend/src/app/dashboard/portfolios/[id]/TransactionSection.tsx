@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { History, Trash2 } from "lucide-react";
+import { History, Trash2, TriangleAlert } from "lucide-react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatKRW, formatNumber } from "@/lib/format";
@@ -386,8 +386,15 @@ export function TransactionSection({ portfolioId, holdings, isKisConnected }: Tr
         {showKisHistory && (
           <>
             {holdings.some((h) => h.currency === "USD") && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                <span className="mt-0.5 shrink-0">⚠️</span>
+              <div
+                className="flex items-start gap-2 rounded-lg border px-4 py-3 text-sm"
+                style={{
+                  borderColor: "color-mix(in oklch, var(--accent-amber) 40%, transparent)",
+                  background: "color-mix(in oklch, var(--accent-amber) 12%, transparent)",
+                  color: "var(--accent-amber)",
+                }}
+              >
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
                   <strong>해외주식 체결 내역은 KIS OpenAPI로 주문한 건만 조회됩니다.</strong>
                   {" "}한투 앱/HTS로 거래한 내역은 표시되지 않습니다. 아래 &quot;거래 이력&quot; 섹션에서 직접 입력해주세요.

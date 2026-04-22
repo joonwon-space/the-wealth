@@ -71,7 +71,7 @@ const columns: ColumnDef<HoldingRow>[] = [
         <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
           <span>{row.original.ticker}</span>
           {row.original.currency === "USD" && (
-            <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            <span className="rounded bg-accent px-1 text-[10px] font-medium text-accent-foreground">
               해외
             </span>
           )}
@@ -189,12 +189,13 @@ const columns: ColumnDef<HoldingRow>[] = [
   },
 ];
 
-// Get row background tinting based on day_change_rate
+// Row tint based on day_change_rate. Uses --rise / --fall soft tokens so
+// the Korean market color convention (상승=빨강, 하락=파랑) holds in both themes.
 function getRowTint(dayChangeRate: number | string | null): string {
   if (dayChangeRate == null) return "";
   const v = Number(dayChangeRate);
-  if (v > 0) return "bg-red-50/80 dark:bg-red-950/30";
-  if (v < 0) return "bg-blue-50/80 dark:bg-blue-950/30";
+  if (v > 0) return "bg-rise-soft";
+  if (v < 0) return "bg-fall-soft";
   return "";
 }
 
@@ -226,7 +227,7 @@ export function HoldingsTable({ holdings }: Props) {
                   <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <span>{h.ticker}</span>
                     {currency === "USD" && (
-                      <span className="rounded bg-blue-100 px-1 text-[10px] font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      <span className="rounded bg-accent px-1 text-[10px] font-medium text-accent-foreground">
                         해외
                       </span>
                     )}

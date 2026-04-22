@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 20px; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .sw { border-radius: 10px; height: 88px; display:flex; flex-direction:column; justify-content:flex-end; padding: 10px 12px; border: 1px solid var(--border); }
+  .sw b { font-size: 13px; font-weight: 600; }
+  .sw small { font-size: 11px; opacity: 0.8; font-family: var(--font-mono); }
+</style>
+</head>
+<body class="tw-body">
+  <div class="row">
+    <div class="sw" style="background:#1e90ff;color:#fff"><b>Primary</b><small>#1E90FF</small></div>
+    <div class="sw" style="background:var(--rise);color:#fff"><b>Rise (상승)</b><small>#E31F26</small></div>
+    <div class="sw" style="background:var(--fall);color:#fff"><b>Fall (하락)</b><small>#1A56DB</small></div>
+    <div class="sw" style="background:var(--destructive);color:#fff"><b>Destructive</b><small>oklch danger</small></div>
+  </div>
+</body>
+</html>

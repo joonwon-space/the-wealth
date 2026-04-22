@@ -79,7 +79,7 @@ export function SecurityLogsSection() {
                     log.action.includes("failure") || log.action.includes("deleted")
                       ? "text-destructive"
                       : log.action === "login_success"
-                      ? "text-green-600 dark:text-green-400"
+                      ? "text-primary"
                       : ""
                   }`}
                 >

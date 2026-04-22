@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; display:grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .label { font-size: 12px; color: var(--muted-foreground); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .val { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 4px; letter-spacing: -0.02em; }
+  .delta { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+</style>
+</head>
+<body class="tw-body">
+  <div class="card">
+    <div class="label">총 평가금액</div>
+    <div class="val">₩42,180,500</div>
+    <div class="delta text-rise">+₩1,204,000 (+2.94%)</div>
+  </div>
+  <div class="card">
+    <div class="label">일간 수익률</div>
+    <div class="val text-rise">+0.83%</div>
+    <div class="delta text-muted-foreground">KOSPI +0.51%</div>
+  </div>
+  <div class="card">
+    <div class="label">실현손익 (YTD)</div>
+    <div class="val text-fall">−₩680,200</div>
+    <div class="delta text-muted-foreground">52거래일 · 거래 18건</div>
+  </div>
+</body>
+</html>

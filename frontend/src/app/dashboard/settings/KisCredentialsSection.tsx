@@ -315,7 +315,15 @@ export function KisCredentialsSection() {
                         <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs">{a.account_type}</span>
                       )}
                       {a.is_paper_trading && (
-                        <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-300">모의</span>
+                        <span
+                          className="ml-1 rounded px-1.5 py-0.5 text-xs"
+                          style={{
+                            background: "color-mix(in oklch, var(--accent-amber) 15%, transparent)",
+                            color: "var(--accent-amber)",
+                          }}
+                        >
+                          모의
+                        </span>
                       )}
                     </div>
                   )}
@@ -330,7 +338,7 @@ export function KisCredentialsSection() {
                       {testingAcctId === a.id ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : testResults[a.id] === true ? (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
+                        <CheckCircle className="h-3 w-3 text-primary" />
                       ) : testResults[a.id] === false ? (
                         <XCircle className="h-3 w-3 text-destructive" />
                       ) : (
@@ -377,7 +385,7 @@ export function KisCredentialsSection() {
               ) : (
                 <>
                   {acct.synced && (acct.synced.inserted > 0 || acct.synced.updated > 0 || acct.synced.deleted > 0) && (
-                    <p className="text-xs text-green-600">
+                    <p className="text-xs text-primary">
                       동기화: +{acct.synced.inserted} ~{acct.synced.updated} -{acct.synced.deleted}
                     </p>
                   )}

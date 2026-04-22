@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; display:flex; flex-wrap: wrap; gap: 10px; }
+  .badge { display:inline-flex; align-items:center; gap: 4px; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+  .soft-rise { background: color-mix(in oklab, var(--rise) 12%, transparent); color: var(--rise); }
+  .soft-fall { background: color-mix(in oklab, var(--fall) 12%, transparent); color: var(--fall); }
+  .solid-rise { background: var(--rise); color:#fff; }
+  .solid-fall { background: var(--fall); color:#fff; }
+  .muted { background: var(--muted); color: var(--muted-foreground); }
+  .primary { background: color-mix(in oklab, var(--primary) 14%, transparent); color: var(--primary); }
+  .outline { border:1px solid var(--border); color: var(--foreground); }
+</style>
+</head>
+<body class="tw-body">
+  <span class="badge soft-rise">▲ +1.71%</span>
+  <span class="badge soft-fall">▼ −1.11%</span>
+  <span class="badge solid-rise">목표가 도달</span>
+  <span class="badge solid-fall">손절선 이탈</span>
+  <span class="badge muted">보합 0.00%</span>
+  <span class="badge primary">NEW</span>
+  <span class="badge outline">관심종목</span>
+  <span class="badge outline">KOSPI</span>
+</body>
+</html>

@@ -1,0 +1,250 @@
+/* ==========================================================================
+   The Wealth — Design System Tokens
+   colors_and_type.css
+   ==========================================================================
+   Drop-in stylesheet with base color + typography tokens, plus semantic
+   typographic classes (h1, h2, body, code, number) for use in HTML mocks
+   and slides. Mirrors the production Tailwind v4 `@theme inline` map from
+   `design-system.md`.
+
+   Use in HTML:
+     <link rel="stylesheet" href="./colors_and_type.css">
+     <body class="tw-body">
+       <h1 class="tw-h1">보유 종목</h1>
+       <span class="tw-number text-rise">+3.24%</span>
+     </body>
+   ========================================================================== */
+
+/* ---------- Webfont ----------------------------------------------------- */
+@font-face {
+  font-family: "Pretendard";
+  src: url("./fonts/Pretendard-Regular.ttf") format("truetype");
+  font-weight: 100 900;            /* Pretendard variable axis */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Root tokens (light) ---------------------------------------- */
+:root {
+  /* neutral scale — base */
+  --background: oklch(0.97 0.005 250);
+  --foreground: oklch(0.15 0.01 250);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.01 250);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.01 250);
+
+  --muted: oklch(0.94 0.01 250);
+  --muted-foreground: oklch(0.45 0.02 250);
+
+  --accent: oklch(0.94 0.01 250);
+  --accent-foreground: oklch(0.15 0.01 250);
+
+  --secondary: oklch(0.94 0.01 250);
+  --secondary-foreground: oklch(0.15 0.01 250);
+
+  --border: oklch(0.90 0.01 250);
+  --input: oklch(0.90 0.01 250);
+  --ring: oklch(0.60 0.18 250);
+
+  /* brand primary — dodger blue #1e90ff */
+  --primary: #1e90ff;
+  --primary-foreground: #ffffff;
+
+  /* destructive — generic red (separate from --rise!) */
+  --destructive: oklch(0.58 0.22 27);
+  --destructive-foreground: #ffffff;
+
+  /* Korean market convention: up=red, down=blue */
+  --rise: #E31F26;
+  --fall: #1A56DB;
+  --flat: oklch(0.45 0.02 250);
+
+  /* chart palette (8 colors) */
+  --chart-1: #1e90ff;
+  --chart-2: #00ff00;
+  --chart-3: #F59E0B;
+  --chart-4: #F43F5E;
+  --chart-5: #8B5CF6;
+  --chart-6: #06B6D4;
+  --chart-7: #F97316;
+  --chart-8: #22C55E;
+
+  /* radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* spacing (Tailwind 4px base — aliased for convenience) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* shadows — minimal system */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+
+  /* ===== Typography ===== */
+  --font-sans:
+    "Pretendard", "Pretendard Variable",
+    -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Noto Sans KR", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --text-display: 40px;
+  --text-h1:      28px;
+  --text-h2:      22px;
+  --text-h3:      18px;
+  --text-body:    14px;
+  --text-small:   13px;
+  --text-micro:   12px;
+  --text-number:  16px;
+
+  --lh-tight:  1.15;
+  --lh-snug:   1.35;
+  --lh-normal: 1.5;
+  --lh-loose:  1.7;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:  0.04em;
+}
+
+/* ---------- Dark mode -------------------------------------------------- */
+.dark,
+[data-theme="dark"] {
+  --background: oklch(0.12 0.01 250);
+  --foreground: oklch(0.95 0.005 250);
+
+  --card: oklch(0.16 0.01 250);
+  --card-foreground: oklch(0.95 0.005 250);
+
+  --popover: oklch(0.16 0.01 250);
+  --popover-foreground: oklch(0.95 0.005 250);
+
+  --muted: oklch(0.20 0.01 250);
+  --muted-foreground: oklch(0.65 0.02 250);
+
+  --accent: oklch(0.22 0.01 250);
+  --accent-foreground: oklch(0.95 0.005 250);
+
+  --secondary: oklch(0.22 0.01 250);
+  --secondary-foreground: oklch(0.95 0.005 250);
+
+  --border: oklch(0.26 0.01 250);
+  --input: oklch(0.26 0.01 250);
+  --ring: oklch(0.70 0.18 250);
+
+  --primary: #1e90ff;
+  --primary-foreground: #ffffff;
+
+  /* WCAG AA adjusted rise/fall */
+  --rise: #FF4D4F;
+  --fall: #4B8EF5;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.60);
+}
+
+/* ---------- Base ------------------------------------------------------- */
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Semantic type utilities ------------------------------------ */
+.tw-display {
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+}
+.tw-h1 {
+  font-size: var(--text-h1);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+}
+.tw-h2 {
+  font-size: var(--text-h2);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+}
+.tw-h3 {
+  font-size: var(--text-h3);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+}
+.tw-body {
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: var(--lh-normal);
+}
+.tw-small {
+  font-size: var(--text-small);
+  font-weight: 400;
+  line-height: var(--lh-normal);
+  color: var(--muted-foreground);
+}
+.tw-micro {
+  font-size: var(--text-micro);
+  font-weight: 500;
+  line-height: var(--lh-normal);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.tw-number {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.tw-code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--muted);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Korean market color utilities ------------------------------ */
+.text-rise { color: var(--rise); }
+.text-fall { color: var(--fall); }
+.text-flat { color: var(--flat); }
+.bg-rise  { background-color: var(--rise); color: #fff; }
+.bg-fall  { background-color: var(--fall); color: #fff; }
+.bg-rise-soft { background-color: color-mix(in oklab, var(--rise) 12%, transparent); }
+.bg-fall-soft { background-color: color-mix(in oklab, var(--fall) 12%, transparent); }
+
+/* ---------- Generic utility classes ------------------------------------ */
+.text-foreground { color: var(--foreground); }
+.text-muted-foreground { color: var(--muted-foreground); }
+.text-primary { color: var(--primary); }
+.bg-background { background-color: var(--background); }
+.bg-card { background-color: var(--card); color: var(--card-foreground); }
+.bg-muted { background-color: var(--muted); }
+.bg-primary { background-color: var(--primary); color: var(--primary-foreground); }
+.border-default { border: 1px solid var(--border); }
+.rounded-card { border-radius: var(--radius-lg); }
+.shadow-card { box-shadow: var(--shadow-sm); }
