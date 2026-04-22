@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -70,13 +70,10 @@ export default function RebalancePage() {
     staleTime: 60_000,
   });
 
-  const [portfolioId, setPortfolioId] = useState(portfolioIdFromQuery);
-  useEffect(() => {
-    if (portfolioId === 0 && portfolios && portfolios.length > 0) {
-      setPortfolioId(portfolios[0]!.id);
-    }
-  }, [portfolios, portfolioId]);
-
+  // 사용자가 탭으로 선택한 값만 state 에 담고, 초기값은 query param → 첫 포트폴리오 순으로 유추.
+  const [selectedId, setSelectedId] = useState(portfolioIdFromQuery);
+  const portfolioId =
+    selectedId > 0 ? selectedId : portfolios?.[0]?.id ?? 0;
   const activePortfolio = portfolios?.find((p) => p.id === portfolioId);
 
   const { data: rebalance } = useQuery<RebalanceResponse>({
@@ -102,19 +99,25 @@ export default function RebalancePage() {
     enabled: portfolioId > 0,
   });
 
-  const [drafts, setDrafts] = useState<Record<string, number>>({});
-  useEffect(() => {
-    if (saved?.target_allocation) {
-      setDrafts(saved.target_allocation);
-    } else if (rebalance) {
-      // 저장된 목표가 없으면 현재 비중을 초기값으로 제시
-      const next: Record<string, number> = {};
-      rebalance.rows.forEach((r) => {
-        next[r.sector] = Math.round(r.current_pct * 100) / 100;
-      });
-      setDrafts(next);
+  // 슬라이더 조작값만 별도 state, 기본값(저장된 목표 또는 현재 비중)은 서버 쿼리에서 유도.
+  // → useEffect 로 setState 하지 않음 (React 19 Compiler: set-state-in-effect 금지).
+  const baseDrafts = useMemo<Record<string, number>>(() => {
+    if (saved?.target_allocation) return saved.target_allocation;
+    if (rebalance) {
+      return Object.fromEntries(
+        rebalance.rows.map((r) => [
+          r.sector,
+          Math.round(r.current_pct * 100) / 100,
+        ]),
+      );
     }
+    return {};
   }, [saved, rebalance]);
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
+  const drafts = useMemo<Record<string, number>>(
+    () => ({ ...baseDrafts, ...overrides }),
+    [baseDrafts, overrides],
+  );
 
   const total = useMemo(
     () => Object.values(drafts).reduce((sum, v) => sum + v, 0),
@@ -187,7 +190,7 @@ export default function RebalancePage() {
           <button
             key={p.id}
             type="button"
-            onClick={() => setPortfolioId(p.id)}
+            onClick={() => setSelectedId(p.id)}
             className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
               p.id === portfolioId
                 ? "bg-foreground text-background"
@@ -225,7 +228,7 @@ export default function RebalancePage() {
                     step={0.01}
                     value={value}
                     onChange={(e) =>
-                      setDrafts((prev) => ({
+                      setOverrides((prev) => ({
                         ...prev,
                         [sector]: parseFloat(e.target.value),
                       }))

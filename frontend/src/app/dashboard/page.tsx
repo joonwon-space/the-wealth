@@ -420,12 +420,13 @@ export default function DashboardPage() {
   const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
   const dayChangePct = s.day_change_pct ?? s.total_day_change_rate;
 
-  // Sparkline stub — 실제 1M 히스토리는 /analytics/portfolio-history 가 있으나
-  // 홈 hero 용 경량 데이터는 current/invested 기준 더미. Step 7에서 히스토리 연결.
+  // Sparkline stub — /analytics/portfolio-history 연결은 TASK-RD-6. 여기선
+  // 투자원금→현재자산을 잇는 사인파로 시각적 리듬만 주고 결정론적이게 계산.
   const spark = Array.from({ length: 14 }).map((_, i) => {
     const base = s.total_invested || 1;
     const t = i / 13;
-    const v = base + (s.total_asset - base) * t + (Math.random() - 0.5) * base * 0.01;
+    const wobble = Math.sin((i / 13) * Math.PI * 3) * base * 0.005;
+    const v = base + (s.total_asset - base) * t + wobble;
     return { v };
   });
   const isPositiveDay = (dayChangePct ?? 0) >= 0;

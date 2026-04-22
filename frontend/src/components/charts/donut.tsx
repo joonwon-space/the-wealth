@@ -28,12 +28,17 @@ export const Donut = forwardRef<HTMLDivElement, DonutProps>(
     const radius = size / 2 - thickness / 2 - 2;
     const circumference = 2 * Math.PI * radius;
 
-    let offset = 0;
+    // React 19 Compiler 는 render 중 로컬 변수 재할당을 금지한다. 각 arc 의
+    // dashOffset 을 그 이전 arcs 의 길이 합으로 즉석 계산해 immutable 하게 유지.
+    const segmentLengths = segments.map((segment) =>
+      Math.max(0, circumference * Math.min(1, segment.pct)),
+    );
     const arcs = segments.map((segment, i) => {
-      const length = Math.max(0, circumference * Math.min(1, segment.pct));
+      const length = segmentLengths[i]!;
       const dash = `${length} ${circumference - length}`;
-      const dashOffset = -offset;
-      offset += length;
+      const dashOffset = -segmentLengths
+        .slice(0, i)
+        .reduce((acc, len) => acc + len, 0);
       return (
         <circle
           key={i}
