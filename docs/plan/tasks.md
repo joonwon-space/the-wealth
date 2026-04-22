@@ -951,3 +951,59 @@ Findings from parallel audits: tech-debt, security-posture, perf-bottleneck, ux-
 - [x] **ux: KisCredentialsSection.tsx — 계좌 추가/삭제 성공 toast 추가**
   - `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx` — 계좌 추가 성공 시 `toast.success('KIS 계좌가 등록되었습니다')`, 삭제 성공 시 `toast.success('KIS 계좌가 삭제되었습니다')` 추가
   - 파일: `frontend/src/app/dashboard/settings/KisCredentialsSection.tsx`
+
+---
+
+## Feature: Phase 3 Hybrid Redesign Follow-ups (2026-04-22)
+
+Phase 3 Hybrid redesign이 `feat/design-overhaul` 브랜치에서 10단계 전부 완료되고 main 에 머지된다. 그 과정에서 의도적으로 1차 범위에서 제외한 후속 작업들. 각 항목은 한 커밋 이내로 끝낼 수 있는 단위로 쪼개 둠.
+
+Source: 이 브랜치의 커밋 히스토리 + `docs/plan/redesign-followups.md` (없으면 이 섹션이 단일 소스).
+
+### TASK-RD-1. KIS 배당 데이터 수집 배치 (M)
+
+- [ ] `backend/app/services/kis_dividend.py` 신규. 국내: TR_ID `HHKDB669102C0` (`/uapi/domestic-stock/v1/ksdinfo/dividend`), 해외: TR_ID `HHDFS78330900` (`/uapi/overseas-price/v1/quotations/rights-by-ice`). 보유 종목 기반으로 ticker 순회 + page cursor (국내 `tr_cont`) 처리.
+- [ ] `backend/app/services/scheduler.py` 에 일 1회 (장 마감 이후) 크론 등록. 실패 시 재시도 3회 + sync_log 기록.
+- [ ] `Dividend` 테이블 upsert: `(ticker, market, record_date, kind)` unique 제약 사용. `raw` JSONB 에 KIS 원본 저장.
+- [ ] 단위 테스트: 국내/해외 응답 픽스처, upsert 중복 방지, 페이지네이션.
+
+### TASK-RD-2. Benchmark delta `mine_pct` 시간가중 계산 (M)
+
+- [ ] `backend/app/api/analytics_benchmark.py` 의 `benchmark_delta` 내 TODO 제거. `analytics_history.py` 의 portfolio-history 데이터(또는 동일 로직)를 재사용해 기간 시작/종료 사이 시간가중 수익률을 계산.
+- [ ] 테스트: 시작일 이전 거래만 있는 경우, 기간 내 매수·매도 혼합된 경우 두 케이스.
+
+### TASK-RD-3. `/dashboard/design-preview` 프로덕션 가드 (XS)
+
+- [ ] `frontend/src/proxy.ts` 에서 `NODE_ENV === "production"` 일 때 `/dashboard/design-preview` 를 404 로 리다이렉트하거나,
+- [ ] `frontend/src/app/dashboard/design-preview/page.tsx` 상단에서 `process.env.NODE_ENV` 체크 후 `notFound()` 호출.
+
+### TASK-RD-4. Stock detail 모바일 매수/매도 → OrderDialog 연결 (S)
+
+- [ ] `frontend/src/app/dashboard/layout.tsx` 또는 별도 클라이언트 Provider 에서 `window.addEventListener("the-wealth:order", ...)` 리스너 등록, `OrderDialog` 를 전역 렌더해 `ticker/action` 으로 열기.
+- [ ] 이벤트가 아직 "보유 중 + KIS 연결" 조건을 검사하지 않으므로 리스너에서 portfolioId 결정 로직 포함.
+
+### TASK-RD-5. Onboarding 진입 경로 (S)
+
+- [ ] `/register` success 리다이렉트를 `/onboarding` 으로 변경 (신규 가입자만).
+- [ ] `/login` 리다이렉트는 변경하지 않음.
+- [ ] 이미 포트폴리오가 1개 이상인 사용자가 `/onboarding` 을 열면 `/dashboard` 로 리다이렉트.
+
+### TASK-RD-6. Home 1M 스파크라인 실데이터 연결 (S)
+
+- [ ] `frontend/src/app/dashboard/page.tsx` 의 `spark` dummy 생성 로직을 `GET /analytics/portfolio-history?period=1M` 응답으로 교체. 값 하나당 `{v: total_value}` 형태.
+- [ ] 데이터 없을 때 AreaChart 가 이미 "데이터 없음" 을 보여주므로 fallback UI 유지.
+
+### TASK-RD-7. Portfolio 상세 "분석" 탭 복구 (M)
+
+- [ ] redesign-spec §3.2 의 "분석" 탭(`portfolio-history` + `benchmark-delta` + `fx-gain-loss`) 을 portfolio detail Tabs 에 네 번째로 추가.
+- [ ] 기존 `/dashboard/analytics` 페이지는 랜딩으로 축소하거나 제거 방향.
+
+### TASK-RD-8. Alert.condition `pct_change` / `drawdown` 서버 평가 (S)
+
+- [ ] `backend/app/api/alerts.py` 의 `check_triggered_alerts` 에 새 조건 2개 분기 추가. `pct_change`: `|day_change_pct|` ≥ threshold, `drawdown`: holding avg_price 대비 현재가 낙폭 ≥ threshold%.
+- [ ] 새 조건 생성 UI 는 설정 → 알림에서. (별도 태스크 권장)
+
+### TASK-RD-9. design-preview 라우트 스크린샷 CI gate (S)
+
+- [ ] 새 프리미티브를 회귀 없이 유지하기 위해 Playwright e2e 에 `/dashboard/design-preview` 스크린샷 추가. 라이트/다크 각 1장.
+

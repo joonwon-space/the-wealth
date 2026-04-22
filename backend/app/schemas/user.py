@@ -10,14 +10,24 @@ class UserMe(BaseModel):
     id: int
     email: EmailStr
     name: Optional[str] = None
+    strategy_tag: str = "mixed"
+    long_short_ratio: int = 70
 
     model_config = {"from_attributes": True}
 
 
 class UserUpdate(BaseModel):
-    """Request schema for updating the current user's profile (name only)."""
+    """Request schema for updating the current user's profile.
+
+    `name` 은 표시 이름. `strategy_tag` + `long_short_ratio` 는 Dual-brain 설정.
+    """
 
     name: Optional[str] = Field(None, max_length=100)
+    strategy_tag: Optional[str] = Field(
+        default=None,
+        pattern="^(long|short|mixed)$",
+    )
+    long_short_ratio: Optional[int] = Field(default=None, ge=0, le=100)
 
 
 class ChangePasswordRequest(BaseModel):

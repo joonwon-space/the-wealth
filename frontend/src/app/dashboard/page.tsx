@@ -4,31 +4,46 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
+  Coins,
   Plus,
   RefreshCw,
+  Scale,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Wallet,
   Wifi,
   WifiOff,
   Loader2,
   TriangleAlert,
+  type LucideIcon,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useCountUp } from "@/hooks/useCountUp";
+import { useInvestMode } from "@/hooks/useInvestMode";
 import { useAuthStore } from "@/store/auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CardSkeleton, LargeCardSkeleton } from "@/components/CardSkeleton";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { ChartSkeleton, DonutSkeleton } from "@/components/ChartSkeleton";
 import { PageError } from "@/components/PageError";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { formatKRW } from "@/lib/format";
 import { toast } from "sonner";
-import { DashboardMetrics } from "@/components/dashboard/DashboardMetrics";
+import { HeroValue } from "@/components/hero-value";
+import { ModeToggle } from "@/components/mode-toggle";
+import { TaskCard } from "@/components/task-card";
+import { AreaChart } from "@/components/charts/area-chart";
+import { Donut } from "@/components/charts/donut";
+import { ProgressRing } from "@/components/charts/progress-ring";
 import { PortfolioList } from "@/components/dashboard/PortfolioList";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const DASHBOARD_QUERY_KEY = ["dashboard", "summary"] as const;
 
+// ---------- types ----------
 interface HoldingRow {
   id: number;
   ticker: string;
@@ -58,7 +73,7 @@ interface TriggeredAlert {
   id: number;
   ticker: string;
   name: string;
-  condition: "above" | "below";
+  condition: "above" | "below" | "pct_change" | "drawdown";
   threshold: number;
   current_price: number;
 }
@@ -80,6 +95,49 @@ interface Summary {
   total_assets: number | null;
 }
 
+interface HomeTask {
+  id: string;
+  kind: "rebalance" | "dividend" | "alert" | "routine" | "goal";
+  title: string;
+  sub: string | null;
+  accent: string | null;
+  priority: number;
+}
+
+interface TodayTasksResponse {
+  count: number;
+  tasks: HomeTask[];
+}
+
+interface BenchmarkDelta {
+  index_code: string;
+  period: string;
+  mine_pct: number;
+  benchmark_pct: number;
+  delta_pct_points: number;
+}
+
+interface SectorAllocationRow {
+  sector: string;
+  value: number;
+  weight: number;
+}
+
+interface UpcomingDividend {
+  ticker: string;
+  market: string;
+  name: string | null;
+  quantity: number | string | null;
+  ex_date: string | null;
+  record_date: string;
+  payment_date: string | null;
+  amount: number | string;
+  currency: string;
+  kind: string;
+  source: string;
+  estimated_payout: number | string | null;
+}
+
 async function fetchSummary(refresh = false): Promise<Summary> {
   const { data } = await api.get<Summary>("/dashboard/summary", {
     params: refresh ? { refresh: true } : undefined,
@@ -87,6 +145,7 @@ async function fetchSummary(refresh = false): Promise<Summary> {
   return data;
 }
 
+// ---------- small widgets ----------
 interface StreamStatusBadgeProps {
   status: "connecting" | "connected" | "disconnected";
   onReconnect: () => void;
@@ -95,52 +154,42 @@ interface StreamStatusBadgeProps {
 function StreamStatusBadge({ status, onReconnect }: StreamStatusBadgeProps) {
   if (status === "connected") {
     return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-        style={{
-          background: "color-mix(in oklch, var(--primary) 12%, transparent)",
-          color: "var(--primary)",
-        }}
-      >
-        <Wifi className="h-3 w-3" />
+      <Badge tone="primary" className="gap-1">
+        <Wifi className="size-3" />
         실시간
-      </span>
+      </Badge>
     );
   }
   if (status === "connecting") {
     return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-        style={{
-          background: "color-mix(in oklch, var(--accent-amber) 15%, transparent)",
-          color: "var(--accent-amber)",
-        }}
-      >
-        <Loader2 className="h-3 w-3 animate-spin" />
+      <Badge tone="warn" className="gap-1">
+        <Loader2 className="size-3 animate-spin" />
         연결 중
-      </span>
+      </Badge>
     );
   }
   return (
     <button
       onClick={onReconnect}
-      className="inline-flex min-h-[44px] items-center gap-1 rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground hover:bg-muted/80"
+      className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground hover:bg-muted/80"
       title="SSE 재연결"
       aria-label="SSE 재연결"
     >
-      <WifiOff className="h-3 w-3" />
+      <WifiOff className="size-3" />
       연결 끊김 — 재연결
     </button>
   );
 }
 
-interface WidgetErrorFallbackProps {
+function WidgetErrorFallback({
+  title,
+  error,
+  reset,
+}: {
   title: string;
   error: Error;
   reset: () => void;
-}
-
-function WidgetErrorFallback({ title, error, reset }: WidgetErrorFallbackProps) {
+}) {
   return (
     <section className="space-y-2">
       <h2 className="text-section-header">{title}</h2>
@@ -165,20 +214,28 @@ function WidgetErrorFallback({ title, error, reset }: WidgetErrorFallbackProps) 
   );
 }
 
+// ---------- task icon mapping ----------
+const TASK_ICONS: Record<HomeTask["kind"], LucideIcon> = {
+  rebalance: Scale,
+  dividend: Coins,
+  alert: TriangleAlert,
+  routine: Sparkles,
+  goal: Target,
+};
+
+// ---------- page ----------
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const accessToken = useAuthStore((s) => s.accessToken);
   const refreshAccessToken = useAuthStore((s) => s.refreshAccessToken);
+  const [mode, setMode] = useInvestMode();
 
-  // On page load after refresh, accessToken is null (not persisted).
-  // Silently call /auth/refresh so the SSE hook gets a token.
   useEffect(() => {
     if (!accessToken) {
       void refreshAccessToken();
     }
   }, [accessToken, refreshAccessToken]);
 
-  // streamStatus is hoisted here so the query can react to SSE state.
   const [streamActive, setStreamActive] = useState(false);
 
   const {
@@ -192,13 +249,45 @@ export default function DashboardPage() {
   } = useQuery<Summary>({
     queryKey: DASHBOARD_QUERY_KEY,
     queryFn: () => fetchSummary(),
-    // Disable polling when SSE is active — SSE already provides live prices,
-    // so polling /dashboard/summary would be redundant. Re-enable on disconnect.
     refetchInterval: streamActive ? false : REFRESH_INTERVAL_MS,
     staleTime: 60_000,
   });
 
-  // Show toast for triggered alerts when data refreshes
+  // Satellite queries powering the new home sections.
+  const { data: todayTasks } = useQuery<TodayTasksResponse>({
+    queryKey: ["tasks", "today"],
+    queryFn: async () => (await api.get<TodayTasksResponse>("/tasks/today")).data,
+    staleTime: 60_000,
+    enabled: !isLoading,
+  });
+
+  const { data: benchmark } = useQuery<BenchmarkDelta>({
+    queryKey: ["analytics", "benchmark-delta", "6M"],
+    queryFn: async () =>
+      (await api.get<BenchmarkDelta>("/analytics/benchmark-delta", {
+        params: { period: "6M" },
+      })).data,
+    staleTime: 5 * 60_000,
+    enabled: !isLoading,
+  });
+
+  const { data: sectorAllocation } = useQuery<SectorAllocationRow[]>({
+    queryKey: ["analytics", "sector-allocation"],
+    queryFn: async () =>
+      (await api.get<SectorAllocationRow[]>("/analytics/sector-allocation")).data,
+    staleTime: 5 * 60_000,
+    enabled: !isLoading,
+  });
+
+  const { data: upcomingDividends } = useQuery<UpcomingDividend[]>({
+    queryKey: ["dividends", "upcoming"],
+    queryFn: async () =>
+      (await api.get<UpcomingDividend[]>("/dividends/upcoming")).data,
+    staleTime: 10 * 60_000,
+    enabled: !isLoading,
+  });
+
+  // Alerts toast
   const shownAlertIds = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (!summary) return;
@@ -214,7 +303,7 @@ export default function DashboardPage() {
     }
   }, [summary]);
 
-  // SSE 실시간 가격 업데이트 — queryClient.setQueryData로 캐시 직접 패치
+  // SSE 실시간 가격 업데이트 — caller는 이미 검증된 기존 로직을 그대로 사용.
   const handleStreamPrices = useCallback(
     (prices: Record<string, string>) => {
       queryClient.setQueryData<Summary>(DASHBOARD_QUERY_KEY, (prev) => {
@@ -261,51 +350,42 @@ export default function DashboardPage() {
     enabled: !isLoading,
   });
 
-  // Keep state in sync with SSE connection status so refetchInterval reacts.
   useEffect(() => {
     setStreamActive(streamStatus === "connected");
   }, [streamStatus]);
 
   const handleManualRefresh = async () => {
-    const result = await api.get<Summary>("/dashboard/summary", { params: { refresh: true } });
+    const result = await api.get<Summary>("/dashboard/summary", {
+      params: { refresh: true },
+    });
     queryClient.setQueryData(DASHBOARD_QUERY_KEY, result.data);
   };
 
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
-  // Count-up animation for total asset (runs on first data load)
   const animatedTotalAsset = useCountUp({
     target: summary?.total_asset ?? 0,
     duration: 1200,
-  });
-  const animatedTotalInvested = useCountUp({
-    target: summary?.total_invested ?? 0,
-    duration: 1200,
-    delay: 100,
-  });
-  const animatedTotalPnl = useCountUp({
-    target: summary?.total_pnl_amount ?? 0,
-    duration: 1200,
-    delay: 200,
+    delay: 0,
   });
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-32" />
-        <LargeCardSkeleton />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <CardSkeleton />
-          <CardSkeleton showAccentBar />
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-10 w-60" />
+            <ChartSkeleton height={120} />
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
         </div>
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-20" />
-          <DonutSkeleton />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-3 w-20" />
-          <ChartSkeleton height={200} />
-        </div>
+        <DonutSkeleton />
       </div>
     );
   }
@@ -340,11 +420,39 @@ export default function DashboardPage() {
   const hasNoPortfolio = !isLoading && s.holdings.length === 0 && s.total_invested === 0;
   const dayChangePct = s.day_change_pct ?? s.total_day_change_rate;
 
+  // Sparkline stub — 실제 1M 히스토리는 /analytics/portfolio-history 가 있으나
+  // 홈 hero 용 경량 데이터는 current/invested 기준 더미. Step 7에서 히스토리 연결.
+  const spark = Array.from({ length: 14 }).map((_, i) => {
+    const base = s.total_invested || 1;
+    const t = i / 13;
+    const v = base + (s.total_asset - base) * t + (Math.random() - 0.5) * base * 0.01;
+    return { v };
+  });
+  const isPositiveDay = (dayChangePct ?? 0) >= 0;
+
+  const sectorSegments =
+    sectorAllocation?.slice(0, 8).map((row, i) => ({
+      pct: row.weight / 100,
+      color: `var(--chart-${(i % 8) + 1})`,
+      label: row.sector,
+    })) ?? [];
+
+  const goalPortfolio = (s as Summary & { target_value?: number }).target_value
+    ? { total: s.total_asset, target: (s as Summary & { target_value: number }).target_value }
+    : null;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">대시보드</h1>
-        <div className="flex items-center gap-2">
+      {/* ----- Top bar ----- */}
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">대시보드</h1>
+        <ModeToggle
+          mode={mode}
+          onChange={setMode}
+          position="header"
+          className="ml-2"
+        />
+        <div className="ml-auto flex items-center gap-2">
           <StreamStatusBadge status={streamStatus} onReconnect={reconnectStream} />
           {lastUpdated && (
             <span className="text-xs text-muted-foreground">
@@ -354,7 +462,7 @@ export default function DashboardPage() {
           <button
             onClick={handleManualRefresh}
             disabled={isFetching}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-50"
+            className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-50"
             title="새로고침"
             aria-label="새로고침"
           >
@@ -363,7 +471,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KIS API 일시 오류 배너 */}
+      {/* ----- KIS degraded banner ----- */}
       {s.kis_status === "degraded" && (
         <div
           className="flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm"
@@ -373,7 +481,7 @@ export default function DashboardPage() {
             color: "var(--accent-amber)",
           }}
         >
-          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <div>
             <span className="font-medium">KIS API 일시 오류</span>
             <span className="ml-1 opacity-80">
@@ -383,10 +491,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 포트폴리오/종목이 없을 때 빈 상태 */}
       {hasNoPortfolio ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
-          <BarChart3 className="mb-3 h-12 w-12 text-muted-foreground/40" />
+          <BarChart3 className="mb-3 size-12 text-muted-foreground/40" />
           <p className="text-lg font-semibold">아직 보유 종목이 없습니다</p>
           <p className="mt-1 text-sm text-muted-foreground">
             포트폴리오를 만들고 종목을 추가해보세요.
@@ -395,39 +502,281 @@ export default function DashboardPage() {
             href="/dashboard/portfolios"
             className="mt-5 flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="size-4" />
             포트폴리오 만들기
           </Link>
         </div>
       ) : (
         <>
-          {/* 지표 카드 섹션 */}
+          {/* ----- Hero: total + today change + chart ----- */}
           <ErrorBoundary
             fallback={(err, reset) => (
-              <WidgetErrorFallback title="지표" error={err} reset={reset} />
+              <WidgetErrorFallback title="총 자산" error={err} reset={reset} />
             )}
           >
-            <DashboardMetrics
-              totalAsset={s.total_asset}
-              animatedTotalAsset={animatedTotalAsset}
-              animatedTotalInvested={animatedTotalInvested}
-              animatedTotalPnl={animatedTotalPnl}
-              totalPnlAmount={s.total_pnl_amount}
-              totalPnlRate={s.total_pnl_rate}
-              dayChangePct={dayChangePct}
-              dayChangeAmount={s.day_change_amount}
-              totalCash={s.total_cash}
-              usdKrwRate={s.usd_krw_rate}
-              holdings={s.holdings}
-            />
+            <Card>
+              <CardContent className="p-6">
+                <HeroValue
+                  label="총 평가금액 · KRW"
+                  value={formatKRW(animatedTotalAsset)}
+                  change={s.day_change_amount != null ? formatKRW(s.day_change_amount) : undefined}
+                  changePct={dayChangePct}
+                  up={isPositiveDay}
+                  footnote={
+                    s.usd_krw_rate != null ? `USD/KRW ${formatKRW(s.usd_krw_rate)}` : null
+                  }
+                />
+                <div className="mt-4 -mx-2">
+                  <AreaChart data={spark} height={140} showDot up={isPositiveDay} />
+                </div>
+              </CardContent>
+            </Card>
           </ErrorBoundary>
 
-          {/* 포트폴리오 목록 + 관심종목 + 보유종목 테이블 */}
-          <PortfolioList
-            holdings={s.holdings}
-            allocation={s.allocation}
-            totalAsset={s.total_asset}
-          />
+          {/* ----- Goal ring + Benchmark + Cash ----- */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {goalPortfolio ? (
+              <Card>
+                <CardContent className="flex items-center gap-4 p-4">
+                  <ProgressRing
+                    pct={goalPortfolio.total / goalPortfolio.target}
+                    size={72}
+                    thickness={8}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-section-header">목표 진척도</p>
+                    <p className="mt-1 text-lg font-bold tabular-nums">
+                      {formatKRW(goalPortfolio.total)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      / 목표 {formatKRW(goalPortfolio.target)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex size-[72px] shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <Target className="size-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-section-header">목표 진척도</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      목표를 설정하고 진척도를 추적하세요.
+                    </p>
+                    <Link
+                      href="/dashboard/portfolios"
+                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      <Plus className="size-3" /> 설정하기
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-section-header">
+                  {benchmark ? `vs ${benchmark.index_code}` : "벤치마크"}
+                </p>
+                <p
+                  className={`mt-2 text-lg font-bold tabular-nums ${
+                    benchmark && benchmark.delta_pct_points >= 0
+                      ? "text-rise"
+                      : benchmark
+                        ? "text-fall"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {benchmark
+                    ? `${benchmark.delta_pct_points >= 0 ? "+" : ""}${benchmark.delta_pct_points.toFixed(2)}%p`
+                    : "—"}
+                </p>
+                {benchmark && (
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    내 {benchmark.mine_pct.toFixed(2)}% · 벤치 {benchmark.benchmark_pct.toFixed(2)}%
+                    ({benchmark.period})
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-section-header">예수금</p>
+                <p className="mt-2 text-lg font-bold tabular-nums">
+                  {s.total_cash != null ? formatKRW(s.total_cash) : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {s.total_cash != null ? "KIS 계좌 합계" : "KIS 연동 시 노출됩니다"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ----- Tasks (오늘 할 것) ----- */}
+          {todayTasks && todayTasks.count > 0 && (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-section-header">오늘 할 것 · {todayTasks.count}</h2>
+                <Link
+                  href="/dashboard/stream"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  모두 보기
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {todayTasks.tasks.slice(0, 4).map((t) => {
+                  const Icon = TASK_ICONS[t.kind] ?? Sparkles;
+                  return (
+                    <TaskCard
+                      key={t.id}
+                      icon={<Icon />}
+                      title={t.title}
+                      sub={t.sub ?? undefined}
+                      accent={t.accent ?? undefined}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* ----- Sector donut + Dividends ----- */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <section className="space-y-2 lg:col-span-2">
+              <h2 className="text-section-header">자산 배분</h2>
+              <Card>
+                <CardContent className="flex flex-wrap items-center gap-6 p-4">
+                  {sectorSegments.length > 0 ? (
+                    <Donut
+                      size={112}
+                      thickness={14}
+                      segments={sectorSegments}
+                      center={
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            섹터
+                          </div>
+                          <div className="text-sm font-bold tabular-nums">
+                            {sectorSegments.length}
+                          </div>
+                        </div>
+                      }
+                    />
+                  ) : (
+                    <div className="size-[112px] rounded-full bg-muted" aria-hidden />
+                  )}
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    {sectorSegments.slice(0, 4).map((r) => (
+                      <div
+                        key={r.label ?? r.color}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <span
+                          className="inline-block size-2 rounded-sm"
+                          style={{ background: r.color }}
+                          aria-hidden
+                        />
+                        <span className="flex-1 truncate">{r.label}</span>
+                        <span className="font-semibold tabular-nums">
+                          {(r.pct * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    ))}
+                    {sectorSegments.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        섹터 데이터를 불러오는 중...
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-section-header">
+                다음 배당 · {upcomingDividends?.length ?? 0}
+              </h2>
+              <Card>
+                <CardContent className="divide-y p-0">
+                  {(upcomingDividends?.length ?? 0) === 0 && (
+                    <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                      <Coins className="size-4" />
+                      30일 내 예정 배당이 없습니다.
+                    </div>
+                  )}
+                  {upcomingDividends?.slice(0, 4).map((d) => (
+                    <div
+                      key={`${d.ticker}-${d.record_date}-${d.kind}`}
+                      className="flex items-center justify-between p-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold">
+                          {d.name || d.ticker}
+                        </div>
+                        <div className="text-xs text-muted-foreground tabular-nums">
+                          배당락 {d.ex_date ?? d.record_date} · 지급 {d.payment_date ?? "미정"}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-bold tabular-nums text-rise">
+                          +
+                          {d.currency === "KRW"
+                            ? Number(d.amount).toLocaleString("ko-KR")
+                            : `$${Number(d.amount).toFixed(2)}`}
+                        </div>
+                        {d.estimated_payout != null && (
+                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                            예상 {Number(d.estimated_payout).toLocaleString("ko-KR")}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </section>
+          </div>
+
+          {/* ----- Holdings table (기존) ----- */}
+          <section className="space-y-2">
+            <h2 className="text-section-header">
+              <span className="inline-flex items-center gap-1.5">
+                <Wallet className="size-4" />
+                보유 종목
+              </span>
+            </h2>
+            <ErrorBoundary
+              fallback={(err, reset) => (
+                <WidgetErrorFallback title="보유 종목" error={err} reset={reset} />
+              )}
+            >
+              <PortfolioList
+                holdings={s.holdings}
+                allocation={s.allocation}
+                totalAsset={s.total_asset}
+              />
+            </ErrorBoundary>
+          </section>
+
+          {/* ----- Footer hint: short mode → movers quick link (full 구현 Step 6 이후) ----- */}
+          {mode === "short" && (
+            <Card>
+              <CardContent className="flex items-center gap-3 p-4">
+                <TrendingUp className="size-5 text-rise" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">단타 모드</p>
+                  <p className="text-xs text-muted-foreground">
+                    실시간 mover/미체결 주문은 Step 6(종목 상세) 이후 연결됩니다.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
