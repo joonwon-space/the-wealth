@@ -365,6 +365,7 @@ export default function DashboardPage() {
 
   const animatedTotalAsset = useCountUp({
     target: summary?.total_asset ?? 0,
+    duration: 300,
   });
 
   if (isLoading) {

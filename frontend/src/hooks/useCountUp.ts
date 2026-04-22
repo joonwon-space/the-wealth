@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 interface UseCountUpOptions {
   /** Target value to animate to */
   target: number;
-  /** Animation duration in milliseconds (default: 700) */
+  /** Animation duration in milliseconds (default: 300) */
   duration?: number;
   /** Delay before starting in milliseconds (default: 0) */
   delay?: number;
@@ -37,7 +37,7 @@ function linear(t: number): number {
  */
 export function useCountUp({
   target,
-  duration = 700,
+  duration = 300,
   delay = 0,
   start = 0,
   easing = linear,
