@@ -24,6 +24,7 @@ from app.services.kis_account import (
     fetch_overseas_account_holdings,
 )
 from app.services.kis_price import get_exchange_rate
+from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
 from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 from app.services.reconciliation import reconcile_holdings
 from app.api.analytics import invalidate_analytics_cache
@@ -65,6 +66,7 @@ async def _fetch_balance_raw(
     }
 
     async with httpx.AsyncClient(timeout=10.0) as client:
+        await _rate_limit_acquire()
         resp = await client.get(
             f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-balance",
             headers=headers,
