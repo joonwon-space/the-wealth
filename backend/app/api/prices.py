@@ -158,21 +158,43 @@ async def _check_alerts_and_emit(
         triggered = check_and_dedup_alerts(alerts, decimal_prices)
 
         if triggered:
+            from app.services.push_sender import PushPayload, send_push
+
             async with AsyncSessionLocal() as db:
                 # Create notification records for each triggered alert
+                push_payloads: list[PushPayload] = []
                 for alert_data in triggered:
                     condition_kr = "이상" if alert_data["condition"] == "above" else "이하"
+                    title = f"{alert_data['name'] or alert_data['ticker']} 목표가 도달"
+                    body = (
+                        f"{alert_data['ticker']} 현재가 {alert_data['current_price']:,.0f}이 "
+                        f"목표가 {alert_data['threshold']:,.0f}{condition_kr}에 도달했습니다."
+                    )
                     notification = Notification(
                         user_id=user_id,
                         type="alert_triggered",
-                        title=f"{alert_data['name'] or alert_data['ticker']} 목표가 도달",
-                        body=(
-                            f"{alert_data['ticker']} 현재가 {alert_data['current_price']:,.0f}이 "
-                            f"목표가 {alert_data['threshold']:,.0f}{condition_kr}에 도달했습니다."
-                        ),
+                        title=title,
+                        body=body,
                     )
                     db.add(notification)
+                    push_payloads.append(
+                        PushPayload(
+                            title=title,
+                            body=body,
+                            url=f"/dashboard/stocks/{alert_data['ticker']}",
+                            tag=f"alert:{alert_data['ticker']}",
+                        )
+                    )
                 await db.commit()
+
+                # Fan out to any registered Web Push subscriptions. send_push
+                # is a no-op when VAPID keys aren't configured, so this is
+                # safe in dev.
+                for payload in push_payloads:
+                    try:
+                        await send_push(db, user_id, payload)
+                    except Exception as push_exc:  # noqa: BLE001
+                        logger.warning("push_sender failed: %s", push_exc)
             return f"event: alerts\ndata: {json.dumps(triggered)}\n\n"
     except Exception as exc:
         logger.warning("Alert check error for user %s: %s", user_id, exc)

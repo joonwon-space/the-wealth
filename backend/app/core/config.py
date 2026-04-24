@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     # When True, rate limiter is bypassed (useful for local dev / tests).
     KIS_MOCK_MODE: bool = False
 
+    # Web Push (VAPID). Empty keys disable push — the /push/* endpoints still
+    # respond but no actual notifications are delivered.
+    # Generate with: `python -m py_vapid --applicationServerKey`
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    # mailto: or https://... contact for abuse reports (required by spec).
+    VAPID_SUBJECT: str = "mailto:admin@joonwon.dev"
+
     @model_validator(mode="after")
     def reject_placeholder_secrets(self) -> "Settings":
         if self.JWT_SECRET_KEY in _PLACEHOLDER_SECRETS:

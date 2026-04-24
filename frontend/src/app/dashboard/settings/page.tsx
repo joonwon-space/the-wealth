@@ -5,15 +5,23 @@ import { SecurityLogsSection } from "./SecurityLogsSection";
 import { ActiveSessionsSection } from "./ActiveSessionsSection";
 import { AccountSection } from "./AccountSection";
 import { KisCredentialsSection } from "./KisCredentialsSection";
+import { PushNotificationsSection } from "./PushNotificationsSection";
 import { Card, CardContent } from "@/components/ui/card";
 
-type Tab = "account" | "kis" | "security-logs" | "sessions";
+type Tab = "account" | "kis" | "notifications" | "security-logs" | "sessions";
 
-const VALID_TABS: Tab[] = ["account", "kis", "security-logs", "sessions"];
+const VALID_TABS: Tab[] = [
+  "account",
+  "kis",
+  "notifications",
+  "security-logs",
+  "sessions",
+];
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "account", label: "계정" },
   { id: "kis", label: "KIS 계좌" },
+  { id: "notifications", label: "알림" },
   { id: "security-logs", label: "보안 로그" },
   { id: "sessions", label: "세션 관리" },
 ];
@@ -61,6 +69,9 @@ export default function SettingsPage() {
 
       {/* KIS credentials tab */}
       {activeTab === "kis" && <KisCredentialsSection />}
+
+      {/* Notifications tab */}
+      {activeTab === "notifications" && <PushNotificationsSection />}
 
       {/* Security logs tab */}
       {activeTab === "security-logs" && (

@@ -8,6 +8,7 @@ from app.models.notification import Notification
 from app.models.order import Order
 from app.models.portfolio import Portfolio
 from app.models.price_snapshot import PriceSnapshot
+from app.models.push_subscription import PushSubscription
 from app.models.routine_log import RoutineLog
 from app.models.security_audit_log import SecurityAuditLog
 from app.models.sync_log import SyncLog
@@ -27,6 +28,7 @@ __all__ = [
     "User",
     "KisAccount",
     "Portfolio",
+    "PushSubscription",
     "Holding",
     "Transaction",
     "SyncLog",
