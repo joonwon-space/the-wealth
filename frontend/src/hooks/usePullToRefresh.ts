@@ -11,6 +11,12 @@ interface Options {
   maxPull?: number;
   /** Disable the gesture (e.g. on desktop). */
   disabled?: boolean;
+  /**
+   * CSS selector for the scroll container. When provided, the gesture activates
+   * only if that container's `scrollTop === 0` at gesture start. Defaults to
+   * `[data-scroll-container]` which the dashboard layout applies to `<main>`.
+   */
+  scrollContainerSelector?: string;
 }
 
 interface State {
@@ -20,92 +26,139 @@ interface State {
   threshold: number;
 }
 
+// Gate the gesture so it does not hijack normal scrolling:
+// - user must swipe primarily vertically (|dy| > |dx| * HORIZONTAL_TOLERANCE)
+// - minimum vertical travel before we start blocking native behavior
+const HORIZONTAL_TOLERANCE = 1.2;
+const ACTIVATION_THRESHOLD_PX = 8;
+
 /**
- * Mobile pull-to-refresh gesture. Only engages when the scroll container is
- * at the top and the user starts a downward drag from that position.
- *
- * Attach the returned `bind` ref to the scroll container (usually the main
- * content area). The state fields drive an indicator rendered by the caller.
+ * Mobile pull-to-refresh gesture. Attaches touch listeners to the document
+ * root but activates only when the designated scroll container is at its
+ * top, and only when the gesture is clearly vertical.
  */
 export function usePullToRefresh({
   onRefresh,
   threshold = 64,
   maxPull = 96,
   disabled = false,
-}: Options): { bind: React.RefObject<HTMLDivElement | null>; state: State } {
-  const bind = useRef<HTMLDivElement | null>(null);
-  const startY = useRef<number | null>(null);
-  const activeRef = useRef(false);
+  scrollContainerSelector = "[data-scroll-container]",
+}: Options): { state: State } {
   const [state, setState] = useState<State>({
     pulling: false,
     distance: 0,
     refreshing: false,
     threshold,
   });
+  // Mirror state into refs so the touchmove handler can read the latest value
+  // without retriggering the effect (which would re-bind listeners on every
+  // frame and race with the in-flight gesture).
+  const distanceRef = useRef(0);
+  const refreshingRef = useRef(false);
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
 
   useEffect(() => {
     if (disabled) return;
-    const el = bind.current ?? document.documentElement;
-    if (!el) return;
+    if (typeof window === "undefined") return;
 
-    const getScrollTop = () => {
-      if (bind.current) return bind.current.scrollTop;
-      return window.scrollY || document.documentElement.scrollTop;
+    const resolveScroller = (): HTMLElement | null => {
+      return document.querySelector<HTMLElement>(scrollContainerSelector);
+    };
+
+    let startX: number | null = null;
+    let startY: number | null = null;
+    let active = false;
+    let scroller: HTMLElement | null = null;
+
+    const reset = () => {
+      startX = null;
+      startY = null;
+      active = false;
+      scroller = null;
+    };
+
+    const commitState = (next: Partial<State>) => {
+      if (next.distance !== undefined) distanceRef.current = next.distance;
+      if (next.refreshing !== undefined) refreshingRef.current = next.refreshing;
+      setState((prev) => ({ ...prev, ...next }));
     };
 
     const onStart = (e: TouchEvent) => {
-      if (getScrollTop() > 0) return;
-      if (state.refreshing) return;
-      startY.current = e.touches[0].clientY;
+      if (refreshingRef.current) return;
+      scroller = resolveScroller();
+      if (!scroller || scroller.scrollTop > 0) {
+        scroller = null;
+        return;
+      }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      active = false;
     };
 
     const onMove = (e: TouchEvent) => {
-      if (startY.current == null) return;
-      const delta = e.touches[0].clientY - startY.current;
-      if (delta <= 0) return;
-      if (getScrollTop() > 0) {
-        startY.current = null;
+      if (startX === null || startY === null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+
+      // If gesture becomes horizontal, abort. This prevents the refresh
+      // indicator from appearing when the user swipes sideways (carousels,
+      // the iOS back-swipe gesture, or accidental diagonal motion).
+      if (!active && Math.abs(dx) > Math.abs(dy) * HORIZONTAL_TOLERANCE) {
+        reset();
         return;
       }
-      activeRef.current = true;
-      // Rubber-banding: soft-clamp past threshold so the indicator doesn't run away.
-      const distance = Math.min(delta * 0.55, maxPull);
-      setState((s) => ({ ...s, pulling: true, distance }));
+
+      // Upward or tiny vertical movement — let native scroll handle it.
+      if (dy < ACTIVATION_THRESHOLD_PX) return;
+
+      // Scroller may have been scrolled since touchstart (e.g. iOS momentum).
+      if (!scroller || scroller.scrollTop > 0) {
+        reset();
+        return;
+      }
+
+      active = true;
+      // Rubber-banding: soft-clamp past threshold so the indicator does not run away.
+      const next = Math.min((dy - ACTIVATION_THRESHOLD_PX) * 0.55, maxPull);
+      commitState({ pulling: true, distance: next });
       if (e.cancelable) e.preventDefault();
     };
 
-    const onEnd = async () => {
-      if (!activeRef.current) {
-        startY.current = null;
+    const finish = async () => {
+      if (!active) {
+        reset();
         return;
       }
-      const triggered = state.distance >= threshold;
-      activeRef.current = false;
-      startY.current = null;
+      const triggered = distanceRef.current >= threshold;
+      reset();
       if (!triggered) {
-        setState((s) => ({ ...s, pulling: false, distance: 0 }));
+        commitState({ pulling: false, distance: 0 });
         return;
       }
       haptic.light();
-      setState((s) => ({ ...s, pulling: false, refreshing: true, distance: threshold }));
+      commitState({ pulling: false, refreshing: true, distance: threshold });
       try {
-        await onRefresh();
+        await onRefreshRef.current();
       } finally {
-        setState((s) => ({ ...s, refreshing: false, distance: 0 }));
+        commitState({ refreshing: false, distance: 0 });
       }
     };
 
-    el.addEventListener("touchstart", onStart as EventListener, { passive: true });
-    el.addEventListener("touchmove", onMove as EventListener, { passive: false });
-    el.addEventListener("touchend", onEnd as EventListener);
-    el.addEventListener("touchcancel", onEnd as EventListener);
+    document.addEventListener("touchstart", onStart, { passive: true });
+    // passive:false only because we need preventDefault while pulling; when
+    // we abort early we do NOT call preventDefault, so native scroll is
+    // preserved.
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", finish);
+    document.addEventListener("touchcancel", finish);
     return () => {
-      el.removeEventListener("touchstart", onStart as EventListener);
-      el.removeEventListener("touchmove", onMove as EventListener);
-      el.removeEventListener("touchend", onEnd as EventListener);
-      el.removeEventListener("touchcancel", onEnd as EventListener);
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", finish);
+      document.removeEventListener("touchcancel", finish);
     };
-  }, [disabled, maxPull, onRefresh, state.distance, state.refreshing, threshold]);
+  }, [disabled, maxPull, scrollContainerSelector, threshold]);
 
-  return { bind, state };
+  return { state };
 }

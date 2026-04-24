@@ -40,7 +40,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       <main
         // 모바일: 탭바(56px) + safe-area 여유. 데스크탑(md 이상): 일반 패딩.
-        className="flex-1 overflow-y-auto p-4 pr-14 pt-14 pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:p-6 md:pr-16 md:pt-6 md:pb-6"
+        // overflow-x: hidden — 내부 테이블/차트의 1~2px 초과가 페이지 전체를
+        // 가로로 흔드는 것을 막는다. 가로 스크롤이 필요한 섹션은 각자
+        // `overflow-x-auto` 컨테이너를 쓴다.
+        // data-scroll-container — usePullToRefresh 훅이 실제 스크롤러를 찾을 수 있게 힌트 제공.
+        data-scroll-container=""
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 pr-14 pt-14 pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:p-6 md:pr-16 md:pt-6 md:pb-6"
       >
         {children}
       </main>
