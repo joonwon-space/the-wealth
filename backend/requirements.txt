@@ -51,7 +51,7 @@ pydantic==2.13.2
 pydantic-settings==2.13.1
 pydantic_core==2.46.2
 py-vapid==1.9.3
-pywebpush==2.0.5
+pywebpush==2.0.3
 Pygments==2.20.0
 PyJWT==2.12.1
 pyparsing==3.3.2
