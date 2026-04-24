@@ -3,30 +3,34 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
+function isStandaloneMode(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia("(display-mode: standalone)").matches) return true;
+  const navAny = window.navigator as Navigator & { standalone?: boolean };
+  return Boolean(navAny.standalone);
+}
+
 /**
  * A 300ms fade-in overlay shown only when the app launches in PWA standalone
- * mode. On browser tabs it's a no-op — users already see the page directly.
+ * mode. Browser tabs: no-op (standalone is false → initial state is false and
+ * never flips on).
  */
 export function AppSplash() {
-  const [visible, setVisible] = useState(false);
+  // Lazy init: read once on mount, avoid React 19 set-state-in-effect rule.
+  const [visible, setVisible] = useState<boolean>(() => isStandaloneMode());
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
-    if (!standalone) return;
-    setVisible(true);
+    if (!visible) return;
     const timer = window.setTimeout(() => setVisible(false), 300);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [visible]);
 
   if (!visible) return null;
 
   return (
     <div
       aria-hidden
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-background animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-background duration-300 animate-in fade-in"
     >
       <Image
         src="/icon-512.png"

@@ -13,6 +13,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { formatKRW } from "@/lib/format";
 import { OrderForm } from "@/components/orders/OrderForm";
 import { OrderConfirmation } from "@/components/orders/OrderConfirmation";
+import { haptic } from "@/lib/haptic";
 
 /** 현재 보유 종목 정보 (portfolio page에서 전달). */
 export interface ExistingHolding {
@@ -190,10 +191,12 @@ export function OrderDialog({
           setSuccessMessage(msg);
           setConfirmMode(false);
           resetForm();
+          haptic.success();
         },
         onError: (err) => {
           setSuccessMessage(`주문 오류: ${err.message}`);
           setConfirmMode(false);
+          haptic.warning();
         },
       }
     );
@@ -225,7 +228,7 @@ export function OrderDialog({
   if (successMessage) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm" mobileSheet>
           <DialogHeader>
             <DialogTitle>주문 결과</DialogTitle>
           </DialogHeader>
@@ -285,7 +288,7 @@ export function OrderDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm" mobileSheet>
         <DialogHeader>
           <DialogTitle>
             {stockName} <span className="text-muted-foreground text-sm">({ticker})</span>

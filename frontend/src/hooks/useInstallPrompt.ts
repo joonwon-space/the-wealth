@@ -31,13 +31,14 @@ function detectStandalone(): boolean {
 export function useInstallPrompt(): InstallPromptState {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [isIos, setIsIos] = useState(false);
+  // Lazy init so the value is derived once on mount from browser APIs —
+  // avoids the React 19 "setState in effect" rule.
+  const [isStandalone, setIsStandalone] = useState<boolean>(() =>
+    detectStandalone(),
+  );
+  const [isIos] = useState<boolean>(() => detectIos());
 
   useEffect(() => {
-    setIsIos(detectIos());
-    setIsStandalone(detectStandalone());
-
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);

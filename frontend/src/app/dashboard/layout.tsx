@@ -9,6 +9,7 @@ import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { ServiceWorkerUpdateToast } from "@/components/ServiceWorkerUpdateToast";
 import { InstallBanner } from "@/components/InstallBanner";
 import { AppSplash } from "@/components/AppSplash";
+import { MobilePullToRefresh } from "@/components/MobilePullToRefresh";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <BottomNav />
       <InstallBanner />
       <AppSplash />
+      <MobilePullToRefresh />
       <ServiceWorkerUpdateToast />
       <StockSearchDialog
         open={searchOpen}

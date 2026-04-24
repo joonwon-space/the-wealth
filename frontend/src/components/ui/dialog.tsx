@@ -43,17 +43,39 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  mobileSheet = false,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
+  /**
+   * On viewports narrower than `sm` (< 640px), render as a bottom sheet
+   * (full width, slide up from the bottom, rounded top corners) instead of
+   * a centered modal. Desktop layout is unchanged.
+   */
+  mobileSheet?: boolean
 }) {
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        data-mobile-sheet={mobileSheet ? "true" : undefined}
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-background p-4 text-sm ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed z-50 grid gap-4 bg-background p-4 text-sm ring-1 ring-foreground/10 duration-150 outline-none",
+          // Desktop (≥sm) styling — centered modal.
+          "sm:top-1/2 sm:left-1/2 sm:w-full sm:max-w-sm sm:max-w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
+          mobileSheet
+            ? [
+                // Mobile sheet: full width, anchored bottom, slide-up animation.
+                "inset-x-0 bottom-0 max-h-[92vh] overflow-y-auto rounded-t-2xl",
+                "pb-[max(1rem,env(safe-area-inset-bottom,0px))]",
+                "data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom",
+                "sm:inset-auto sm:bottom-auto sm:max-h-[none] sm:rounded-xl sm:pb-4 sm:data-open:zoom-in-95 sm:data-open:slide-in-from-bottom-0 sm:data-closed:zoom-out-95 sm:data-closed:slide-out-to-bottom-0",
+              ]
+            : [
+                "top-1/2 left-1/2 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl",
+                "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+              ],
           className
         )}
         {...props}
