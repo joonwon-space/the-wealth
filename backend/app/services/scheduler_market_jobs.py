@@ -21,6 +21,8 @@ from app.services.kis_price import (
     fetch_domestic_daily_ohlcv,
     fetch_domestic_price,
     fetch_and_cache_domestic_price,
+    fetch_overseas_daily_ohlcv,
+    fetch_overseas_price,
     fetch_usd_krw_rate,
     get_or_fetch_overseas_price,
     save_fx_rate_snapshot,
@@ -60,21 +62,49 @@ async def snapshot_daily_close(
             app_key = decrypt(acct.app_key_enc)
             app_secret = decrypt(acct.app_secret_enc)
 
-            hold_result = await db.execute(select(Holding.ticker).distinct())
-            tickers = [row[0] for row in hold_result.all()]
-            if not tickers:
+            hold_result = await db.execute(
+                select(Holding.ticker, Holding.market).distinct()
+            )
+            rows = hold_result.all()
+            if not rows:
                 logger.info("[Scheduler] No holdings found, skipping snapshot")
                 record_success(job_id)
                 return
 
+            domestic = [r[0] for r in rows if _DOMESTIC_TICKER_RE_SCHED.match(r[0])]
+            overseas = [
+                (r[0], r[1])
+                for r in rows
+                if not _DOMESTIC_TICKER_RE_SCHED.match(r[0])
+            ]
+
             async with httpx.AsyncClient(timeout=10.0) as client:
-                results = await asyncio.gather(
-                    *[fetch_domestic_daily_ohlcv(t, app_key, app_secret, client) for t in tickers],
+                domestic_results = await asyncio.gather(
+                    *[
+                        fetch_domestic_daily_ohlcv(t, app_key, app_secret, client)
+                        for t in domestic
+                    ],
+                    return_exceptions=True,
+                )
+                overseas_results = await asyncio.gather(
+                    *[
+                        fetch_overseas_daily_ohlcv(
+                            t,
+                            _MARKET_MAP_SCHED.get(m or "", "NAS"),
+                            app_key,
+                            app_secret,
+                            client,
+                        )
+                        for t, m in overseas
+                    ],
                     return_exceptions=True,
                 )
 
+            all_tickers = domestic + [t for t, _ in overseas]
+            all_results = list(domestic_results) + list(overseas_results)
+
             ohlcv_map: dict[str, OhlcvData] = {}
-            for ticker, result in zip(tickers, results):
+            for ticker, result in zip(all_tickers, all_results):
                 if isinstance(result, dict) and result.get("close"):
                     ohlcv_map[ticker] = OhlcvData(
                         open=result.get("open"),
@@ -89,11 +119,30 @@ async def snapshot_daily_close(
             else:
                 prices: dict[str, Decimal] = {}
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    price_results = await asyncio.gather(
-                        *[fetch_domestic_price(t, app_key, app_secret, client) for t in tickers],
+                    dom_price_results = await asyncio.gather(
+                        *[
+                            fetch_domestic_price(t, app_key, app_secret, client)
+                            for t in domestic
+                        ],
                         return_exceptions=True,
                     )
-                for ticker, price in zip(tickers, price_results):
+                    ovs_price_results = await asyncio.gather(
+                        *[
+                            fetch_overseas_price(
+                                t,
+                                _MARKET_MAP_SCHED.get(m or "", "NAS"),
+                                app_key,
+                                app_secret,
+                                client,
+                            )
+                            for t, m in overseas
+                        ],
+                        return_exceptions=True,
+                    )
+                for ticker, price in zip(domestic, dom_price_results):
+                    if isinstance(price, Decimal) and price > 0:
+                        prices[ticker] = price
+                for (ticker, _), price in zip(overseas, ovs_price_results):
                     if isinstance(price, Decimal) and price > 0:
                         prices[ticker] = price
                 count = await save_snapshots(db, prices)

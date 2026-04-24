@@ -234,6 +234,62 @@ async def fetch_domestic_daily_ohlcv(
         return None
 
 
+async def fetch_overseas_daily_ohlcv(
+    ticker: str,
+    market: str,
+    app_key: str,
+    app_secret: str,
+    client: httpx.AsyncClient,
+    target_date: Optional[str] = None,
+) -> Optional[dict]:
+    """해외주식 일별 OHLCV 조회 (HHDFS76240000).
+
+    Returns dict with open, high, low, close, volume or None on failure.
+    target_date: YYYYMMDD format. If None, uses latest available.
+    """
+    await _rate_limit_acquire()
+    headers = await _get_headers(app_key, app_secret)
+    headers["tr_id"] = "HHDFS76240000"
+
+    from datetime import date as date_type
+
+    end_date = target_date or date_type.today().strftime("%Y%m%d")
+
+    params = {
+        "AUTH": "",
+        "EXCD": market,
+        "SYMB": ticker,
+        "GUBN": "0",  # 0=일봉
+        "BYMD": end_date,
+        "MODP": "0",
+    }
+    try:
+        resp = await kis_get(
+            client,
+            f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/dailyprice",
+            headers=headers,
+            params=params,
+        )
+        resp.raise_for_status()
+        output_list = resp.json().get("output2", [])
+        if not output_list:
+            return None
+        row = output_list[0]
+        close_str = row.get("clos", "0")
+        if not close_str or close_str == "0":
+            return None
+        return {
+            "open": Decimal(row["open"]) if row.get("open") else None,
+            "high": Decimal(row["high"]) if row.get("high") else None,
+            "low": Decimal(row["low"]) if row.get("low") else None,
+            "close": Decimal(close_str),
+            "volume": int(row["tvol"]) if row.get("tvol") else None,
+        }
+    except Exception as e:
+        logger.warning("Failed to fetch overseas daily OHLCV for %s/%s: %s", ticker, market, e)
+        return None
+
+
 async def fetch_prices_parallel(
     tickers: list[str], app_key: str, app_secret: str, market: str = "domestic"
 ) -> dict[str, Optional[Decimal]]:
