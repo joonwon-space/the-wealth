@@ -293,6 +293,14 @@ Rate-limited endpoints for brute force protection.
 - **Description**: Returns daily close price time-series for the specified benchmark index from the `index_snapshots` table. Data is collected by the `collect_benchmark` scheduler job (KST 16:20 weekdays).
 - **Errors**: 400 (invalid `index_code`)
 
+### GET /analytics/benchmark-delta
+- **Auth**: Required
+- **Rate limit**: 30/minute
+- **Query params**: `index_code: string` (default "KOSPI200"; accepts KOSPI200, SP500), `period: string` (default "6M"; accepts 1M, 3M, 6M, 1Y, ALL)
+- **Response** (200): `BenchmarkDelta` — `{ portfolio_return_pct: decimal, benchmark_return_pct: decimal, delta_pct: decimal, period: string, index_code: string }`
+- **Description**: Returns the difference in percentage points between the user's portfolio cumulative return and the benchmark index return for the given period. Portfolio return is computed from weighted average prices of current holdings vs current snapshot prices. Benchmark return is computed from `index_snapshots` start/end close prices.
+- **Errors**: 400 (invalid `index_code` or `period`)
+
 ### GET /analytics/stocks/{ticker}/sma
 - **Auth**: Required
 - **Rate limit**: 30/minute
@@ -524,6 +532,78 @@ Rate-limited endpoints for brute force protection.
 - **Auth**: Required
 - **Response** (200): Disk usage statistics for the server filesystem
 - **Notes**: Reports used/total/free disk space; used for proactive disk capacity monitoring
+
+---
+
+## Rebalancing (`/portfolios`)
+
+### PUT /portfolios/{portfolio_id}/target-allocation
+- **Auth**: Required (ownership verified)
+- **Rate limit**: 30/minute
+- **Request body**: `{ "target_allocation": { "sector_name": float } }` (sector to target weight mapping, weights as fractions or percentages)
+- **Response** (200): `{ "portfolio_id": int, "target_allocation": object }`
+- **Description**: Saves sector-level target allocation for the portfolio. Stored in `portfolios.target_allocation` JSONB column.
+
+### GET /portfolios/{portfolio_id}/target-allocation
+- **Auth**: Required (ownership verified)
+- **Response** (200): `{ "portfolio_id": int, "target_allocation": object }`
+
+### GET /portfolios/{portfolio_id}/rebalance-suggestion
+- **Auth**: Required (ownership verified)
+- **Rate limit**: 30/minute
+- **Query params**: `threshold: float` (default 0.03 — minimum deviation to trigger a suggestion)
+- **Response** (200): `RebalanceSuggestionResponse` — `{ suggestions: [{ ticker, name, action: "BUY"|"SELL", quantity, current_weight, target_weight, deviation }] }`
+- **Description**: Compares current sector weights against `target_allocation`. Returns suggested orders for holdings that deviate beyond the threshold.
+
+---
+
+## Dividends (`/dividends`)
+
+### GET /dividends/upcoming
+- **Auth**: Required
+- **Response** (200): `UpcomingDividend[]` — list of upcoming dividends for user's held tickers
+- **Description**: Returns predicted upcoming dividend events based on holdings. Data sourced from static/external dividend calendar.
+
+---
+
+## Stream (`/stream`)
+
+### GET /stream
+- **Auth**: Required
+- **Response** (200): `StreamResponse` — unified activity feed combining alerts, order fills, dividends, rebalance events, and routine logs, ordered by timestamp descending
+- **Description**: Returns a consolidated activity timeline. Item kinds: `alert`, `fill`, `dividend`, `rebalance`, `routine`.
+
+---
+
+## Tasks (`/tasks`)
+
+### GET /tasks/today
+- **Auth**: Required
+- **Response** (200): `TodayTasksResponse` — summary of pending actions for the day (unfilled orders count, unread alerts count, rebalance suggestions count, etc.)
+
+---
+
+## Web Push (`/push`)
+
+### GET /push/public-key
+- **Auth**: None
+- **Rate limit**: 30/minute
+- **Response** (200): `{ "public_key": string, "enabled": boolean }`
+- **Notes**: Returns the VAPID public key for the client to use when creating a push subscription. `enabled: false` when `VAPID_PUBLIC_KEY` env var is not configured.
+
+### POST /push/subscribe
+- **Auth**: Required
+- **Rate limit**: 10/minute
+- **Request body**: `{ "endpoint": string, "keys": { "p256dh": string, "auth": string }, "user_agent"?: string }`
+- **Response** (201): `PushSubscriptionResponse`
+- **Notes**: Creates or updates (upserts) a push subscription keyed on `endpoint`. Re-posting from the same browser refreshes the keys and rebinds to the current user.
+
+### DELETE /push/subscribe
+- **Auth**: Required
+- **Rate limit**: 10/minute
+- **Query params**: `endpoint: string` (the subscription endpoint URL)
+- **Response** (204): No content
+- **Notes**: Removes the subscription owned by the current user matching the given endpoint. IDOR-safe: only the owning user can delete.
 
 ---
 

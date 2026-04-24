@@ -1,10 +1,10 @@
 # Database Schema & Migration Workflow
 
-14개 테이블 개요, ERD, 주요 인덱스, Alembic 체크리스트.
+17개 테이블 개요, ERD, 주요 인덱스, Alembic 체크리스트.
 
 ---
 
-## 1. 테이블 목록 (14개)
+## 1. 테이블 목록 (17개)
 
 | 테이블 | 목적 |
 |--------|------|
@@ -22,6 +22,9 @@
 | `sync_logs` | KIS 잔고 동기화 이력 |
 | `notifications` | 인앱 알림 |
 | `security_audit_logs` | 보안 이벤트 감사 로그 |
+| `push_subscriptions` | Web Push 구독 정보 (VAPID endpoint + keys) |
+| `routine_logs` | 루틴 이벤트 로그 (활동 피드 소스) |
+| `dividends` | 배당 데이터 (예상 배당 조회용) |
 
 ---
 
@@ -36,6 +39,9 @@ erDiagram
     users ||--o{ notifications : "receives"
     users ||--o{ sync_logs : "triggers"
     users ||--o{ security_audit_logs : "generates"
+    users ||--o{ push_subscriptions : "subscribes"
+    users ||--o{ routine_logs : "triggers"
+    portfolios ||--o{ routine_logs : "tracks"
 
     portfolios ||--o{ holdings : "contains"
     portfolios ||--o{ transactions : "records"
@@ -198,6 +204,49 @@ ip_address String(45), user_agent TEXT
 meta JSONB
 created_at INDEX
 INDEX(user_id, created_at) — 복합 인덱스
+```
+
+### push_subscriptions
+```
+id PK
+user_id FK(users.id CASCADE) INDEX (ix_push_subscriptions_user_id)
+endpoint String(500) UNIQUE ← browser push endpoint URL
+p256dh String(255)          ← browser-generated public key (EC P-256)
+auth String(64)             ← browser auth secret
+user_agent String(255) nullable
+created_at TIMESTAMPTZ
+```
+
+### routine_logs
+```
+id PK
+user_id FK(users.id CASCADE) INDEX
+portfolio_id FK(portfolios.id CASCADE) nullable INDEX
+routine_kind String(32)     ← rebalance_monthly | rebalance_quarterly | dividend_review
+period_key String(16)       ← 'YYYY-MM' (monthly) or 'YYYY-Qn' (quarterly)
+completed_at TIMESTAMPTZ
+snapshot JSONB nullable     ← sector weights snapshot at completion
+note String(500) nullable
+duration_seconds Integer nullable
+UNIQUE(user_id, portfolio_id, routine_kind, period_key)
+```
+
+### dividends
+```
+id PK
+ticker String(20) INDEX
+market String(8)            ← KRX | NYSE | NASDAQ 등
+ex_date Date nullable INDEX ← 배당락일
+record_date Date NOT NULL   ← 배당 기준일
+payment_date Date nullable
+amount Numeric(18,4)
+currency String(3)          ← KRW | USD 등
+kind String(16)             ← cash | stock | special | interim
+source String(32)           ← kis_domestic | kis_overseas_ice | kis_overseas_period | manual
+raw JSONB nullable          ← KIS 원본 응답 보존
+created_at TIMESTAMPTZ
+updated_at TIMESTAMPTZ
+UNIQUE(ticker, market, record_date, kind)
 ```
 
 ---

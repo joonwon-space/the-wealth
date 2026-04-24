@@ -93,6 +93,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 알림 관리 | 활성/비활성 토글, 임계값 변경, 삭제 |
 | SSE 조건 체크 | 실시간 가격 스트림에서 알림 조건 감지 + 쿨다운(1h) + 자동 비활성화 |
 | 인앱 알림 센터 | 알림 벨 아이콘 + 미읽음 배지 + 드롭다운 패널, 단건/전체 읽음 처리 |
+| Web Push 알림 | VAPID 기반 브라우저 푸시 알림 (가격 알림 조건 충족 시 발송), PWA 설치 시 백그라운드 수신 |
 
 ### 2.7 자동 동기화
 
@@ -108,6 +109,36 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 미체결 주문 자동 체결 확인 | 평일 KST 09:00-15:00 매 5분마다 미체결 주문 KIS API 조회 후 체결 상태 자동 업데이트 |
 | 지수 스냅샷 (벤치마크) | 평일 KST 16:20 KOSPI200 + S&P500 지수 스냅샷 수집 → index_snapshots 저장 |
 
+### 2.8 리밸런싱
+
+| 기능 | 설명 |
+|------|------|
+| 목표 섹터 비중 설정 | 포트폴리오별 섹터별 목표 비중 저장 (`target_allocation` JSONB) |
+| 리밸런싱 제안 | 현재 섹터 비중 vs 목표 비중 차이 계산 후 매수/매도 제안 주문 목록 반환 |
+
+### 2.9 활동 피드 (Stream)
+
+| 기능 | 설명 |
+|------|------|
+| 활동 피드 조회 | 알림·체결·배당·리밸런싱·루틴 이벤트를 시간순으로 통합 표시 |
+| 오늘의 할 일 | 미체결 주문·미읽음 알림·리밸런싱 필요 종목 등 당일 액션 요약 조회 |
+
+### 2.10 배당 관리
+
+| 기능 | 설명 |
+|------|------|
+| 예상 배당 조회 | 보유종목 기준 향후 예상 배당 목록 조회 |
+
+### 2.11 PWA / 모바일 앱
+
+| 기능 | 설명 |
+|------|------|
+| PWA Manifest | next-pwa 기반 앱 매니페스트, 홈화면 추가(A2HS) 배너 |
+| Service Worker | 앱셸 오프라인 캐싱, 오프라인 폴백 페이지 |
+| 온보딩 | 최초 로그인 후 KIS 계좌 설정 안내 온보딩 플로우 |
+| 모바일 터치 UX | pull-to-refresh, 스와이프 제스처, iOS 상단탭 스크롤업 지원 |
+| Web Push | VAPID 기반 브라우저 푸시 구독 관리 (공개키 조회, 구독/해지) |
+
 ---
 
 ## 3. 페이지 구조
@@ -116,6 +147,8 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 /                           → 루트 (로그인 리다이렉트 또는 랜딩)
 /login                      → 로그인 페이지
 /register                   → 회원가입 페이지
+/onboarding                 → 온보딩 (KIS 계좌 등록 안내, 최초 로그인 후)
+/offline                    → 오프라인 폴백 페이지 (Service Worker 캐시)
 /dashboard                  → 메인 대시보드
   ├── /                     → 포트폴리오 요약 + 보유종목 테이블 + 자산 배분 차트
   ├── /analytics            → 수익률 분석 (월별 히트맵, 포트폴리오 히스토리)
@@ -123,7 +156,9 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
   ├── /journal              → 투자 일지 페이지
   ├── /portfolios           → 포트폴리오 목록
   ├── /portfolios/[id]      → 포트폴리오 상세 (거래내역, 보유종목)
+  ├── /rebalance            → 리밸런싱 페이지 (섹터 목표 비중 설정 + 제안 주문)
   ├── /stocks/[ticker]      → 종목 상세 (캔들스틱 차트, 종목 정보)
+  ├── /stream               → 활동 피드 (알림·체결·배당·리밸런싱 이벤트 타임라인)
   └── /settings             → KIS 계좌 관리, 사용자 설정, 보안 로그, 세션 관리 (URL hash 탭 복원)
 ```
 
@@ -175,7 +210,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 ## 5. API 엔드포인트 전체 목록
 
-총 81개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
+총 97개 엔드포인트 (모두 `/api/v1` prefix, 내부 API 별도):
 
 > 주문 (`POST /portfolios/{id}/orders`) 레이트 리밋: 10/minute (Sprint 10에서 30→10으로 강화)
 
@@ -231,7 +266,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 |--------|------|------|
 | GET | `/dashboard/summary` | 대시보드 요약 (kis_status: "ok" / "degraded" 포함) |
 
-### 분석 (9)
+### 분석 (10)
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/analytics/metrics` | 수익률 지표 |
@@ -242,6 +277,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/analytics/fx-gain-loss` | 해외주식 종목별 환차익/환차손 분리 |
 | GET | `/analytics/krw-asset-history` | 환율 반영 원화 환산 총 자산 추이 |
 | GET | `/analytics/benchmark` | KOSPI200 / S&P500 벤치마크 지수 일별 종가 시계열 |
+| GET | `/analytics/benchmark-delta` | 내 포트폴리오 누적 수익률 vs 벤치마크 기간별 차이(%p) |
 | GET | `/analytics/stocks/{ticker}/sma` | 종목별 단순 이동평균(SMA) 시계열 |
 
 ### 알림 (4)
@@ -314,6 +350,35 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | GET | `/health/holdings-reconciliation` | 보유 수량 정합성 검사 (거래내역 vs holdings) |
 | GET | `/health/orphan-records` | 고아 레코드 감지 (삭제된 포트폴리오 잔여 데이터) |
 | GET | `/health/disk` | 디스크 사용량 모니터링 |
+
+### 리밸런싱 (3)
+| Method | Path | 설명 |
+|--------|------|------|
+| PUT | `/portfolios/{id}/target-allocation` | 섹터별 목표 비중 저장 |
+| GET | `/portfolios/{id}/target-allocation` | 섹터별 목표 비중 조회 |
+| GET | `/portfolios/{id}/rebalance-suggestion` | 현재 비중 vs 목표 비중 차이 기반 리밸런싱 제안 주문 |
+
+### 배당 (1)
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/dividends/upcoming` | 보유종목 기준 예상 배당 목록 조회 |
+
+### 활동 피드 (1)
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/stream` | 알림·체결·배당·리밸런싱·루틴 이벤트 통합 피드 |
+
+### 오늘의 할 일 (1)
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/tasks/today` | 미체결 주문·미읽음 알림·리밸런싱 필요 등 당일 액션 요약 |
+
+### Web Push (3)
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/push/public-key` | VAPID 공개키 조회 (인증 불필요) |
+| POST | `/push/subscribe` | 푸시 구독 등록/갱신 (endpoint 기준 upsert) |
+| DELETE | `/push/subscribe` | 푸시 구독 해지 (query param: endpoint) |
 
 ### 내부 API (1)
 | Method | Path | 설명 |

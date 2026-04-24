@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 80 API endpoints (22 routers — analytics/portfolios/orders split into sub-files)  │
+│   ├── 97 API endpoints (24 routers — analytics/portfolios/orders split into sub-files)  │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │
@@ -277,7 +277,7 @@ frontend/src/
 ```
 backend/app/
 ├── main.py                    # FastAPI app, CORS, 미들웨어, 라우터 등록
-├── api/                       # 20개 API 라우터 + 공통 의존성
+├── api/                       # 24개 API 라우터 + 공통 의존성
 │   ├── deps.py                # get_current_user, get_current_user_sse 인증 의존성
 │   ├── auth.py                # 인증 (register, login, refresh, change-password, logout)
 │   ├── portfolios.py          # 포트폴리오 CRUD (thin shim: holdings/transactions 분리)
@@ -300,6 +300,11 @@ backend/app/
 │   ├── prices.py              # 가격 히스토리, SSE 스트림
 │   ├── watchlist.py           # 관심종목
 │   ├── orders.py              # 주문 (매수/매도, 미체결, 취소, 예수금)
+│   ├── portfolios_allocation.py # 리밸런싱 목표 비중 + 제안 주문
+│   ├── dividends.py           # 예상 배당 조회
+│   ├── stream.py              # 활동 피드 (알림·체결·배당·리밸런싱 통합)
+│   ├── tasks.py               # 오늘의 할 일 요약
+│   ├── push.py                # Web Push 구독 관리 (VAPID)
 │   ├── health.py              # 헬스체크 (DB, Redis, KIS, backup 상태)
 │   └── internal.py            # 내부 API (백업 상태 기록)
 ├── core/
@@ -316,7 +321,7 @@ backend/app/
 ├── db/
 │   ├── base.py                # SQLAlchemy Base
 │   └── session.py             # AsyncSession 팩토리
-├── models/                    # SQLAlchemy ORM 모델 (14 테이블)
+├── models/                    # SQLAlchemy ORM 모델 (17 테이블)
 │   ├── user.py
 │   ├── portfolio.py
 │   ├── holding.py
@@ -330,7 +335,10 @@ backend/app/
 │   ├── order.py
 │   ├── sync_log.py
 │   ├── index_snapshot.py      # KOSPI200/S&P500 지수 스냅샷 (벤치마크)
-│   └── security_audit_log.py  # 보안 감사 로그 (로그인/비밀번호 변경 등)
+│   ├── security_audit_log.py  # 보안 감사 로그 (로그인/비밀번호 변경 등)
+│   ├── push_subscription.py   # Web Push 구독 (VAPID endpoint + keys)
+│   ├── routine_log.py         # 루틴 이벤트 로그 (활동 피드용)
+│   └── dividend.py            # 배당 데이터
 ├── schemas/                   # Pydantic 검증 스키마
 │   ├── auth.py
 │   ├── portfolio.py
@@ -548,7 +556,7 @@ Request
 
 ---
 
-## 4. 데이터베이스 스키마 (14 테이블)
+## 4. 데이터베이스 스키마 (17 테이블)
 
 ### 4.1 ERD 다이어그램
 
@@ -910,7 +918,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ---
 
-## 6. 프로젝트 현황 분석 (2026-04-17)
+## 6. 프로젝트 현황 분석 (2026-04-24)
 
 ### 6.1 완성도
 
@@ -949,6 +957,13 @@ slowapi 기반 IP별 레이트 리미팅:
 | KIS 토큰 중복 발급 방지 (Sprint 14) | 완료 | Redis asyncio.Lock 기반 동시 요청 직렬화 |
 | 예수금 수익률 재계산 (Sprint 14) | 완료 | profit_loss_rate를 KIS evlu_erng_rt 대신 합산 P&L 기준으로 재계산 |
 | 코드 파일 분할 (Sprint 9/10) | 완료 | analytics.py→3분할, portfolios.py→holdings+transactions, kis_order.py→place+cancel+query, dashboard/page.tsx→DashboardMetrics+PortfolioList |
+| PWA / 모바일 앱 (Sprint 17) | 완료 | next-pwa manifest + Service Worker 오프라인 캐시 + A2HS 배너 + 스플래시, 오프라인 폴백 페이지 |
+| 모바일 터치 UX (Sprint 17) | 완료 | pull-to-refresh (의도적 당김만 트리거), iOS BottomNav 첫 탭 버그 수정, 햄버거 메뉴 iOS 스크롤업 지원 |
+| Web Push 알림 (Sprint 17) | 완료 | VAPID 기반 브라우저 푸시 알림, push_subscriptions 테이블, /push/* API 3개, pywebpush 발송, 410/404 자동 구독 삭제 |
+| 온보딩 플로우 (Sprint 17) | 완료 | /onboarding 페이지: KIS 계좌 등록 안내 단계별 가이드 |
+| 리밸런싱 (Sprint 17) | 완료 | /portfolios/{id}/target-allocation + /rebalance-suggestion API, /dashboard/rebalance 페이지 |
+| 활동 피드 / 오늘의 할 일 (Sprint 17) | 완료 | GET /stream, GET /tasks/today, /dashboard/stream 페이지 |
+| 배당 관리 (Sprint 17) | 완료 | GET /dividends/upcoming, Dividend 모델 |
 | 벤치마크 히스토리 API (Sprint 11) | 완료 | GET /analytics/benchmark — KOSPI200/S&P500 일별 종가 시계열, index_snapshots 테이블 쿼리 |
 | SMA 오버레이 API (Sprint 11) | 완료 | GET /analytics/stocks/{ticker}/sma — price_snapshots 기반 단순 이동평균 계산, period 2~200 파라미터 지원 |
 | 보안 강화 (Sprint 12) | 완료 | transaction 엔드포인트 6개 60/min 레이트 리밋 추가, holdings GET 30/min 추가 (SEC-001/004) |
@@ -959,7 +974,7 @@ slowapi 기반 IP별 레이트 리미팅:
 
 ### 6.2 테스트 커버리지 (백엔드)
 
-전체: 803 passed (Sprint 10 완료 후 기준; 2026-04-07), 78% 커버리지
+전체: 803 passed (Sprint 10 완료 후 기준; 2026-04-07), 78% 커버리지 (Sprint 17 신규 모듈 미포함)
 
 CI 수정 사항:
 - `test_kis_price.py` MagicMock import 누락 수정
@@ -1103,6 +1118,11 @@ CI 수정 사항:
 - **[Sprint 14/RL-001~RL-008]** KIS API 토큰 버킷 레이트 리미터 추가: kis_rate_limiter.py (5/s, burst=20→15), 9개 KIS HTTP call site 래핑, KIS_RATE_LIMIT_PER_SEC / KIS_RATE_LIMIT_BURST / KIS_MOCK_MODE 환경변수 지원
 - **[Sprint 14+]** KIS 정책 준수 강화: KIS_RATE_LIMIT_BURST 기본값 20→15 (KIS 18/s 정책), kis_retry.py 추가 (HTTP 429 + rt_cd=EGW00201 감지, 지터 후 1회 재시도), 토큰 발급 전용 1/s 리미터 acquire_token_issuance(), KIS_TOKEN_RATE_LIMIT_PER_SEC / KIS_TOKEN_RATE_LIMIT_BURST / KIS_HTTP_MAX_RETRIES 환경변수 추가
 - **[Sprint 14+]** GET /portfolios/with-prices 엔드포인트 추가: 포트폴리오 목록 화면에서 포트폴리오별 시가총액/P&L 금액/P&L 비율 표시 (KRW 환산, 한국 컬러 컨벤션 적용)
+- **[Sprint 17/MB-P1~P5]** PWA 앱화: manifest/viewport, Service Worker 오프라인 캐시, A2HS 설치 배너, 모바일 터치 UX (pull-to-refresh 의도적 트리거), Web Push VAPID 알림
+- **[Sprint 17]** 모바일 버그 수정: iOS BottomNav 첫 탭 씹힘, 햄버거 버튼 border/텍스트 가림, 알림벨 빈 공간, pull-to-refresh armed 인디케이터, iOS 상단탭 스크롤업, 모바일 가로 흔들림
+- **[Sprint 17]** pywebpush 버전 정합: 2.0.5→2.0.3 (PyPI 버전 안정화)
+- **[Sprint 17]** 포트폴리오 목록 모바일 통계 표시 + 상세 탭 → 세로 섹션 전환 (보유→개요→거래내역)
+- **[Sprint 17]** 분석 페이지 benchmark-delta API: GET /analytics/benchmark-delta (포트폴리오 vs 벤치마크 수익률 차이 %p)
 - **[Sprint 14]** KIS 토큰 중복 발급 방지: Redis asyncio.Lock 기반 동시 요청 직렬화 (b277160)
 - **[Sprint 14]** KIS 계좌 미연결 포트폴리오 가격 조회 수정: reconcile_holdings 시 KIS 계좌 없는 포트폴리오도 처리 (73d448c)
 - **[Sprint 14]** 예수금 profit_loss_rate 재계산 수정: KIS evlu_erng_rt 대신 합산된 total_profit_loss / invested_stock_amount 기준으로 재계산 (해외 손익 미반영 문제 해결) (38c63b8)
@@ -1112,7 +1132,7 @@ CI 수정 사항:
 
 ### 6.4 약점 및 개선 필요 사항
 
-- 이메일 알림 미구현 (인앱 알림 센터는 완료, 이메일/푸시 채널 없음)
+- 이메일 알림 미구현 (인앱 알림 센터 + Web Push 완료, 이메일 채널 없음)
 - 프론트엔드 테스트 커버리지 부족 (MSW 설정 완료, HoldingsTable 등 일부 컴포넌트 테스트 추가됨, 페이지 테스트 미착수)
 - 벤치마크 비교 UI 미구현 (Sprint 11에서 GET /analytics/benchmark API 완료. 분석 페이지 차트 연동 미착수)
 - invalidate_analytics_cache가 포트폴리오별 캐시 키를 무효화하지 않음 (TTL 1시간 만료 후 자동 갱신)
