@@ -31,6 +31,7 @@ export function MobilePullToRefresh() {
     <PullToRefreshIndicator
       distance={state.distance}
       threshold={state.threshold}
+      armed={state.armed}
       refreshing={state.refreshing}
     />
   );

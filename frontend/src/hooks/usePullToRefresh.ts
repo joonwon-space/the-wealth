@@ -22,31 +22,44 @@ interface Options {
 interface State {
   pulling: boolean;
   distance: number;
+  armed: boolean;
   refreshing: boolean;
   threshold: number;
 }
 
-// Gate the gesture so it does not hijack normal scrolling:
-// - user must swipe primarily vertically (|dy| > |dx| * HORIZONTAL_TOLERANCE)
-// - minimum vertical travel before we start blocking native behavior
+// Gate the gesture so it does not hijack normal scrolling.
+// Deliberately conservative so a shaky finger or accidental bounce does not
+// fire a refresh.
+//
+// Tuned via: raw_finger_travel_to_arm ≈ (threshold / DAMPING) + ACTIVATION_PX
+//   default: (80 / 0.45) + 24 = 202px — deliberate, iOS-native-ish feel.
 const HORIZONTAL_TOLERANCE = 1.2;
-const ACTIVATION_THRESHOLD_PX = 8;
+const ACTIVATION_THRESHOLD_PX = 24;
+const DAMPING = 0.45;
 
 /**
  * Mobile pull-to-refresh gesture. Attaches touch listeners to the document
  * root but activates only when the designated scroll container is at its
  * top, and only when the gesture is clearly vertical.
+ *
+ * UX contract:
+ *   - user sees the indicator only after pulling past ACTIVATION_THRESHOLD_PX
+ *   - indicator "arms" (primary color, scaled) the first time `distance`
+ *     crosses `threshold` — fires a light haptic so the user feels the click
+ *   - dis-arms (and haptic again) if the user pulls back above threshold
+ *   - refresh fires on touchend iff armed at release
  */
 export function usePullToRefresh({
   onRefresh,
-  threshold = 64,
-  maxPull = 96,
+  threshold = 80,
+  maxPull = 120,
   disabled = false,
   scrollContainerSelector = "[data-scroll-container]",
 }: Options): { state: State } {
   const [state, setState] = useState<State>({
     pulling: false,
     distance: 0,
+    armed: false,
     refreshing: false,
     threshold,
   });
@@ -54,6 +67,7 @@ export function usePullToRefresh({
   // without retriggering the effect (which would re-bind listeners on every
   // frame and race with the in-flight gesture).
   const distanceRef = useRef(0);
+  const armedRef = useRef(false);
   const refreshingRef = useRef(false);
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
@@ -80,6 +94,7 @@ export function usePullToRefresh({
 
     const commitState = (next: Partial<State>) => {
       if (next.distance !== undefined) distanceRef.current = next.distance;
+      if (next.armed !== undefined) armedRef.current = next.armed;
       if (next.refreshing !== undefined) refreshingRef.current = next.refreshing;
       setState((prev) => ({ ...prev, ...next }));
     };
@@ -119,9 +134,21 @@ export function usePullToRefresh({
       }
 
       active = true;
-      // Rubber-banding: soft-clamp past threshold so the indicator does not run away.
-      const next = Math.min((dy - ACTIVATION_THRESHOLD_PX) * 0.55, maxPull);
-      commitState({ pulling: true, distance: next });
+      // Rubber-banding: soft-clamp past threshold so the indicator does not
+      // run away while still letting the user feel they've "overshot".
+      const next = Math.min((dy - ACTIVATION_THRESHOLD_PX) * DAMPING, maxPull);
+      const nextArmed = next >= threshold;
+
+      // Haptic click at arming / disarming transitions so the user gets a
+      // tactile confirmation of "now I'm past the trigger point" before
+      // they commit by releasing.
+      if (nextArmed && !armedRef.current) {
+        haptic.medium();
+      } else if (!nextArmed && armedRef.current) {
+        haptic.light();
+      }
+
+      commitState({ pulling: true, distance: next, armed: nextArmed });
       if (e.cancelable) e.preventDefault();
     };
 
@@ -130,14 +157,18 @@ export function usePullToRefresh({
         reset();
         return;
       }
-      const triggered = distanceRef.current >= threshold;
+      const triggered = armedRef.current;
       reset();
       if (!triggered) {
-        commitState({ pulling: false, distance: 0 });
+        commitState({ pulling: false, distance: 0, armed: false });
         return;
       }
-      haptic.light();
-      commitState({ pulling: false, refreshing: true, distance: threshold });
+      commitState({
+        pulling: false,
+        refreshing: true,
+        distance: threshold,
+        armed: false,
+      });
       try {
         await onRefreshRef.current();
       } finally {
