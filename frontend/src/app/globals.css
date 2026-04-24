@@ -174,13 +174,17 @@
     /* Hard-lock horizontal scroll at the root. Any internal scroller that
        needs horizontal scroll (tables, charts) is opt-in via `overflow-x-auto`
        on its own container and will clip at its parent. Without this, a 1-2px
-       overflow anywhere causes the whole page to shake on iOS rubber-band. */
-    overflow-x: hidden;
+       overflow anywhere causes the whole page to shake on iOS rubber-band.
+       NOTE: `clip` (not `hidden`) — `hidden` creates a scroll container that
+       breaks `position: sticky` on descendants (e.g. the dashboard top bar
+       scrolls away with content instead of sticking). `clip` truncates the
+       overflow visually without turning the element into a scroll container. */
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground;
     overscroll-behavior-y: contain;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   button,
   [role="button"],
