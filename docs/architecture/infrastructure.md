@@ -502,6 +502,23 @@ Docker Compose 헬스체크:
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
 
+### Web Push (VAPID)
+
+| 키 | 필수 | 설명 | 예시 |
+|----|-----|------|------|
+| `VAPID_PUBLIC_KEY` | push 사용 시 | URL-safe base64 공개키. 빈 문자열이면 푸시 비활성. | `BH...` |
+| `VAPID_PRIVATE_KEY` | push 사용 시 | URL-safe base64 비공개키 (서버 전용). | |
+| `VAPID_SUBJECT` | push 사용 시 | `mailto:` 또는 `https://` 연락처 (RFC 8292). | `mailto:admin@joonwon.dev` |
+
+- 키 쌍 생성: `python -c "from py_vapid import Vapid; v = Vapid(); v.generate_keys(); print(v.private_pem().decode()); print(v.public_pem().decode())"` (또는 `web-push` CLI).
+- 키 회전: 새 키 발급 → `push_subscriptions` 전 레코드 invalidate 필요 (클라이언트가 새 public key 로 재구독해야 함). `TRUNCATE push_subscriptions;` + 사용자 재구독 유도.
+- 엔드포인트:
+  - `GET /api/v1/push/public-key` — `{public_key, enabled}` 반환 (인증 불필요 + 분당 30회)
+  - `POST /api/v1/push/subscribe` — `endpoint` unique, 재호출은 upsert (인증 필요 + 분당 10회)
+  - `DELETE /api/v1/push/subscribe?endpoint=...` — 소유자만 삭제 가능 (IDOR 방지)
+- 발송 경로: `app/services/push_sender.py → pywebpush` (동기 → asyncio 스레드풀). 410/404 응답 시 해당 구독 자동 삭제.
+- 알림 트리거: `app/api/prices.py:_check_alerts_and_emit` 가 가격 알림 발생 시 push 병행.
+
 ### E2E / 테스트 전용 환경변수
 
 다음 환경변수는 백엔드 서버 환경변수가 아니라 E2E 테스트 실행 환경에서만 사용됩니다.

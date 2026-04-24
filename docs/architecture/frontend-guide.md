@@ -253,3 +253,53 @@ npm run analyze   # bundle analysis with @next/bundle-analyzer
 ```
 
 Chart libraries (`recharts`, `lightweight-charts`) are loaded via dynamic imports (`DynamicCharts.tsx`) to reduce initial bundle size.
+
+---
+
+## 14. PWA / Mobile App-Web (Sprint 17)
+
+The frontend ships as a progressive web app. Native apps are deliberately not used — we optimize the web bundle to feel native instead.
+
+### Manifest
+- Single source of truth: `src/app/manifest.ts` (served at `/manifest.webmanifest`).
+- `id: "/dashboard"`, `scope: "/"`, `display: "standalone"`, `orientation: "portrait-primary"`.
+- Icons: `icon-192.png`, `icon-512.png` (both `any` + `maskable`), `apple-touch-icon.png` 180×180.
+- iOS splash screens at `public/splash/{iphone-6.1, iphone-6.7, ipad-11}.png`, wired via `metadata.appleWebApp.startupImage` in `layout.tsx`.
+
+### Service Worker (`public/sw.js`)
+Hand-written plain-JS SW (Next 16 is Turbopack-only; `@serwist/next` is webpack-only).
+
+| Path / Request | Strategy | Cache |
+|---|---|---|
+| `/api/v1/auth/*`, `/prices/stream`, `/push/*` | **NetworkOnly (bypass)** | — |
+| `GET /api/v1/portfolios*`, `/analytics*`, `/prices/{ticker}` | **NetworkFirst** (3s timeout, 5min TTL) | `wealth-api-v1` |
+| `/_next/static/*`, `cdn.jsdelivr.net` (fonts) | **StaleWhileRevalidate** | `wealth-static-v1` |
+| Image requests (`destination === "image"`) | **CacheFirst** (30d TTL) | `wealth-images-v1` |
+| Navigation (document) | network → fallback to `/offline` | `wealth-pages-v1` |
+
+- Registered by `components/ServiceWorkerUpdateToast.tsx` (production only). On update-waiting the toast offers a "새로고침" CTA that posts `SKIP_WAITING`.
+- Bump `SW_VERSION` in `sw.js` to invalidate all runtime caches.
+
+### Offline persistence
+- TanStack Query `persistQueryClient` + localStorage (`QueryProvider.tsx`).
+- Persisted query key prefixes: `portfolios`, `portfolios-with-prices`, `holdings`, `analytics`.
+- TTL: 24h. While offline, cached snapshots render read-only.
+
+### Install prompts
+- `hooks/useInstallPrompt.ts` — captures `beforeinstallprompt`, detects iOS standalone.
+- `components/InstallBanner.tsx` — mobile-only bottom banner, shown on visit 2+, with 30-day dismissal cooldown.
+- `components/IosInstallGuide.tsx` — 3-step "공유 → 홈 화면에 추가" modal for iOS (no programmatic API).
+- `components/AppSplash.tsx` — 300ms logo fade-in when launched in standalone mode.
+
+### Touch UX / gestures
+- `hooks/useMediaQuery.ts`, `useIsMobile()` (< 768px).
+- `hooks/usePullToRefresh.ts` + `components/PullToRefreshIndicator.tsx` + `components/MobilePullToRefresh.tsx` — mounted in dashboard layout, invalidates all active queries.
+- `hooks/useLongPress.ts` — 500ms press with 12px tolerance.
+- `lib/haptic.ts` — thin `navigator.vibrate` wrapper (`haptic.light/medium/heavy/success/warning`).
+- `components/ui/dialog.tsx` supports `mobileSheet` prop — renders as bottom sheet on `<sm`, centered modal on `≥sm`. Used by `OrderDialog`.
+
+### Web Push
+- `hooks/useWebPush.ts` — permission/subscribe/unsubscribe flow, VAPID public key from `GET /push/public-key`.
+- `app/dashboard/settings/PushNotificationsSection.tsx` — toggle with status indicators.
+- `public/sw.js` `push` + `notificationclick` handlers accept `{title, body, url, tag}` payload and open the matching window/tab.
+- iOS requires A2HS before push works (Safari 16.4+). The settings UI surfaces this.

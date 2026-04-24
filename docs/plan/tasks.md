@@ -1016,149 +1016,149 @@ Plan doc: `docs/plan/mobile-app-web-plan.md`. Goal: native-like PWA experience (
 ### 🟢 Phase 1 — Manifest / Viewport 정합화
 
 ### TASK-MB-P1-1. manifest 단일화 (S)
-- [ ] `frontend/public/manifest.json` 삭제 — Next App Router `manifest.ts` 가 `/manifest.webmanifest` 로 우선 서빙되므로 중복 제거. 기존 `app/manifest.ts` 내용이 소스 오브 트루스.
+- [x] `frontend/public/manifest.json` 삭제 — Next App Router `manifest.ts` 가 `/manifest.webmanifest` 로 우선 서빙되므로 중복 제거. 기존 `app/manifest.ts` 내용이 소스 오브 트루스.
 
 ### TASK-MB-P1-2. manifest 아이콘/메타 정리 (S)
-- [ ] `frontend/src/app/manifest.ts`: PNG 기반으로 전환(icon-192.png, icon-512.png), `purpose` 를 `any` 와 `maskable` 분리. `scope: "/"`, `id: "/dashboard"`, `categories: ["finance"]`, `lang: "ko-KR"`, `dir: "ltr"` 추가. theme_color 는 `#e31f26` 유지 (KR 상승색 primary).
+- [x] `frontend/src/app/manifest.ts`: PNG 기반으로 전환(icon-192.png, icon-512.png), `purpose` 를 `any` 와 `maskable` 분리. `scope: "/"`, `id: "/dashboard"`, `categories: ["finance"]`, `lang: "ko-KR"`, `dir: "ltr"` 추가. theme_color 는 `#e31f26` 유지 (KR 상승색 primary).
 
 ### TASK-MB-P1-3. generateViewport 추가 + apple-web-app 메타 보강 (S)
-- [ ] `frontend/src/app/layout.tsx`: Next 16 `generateViewport()` 익스포트 추가 — `width: "device-width"`, `initialScale: 1`, `maximumScale: 5` (a11y 위해 3 이상), `viewportFit: "cover"`, `themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" }]`. `metadata.appleWebApp` 에 `startupImage` 자리 유지(이미지는 P1-4).
-- [ ] `metadata.icons.apple` 에 `apple-touch-icon` 경로 선언.
+- [x] `frontend/src/app/layout.tsx`: Next 16 `generateViewport()` 익스포트 추가 — `width: "device-width"`, `initialScale: 1`, `maximumScale: 5` (a11y 위해 3 이상), `viewportFit: "cover"`, `themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" }]`. `metadata.appleWebApp` 에 `startupImage` 자리 유지(이미지는 P1-4).
+- [x] `metadata.icons.apple` 에 `apple-touch-icon` 경로 선언.
 
 ### TASK-MB-P1-4. apple touch icon + splash 이미지 준비 (S)
-- [ ] `frontend/public/apple-touch-icon.png` (180×180, SVG 로부터 변환) 생성.
-- [ ] `frontend/public/splash/` 디렉터리에 iPhone 6.1"(1179×2556), 6.7"(1290×2796), iPad 11"(1668×2388) 최소 3종 splash PNG 생성. 로고 중앙, 배경 `#ffffff`. (쓸 수 있는 generator 가 없으면 단색 배경 + 로고 SVG 로 png 합성 Python 스크립트)
-- [ ] `layout.tsx` 에 `<link rel="apple-touch-startup-image" media="..." href="/splash/..." />` 매칭 미디어 쿼리로 선언.
+- [x] `frontend/public/apple-touch-icon.png` (180×180, SVG 로부터 변환) 생성.
+- [x] `frontend/public/splash/` 디렉터리에 iPhone 6.1"(1179×2556), 6.7"(1290×2796), iPad 11"(1668×2388) 최소 3종 splash PNG 생성. 로고 중앙, 배경 `#ffffff`. (쓸 수 있는 generator 가 없으면 단색 배경 + 로고 SVG 로 png 합성 Python 스크립트)
+- [x] `layout.tsx` 에 `<link rel="apple-touch-startup-image" media="..." href="/splash/..." />` 매칭 미디어 쿼리로 선언.
 
 ### TASK-MB-P1-5. safe-area + touch CSS 정리 (S)
-- [ ] `frontend/src/app/globals.css` 루트에 `-webkit-tap-highlight-color: transparent`, `overscroll-behavior-y: contain` (pull-to-refresh 준비). 버튼/링크 공용 유틸리티 `.touch-target` (min 44×44px) 추가.
-- [ ] `body` 에 `@supports (padding: env(safe-area-inset-top))` 로 `padding-env` 처리 (이미 bottom 은 BottomNav에 적용, top 은 NotificationBell 영역에만 선택 적용).
+- [x] `frontend/src/app/globals.css` 루트에 `-webkit-tap-highlight-color: transparent`, `overscroll-behavior-y: contain` (pull-to-refresh 준비). 버튼/링크 공용 유틸리티 `.touch-target` (min 44×44px) 추가.
+- [x] `body` 에 `@supports (padding: env(safe-area-inset-top))` 로 `padding-env` 처리 (이미 bottom 은 BottomNav에 적용, top 은 NotificationBell 영역에만 선택 적용).
 
 ### TASK-MB-P1-6. Phase 1 커밋
-- [ ] 단일 커밋: `feat(frontend): PWA manifest/viewport 정합화 (#MB-P1)`.
+- [x] 단일 커밋: `feat(frontend): PWA manifest/viewport 정합화 (#MB-P1)`.
 
 ---
 
 ### 🟢 Phase 2 — Service Worker + 앱셸 오프라인
 
 ### TASK-MB-P2-1. serwist 도입 (M)
-- [ ] `cd frontend && npm install @serwist/next serwist --save`.
-- [ ] `frontend/next.config.ts` 를 `withSerwist({ swSrc: "src/app/sw.ts", swDest: "public/sw.js" })` 로 감싸기 — 기존 bundle analyzer + Sentry wrap 순서 유지. `cacheOnFrontEndNav` false (JWT 간섭 방지).
+- [x] `cd frontend && npm install @serwist/next serwist --save`.
+- [x] `frontend/next.config.ts` 를 `withSerwist({ swSrc: "src/app/sw.ts", swDest: "public/sw.js" })` 로 감싸기 — 기존 bundle analyzer + Sentry wrap 순서 유지. `cacheOnFrontEndNav` false (JWT 간섭 방지).
 
 ### TASK-MB-P2-2. sw.ts 작성 (M)
-- [ ] `frontend/src/app/sw.ts` 신규. 전략:
+- [x] `frontend/src/app/sw.ts` 신규. 전략:
   - `precacheAndRoute(self.__SW_MANIFEST)` — Next 정적 자산
   - `NetworkFirst` — `/api/v1/portfolios*`, `/api/v1/analytics*`, `/api/v1/prices/{ticker}` (TTL 60초, networkTimeoutSeconds 3)
   - `StaleWhileRevalidate` — `_next/static/chunks/*`, `https://cdn.jsdelivr.net/gh/orioncactus/pretendard/*`
   - `CacheFirst` — 이미지 (`/icon-*`, `/splash/*`)
   - **bypass 목록**: `/api/v1/auth/*`, `/api/v1/prices/stream` (SSE), `/api/v1/push/*` (없는 경우는 통과)
-- [ ] `navigationPreload` 활성화.
-- [ ] `skipWaiting` + `clientsClaim`.
-- [ ] `self.addEventListener("message", ...)` 로 `SKIP_WAITING` 수신 (P2-5 업데이트 UX에서 사용).
+- [x] `navigationPreload` 활성화.
+- [x] `skipWaiting` + `clientsClaim`.
+- [x] `self.addEventListener("message", ...)` 로 `SKIP_WAITING` 수신 (P2-5 업데이트 UX에서 사용).
 
 ### TASK-MB-P2-3. offline fallback 페이지 (S)
-- [ ] `frontend/src/app/offline/page.tsx` 신규 — "오프라인 상태입니다" 안내, TanStack Query persister 에 저장된 포트폴리오 요약 읽어 read-only 카드로 표시. 하단 "다시 시도" 버튼 = `location.reload()`.
-- [ ] SW navigation fallback 으로 `/offline` 등록.
+- [x] `frontend/src/app/offline/page.tsx` 신규 — "오프라인 상태입니다" 안내, TanStack Query persister 에 저장된 포트폴리오 요약 읽어 read-only 카드로 표시. 하단 "다시 시도" 버튼 = `location.reload()`.
+- [x] SW navigation fallback 으로 `/offline` 등록.
 
 ### TASK-MB-P2-4. TanStack Query persister (S)
-- [ ] `cd frontend && npm install @tanstack/query-persist-client-core @tanstack/query-sync-storage-persister idb-keyval --save`.
-- [ ] `frontend/src/components/QueryProvider.tsx` 에 `persistQueryClient` + IndexedDB persister 추가. 대상 쿼리: `["portfolios"]`, `["portfolios-with-prices"]`, `["holdings"]`. TTL 24h.
+- [x] `cd frontend && npm install @tanstack/query-persist-client-core @tanstack/query-sync-storage-persister idb-keyval --save`.
+- [x] `frontend/src/components/QueryProvider.tsx` 에 `persistQueryClient` + IndexedDB persister 추가. 대상 쿼리: `["portfolios"]`, `["portfolios-with-prices"]`, `["holdings"]`. TTL 24h.
 
 ### TASK-MB-P2-5. SW 업데이트 알림 UX (S)
-- [ ] `frontend/src/components/ServiceWorkerUpdateToast.tsx` 신규 — `serviceWorker.controller` 가 업데이트되면 Sonner toast 노출, "새로고침" 클릭 시 `registration.waiting.postMessage({type:"SKIP_WAITING"})` + `location.reload()`.
-- [ ] `dashboard/layout.tsx` 에 마운트.
+- [x] `frontend/src/components/ServiceWorkerUpdateToast.tsx` 신규 — `serviceWorker.controller` 가 업데이트되면 Sonner toast 노출, "새로고침" 클릭 시 `registration.waiting.postMessage({type:"SKIP_WAITING"})` + `location.reload()`.
+- [x] `dashboard/layout.tsx` 에 마운트.
 
 ### TASK-MB-P2-6. Phase 2 커밋
-- [ ] 단일 커밋: `feat(frontend): Service Worker + 앱셸 오프라인 (#MB-P2)`.
+- [x] 단일 커밋: `feat(frontend): Service Worker + 앱셸 오프라인 (#MB-P2)`.
 
 ---
 
 ### 🟢 Phase 3 — A2HS 설치 유도 배너
 
 ### TASK-MB-P3-1. useInstallPrompt 훅 (S)
-- [ ] `frontend/src/hooks/useInstallPrompt.ts` 신규 — `beforeinstallprompt` 이벤트 캐치, `deferredPrompt` state 보관, `promptInstall()` 함수 노출, iOS 분기 (`isStandalone`, `isIOS`).
+- [x] `frontend/src/hooks/useInstallPrompt.ts` 신규 — `beforeinstallprompt` 이벤트 캐치, `deferredPrompt` state 보관, `promptInstall()` 함수 노출, iOS 분기 (`isStandalone`, `isIOS`).
 
 ### TASK-MB-P3-2. InstallBanner 컴포넌트 (S)
-- [ ] `frontend/src/components/InstallBanner.tsx` — 바텀 sticky 배너 (모바일만, BottomNav 위 여백 고려). "홈 화면에 THE WEALTH 추가" CTA + dismiss(X). dismiss 시 `localStorage["install-dismissed-at"]` 저장, 30일 쿨다운.
-- [ ] 노출 조건: 방문 2회째, 설치 안 된 상태, 쿨다운 아님, 로그인 상태.
+- [x] `frontend/src/components/InstallBanner.tsx` — 바텀 sticky 배너 (모바일만, BottomNav 위 여백 고려). "홈 화면에 THE WEALTH 추가" CTA + dismiss(X). dismiss 시 `localStorage["install-dismissed-at"]` 저장, 30일 쿨다운.
+- [x] 노출 조건: 방문 2회째, 설치 안 된 상태, 쿨다운 아님, 로그인 상태.
 
 ### TASK-MB-P3-3. iOS 가이드 다이얼로그 (S)
-- [ ] iOS 사용자가 배너 클릭 시 `IosInstallGuide.tsx` 모달 — "공유 버튼 → 홈 화면에 추가" 3-step 이미지 가이드.
+- [x] iOS 사용자가 배너 클릭 시 `IosInstallGuide.tsx` 모달 — "공유 버튼 → 홈 화면에 추가" 3-step 이미지 가이드.
 
 ### TASK-MB-P3-4. 스플래시 애니메이션 (S)
-- [ ] `frontend/src/components/AppSplash.tsx` — standalone 모드(`display-mode: standalone`) + 첫 마운트 300ms 페이드인 로고 오버레이.
+- [x] `frontend/src/components/AppSplash.tsx` — standalone 모드(`display-mode: standalone`) + 첫 마운트 300ms 페이드인 로고 오버레이.
 
 ### TASK-MB-P3-5. Phase 3 커밋
-- [ ] 단일 커밋: `feat(frontend): A2HS 설치 배너 + 스플래시 (#MB-P3)`.
+- [x] 단일 커밋: `feat(frontend): A2HS 설치 배너 + 스플래시 (#MB-P3)`.
 
 ---
 
 ### 🟢 Phase 4 — 터치 UX + 제스처
 
 ### TASK-MB-P4-1. 홀딩스 모바일 카드 뷰 (M)
-- [ ] `frontend/src/components/HoldingsTable.tsx` 에서 `md:` 미만일 때 Table 대신 Card 리스트 렌더. 정렬/필터는 상단 `<Button>` → Dialog (바텀시트). 정렬 옵션: 평가금액↓, 수익률↓, 비중↓.
-- [ ] 동일 패턴을 `PerformanceTable.tsx`, `PendingOrdersPanel.tsx`, `TransactionSection.tsx` 에 적용.
+- [x] `frontend/src/components/HoldingsTable.tsx` 에서 `md:` 미만일 때 Table 대신 Card 리스트 렌더. 정렬/필터는 상단 `<Button>` → Dialog (바텀시트). 정렬 옵션: 평가금액↓, 수익률↓, 비중↓.
+- [x] 동일 패턴을 `PerformanceTable.tsx`, `PendingOrdersPanel.tsx`, `TransactionSection.tsx` 에 적용.
 
 ### TASK-MB-P4-2. pull-to-refresh (S)
-- [ ] `cd frontend && npm install @use-gesture/react --save`.
-- [ ] `frontend/src/hooks/usePullToRefresh.ts` — 상단에서 당김 60px 이상 + release 시 `onRefresh` 콜백. `/dashboard/page.tsx` 와 `/dashboard/portfolios/page.tsx` 에만 장착. 새로고침 시 `queryClient.invalidateQueries`.
+- [x] `cd frontend && npm install @use-gesture/react --save`.
+- [x] `frontend/src/hooks/usePullToRefresh.ts` — 상단에서 당김 60px 이상 + release 시 `onRefresh` 콜백. `/dashboard/page.tsx` 와 `/dashboard/portfolios/page.tsx` 에만 장착. 새로고침 시 `queryClient.invalidateQueries`.
 
 ### TASK-MB-P4-3. 좌우 스와이프 탭 이동 (M)
-- [ ] `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 보유/개요/거래내역 세로 섹션을 모바일에서 좌우 스와이프 가능한 탭으로 전환 — `@use-gesture/react` drag 로 인덱스 전환. 데스크탑은 기존 세로 섹션 유지.
+- [x] `frontend/src/app/dashboard/portfolios/[id]/page.tsx` 보유/개요/거래내역 세로 섹션을 모바일에서 좌우 스와이프 가능한 탭으로 전환 — `@use-gesture/react` drag 로 인덱스 전환. 데스크탑은 기존 세로 섹션 유지.
 
 ### TASK-MB-P4-4. 바텀시트 OrderDialog (M)
-- [ ] `frontend/src/components/OrderDialog.tsx`: `useMediaQuery("(max-width: 767px)")` 로 모바일 여부 감지, 모바일은 `BottomSheet` (shadcn `Sheet` side="bottom") 으로 렌더.
+- [x] `frontend/src/components/OrderDialog.tsx`: `useMediaQuery("(max-width: 767px)")` 로 모바일 여부 감지, 모바일은 `BottomSheet` (shadcn `Sheet` side="bottom") 으로 렌더.
 
 ### TASK-MB-P4-5. 햅틱 피드백 (S)
-- [ ] `frontend/src/lib/haptic.ts` — `vibrate(pattern)` 래퍼 (미지원 환경은 no-op). `OrderDialog` 체결 토스트, pull-to-refresh trigger, 스와이프 삭제에 `vibrate(10)` 호출.
+- [x] `frontend/src/lib/haptic.ts` — `vibrate(pattern)` 래퍼 (미지원 환경은 no-op). `OrderDialog` 체결 토스트, pull-to-refresh trigger, 스와이프 삭제에 `vibrate(10)` 호출.
 
 ### TASK-MB-P4-6. 롱프레스 컨텍스트 메뉴 (S)
-- [ ] `frontend/src/hooks/useLongPress.ts` — 500ms press 감지. `PortfolioList.tsx` 각 카드에 장착 → 이름 변경/삭제/공유 바텀시트 열기.
+- [x] `frontend/src/hooks/useLongPress.ts` — 500ms press 감지. `PortfolioList.tsx` 각 카드에 장착 → 이름 변경/삭제/공유 바텀시트 열기.
 
 ### TASK-MB-P4-7. Phase 4 커밋
-- [ ] 단일 커밋: `feat(frontend): 모바일 터치 UX + 제스처 (#MB-P4)`.
+- [x] 단일 커밋: `feat(frontend): 모바일 터치 UX + 제스처 (#MB-P4)`.
 
 ---
 
 ### 🟢 Phase 5 — Web Push 알림
 
 ### TASK-MB-P5-1. VAPID 키 생성 + 환경 변수 (S)
-- [ ] `python -c "from pywebpush import vapid; ..."` 로 VAPID 키 쌍 생성 → `backend/.env.example` 에 `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:...` 추가. 실제 키는 .env 에만(커밋 금지).
-- [ ] `backend/app/core/config.py` 에 필드 추가.
+- [x] `python -c "from pywebpush import vapid; ..."` 로 VAPID 키 쌍 생성 → `backend/.env.example` 에 `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:...` 추가. 실제 키는 .env 에만(커밋 금지).
+- [x] `backend/app/core/config.py` 에 필드 추가.
 
 ### TASK-MB-P5-2. push_subscriptions 테이블 (S)
-- [ ] `backend/app/models/push_subscription.py` 신규 — id, user_id(FK), endpoint(unique), p256dh, auth, user_agent, created_at.
-- [ ] Alembic autogenerate: `alembic revision --autogenerate -m "add push_subscriptions"`. 인덱스: `(user_id)`.
+- [x] `backend/app/models/push_subscription.py` 신규 — id, user_id(FK), endpoint(unique), p256dh, auth, user_agent, created_at.
+- [x] Alembic autogenerate: `alembic revision --autogenerate -m "add push_subscriptions"`. 인덱스: `(user_id)`.
 
 ### TASK-MB-P5-3. push API (M)
-- [ ] `cd backend && pip install pywebpush` + requirements.txt 갱신.
-- [ ] `backend/app/api/push.py` 신규: `POST /push/subscribe` (subscription 저장, 중복 endpoint 는 upsert), `DELETE /push/subscribe/{endpoint}`, `GET /push/public-key` (VAPID_PUBLIC_KEY 반환).
-- [ ] `app/main.py` 에 라우터 등록.
+- [x] `cd backend && pip install pywebpush` + requirements.txt 갱신.
+- [x] `backend/app/api/push.py` 신규: `POST /push/subscribe` (subscription 저장, 중복 endpoint 는 upsert), `DELETE /push/subscribe/{endpoint}`, `GET /push/public-key` (VAPID_PUBLIC_KEY 반환).
+- [x] `app/main.py` 에 라우터 등록.
 
 ### TASK-MB-P5-4. push 서비스 (S)
-- [ ] `backend/app/services/push_sender.py` — `send_push(user_id, title, body, url)` 함수. user 의 모든 구독에 pywebpush 병렬 전송, 410 Gone → DB 에서 삭제.
+- [x] `backend/app/services/push_sender.py` — `send_push(user_id, title, body, url)` 함수. user 의 모든 구독에 pywebpush 병렬 전송, 410 Gone → DB 에서 삭제.
 
 ### TASK-MB-P5-5. price_alerts 통합 (S)
-- [ ] 기존 가격 알림 발송 경로 (`app/services/price_alert_*` 또는 `scheduler.py`) 찾아 `push_sender.send_push` 호출 추가. 이메일/in-app 과 병행.
+- [x] 기존 가격 알림 발송 경로 (`app/services/price_alert_*` 또는 `scheduler.py`) 찾아 `push_sender.send_push` 호출 추가. 이메일/in-app 과 병행.
 
 ### TASK-MB-P5-6. useWebPush 훅 + 설정 UI (M)
-- [ ] `frontend/src/hooks/useWebPush.ts` — `Notification.permission` 확인, `subscribe(applicationServerKey)` → backend 전송, `unsubscribe` 제공.
-- [ ] `frontend/src/app/dashboard/settings/page.tsx` 에 "모바일 푸시 알림" 토글 섹션 추가.
+- [x] `frontend/src/hooks/useWebPush.ts` — `Notification.permission` 확인, `subscribe(applicationServerKey)` → backend 전송, `unsubscribe` 제공.
+- [x] `frontend/src/app/dashboard/settings/page.tsx` 에 "모바일 푸시 알림" 토글 섹션 추가.
 
 ### TASK-MB-P5-7. SW push 이벤트 핸들러 (S)
-- [ ] `frontend/src/app/sw.ts` 에 `self.addEventListener("push", ...)` 추가 — payload JSON parse → `showNotification(title, {body, icon, badge, data: {url}})`. `notificationclick` 에서 `clients.openWindow(data.url)`.
+- [x] `frontend/src/app/sw.ts` 에 `self.addEventListener("push", ...)` 추가 — payload JSON parse → `showNotification(title, {body, icon, badge, data: {url}})`. `notificationclick` 에서 `clients.openWindow(data.url)`.
 
 ### TASK-MB-P5-8. 백엔드 테스트 (M)
-- [ ] `backend/tests/test_push.py` — subscribe/unsubscribe, 410 handling, 권한 검증. `@pytest.mark.unit` + `.integration`.
+- [x] `backend/tests/test_push.py` — subscribe/unsubscribe, 410 handling, 권한 검증. `@pytest.mark.unit` + `.integration`.
 
 ### TASK-MB-P5-9. Phase 5 커밋
-- [ ] 단일 커밋: `feat(backend,frontend): Web Push 알림 (#MB-P5)`.
+- [x] 단일 커밋: `feat(backend,frontend): Web Push 알림 (#MB-P5)`.
 
 ---
 
 ### TASK-MB-DOCS. docs 동기화 (S)
-- [ ] `docs/architecture/frontend-guide.md` 에 PWA/SW/오프라인/푸시 섹션 추가.
-- [ ] `docs/architecture/infrastructure.md` 에 VAPID 키, push 엔드포인트, SW 캐싱 정책 추가.
-- [ ] `docs/runbooks/mobile-pwa.md` 신규 — SW 롤아웃/롤백, VAPID 로테이션, 푸시 전송 실패 대응.
-- [ ] `docs/plan/todo.md` 의 `PWA Web Push 알림 (19-1)` 항목을 Sprint 17 로 이관 표시.
+- [x] `docs/architecture/frontend-guide.md` 에 PWA/SW/오프라인/푸시 섹션 추가.
+- [x] `docs/architecture/infrastructure.md` 에 VAPID 키, push 엔드포인트, SW 캐싱 정책 추가.
+- [x] `docs/runbooks/mobile-pwa.md` 신규 — SW 롤아웃/롤백, VAPID 로테이션, 푸시 전송 실패 대응.
+- [x] `docs/plan/todo.md` 의 `PWA Web Push 알림 (19-1)` 항목을 Sprint 17 로 이관 표시.
 
