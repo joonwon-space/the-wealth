@@ -161,7 +161,7 @@ export function Sidebar() {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-50 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border bg-background shadow-sm md:hidden"
+        className="fixed left-4 top-4 z-50 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-background/85 backdrop-blur-sm md:hidden"
         aria-label="메뉴 열기"
       >
         <Menu className="h-5 w-5" />
@@ -194,8 +194,9 @@ export function Sidebar() {
         <SidebarContent onNavigate={() => setMobileOpen(false)} />
       </aside>
 
-      {/* Desktop sidebar */}
-      <aside className="hidden h-screen w-60 flex-col border-r bg-sidebar px-3 py-4 md:flex">
+      {/* Desktop sidebar — fixed so body can be the sole scroll container
+          (enables iOS status-bar tap to scroll the page to top). */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar px-3 py-4 md:flex">
         <SidebarContent />
       </aside>
     </>

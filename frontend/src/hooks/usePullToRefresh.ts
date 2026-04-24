@@ -11,12 +11,6 @@ interface Options {
   maxPull?: number;
   /** Disable the gesture (e.g. on desktop). */
   disabled?: boolean;
-  /**
-   * CSS selector for the scroll container. When provided, the gesture activates
-   * only if that container's `scrollTop === 0` at gesture start. Defaults to
-   * `[data-scroll-container]` which the dashboard layout applies to `<main>`.
-   */
-  scrollContainerSelector?: string;
 }
 
 interface State {
@@ -54,7 +48,6 @@ export function usePullToRefresh({
   threshold = 80,
   maxPull = 120,
   disabled = false,
-  scrollContainerSelector = "[data-scroll-container]",
 }: Options): { state: State } {
   const [state, setState] = useState<State>({
     pulling: false,
@@ -76,20 +69,22 @@ export function usePullToRefresh({
     if (disabled) return;
     if (typeof window === "undefined") return;
 
-    const resolveScroller = (): HTMLElement | null => {
-      return document.querySelector<HTMLElement>(scrollContainerSelector);
-    };
+    // Document/body is the scroll container (see dashboard layout). This keeps
+    // iOS status-bar-tap-to-top working natively.
+    const getScrollTop = (): number =>
+      window.scrollY ||
+      document.documentElement.scrollTop ||
+      document.body.scrollTop ||
+      0;
 
     let startX: number | null = null;
     let startY: number | null = null;
     let active = false;
-    let scroller: HTMLElement | null = null;
 
     const reset = () => {
       startX = null;
       startY = null;
       active = false;
-      scroller = null;
     };
 
     const commitState = (next: Partial<State>) => {
@@ -101,11 +96,7 @@ export function usePullToRefresh({
 
     const onStart = (e: TouchEvent) => {
       if (refreshingRef.current) return;
-      scroller = resolveScroller();
-      if (!scroller || scroller.scrollTop > 0) {
-        scroller = null;
-        return;
-      }
+      if (getScrollTop() > 0) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       active = false;
@@ -128,7 +119,7 @@ export function usePullToRefresh({
       if (dy < ACTIVATION_THRESHOLD_PX) return;
 
       // Scroller may have been scrolled since touchstart (e.g. iOS momentum).
-      if (!scroller || scroller.scrollTop > 0) {
+      if (getScrollTop() > 0) {
         reset();
         return;
       }
@@ -189,7 +180,7 @@ export function usePullToRefresh({
       document.removeEventListener("touchend", finish);
       document.removeEventListener("touchcancel", finish);
     };
-  }, [disabled, maxPull, scrollContainerSelector, threshold]);
+  }, [disabled, maxPull, threshold]);
 
   return { state };
 }
