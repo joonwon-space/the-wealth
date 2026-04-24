@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { NotificationBell } from "@/components/NotificationBell";
 import { StockSearchDialog } from "@/components/StockSearchDialog";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { ServiceWorkerUpdateToast } from "@/components/ServiceWorkerUpdateToast";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -41,6 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {children}
       </main>
       <BottomNav />
+      <ServiceWorkerUpdateToast />
       <StockSearchDialog
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

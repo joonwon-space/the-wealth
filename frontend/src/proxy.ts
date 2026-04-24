@@ -6,6 +6,8 @@ const PUBLIC_PATHS = [
   "/manifest.webmanifest",
   "/icon-192.svg",
   "/icon-512.svg",
+  "/sw.js",
+  "/offline",
 ];
 
 function generateNonce(): string {
