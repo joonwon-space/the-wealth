@@ -31,13 +31,24 @@ function buildCsp(nonce: string, isDev: boolean): string {
     .filter(Boolean)
     .join(" ");
 
+  const connectSrc = [
+    "'self'",
+    isDev ? "http://localhost:8000" : "",
+    "https://localhost:8000",
+    "https://api.joonwon.dev",
+    "https://cloudflareinsights.com",
+    "https://*.ingest.us.sentry.io",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
     "img-src 'self' data: blob:",
-    "font-src 'self'",
-    "connect-src 'self' http://localhost:8000 https://localhost:8000 https://api.joonwon.dev https://cloudflareinsights.com https://*.ingest.us.sentry.io",
+    "font-src 'self' https://cdn.jsdelivr.net",
+    `connect-src ${connectSrc}`,
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",

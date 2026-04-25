@@ -57,7 +57,7 @@ export const ModeToggle = forwardRef<HTMLDivElement, ModeToggleProps>(
                 "inline-flex items-center justify-center gap-1.5 rounded-md border-0 font-semibold transition-colors duration-150",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 isHeader
-                  ? "px-2.5 py-1 text-[11px]"
+                  ? "px-2.5 py-1.5 text-[11px] min-h-[32px]"
                   : "flex-1 px-3 py-2 text-sm",
                 active ? "text-white shadow-sm" : "text-muted-foreground",
               )}

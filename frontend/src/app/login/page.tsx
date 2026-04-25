@@ -53,7 +53,9 @@ export default function LoginPage() {
             <label htmlFor="email" className="text-sm font-medium">이메일</label>
             <Input
               id="email"
+              name="email"
               type="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -65,7 +67,9 @@ export default function LoginPage() {
             <label htmlFor="password" className="text-sm font-medium">비밀번호</label>
             <Input
               id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}

@@ -430,11 +430,12 @@ export default function DashboardPage() {
 
   // Sparkline stub — /analytics/portfolio-history 연결은 TASK-RD-6. 여기선
   // 투자원금→현재자산을 잇는 사인파로 시각적 리듬만 주고 결정론적이게 계산.
+  // Number() 변환: Pydantic v2가 Decimal을 문자열로 직렬화하는 경우 NaN 방지.
   const spark = Array.from({ length: 14 }).map((_, i) => {
-    const base = s.total_invested || 1;
+    const base = Number(s.total_invested) || 1;
     const t = i / 13;
     const wobble = Math.sin((i / 13) * Math.PI * 3) * base * 0.005;
-    const v = base + (s.total_asset - base) * t + wobble;
+    const v = base + (Number(s.total_asset) - base) * t + wobble;
     return { v };
   });
   const isPositiveDay = (dayChangePct ?? Number(s.day_change_amount ?? 0)) >= 0;
@@ -474,7 +475,7 @@ export default function DashboardPage() {
           <button
             onClick={handleManualRefresh}
             disabled={isFetching}
-            className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-50"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-muted-foreground hover:bg-muted disabled:opacity-50"
             title="새로고침"
             aria-label="새로고침"
           >
@@ -579,7 +580,7 @@ export default function DashboardPage() {
                     </p>
                     <Link
                       href="/dashboard/portfolios"
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
                       <Plus className="size-3" /> 설정하기
                     </Link>
@@ -637,7 +638,7 @@ export default function DashboardPage() {
                 </h2>
                 <Link
                   href="/dashboard/stream"
-                  className="text-xs font-medium text-primary hover:underline"
+                  className="inline-flex min-h-[44px] items-center text-xs font-medium text-primary hover:underline"
                 >
                   모두 보기
                 </Link>

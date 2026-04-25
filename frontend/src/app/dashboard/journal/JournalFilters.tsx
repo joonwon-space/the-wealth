@@ -52,7 +52,7 @@ export function JournalFilters({
             variant={typeFilter === t ? "default" : "outline"}
             size="sm"
             onClick={() => onTypeFilterChange(t)}
-            className="min-h-[36px]"
+            className="min-h-[44px]"
           >
             {t === "ALL" ? "전체" : t === "BUY" ? "매수" : "매도"}
           </Button>
@@ -131,7 +131,7 @@ export function JournalFilters({
             key={tag}
             onClick={() => onTagChange(selectedTag === tag ? null : tag)}
             className={cn(
-              "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+              "rounded-full border px-2.5 py-2 text-[11px] font-medium transition-colors min-h-[36px]",
               selectedTag === tag
                 ? "border-transparent text-white"
                 : "hover:bg-accent text-muted-foreground"

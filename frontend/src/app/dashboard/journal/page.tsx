@@ -136,7 +136,7 @@ export default function JournalPage() {
               key={p.id}
               onClick={() => setSelectedPortfolioId(p.id)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                "rounded-full border px-3 py-2.5 text-sm transition-colors min-h-[44px]",
                 (selectedPortfolioId === p.id || (selectedPortfolioId === null && p.id === portfolios[0]?.id))
                   ? "bg-primary text-primary-foreground border-primary"
                   : "hover:bg-accent"

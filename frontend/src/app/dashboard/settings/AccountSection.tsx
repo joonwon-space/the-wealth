@@ -204,7 +204,7 @@ export function AccountSection() {
                   setNameInput(userMe?.name ?? "");
                   setEditingName(true);
                 }}
-                className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors group"
+                className="flex min-h-[44px] items-center gap-1.5 px-1 text-sm font-medium hover:text-primary transition-colors group"
               >
                 <span>{userMe?.name ?? "이름 없음"}</span>
                 <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -222,7 +222,7 @@ export function AccountSection() {
                 setEmailError(null);
               }
             }}>
-              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs" />}>
+              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs min-h-[36px]" />}>
                 이메일 변경
               </DialogTrigger>
               <DialogContent className="max-w-sm">
@@ -274,7 +274,7 @@ export function AccountSection() {
                 setPwError(null);
               }
             }}>
-              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs" />}>
+              <DialogTrigger render={<Button variant="outline" size="sm" className="text-xs min-h-[36px]" />}>
                 비밀번호 변경
               </DialogTrigger>
               <DialogContent className="max-w-sm">
@@ -361,7 +361,7 @@ export function AccountSection() {
               setDeleteError(null);
             }
           }}>
-            <DialogTrigger render={<Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs" />}>
+            <DialogTrigger render={<Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs min-h-[36px]" />}>
               계정 삭제
             </DialogTrigger>
             <DialogContent className="max-w-sm">
