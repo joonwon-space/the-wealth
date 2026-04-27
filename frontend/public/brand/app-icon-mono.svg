@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="The Wealth app icon — monochrome">
+  <rect width="1024" height="1024" fill="#0a0d12"></rect>
+  <path d="M512 176 L800 448 L224 448 Z" fill="#ffffff" fill-opacity="0.55"></path>
+  <path d="M224 448 L800 448 L512 848 Z" fill="#ffffff" fill-opacity="0.92"></path>
+  <path d="M512 176 L520 448 L512 848 L504 448 Z" fill="#ffffff" fill-opacity="0.18"></path>
+</svg>

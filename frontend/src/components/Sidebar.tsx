@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, BookOpen, GitCompare, Home, LogOut, Menu, Moon, Radio, Settings, Sun, Wallet, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const navItems = [
   { href: "/dashboard", label: "대시보드", icon: Home },
@@ -18,18 +18,6 @@ const navItems = [
   { href: "/dashboard/journal", label: "투자 일지", icon: BookOpen },
   { href: "/dashboard/settings", label: "설정", icon: Settings },
 ];
-
-function BrandMark() {
-  return (
-    <Image
-      src="/logo-mark.svg"
-      alt="The Wealth"
-      width={20}
-      height={20}
-      priority
-    />
-  );
-}
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -56,7 +44,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       {/* Logo & brand */}
       <div className="mb-6 px-2 flex items-center gap-2.5">
-        <BrandMark />
+        <BrandLogo variant="mark" size={20} priority />
         <span className="text-sm font-bold tracking-widest uppercase text-foreground">
           THE WEALTH
         </span>

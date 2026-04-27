@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 40" width="240" height="40">
+  <g>
+    <path d="M14 6L26 14L14 34L2 14L14 6Z" fill="#1e90ff" fill-opacity="0.9"></path>
+    <path d="M14 6L26 14H2L14 6Z" fill="#1e90ff" fill-opacity="0.5"></path>
+  </g>
+  <text x="40" y="26" font-family="Pretendard, system-ui, sans-serif" font-size="14" font-weight="800" letter-spacing="3" fill="#0f172a">THE WEALTH</text>
+</svg>

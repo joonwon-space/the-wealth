@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="The Wealth — Neon Trader app icon">
+  <defs>
+    <radialGradient id="bg-neon" cx="0.5" cy="0.42" r="0.85">
+      <stop offset="0" stop-color="#08110b"></stop>
+      <stop offset="1" stop-color="#020403"></stop>
+    </radialGradient>
+    <linearGradient id="mark-neon-face" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#7dff7d"></stop>
+      <stop offset="0.5" stop-color="#00ff00"></stop>
+      <stop offset="1" stop-color="#00b800"></stop>
+    </linearGradient>
+    <linearGradient id="mark-neon-crown" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#c8ffc8" stop-opacity="0.95"></stop>
+      <stop offset="1" stop-color="#3aff3a" stop-opacity="0.6"></stop>
+    </linearGradient>
+    <linearGradient id="mark-neon-right" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0" stop-color="#00ff00" stop-opacity="0.95"></stop>
+      <stop offset="1" stop-color="#00cc00" stop-opacity="0.7"></stop>
+    </linearGradient>
+    <filter id="glow-neon" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="14" result="b"></feGaussianBlur>
+      <feMerge>
+        <feMergeNode in="b"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg-neon)"></rect>
+
+  
+  <g opacity="0.06" fill="#00ff00">
+    <rect x="0" y="0" width="1024" height="1"></rect>
+    <rect x="0" y="128" width="1024" height="1"></rect>
+    <rect x="0" y="256" width="1024" height="1"></rect>
+    <rect x="0" y="384" width="1024" height="1"></rect>
+    <rect x="0" y="512" width="1024" height="1"></rect>
+    <rect x="0" y="640" width="1024" height="1"></rect>
+    <rect x="0" y="768" width="1024" height="1"></rect>
+    <rect x="0" y="896" width="1024" height="1"></rect>
+    <rect x="0" y="1023" width="1024" height="1"></rect>
+  </g>
+
+  
+  <g filter="url(#glow-neon)">
+    <path d="M512 176 L800 448 L512 848 L224 448 Z" fill="#00ff00" fill-opacity="0.35"></path>
+  </g>
+
+  
+  <path d="M512 176 L800 448 L224 448 Z" fill="url(#mark-neon-crown)"></path>
+  <path d="M224 448 L512 448 L512 848 Z" fill="url(#mark-neon-face)" fill-opacity="0.92"></path>
+  <path d="M512 448 L800 448 L512 848 Z" fill="url(#mark-neon-right)"></path>
+
+  
+  <path d="M512 176 L520 448 L512 848 L504 448 Z" fill="#c8ffc8" fill-opacity="0.55"></path>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432" width="432" height="432" role="img" aria-label="The Wealth — Android adaptive foreground">
+  
+  <defs>
+    <linearGradient id="markFaceFg" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"></stop>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.9"></stop>
+    </linearGradient>
+    <linearGradient id="markCrownFg" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"></stop>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.32"></stop>
+    </linearGradient>
+  </defs>
+  
+  
+  <path d="M216 84 L348 200 L84 200 Z" fill="url(#markCrownFg)"></path>
+  <path d="M84 200 L348 200 L216 348 Z" fill="url(#markFaceFg)"></path>
+  <path d="M216 84 L222 200 L216 348 L210 200 Z" fill="#ffffff" fill-opacity="0.2"></path>
+</svg>
