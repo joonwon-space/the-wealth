@@ -1,8 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useTheme } from "next-themes";
 
 type BrandLogoVariant = "mark" | "lockup";
 
@@ -23,13 +19,6 @@ export function BrandLogo({
   priority = false,
   className,
 }: BrandLogoProps) {
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   if (variant === "mark") {
     const dimension = size ?? MARK_DEFAULT_SIZE;
     return (
@@ -47,18 +36,29 @@ export function BrandLogo({
 
   const height = size ?? LOCKUP_DEFAULT_HEIGHT;
   const width = Math.round(height * LOCKUP_ASPECT_RATIO);
-  const isDark = mounted && resolvedTheme === "dark";
-  const src = isDark ? "/brand/logo-lockup-dark.svg" : "/brand/logo-lockup.svg";
+  const lightClass = ["block dark:hidden", className].filter(Boolean).join(" ");
+  const darkClass = ["hidden dark:block", className].filter(Boolean).join(" ");
 
   return (
-    <Image
-      src={src}
-      alt="The Wealth"
-      aria-label="The Wealth"
-      width={width}
-      height={height}
-      priority={priority}
-      className={className}
-    />
+    <>
+      <Image
+        src="/brand/logo-lockup.svg"
+        alt="The Wealth"
+        aria-label="The Wealth"
+        width={width}
+        height={height}
+        priority={priority}
+        className={lightClass}
+      />
+      <Image
+        src="/brand/logo-lockup-dark.svg"
+        alt=""
+        aria-hidden
+        width={width}
+        height={height}
+        priority={priority}
+        className={darkClass}
+      />
+    </>
   );
 }
