@@ -5,6 +5,59 @@ Each item should be completable in a single commit.
 
 ---
 
+## Bug Fix: KIS Network Outage Error Handling (2026-04-27)
+
+**증상** (Docker 백엔드 로그 2026-04-27 05:55–06:00 UTC):
+- `ValueError('second argument (exceptions) must be a non-empty sequence')` 44회 — `kis_price.fetch_domestic_price`
+- `ConnectTimeout('')` 다수 — `fetch_overseas_price_detail`, `price_snapshot`, `auth.login_sync`, `scheduler.check_filled_orders`
+- `All price fetches failed — returning degraded dashboard` 반복
+
+**근본 원인**:
+1. **트리거**: KIS API (`openapi.koreainvestment.com:9443`) 일시 단절 — 우리 코드 책임 아님.
+2. **ValueError 정체**: `anyio 4.13.0 _sockets.py:246` happy-eyeballs 버그 — 모든 connect 시도가 OSError 를 raise 하기 전에 cancel 되면 `oserrors=[]` 인 채로 `ExceptionGroup("...", [])` 생성 시도 → Python 3.11+ 에서 `ValueError: ... must be a non-empty sequence`. 진짜 `ConnectTimeout` 을 가림.
+3. **증폭**: `check_kis_api_health()` 가 lifespan 시작 1회만 실행 → 런타임 단절 시 `is_available=True` 유지 → 12종목 × 병렬 호출이 죽은 엔드포인트 두드림.
+4. **UX 영향**: 로그인 sync 가 KIS 의존 → KIS 단절 시 로그인 지연.
+
+상세 분석 출처: 본 작업의 발단이 된 conversation. 코드 위치는 각 task 본문 참조.
+
+### 🔴 P0 — 재발 즉시 차단 (배포 직후 효과)
+
+### TASK-KIS-OUT-1. anyio 업그레이드로 ExceptionGroup 빈-시퀀스 버그 제거 (S)
+- [ ] `backend/requirements.txt` 의 `anyio` 를 4.13.0 → **빈 `oserrors` 가드가 들어간 버전** 으로 올린다. 4.14+ 가 PyPI 에 있으면 그것을, 없으면 GitHub `agronholm/anyio` master 에서 fix commit 확인 후 가능한 최신 안정 버전을 핀. 업그레이드 후: (1) `docker compose build backend && docker compose up -d backend` 로 재기동, (2) `docker exec the-wealth-backend-1 python -c "import anyio; print(anyio.__version__)"` 로 버전 확인, (3) `docker exec the-wealth-backend-1 grep -A4 'connected_stream is None' /venv/lib/python3.12/site-packages/anyio/_core/_sockets.py` 로 가드 코드 (`if oserrors` 또는 동등) 존재 확인. (4) `pytest -m unit backend/tests/` 회귀 통과.
+
+### TASK-KIS-OUT-2. fetch_prices_parallel — 연속 ConnectError 시 가용성 플래그 OFF (M)
+- [ ] `backend/app/services/kis_price.py` `fetch_prices_parallel` 수정: `asyncio.gather(*tasks, return_exceptions=True)` 로 결과 수집 → 결과 중 `httpx.ConnectError`/`httpx.TimeoutException`/`OSError` 비율이 **80% 이상이면** `kis_health.set_kis_availability(False, "runtime: bulk connect failure")` 호출 후 즉시 캐시 폴백 모드 진입. 단일 종목 단위 catch 는 유지하되 **종목별 warning 12줄 대신 1줄 집계 로그** ("KIS bulk fetch failed N/M tickers, switching to cache mode"). `kis_health` 에 `set_kis_availability` 가 없으면 추가 (현재는 module-private). 단위 테스트: `backend/tests/test_kis_price.py` 에 mock client 가 connect 에러를 N개 던지는 케이스 → `is_available=False` 로 전환 검증.
+
+### TASK-KIS-OUT-3. 주기적 KIS health re-check 스케줄러 잡 (S)
+- [ ] `backend/app/services/scheduler_ops_jobs.py` (또는 `scheduler.py` 본체) 에 **30초 간격 health re-check job** 추가. `is_available=False` 일 때만 동작, `check_kis_api_health()` 가 `True` 반환하면 `is_available=True` 로 복귀하고 INFO 로그. `is_available=True` 인 동안은 cooldown (예: 10분) 후에만 한 번씩 재확인해 부하 최소화. APScheduler trigger 등록 위치는 `start_scheduler()` 내부. 통합 테스트: KIS_BASE_URL 을 라우팅 불가 IP 로 바꿔 startup → 60초 안에 `is_available=False` → 정상 URL 복구 후 60초 안에 `is_available=True`.
+
+### TASK-KIS-OUT-4. domestic/overseas 콜사이트 — 네트워크 오류 분류 catch (S)
+- [ ] `backend/app/services/kis_price.py` 의 `fetch_domestic_price`, `fetch_overseas_price`, `fetch_overseas_price_detail`, 그리고 `backend/app/services/price_snapshot.py` 의 fetch 함수들에서 **`except Exception`을 좁혀** `httpx.ConnectError`/`httpx.TimeoutException`/`OSError`/`ValueError` (anyio 가드 backstop) 는 `network_unreachable` 사유로, 그 외는 기존 generic warning 으로 분류. 로그 메시지에 `reason=network|parse|other` 키 추가해 grep/Sentry 그룹핑 가능하게. ValueError catch 는 anyio 업그레이드 후에도 backstop 으로 유지.
+
+### 🟠 P1 — 사용자 영향 차단 + 노이즈 감축
+
+### TASK-KIS-OUT-5. 로그인 sync 를 fire-and-forget background task 로 분리 (M)
+- [ ] `backend/app/api/auth.py` 의 로그인 핸들러에서 KIS 계정 sync 호출을 **`BackgroundTasks` 또는 `asyncio.create_task`** 로 분리. KIS unreachable (`get_kis_availability() is False`) 이면 sync 건너뛰고 INFO 로그. 로그인 응답은 sync 결과를 기다리지 않고 즉시 반환. 단위 테스트: KIS 가용성 False 인 상태에서 로그인 → 200 OK + `Login sync skipped: KIS unavailable` 로그 확인.
+
+### TASK-KIS-OUT-6. kis_retry — ConnectError/Timeout 1회 백오프 재시도 추가 (S)
+- [ ] `backend/app/services/kis_retry.py` 의 `kis_request` 에서 현재 429만 재시도하는 로직에 **`httpx.ConnectError`/`httpx.TimeoutException` 1회 재시도** 추가 (지터 200–500ms). 단, 주문 엔드포인트는 멱등성이 깨지므로 readme 의 "읽기 전용/멱등 요청에만" 규칙 유지 — 본 함수가 이미 그 가정 위에서 동작하므로 재시도 추가 OK. 새 설정 키 `KIS_HTTP_NETWORK_RETRY` (기본 1) 를 `app/core/config.py` 에 추가. 단위 테스트: 첫 호출 ConnectError → 두 번째 호출 200 → 정상 반환 확인.
+
+### TASK-KIS-OUT-7. 스케줄러 settlement job — KIS unreachable 시 skip (S)
+- [ ] `backend/app/services/scheduler_ops_jobs.py` 의 `check_filled_orders`/settlement job 에서 시작 시 `get_kis_availability()` 확인 후 False 이면 INFO 로그 후 skip. 현재는 매 tick `RuntimeError('체결 확인 조회 실패: ')` 가 누적되어 noise 발생.
+
+### 🔵 P2 — 운영 가시성
+
+### TASK-KIS-OUT-8. Sentry KIS_UNREACHABLE 이벤트 그룹핑 (S)
+- [ ] `backend/app/main.py` 의 `_sentry_before_send` 에 ConnectError/TimeoutException 류는 fingerprint 를 `["kis-unreachable"]` 로 강제해 Sentry 알림이 1건으로 묶이게. 기존 ValueError 도 메시지에 `non-empty sequence` 포함 시 같은 fingerprint 로 (anyio 미업그레이드 환경 backstop). 검증: 로컬에서 KIS_BASE_URL 을 잘못 설정 후 dashboard 호출 → Sentry 이벤트 1건만 생성.
+
+### TASK-KIS-OUT-9. 회귀 테스트 — anyio empty oserrors 시나리오 (S)
+- [ ] `backend/tests/test_kis_price.py` 에 **anyio 의 `_sockets.py` 동작을 mock 하지 말고**, `httpx.AsyncClient.get` 자체를 patch 해 `ValueError("second argument (exceptions) must be a non-empty sequence")` 를 raise 하는 케이스 추가. `fetch_domestic_price` 가 `None` 반환 (raise 하지 않음) + `reason=network_unreachable` 로그가 찍히는지 확인. anyio 가 다시 동일 버그를 회귀해도 우리 catch 망에서 잡히는지 보증.
+
+### TASK-KIS-OUT-10. docs/runbooks/troubleshooting.md 보강 (S)
+- [ ] `docs/runbooks/troubleshooting.md` 에 새 섹션 **"KIS API 단절"** 추가: 증상 (`ConnectTimeout`, `ValueError(non-empty sequence)`, `degraded dashboard`), 1차 확인 (`docker logs the-wealth-backend-1 | grep KisHealth` / Sentry `kis-unreachable`), 자동 복구 동작 (30초 health re-check), 수동 강제 복구 (`POST /admin/kis-health/recheck` 가 있다면 명시, 없으면 컨테이너 재기동), 진짜 KIS 측 장애 vs 우리 네트워크 구분법 (`docker exec the-wealth-backend-1 curl -v https://openapi.koreainvestment.com:9443/`).
+
+---
+
 ## Feature: Portfolio P&L Summary on List Screen (2026-04-20)
 
 PRD: `docs/reviews/feature/prd.md` — portfolio list row shows evaluation value, total invested, P&L amount, return rate % normalized to KRW. Korean color convention (red=profit, blue=loss). Graceful fallback `—` when KIS not connected.
