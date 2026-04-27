@@ -51,6 +51,7 @@ Index: `docs/architecture/README.md` lists every file with a one-line summary.
 | Deployment, env vars, Redis keys, rate limits | `docs/architecture/infrastructure.md` |
 | Project strengths, weaknesses, risks | `docs/architecture/analysis.md` |
 | Infra cost tracking | `docs/architecture/cost-management.md` |
+| Brand assets, logo/icon pipeline, build:icons script | `docs/brand-assets.md` |
 | Operational procedures (backup, restore, logging, tools) | `docs/runbooks/*.md` |
 | Current sprint tasks | `docs/plan/tasks.md` |
 | Future backlog | `docs/plan/todo.md` |
