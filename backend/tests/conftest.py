@@ -44,6 +44,21 @@ def _make_engine():
     return create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
 
 
+@pytest.fixture(autouse=True)
+def _reset_kis_availability():
+    """매 테스트마다 KIS 가용성 글로벌 상태를 True로 초기화한다.
+
+    `_kis_availability`는 모듈 레벨 싱글톤이라 한 테스트가 False로 만들면
+    이후 테스트가 cache-only 모드로 빠져 결과가 달라진다. autouse로 매번
+    초기 상태로 되돌려 테스트 간 누수를 막는다.
+    """
+    from app.services.kis_health import set_kis_availability
+
+    set_kis_availability(True, "")
+    yield
+    set_kis_availability(True, "")
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _create_schema():
     """Create the DB schema ONCE before all tests, drop it ONCE after all tests.
