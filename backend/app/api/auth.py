@@ -41,7 +41,16 @@ async def _bg_sync_user(user_id: int) -> None:
     """로그인 후 백그라운드에서 KIS 계좌 자동 동기화.
 
     로그인 응답 반환 후 비동기로 실행되므로 로그인 지연 없음.
+    KIS unreachable 상태이면 sync를 건너뛰고 INFO 로그만 남긴다.
     """
+    from app.services.kis_health import get_kis_availability  # noqa: PLC0415
+
+    if not get_kis_availability():
+        logger.info(
+            "Login sync skipped: KIS unavailable user=%d", user_id
+        )
+        return
+
     # Lazy imports to avoid circular dependency
     from app.api.sync import _ensure_portfolio_for_account, _fetch_balance_raw  # noqa: PLC0415
     from app.models.kis_account import KisAccount  # noqa: PLC0415

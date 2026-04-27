@@ -280,6 +280,72 @@ python -c "from app.main import app; print('OK')"
 
 ---
 
+## 9. KIS API 단절
+
+### Symptom
+
+Backend logs show repeated:
+```
+ConnectTimeout: ...
+ValueError: second argument (exceptions) must be a non-empty sequence
+All price fetches failed — returning degraded dashboard
+```
+
+Dashboard shows `—` for all holdings prices. Login may be slow if sync was not yet background-tasked.
+
+### Cause
+
+KIS API server (`openapi.koreainvestment.com:9443`) is temporarily unreachable — network outage, KIS maintenance, or DNS failure.
+
+The `ValueError` about "non-empty sequence" is an anyio 4.x happy-eyeballs bug: when all connect attempts are cancelled before raising `OSError`, anyio tries to build `ExceptionGroup("...", [])` with an empty list, which Python 3.11+ rejects. It masks the real `ConnectTimeout`. Our `except ValueError` backstop in `fetch_domestic_price` / `fetch_overseas_price` catches this.
+
+### 1차 확인
+
+```bash
+# Check backend logs for KIS health events
+docker logs the-wealth-backend-1 2>&1 | grep -i "KisHealth\|kis-unreachable\|bulk fetch"
+
+# Check Sentry: search fingerprint "kis-unreachable" — all outage events grouped under 1 issue.
+
+# Check is KIS actually reachable from the container
+docker exec the-wealth-backend-1 curl -sv --max-time 5 https://openapi.koreainvestment.com:9443/ 2>&1 | grep -E "Connected|SSL|timed out|refused"
+```
+
+### 자동 복구 동작
+
+- `fetch_prices_parallel` detects ≥80% ticker failures → calls `set_kis_availability(False, "runtime: bulk connect failure")` → subsequent calls skip KIS and return Redis-cached prices.
+- `scheduler.py` runs `_kis_health_recheck_job` every **30 seconds**:
+  - When `is_available=False`: immediately calls `check_kis_api_health()`. On recovery, logs `KIS API recovered — is_available=True`.
+  - When `is_available=True`: applies a 10-minute cooldown to limit proactive checks.
+- `settle_orders_job` (order settlement) checks `get_kis_availability()` at start and skips when `False` to prevent error accumulation.
+- Login `_bg_sync_user` skips KIS sync and logs `Login sync skipped: KIS unavailable`.
+
+No manual action needed if KIS recovers within minutes — the system self-heals.
+
+### 수동 강제 복구
+
+If the auto health-check is not picking up recovery (e.g. after a prolonged outage), restart the backend container:
+
+```bash
+docker compose restart backend
+```
+
+This triggers `check_kis_api_health()` at startup (`app/main.py lifespan`) and resets `is_available` to the current truth.
+
+### 진짜 KIS 측 장애 vs 우리 네트워크 구분
+
+```bash
+# From the container — if this times out, KIS is down on their end
+docker exec the-wealth-backend-1 curl -sv --max-time 5 https://openapi.koreainvestment.com:9443/
+
+# From your local machine — if this works but container doesn't, it's a Docker network issue
+curl -sv --max-time 5 https://openapi.koreainvestment.com:9443/
+```
+
+If curl from local works but not from container: check Docker network settings, DNS resolution inside the container (`docker exec the-wealth-backend-1 nslookup openapi.koreainvestment.com`), or firewall rules blocking outbound HTTPS on port 9443.
+
+---
+
 ## Related
 
 - [`docs/architecture/kis-integration.md`](../architecture/kis-integration.md) — KIS token lifecycle, TR_IDs, error codes

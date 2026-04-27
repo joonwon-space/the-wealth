@@ -27,6 +27,8 @@ logger = get_logger(__name__)
 _KIS_RATELIMIT_RT_CD = "EGW00201"
 _JITTER_MIN_MS = 50
 _JITTER_MAX_MS = 150
+_NETWORK_JITTER_MIN_MS = 200
+_NETWORK_JITTER_MAX_MS = 500
 
 
 def _is_rate_limited(resp: httpx.Response) -> bool:
@@ -72,6 +74,7 @@ async def kis_request(
     from app.services.kis_rate_limiter import acquire as _reacquire_token
 
     retries = settings.KIS_HTTP_MAX_RETRIES if max_retries is None else max_retries
+    network_retries = settings.KIS_HTTP_NETWORK_RETRY
     attempts = retries + 1
     method_upper = method.upper()
 
@@ -84,8 +87,22 @@ async def kis_request(
             return await client.post(url, **kwargs)
         return await client.request(method_upper, url, **kwargs)
 
+    network_attempt = 0
     for attempt in range(1, attempts + 1):
-        resp = await _do_request()
+        try:
+            resp = await _do_request()
+        except (httpx.ConnectError, httpx.TimeoutException) as exc:
+            if network_attempt < network_retries:
+                network_attempt += 1
+                wait_ms = random.randint(_NETWORK_JITTER_MIN_MS, _NETWORK_JITTER_MAX_MS)
+                logger.warning(
+                    "KIS %s %s network error (%s) — retry %d/%d after %dms",
+                    method, url, exc, network_attempt, network_retries, wait_ms,
+                )
+                await asyncio.sleep(wait_ms / 1000.0)
+                continue
+            raise
+
         if not _is_rate_limited(resp) or attempt == attempts:
             return resp
 

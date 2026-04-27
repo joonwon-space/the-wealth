@@ -14,6 +14,7 @@ from app.core.logging import get_logger
 from app.db.session import AsyncSessionLocal
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
+from app.services.kis_health import get_kis_availability
 from app.services.order_settlement import settle_pending_orders
 
 logger = get_logger(__name__)
@@ -29,6 +30,11 @@ async def settle_orders_job(
     장중(KST 09:05~15:35) 5분 간격 실행.
     """
     logger.info("[Scheduler] Starting pending order settlement check")
+
+    if not get_kis_availability():
+        logger.info("[Scheduler] Settlement skipped: KIS unavailable")
+        record_success(job_id)
+        return
 
     try:
         async with AsyncSessionLocal() as db:

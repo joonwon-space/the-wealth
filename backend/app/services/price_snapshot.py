@@ -75,8 +75,17 @@ async def fetch_domestic_price_detail(
             w52_high=Decimal(w52_high_str) if w52_high_str else None,
             w52_low=Decimal(w52_low_str) if w52_low_str else None,
         )
+    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError) as e:
+        logger.warning(
+            "Failed to fetch price detail for %s: %s reason=network_unreachable",
+            ticker, e,
+        )
+        return None
     except Exception as e:
-        logger.warning("Failed to fetch price detail for %s: %s", ticker, e)
+        logger.warning(
+            "Failed to fetch price detail for %s: %s reason=other",
+            ticker, e,
+        )
         return None
 
 

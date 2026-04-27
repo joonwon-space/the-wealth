@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     KIS_TOKEN_RATE_LIMIT_BURST: int = 1
     # 429 / rate-limit-rejection retry: KIS recommends immediate retry.
     KIS_HTTP_MAX_RETRIES: int = 1
+    # Network error (ConnectError/TimeoutException) retry for read-only requests.
+    KIS_HTTP_NETWORK_RETRY: int = 1
     # When True, rate limiter is bypassed (useful for local dev / tests).
     KIS_MOCK_MODE: bool = False
 

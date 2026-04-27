@@ -29,11 +29,32 @@ configure_logging()
 logger = get_logger(__name__)
 
 def _sentry_before_send(event: dict, hint: dict) -> dict:
-    """Scrub KIS API credentials from Sentry events before they are sent.
+    """Scrub KIS API credentials from Sentry events and group KIS network errors.
 
-    Removes appkey, appsecret, and authorization values from request headers
-    to prevent KIS credentials from appearing in Sentry error reports.
+    1. Removes appkey, appsecret, and authorization values from request headers
+       to prevent KIS credentials from appearing in Sentry error reports.
+    2. Groups ConnectError/TimeoutException and anyio empty-oserrors ValueError
+       under a single "kis-unreachable" fingerprint so Sentry emits one alert
+       instead of dozens during a KIS outage.
     """
+    import httpx as _httpx  # local import to avoid module-level side effects
+
+    exc_info = hint.get("exc_info")
+    if exc_info is not None:
+        exc_type, exc_value, _ = exc_info
+        is_network_error = (
+            exc_type is not None
+            and issubclass(exc_type, (_httpx.ConnectError, _httpx.TimeoutException))
+        )
+        is_anyio_empty_oserrors = (
+            exc_type is not None
+            and issubclass(exc_type, ValueError)
+            and exc_value is not None
+            and "non-empty sequence" in str(exc_value)
+        )
+        if is_network_error or is_anyio_empty_oserrors:
+            event["fingerprint"] = ["kis-unreachable"]
+
     request = event.get("request", {})
     headers = request.get("headers", {})
     _SENSITIVE_HEADERS = {"appkey", "appsecret", "authorization"}

@@ -15,7 +15,7 @@ import httpx
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.redis_cache import RedisCache
-from app.services.kis_health import get_kis_availability
+from app.services.kis_health import get_kis_availability, set_kis_availability
 from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
 from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
@@ -123,8 +123,17 @@ async def fetch_domestic_price(
         data = resp.json()
         price_str: str = data.get("output", {}).get("stck_prpr", "0")
         return Decimal(price_str) if price_str and price_str != "0" else None
+    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError) as e:
+        logger.warning(
+            "Failed to fetch domestic price for %s: %s reason=network_unreachable",
+            ticker, e,
+        )
+        return None
     except Exception as e:
-        logger.warning("Failed to fetch domestic price for %s: %s", ticker, e)
+        logger.warning(
+            "Failed to fetch domestic price for %s: %s reason=other",
+            ticker, e,
+        )
         return None
 
 
@@ -153,9 +162,16 @@ async def fetch_overseas_price(
         if not price_str or price_str == "0":
             return None
         return Decimal(price_str)
+    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError) as e:
+        logger.warning(
+            "Failed to fetch overseas price for %s/%s: %s reason=network_unreachable",
+            ticker, market, e,
+        )
+        return None
     except Exception as e:
         logger.warning(
-            "Failed to fetch overseas price for %s/%s: %s", ticker, market, e
+            "Failed to fetch overseas price for %s/%s: %s reason=other",
+            ticker, market, e,
         )
         return None
 
@@ -229,8 +245,17 @@ async def fetch_domestic_daily_ohlcv(
             "close": Decimal(close_str),
             "volume": int(row["acml_vol"]) if row.get("acml_vol") else None,
         }
+    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError) as e:
+        logger.warning(
+            "Failed to fetch daily OHLCV for %s: %s reason=network_unreachable",
+            ticker, e,
+        )
+        return None
     except Exception as e:
-        logger.warning("Failed to fetch daily OHLCV for %s: %s", ticker, e)
+        logger.warning(
+            "Failed to fetch daily OHLCV for %s: %s reason=other",
+            ticker, e,
+        )
         return None
 
 
@@ -285,8 +310,17 @@ async def fetch_overseas_daily_ohlcv(
             "close": Decimal(close_str),
             "volume": int(row["tvol"]) if row.get("tvol") else None,
         }
+    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError) as e:
+        logger.warning(
+            "Failed to fetch overseas daily OHLCV for %s/%s: %s reason=network_unreachable",
+            ticker, market, e,
+        )
+        return None
     except Exception as e:
-        logger.warning("Failed to fetch overseas daily OHLCV for %s/%s: %s", ticker, market, e)
+        logger.warning(
+            "Failed to fetch overseas daily OHLCV for %s/%s: %s reason=other",
+            ticker, market, e,
+        )
         return None
 
 
@@ -319,10 +353,30 @@ async def fetch_prices_parallel(
                 fetch_overseas_price(t, market, app_key, app_secret, client)
                 for t in tickers
             ]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    total = len(tickers)
+    network_failures = sum(
+        1
+        for r in results
+        if isinstance(r, (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError))
+        or r is None
+    )
+    if total > 0 and network_failures / total >= 0.8:
+        logger.warning(
+            "[KisPrice] KIS bulk fetch failed %d/%d tickers, switching to cache mode",
+            network_failures, total,
+        )
+        set_kis_availability(False, "runtime: bulk connect failure")
+        for ticker in tickers:
+            price_map[ticker] = await _get_cached_price(ticker)
+        return price_map
 
     for ticker, price in zip(tickers, results):
-        if isinstance(price, Decimal) and price > 0:
+        if isinstance(price, Exception):
+            cached = await _get_cached_price(ticker)
+            price_map[ticker] = cached
+        elif isinstance(price, Decimal) and price > 0:
             price_map[ticker] = price
             await _cache_price(ticker, price)
         else:
@@ -400,8 +454,16 @@ async def fetch_overseas_price_detail(
                     or detail_out.get("l52p")
                     or w52_low_str
                 )
+            except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError) as e:
+                logger.warning(
+                    "52w fallback failed for %s/%s: %s reason=network_unreachable",
+                    ticker, market, e,
+                )
             except Exception as e:
-                logger.warning("52w fallback failed for %s/%s: %s", ticker, market, e)
+                logger.warning(
+                    "52w fallback failed for %s/%s: %s reason=other",
+                    ticker, market, e,
+                )
 
         return OverseasPriceDetail(
             current=Decimal(price_str),
@@ -410,9 +472,16 @@ async def fetch_overseas_price_detail(
             w52_high=Decimal(w52_high_str) if w52_high_str and w52_high_str != "0" else None,
             w52_low=Decimal(w52_low_str) if w52_low_str and w52_low_str != "0" else None,
         )
+    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError) as e:
+        logger.warning(
+            "Failed to fetch overseas price detail for %s/%s: %s reason=network_unreachable",
+            ticker, market, e,
+        )
+        return None
     except Exception as e:
         logger.warning(
-            "Failed to fetch overseas price detail for %s/%s: %s", ticker, market, e
+            "Failed to fetch overseas price detail for %s/%s: %s reason=other",
+            ticker, market, e,
         )
         return None
 

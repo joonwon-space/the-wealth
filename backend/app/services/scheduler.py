@@ -6,9 +6,12 @@ Job 구현은 도메인별로 `scheduler_portfolio_jobs`, `scheduler_market_jobs
 추적(`_consecutive_failures`)만 담당한다.
 """
 
+from datetime import datetime, timezone
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.core.logging import get_logger
+from app.services.kis_health import check_kis_api_health, get_kis_availability
 from app.services.scheduler_market_jobs import (
     collect_benchmark_snapshots,
     preload_prices,
@@ -23,6 +26,40 @@ logger = get_logger(__name__)
 scheduler = AsyncIOScheduler()
 
 CONSECUTIVE_FAILURE_THRESHOLD = 3
+
+# KIS health re-check: track last re-check time when KIS is available
+# to enforce 10-minute cooldown between proactive checks.
+_KIS_HEALTH_RECHECK_COOLDOWN_SECONDS = 600  # 10 minutes
+_last_healthy_check_at: datetime | None = None
+
+
+async def _kis_health_recheck_job() -> None:
+    """KIS API 가용성 주기적 재확인 잡.
+
+    - is_available=False: 30초마다 즉시 재확인 → True 복귀 시 INFO 로그.
+    - is_available=True: 10분 쿨다운 후 1회 확인해 부하 최소화.
+    """
+    global _last_healthy_check_at
+
+    if not get_kis_availability():
+        # KIS unreachable: run health check and attempt recovery
+        recovered = await check_kis_api_health()
+        if recovered:
+            logger.info("[KisHealth] KIS API recovered — is_available=True")
+            _last_healthy_check_at = datetime.now(timezone.utc)
+        return
+
+    # KIS is currently available: apply cooldown
+    now = datetime.now(timezone.utc)
+    if _last_healthy_check_at is not None:
+        elapsed = (now - _last_healthy_check_at).total_seconds()
+        if elapsed < _KIS_HEALTH_RECHECK_COOLDOWN_SECONDS:
+            return  # Still in cooldown window
+
+    # Cooldown elapsed or first run — run one proactive check
+    await check_kis_api_health()
+    _last_healthy_check_at = datetime.now(timezone.utc)
+
 
 _consecutive_failures: dict[str, int] = {
     "kis_sync_us": 0,
@@ -130,13 +167,21 @@ def start_scheduler() -> None:
         trigger="cron", day_of_week="mon-fri", hour=7, minute=20, timezone="UTC",
         id="collect_benchmark", kwargs={"job_id": "collect_benchmark"}, replace_existing=True,
     )
+    # KIS health re-check: 30초 간격 (is_available=False 시 즉시 복구 시도,
+    # is_available=True 시 10분 쿨다운 후 1회 확인)
+    scheduler.add_job(
+        _kis_health_recheck_job,
+        trigger="interval", seconds=30,
+        id="kis_health_recheck", replace_existing=True,
+    )
     scheduler.start()
     logger.info(
         "[Scheduler] APScheduler started — "
         "holdings sync + price preload at KST 08:00 & 16:00, "
         "US close sync at KST 06:30, daily close snapshot at KST 16:10, "
         "FX snapshot at KST 16:30, benchmark snapshot at KST 16:20, "
-        "order settlement every 5min during market hours"
+        "order settlement every 5min during market hours, "
+        "KIS health re-check every 30s"
     )
 
 
