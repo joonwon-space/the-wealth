@@ -1,5 +1,6 @@
 import axios from "axios";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/auth";
 
 const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const API_BASE = `${API_HOST}/api/v1`;
@@ -26,6 +27,35 @@ function extractErrorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
+// Single-flight refresh: parallel 401s share one /auth/refresh call instead of
+// each issuing their own refresh + redirect.
+let refreshInflight: Promise<boolean> | null = null;
+
+function refreshOnce(): Promise<boolean> {
+  if (refreshInflight) return refreshInflight;
+  refreshInflight = axios
+    .post(`${API_BASE}/auth/refresh`, {}, { withCredentials: true })
+    .then(() => true)
+    .catch(() => false)
+    .finally(() => {
+      refreshInflight = null;
+    });
+  return refreshInflight;
+}
+
+// Coalesce concurrent redirects to /login into a single navigation.
+let redirectingToLogin = false;
+
+function redirectToLogin(): void {
+  if (redirectingToLogin) return;
+  redirectingToLogin = true;
+  // Reset Zustand auth state immediately so any subscribed components stop
+  // rendering authenticated UI before the navigation completes.
+  useAuthStore.getState().logout();
+  // replace() avoids polluting back-history with the failed page.
+  window.location.replace("/login");
+}
+
 // Auto-refresh on 401 (skip for auth endpoints to let callers handle errors)
 api.interceptors.response.use(
   (res) => res,
@@ -37,17 +67,12 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true;
-      try {
-        // HttpOnly refresh token cookie is sent automatically
-        await axios.post(
-          `${API_BASE}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
+      const ok = await refreshOnce();
+      if (ok) {
         return api(original);
-      } catch {
-        window.location.href = "/login";
       }
+      redirectToLogin();
+      return Promise.reject(error);
     }
     // Show toast for non-401 errors (auth endpoint 401s are handled by callers)
     if (error.response?.status !== 401) {

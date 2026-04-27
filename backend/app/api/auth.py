@@ -221,6 +221,9 @@ async def refresh(
     # Accept refresh token from JSON body or HttpOnly cookie
     token_str = body.refresh_token or request.cookies.get("refresh_token")
     if not token_str:
+        # Clear stale cookies so the middleware no longer treats the client
+        # as logged in — prevents login↔dashboard redirect ping-pong.
+        _clear_auth_cookies(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token required",
@@ -228,6 +231,7 @@ async def refresh(
 
     decoded = decode_refresh_token(token_str)
     if decoded is None:
+        _clear_auth_cookies(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
@@ -236,6 +240,7 @@ async def refresh(
     # Verify jti exists in Redis and consume it (one-time use)
     jti_valid = await verify_and_consume_refresh_jti(decoded["jti"], decoded["user_id"])
     if not jti_valid:
+        _clear_auth_cookies(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token already used or revoked",
@@ -244,6 +249,7 @@ async def refresh(
     result = await db.execute(select(User).where(User.id == decoded["user_id"]))
     user = result.scalar_one_or_none()
     if user is None:
+        _clear_auth_cookies(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
