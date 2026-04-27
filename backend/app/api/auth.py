@@ -139,15 +139,40 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 def _clear_auth_cookies(response: Response) -> None:
     """Clear auth cookies on logout.
 
-    Deletes cookies both with and without domain to handle domain-mismatch
-    edge cases where the cookie was set without a domain or with a different
-    domain than _COOKIE_DOMAIN.
+    Mobile Safari requires the deletion Set-Cookie header to match the original
+    cookie's attributes (Secure / HttpOnly / SameSite) — otherwise it refuses
+    to overwrite a Secure+HttpOnly cookie with a non-matching one. We mirror
+    the attributes used in `_set_auth_cookies` so deletion is honored across
+    browsers.
+
+    Also deletes both with and without domain to handle domain-mismatch edge
+    cases where the cookie was previously stored without a domain.
     """
-    for cookie_name in ("access_token", "refresh_token", "auth_status"):
-        response.delete_cookie(key=cookie_name, path="/", domain=_COOKIE_DOMAIN)
+    # (cookie_name, httponly) — auth_status is JS-readable, the others aren't.
+    cookies = (
+        ("access_token", True),
+        ("refresh_token", True),
+        ("auth_status", False),
+    )
+    for cookie_name, is_httponly in cookies:
+        response.delete_cookie(
+            key=cookie_name,
+            path="/",
+            domain=_COOKIE_DOMAIN,
+            secure=_SECURE_COOKIE,
+            httponly=is_httponly,
+            samesite="lax",
+        )
         if _COOKIE_DOMAIN is not None:
             # Also delete without domain in case the cookie was stored without one
-            response.delete_cookie(key=cookie_name, path="/", domain=None)
+            response.delete_cookie(
+                key=cookie_name,
+                path="/",
+                domain=None,
+                secure=_SECURE_COOKIE,
+                httponly=is_httponly,
+                samesite="lax",
+            )
 
 
 @router.post(

@@ -53,7 +53,11 @@ function redirectToLogin(): void {
   // rendering authenticated UI before the navigation completes.
   useAuthStore.getState().logout();
   // replace() avoids polluting back-history with the failed page.
-  window.location.replace("/login");
+  // The ?reauth=1 flag tells the middleware to force-clear auth cookies and
+  // skip the "logged-in → /dashboard" auto-redirect, preventing a loop on
+  // browsers (notably mobile Safari) that don't honor cross-subdomain
+  // Set-Cookie deletions reliably.
+  window.location.replace("/login?reauth=1");
 }
 
 // Auto-refresh on 401 (skip for auth endpoints to let callers handle errors)
