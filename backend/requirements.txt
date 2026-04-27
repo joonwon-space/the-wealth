@@ -46,7 +46,7 @@ platformdirs==4.9.6
 pluggy==1.6.0
 psycopg2-binary==2.9.12
 py-serializable==2.1.0
-pycparser==2.23
+pycparser==3.0
 pydantic==2.13.3
 pydantic-settings==2.14.0
 pydantic_core==2.46.3
