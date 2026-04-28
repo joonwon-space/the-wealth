@@ -182,20 +182,20 @@ class TestGetPortfolioHistory:
         assert resp.status_code in (401, 403)
 
     @patch("app.services.analytics_utils._analytics_cache")
-    async def test_skips_dates_before_all_tickers_appear(
+    async def test_backward_fills_pre_first_appearance(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:
-        """보유 ticker 중 PriceSnapshot이 있는 모든 ticker가 등장하기 전 날짜는 제외.
+        """ticker 첫 등장 이전 날짜는 그 ticker의 첫 close로 backward-fill.
 
         regression: 일부 ticker만 시작 시점에 등장하면 시작값이 너무 작아 폭증 비율
-        (live: +637%) 이 나오던 케이스.
+        이 나오던 케이스. backward-fill로 시작값을 안정화한다.
         """
         from app.models.price_snapshot import PriceSnapshot
 
         mock_cache.get = AsyncMock(return_value=None)
         mock_cache.setex = AsyncMock(return_value=True)
         mock_cache.delete = AsyncMock(return_value=None)
-        token = await _register_and_get_token(client, "history_skipfront@example.com")
+        token = await _register_and_get_token(client, "history_bfill@example.com")
         await _setup_portfolio_with_holdings(
             client,
             token,
@@ -209,24 +209,24 @@ class TestGetPortfolioHistory:
             d0 = date(2024, 1, 2)
             d1 = date(2024, 1, 3)
             d2 = date(2024, 1, 4)
-            # d0: 005930만 등장 (000660은 아직 PriceSnapshot 없음 → 이 날짜는 skip)
+            # d0: 005930만 등장 (000660의 첫 등장은 d1)
             db.add(PriceSnapshot(ticker="005930", snapshot_date=d0, close=Decimal(70000)))
-            # d1: 두 종목 모두 등장
             db.add(PriceSnapshot(ticker="005930", snapshot_date=d1, close=Decimal(75000)))
             db.add(PriceSnapshot(ticker="000660", snapshot_date=d1, close=Decimal(100000)))
-            # d2: 005930만 갱신 (000660은 forward-fill)
             db.add(PriceSnapshot(ticker="005930", snapshot_date=d2, close=Decimal(80000)))
             await db.commit()
 
         resp = await client.get("/analytics/portfolio-history", headers=_auth(token))
         assert resp.status_code == 200
         data = resp.json()
-        # d0 제외, d1과 d2만 포함
-        assert len(data) == 2
+        # backward-fill로 d0도 포함됨 (000660의 첫 close 100000 사용)
+        assert len(data) == 3
+        # d0: 10×70000 + 5×100000(bfill) = 1,200,000
+        assert data[0]["value"] == 1_200_000.0
         # d1: 10×75000 + 5×100000 = 1,250,000
-        assert data[0]["value"] == 1_250_000.0
+        assert data[1]["value"] == 1_250_000.0
         # d2: 10×80000 + 5×100000(ffill) = 1,300,000
-        assert data[1]["value"] == 1_300_000.0
+        assert data[2]["value"] == 1_300_000.0
 
     @patch("app.services.analytics_utils._analytics_cache")
     async def test_forward_fills_missing_close(

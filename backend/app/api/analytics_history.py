@@ -100,21 +100,26 @@ async def get_portfolio_history(
             date_ticker_map[d] = {}
         date_ticker_map[d][snap.ticker] = float(snap.close)
 
-    # forward-fill + 시작점 정렬:
-    # - 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면 직전 값 유지(forward-fill).
-    # - 첫 등장 이전 날짜는 평가에서 제외해야 한다. 이를 위해 PriceSnapshot이
-    #   존재하는 모든 보유 ticker가 적어도 한 번씩 등장한 시점부터 history를 시작한다.
+    # forward-fill + backward-fill:
+    # - forward-fill: 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면 직전 값 유지.
+    # - backward-fill: 첫 등장 이전 날짜는 그 ticker의 첫 close로 평가 (현재 보유
+    #   종목을 기간 시작 시점에 가지고 있었다고 가정한 시계열). 이렇게 하면 일부
+    #   ticker가 기간 중간에야 PriceSnapshot이 생기는 경우에도 history 차트가
+    #   끊기지 않고 시작값이 안정된다.
     sorted_dates = sorted(date_ticker_map.keys())
-    tickers_with_data = {snap.ticker for snap in snapshots} & set(tickers)
+    first_close: dict[str, float] = {}
+    for snap in snapshots:
+        if snap.ticker not in first_close:
+            first_close[snap.ticker] = float(snap.close)
+
     last_close: dict[str, float] = {}
     history: list[PortfolioHistoryPoint] = []
     for date_str in sorted_dates:
         for t, close in date_ticker_map[date_str].items():
             last_close[t] = close
-        # 보유 ticker 중 PriceSnapshot 데이터가 존재하는 모든 ticker가 등장한 후만 평가
-        if not tickers_with_data.issubset(last_close.keys()):
-            continue
-        value = sum(qty_map[t] * last_close[t] for t in tickers if t in last_close)
+        # forward-fill 우선, 없으면 backward-fill (첫 close)
+        effective = {**first_close, **last_close}
+        value = sum(qty_map[t] * effective[t] for t in tickers if t in effective)
         if value > 0:
             history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
 
@@ -217,27 +222,29 @@ async def get_krw_asset_history(
     fallback_fx = await get_cached_fx_rate()
     filled_fx = forward_fill_rates(fx_snapshots, all_dates, fallback_fx)
 
-    # forward-fill + 시작점 정렬: PriceSnapshot이 존재하는 모든 보유 ticker가
-    # 등장한 이후부터 history point를 만든다.
-    tickers_with_data = {snap.ticker for snap in snapshots} & set(tickers)
+    # forward-fill + backward-fill (첫 close로 그 이전 날짜 채움)
+    first_close: dict[str, float] = {}
+    for snap in snapshots:
+        if snap.ticker not in first_close:
+            first_close[snap.ticker] = float(snap.close)
+
     last_close: dict[str, float] = {}
     history: list[dict] = []
     for date_str in all_dates:
         for t, close in date_ticker_map[date_str].items():
             last_close[t] = close
-        if not tickers_with_data.issubset(last_close.keys()):
-            continue
+        effective = {**first_close, **last_close}
         fx_rate = filled_fx.get(date_str, fallback_fx)
 
         domestic_value = sum(
-            qty_map[t] * last_close[t]
+            qty_map[t] * effective[t]
             for t in domestic_tickers
-            if t in last_close
+            if t in effective
         )
         overseas_value_usd = sum(
-            qty_map[t] * last_close[t]
+            qty_map[t] * effective[t]
             for t in overseas_tickers
-            if t in last_close
+            if t in effective
         )
         overseas_value_krw = overseas_value_usd * fx_rate
         total_value = domestic_value + overseas_value_krw
