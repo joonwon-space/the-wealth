@@ -14,6 +14,7 @@ from app.core.logging import get_logger
 from app.services.kis_health import check_kis_api_health, get_kis_availability
 from app.services.scheduler_market_jobs import (
     collect_benchmark_snapshots,
+    collect_dividends_job,
     preload_prices,
     save_fx_rate_snapshot_job,
     snapshot_daily_close,
@@ -69,6 +70,7 @@ _consecutive_failures: dict[str, int] = {
     "preload_prices_pm": 0,
     "settle_orders": 0,
     "collect_benchmark": 0,
+    "collect_dividends": 0,
 }
 
 
@@ -124,6 +126,12 @@ async def _collect_benchmark_snapshots(job_id: str = "collect_benchmark") -> Non
     )
 
 
+async def _collect_dividends(job_id: str = "collect_dividends") -> None:
+    await collect_dividends_job(
+        _record_job_success, _record_job_failure, job_id=job_id
+    )
+
+
 def start_scheduler() -> None:
     # 미국 장 마감 후 동기화: EST 16:00 ≈ UTC 21:30 (= KST 06:30)
     scheduler.add_job(
@@ -166,6 +174,12 @@ def start_scheduler() -> None:
         _collect_benchmark_snapshots,
         trigger="cron", day_of_week="mon-fri", hour=7, minute=20, timezone="UTC",
         id="collect_benchmark", kwargs={"job_id": "collect_benchmark"}, replace_existing=True,
+    )
+    # 배당 데이터 수집 — KST 18:00 평일 (장 마감 + 정산 이후)
+    scheduler.add_job(
+        _collect_dividends,
+        trigger="cron", day_of_week="mon-fri", hour=18, minute=0, timezone="Asia/Seoul",
+        id="collect_dividends", kwargs={"job_id": "collect_dividends"}, replace_existing=True,
     )
     # KIS health re-check: 30초 간격 (is_available=False 시 즉시 복구 시도,
     # is_available=True 시 10분 쿨다운 후 1회 확인)

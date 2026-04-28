@@ -290,3 +290,46 @@ async def collect_benchmark_snapshots(
 
     except Exception as exc:
         record_failure(job_id, exc)
+
+
+async def collect_dividends_job(
+    record_success: Callable[[str], None],
+    record_failure: Callable[[str, Exception], None],
+    job_id: str = "collect_dividends",
+) -> None:
+    """KIS 배당 데이터 수집 — 보유 종목 단위로 일 1회 실행.
+
+    KST 18:00 평일 (장 마감 + 정산 이후).
+    """
+    from app.services.kis_dividend import collect_dividends_for_user_holdings
+
+    logger.info("[Scheduler] Starting dividend collection")
+    try:
+        async with AsyncSessionLocal() as db:
+            acct_result = await db.execute(select(KisAccount).limit(1))
+            acct = acct_result.scalar_one_or_none()
+            if not acct:
+                logger.info("[Scheduler] No KIS account found, skipping dividend collection")
+                record_success(job_id)
+                return
+
+            app_key = decrypt(acct.app_key_enc)
+            app_secret = decrypt(acct.app_secret_enc)
+            stats = await collect_dividends_for_user_holdings(db, app_key, app_secret)
+
+        logger.info("[Scheduler] Dividend collection results: %s", stats)
+        if stats.get("errors", 0) == 0:
+            record_success(job_id)
+        else:
+            # 일부 ticker 실패는 partial success로 간주 — 연속 실패 추적은
+            # 전체 실패만 카운트해 noise를 줄인다.
+            if stats.get("domestic", 0) + stats.get("overseas", 0) > 0:
+                record_success(job_id)
+            else:
+                record_failure(
+                    job_id,
+                    RuntimeError(f"All dividend fetches failed: {stats}"),
+                )
+
+    except Exception as exc:
+        record_failure(job_id, exc)
