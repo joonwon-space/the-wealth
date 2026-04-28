@@ -203,7 +203,13 @@ class TestBenchmarkDeltaMinePct:
             db.add(portfolio)
             await db.flush()
             db.add(
-                Holding(portfolio_id=portfolio.id, ticker="005930", quantity=Decimal(10), avg_price=Decimal(70000))
+                Holding(
+                    portfolio_id=portfolio.id,
+                    ticker="005930",
+                    name="삼성전자",
+                    quantity=Decimal(10),
+                    avg_price=Decimal(70000),
+                )
             )
             for date_str, ticker, close in snapshots:
                 d = _date.fromisoformat(date_str)
