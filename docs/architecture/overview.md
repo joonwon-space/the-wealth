@@ -108,6 +108,7 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 | 환율 스냅샷 | 평일 KST 16:30 USD/KRW 환율 자동 저장 |
 | 미체결 주문 자동 체결 확인 | 평일 KST 09:00-15:00 매 5분마다 미체결 주문 KIS API 조회 후 체결 상태 자동 업데이트 |
 | 지수 스냅샷 (벤치마크) | 평일 KST 16:20 KOSPI200 + S&P500 지수 스냅샷 수집 → index_snapshots 저장 |
+| KIS API 가용성 자동 복구 | 30초 interval 잡 — KIS_AVAILABLE=False 시 HEAD 요청으로 복구 확인; True 시 10분 쿨다운 |
 
 ### 2.8 리밸런싱
 
@@ -133,7 +134,9 @@ The Wealth는 한국투자증권(KIS) OpenAPI를 활용한 **개인 자산관리
 
 | 기능 | 설명 |
 |------|------|
-| PWA Manifest | next-pwa 기반 앱 매니페스트, 홈화면 추가(A2HS) 배너 |
+| PWA Manifest | next-pwa 기반 앱 매니페스트, 홈화면 추가(A2HS) 배너; theme_color #1574d2 |
+| 브랜드 아이콘 | Next.js App Router 규약: `icon.svg`, `favicon.ico`, `apple-icon.png`; `scripts/build-icons.mjs` (`sharp` + `png-to-ico`)로 자동 생성 |
+| BrandLogo 컴포넌트 | `mark` (아이콘) / `lockup` (아이콘+워드마크) variant; CSS 기반 다크 모드 전환 |
 | Service Worker | 앱셸 오프라인 캐싱, 오프라인 폴백 페이지 |
 | 온보딩 | 최초 로그인 후 KIS 계좌 설정 안내 온보딩 플로우 |
 | 모바일 터치 UX | pull-to-refresh, 스와이프 제스처, iOS 상단탭 스크롤업 지원 |

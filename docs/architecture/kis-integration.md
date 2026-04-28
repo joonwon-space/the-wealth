@@ -75,7 +75,7 @@
 `backend/app/core/config.py:50-52`:
 ```python
 KIS_RATE_LIMIT_PER_SEC: float = 5.0
-KIS_RATE_LIMIT_BURST: int = 20
+KIS_RATE_LIMIT_BURST: int = 15
 KIS_MOCK_MODE: bool = False
 ```
 
@@ -99,15 +99,25 @@ KIS_MOCK_MODE: bool = False
 | 파라미터 | 기본값 | 설정 env var | 의미 |
 |---------|--------|-------------|------|
 | rate (초당 토큰) | `5.0` | `KIS_RATE_LIMIT_PER_SEC` | steady-state KIS 호출 속도 |
-| burst (최대 버스트) | `20` | `KIS_RATE_LIMIT_BURST` | 시작 시 보유 토큰 / 상한선 |
+| burst (최대 버스트) | `15` | `KIS_RATE_LIMIT_BURST` | 시작 시 보유 토큰 / 상한선 (KIS 18/s 정책 반영) |
 | mock_mode | `False` | `KIS_MOCK_MODE` | True이면 rate limit 비활성화 |
 
 ### 동작 원리
-- 시작 시 버킷에 `burst`개(20) 토큰 보유
+- 시작 시 버킷에 `burst`개(15) 토큰 보유
 - 매 호출마다 `_consume(1)` — 토큰 부족 시 필요 대기 시간 계산
 - 초당 `rate`개(5) 속도로 토큰 보충, 상한 `burst`
 - P95 경고: 대기시간 > 0.1s이면 `[KisRateLimiter] P95 slow acquire` 로그 출력
 - `get_timeout_counter()` — 누적 타임아웃 횟수 반환 (observability)
+
+### 네트워크 단절 재시도 (KIS_HTTP_NETWORK_RETRY)
+
+`KIS_HTTP_NETWORK_RETRY` (기본값: `1`) — `ConnectError` / `TimeoutException` 수신 시 재시도 횟수.
+429/EGW00201 재시도인 `KIS_HTTP_MAX_RETRIES`와 별개 경로:
+- `KIS_HTTP_MAX_RETRIES`: HTTP 레이어 속도 제한 응답 재시도
+- `KIS_HTTP_NETWORK_RETRY`: TCP/TLS 연결 실패 재시도
+
+네트워크 단절이 지속되면 `fetch_prices_parallel` 벌크 실패 감지 → `set_kis_availability(False)` → 캐시 전용 모드.
+30초 interval `kis_health_recheck` 잡이 자동 복구 시도.
 
 ### 조정법
 ```bash

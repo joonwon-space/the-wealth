@@ -19,7 +19,7 @@
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │
-│   ├── APScheduler (sync 1h, snapshot KST 16:10)             │
+│   ├── APScheduler (8개 잡: sync, snapshot, FX, benchmark, orders, KIS health recheck) │
 │   └── structlog (request_id tracing)                         │
 └──┬──────────────┬──────────────┬────────────────────────────┘
    │              │              │
@@ -89,6 +89,7 @@ frontend/src/
 │       └── settings/             # 설정
 ├── components/
 │   ├── AllocationDonut.tsx       # 자산 배분 도넛 차트
+│   ├── BrandLogo.tsx             # 브랜드 로고 (mark/lockup variant, CSS dark toggle)
 │   ├── BottomNav.tsx             # 모바일 하단 네비게이션
 │   ├── CandlestickChart.tsx      # 캔들스틱 차트 (lightweight-charts)
 │   ├── DayChangeBadge.tsx        # 일간 변동률 뱃지 (상승=빨강/하락=파랑)
@@ -485,7 +486,7 @@ KIS 토큰 발급 (/oauth2/tokenP) 전용 경로:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ APScheduler (AsyncIOScheduler) — 7개 cron 잡             │
+│ APScheduler (AsyncIOScheduler) — 8개 잡 (7 cron + 1 interval)│
 │                                                         │
 │ Job 1: kis_sync_us (미국 장 마감 후 동기화)               │
 │   trigger: cron(mon-fri, 21:30 UTC) = KST 06:30         │
@@ -521,6 +522,11 @@ KIS 토큰 발급 (/oauth2/tokenP) 전용 경로:
 │   trigger: cron(mon-fri, 07:20 UTC) = KST 16:20         │
 │   action: KOSPI200 + S&P500 지수 스냅샷 수집              │
 │           → index_snapshots 테이블 저장                   │
+│                                                         │
+│ Job 8: kis_health_recheck (KIS API 가용성 재확인)         │
+│   trigger: interval(seconds=30)                         │
+│   action: KIS_AVAILABLE=False 시 HEAD 요청으로 복구 시도;  │
+│           KIS_AVAILABLE=True 시 10분 쿨다운 후 1회 확인   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -934,7 +940,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
 | 주식 매매 | 완료 | 국내/해외 매수/매도 주문, 미체결 조회/취소, 예수금 조회 (국내+해외 합산), 이중 주문 방지 락 |
-| 자동 동기화 | 완료 | APScheduler 7개 cron 잡: KST 06:30 미국 장 마감 sync, KST 08:00/16:00 holdings sync + 캐시 워밍, KST 16:10 일일 스냅샷, KST 16:30 환율 스냅샷, 장중 5분마다 미체결 주문 체결 확인, KST 16:20 KOSPI200+S&P500 지수 스냅샷 |
+| 자동 동기화 | 완료 | APScheduler 8개 잡 (7 cron + 1 interval): KST 06:30 미국 장 마감 sync, KST 08:00/16:00 holdings sync + 캐시 워밍, KST 16:10 일일 스냅샷, KST 16:30 환율 스냅샷, 장중 5분마다 미체결 주문 체결 확인, KST 16:20 KOSPI200+S&P500 지수 스냅샷, 30초 KIS health recheck |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
 | 에러 처리 | 완료 | 표준 에러 응답 (envelope), Error Boundary, 전역 예외 핸들러 |
@@ -954,6 +960,8 @@ slowapi 기반 IP별 레이트 리미팅:
 | 성능 최적화 (sprint-3) | 완료 | Redis ConnectionPool 싱글턴, DISTINCT ON prev_close 쿼리, fx-gain-loss 캐시, SSE React Compiler 호환 |
 | 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
 | KIS API 레이트 리미터 (Sprint 14) | 완료 | 토큰 버킷 5/s, burst=15 (KIS 18/s 정책 반영); 9개 call site 래핑 (kis_retry.py); 토큰 발급 전용 1/s 리미터; KIS_MOCK_MODE 지원 |
+| KIS 네트워크 단절 복구 (Sprint 18) | 완료 | bulk failure 감지 → KIS_AVAILABLE=False 즉시 전환; 30초 interval kis_health_recheck 잡으로 자동 복구; KIS_HTTP_NETWORK_RETRY 설정; Sentry fingerprint="kis-unreachable" 그룹화 |
+| 브랜드 자산 / PWA 아이콘 (Sprint 18) | 완료 | BrandLogo 컴포넌트 (mark/lockup variant, CSS dark toggle); public/brand/ SVG 패키지; Next.js App Router 규약 favicon.ico + icon.svg + apple-icon.png; manifest theme_color #1574d2; scripts/build-icons.mjs |
 | KIS 토큰 중복 발급 방지 (Sprint 14) | 완료 | Redis asyncio.Lock 기반 동시 요청 직렬화 |
 | 예수금 수익률 재계산 (Sprint 14) | 완료 | profit_loss_rate를 KIS evlu_erng_rt 대신 합산 P&L 기준으로 재계산 |
 | 코드 파일 분할 (Sprint 9/10) | 완료 | analytics.py→3분할, portfolios.py→holdings+transactions, kis_order.py→place+cancel+query, dashboard/page.tsx→DashboardMetrics+PortfolioList |
@@ -1026,7 +1034,7 @@ CI 수정 사항:
 - **[PERF-004]** SSE 연결 상태 추적 useRef→useState 변경 (React Compiler lint 대응)
 - **[PERF-005/TD-001]** Redis ConnectionPool 모듈 레벨 싱글턴으로 변경 (요청별 TCP 오버헤드 제거)
 - **[PERF-006]** mutation onError 중복 핸들러 제거
-- **[SEC-001]** Sentry before_send: KIS 자격증명(appkey, appsecret, authorization) 스크러빙
+- **[SEC-001]** Sentry before_send: KIS 자격증명(appkey, appsecret, authorization) 스크러빙; KIS 네트워크 에러 fingerprint="kis-unreachable" 그룹화로 장애 중 알림 폭발 방지
 - **[SEC-002]** password max_length=128 제한 (bcrypt DoS 방지)
 - **[SEC-004]** CSP 수정 (AlertDialog 등 접근성 개선)
 - **[SEC-006]** TransactionMemoUpdate tags 최대 20개, 각 50자 제한

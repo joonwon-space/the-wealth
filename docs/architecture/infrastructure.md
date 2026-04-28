@@ -498,6 +498,7 @@ Docker Compose 헬스체크:
 | `KIS_TOKEN_RATE_LIMIT_PER_SEC` | - | KIS 토큰 발급 전용 레이트 리밋 속도 (기본: 1.0 req/s) | `1.0` |
 | `KIS_TOKEN_RATE_LIMIT_BURST` | - | KIS 토큰 발급 버스트 크기 (기본: 1 토큰) | `1` |
 | `KIS_HTTP_MAX_RETRIES` | - | KIS HTTP 429/EGW00201 수신 시 재시도 횟수 (기본: 1) | `1` |
+| `KIS_HTTP_NETWORK_RETRY` | - | KIS 네트워크 단절(ConnectError/TimeoutException) 시 재시도 횟수 (기본: 1) | `1` |
 | `KIS_MOCK_MODE` | - | `true` 설정 시 KIS 레이트 리밋 비활성화 (로컬 개발/테스트용) | `false` |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.

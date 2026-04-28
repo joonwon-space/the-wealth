@@ -52,6 +52,12 @@ These docs are derived from code, not the other way around. If you're unsure whe
 | [`../runbooks/troubleshooting.md`](../runbooks/troubleshooting.md) | Redis/Postgres/KIS/Alembic/SSE/OOM common failures — symptom→cause→fix | Something is broken |
 | [`../runbooks/deploy.md`](../runbooks/deploy.md) | CI/CD failures, rollback, hotfix process, manual Alembic, smoke checks | Deployment issues |
 
+## Other Docs
+
+| File | What's inside | Read when |
+|------|---------------|-----------|
+| [`../brand-assets.md`](../brand-assets.md) | Logo variants (mark/lockup), SVG/PNG/ICO size matrix, PWA manifest icons, `BrandLogo` component usage, build pipeline (`scripts/build-icons.mjs`) | Updating the logo, favicon, or brand colors |
+
 ## Related
 
 - `../plan/` — what's being worked on (`tasks.md`), what's queued (`todo.md`), what needs human action (`manual-tasks.md`)

@@ -105,6 +105,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 |-----------|-------------|
 | `dashboard/DashboardMetrics.tsx` | Dashboard metrics cards (total assets, P&L) — extracted from `dashboard/page.tsx` |
 | `dashboard/PortfolioList.tsx` | Portfolio list widget on main dashboard — extracted from `dashboard/page.tsx` |
+| `BrandLogo.tsx` | Brand logo component — `mark` (icon only) or `lockup` (icon + wordmark) variant; CSS-based dark mode toggle (no `useEffect`) |
 | `QueryProvider.tsx` | TanStack Query provider (wraps app with QueryClientProvider) |
 | `ErrorBoundary.tsx` | React Error Boundary with fallback UI + Sentry captureException |
 | `PageError.tsx` | Page-level error display component |
