@@ -100,20 +100,21 @@ async def get_portfolio_history(
             date_ticker_map[d] = {}
         date_ticker_map[d][snap.ticker] = float(snap.close)
 
-    # forward-fill: 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면
-    # 직전 값을 유지해 평가금액이 일관되게 계산되도록 한다.
-    # 한 ticker의 첫 등장 이전 날짜는 평가에서 제외(0주 보유로 간주).
+    # forward-fill + 시작점 정렬:
+    # - 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면 직전 값 유지(forward-fill).
+    # - 첫 등장 이전 날짜는 평가에서 제외해야 한다. 이를 위해 PriceSnapshot이
+    #   존재하는 모든 보유 ticker가 적어도 한 번씩 등장한 시점부터 history를 시작한다.
     sorted_dates = sorted(date_ticker_map.keys())
+    tickers_with_data = {snap.ticker for snap in snapshots} & set(tickers)
     last_close: dict[str, float] = {}
     history: list[PortfolioHistoryPoint] = []
     for date_str in sorted_dates:
         for t, close in date_ticker_map[date_str].items():
             last_close[t] = close
-        value = sum(
-            qty_map[t] * last_close[t]
-            for t in tickers
-            if t in last_close
-        )
+        # 보유 ticker 중 PriceSnapshot 데이터가 존재하는 모든 ticker가 등장한 후만 평가
+        if not tickers_with_data.issubset(last_close.keys()):
+            continue
+        value = sum(qty_map[t] * last_close[t] for t in tickers if t in last_close)
         if value > 0:
             history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
 
@@ -216,12 +217,16 @@ async def get_krw_asset_history(
     fallback_fx = await get_cached_fx_rate()
     filled_fx = forward_fill_rates(fx_snapshots, all_dates, fallback_fx)
 
-    # forward-fill: 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면 직전 값 유지.
+    # forward-fill + 시작점 정렬: PriceSnapshot이 존재하는 모든 보유 ticker가
+    # 등장한 이후부터 history point를 만든다.
+    tickers_with_data = {snap.ticker for snap in snapshots} & set(tickers)
     last_close: dict[str, float] = {}
     history: list[dict] = []
     for date_str in all_dates:
         for t, close in date_ticker_map[date_str].items():
             last_close[t] = close
+        if not tickers_with_data.issubset(last_close.keys()):
+            continue
         fx_rate = filled_fx.get(date_str, fallback_fx)
 
         domestic_value = sum(

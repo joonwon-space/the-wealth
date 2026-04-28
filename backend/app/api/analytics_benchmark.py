@@ -185,17 +185,17 @@ async def benchmark_delta(
                 d = snap.snapshot_date.isoformat()
                 date_ticker_map.setdefault(d, {})[snap.ticker] = float(snap.close)
 
-            # forward-fill: 일부 ticker가 특정 날짜에 close 누락 시 직전 값 유지.
+            # forward-fill + 시작점 정렬: PriceSnapshot이 존재하는 모든 보유 ticker가
+            # 등장한 이후 시점부터 day_values를 채워 시작값 왜곡을 방지한다.
+            tickers_with_data = {snap.ticker for snap in snaps} & set(tickers)
             last_close: dict[str, float] = {}
             day_values: list[float] = []
             for d in sorted(date_ticker_map.keys()):
                 for t, close in date_ticker_map[d].items():
                     last_close[t] = close
-                v = sum(
-                    qty_map[t] * last_close[t]
-                    for t in tickers
-                    if t in last_close
-                )
+                if not tickers_with_data.issubset(last_close.keys()):
+                    continue
+                v = sum(qty_map[t] * last_close[t] for t in tickers if t in last_close)
                 if v > 0:
                     day_values.append(v)
 
