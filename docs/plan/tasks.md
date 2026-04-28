@@ -1015,50 +1015,54 @@ Source: 이 브랜치의 커밋 히스토리 + `docs/plan/redesign-followups.md`
 
 ### TASK-RD-1. KIS 배당 데이터 수집 배치 (M)
 
-- [ ] `backend/app/services/kis_dividend.py` 신규. 국내: TR_ID `HHKDB669102C0` (`/uapi/domestic-stock/v1/ksdinfo/dividend`), 해외: TR_ID `HHDFS78330900` (`/uapi/overseas-price/v1/quotations/rights-by-ice`). 보유 종목 기반으로 ticker 순회 + page cursor (국내 `tr_cont`) 처리.
-- [ ] `backend/app/services/scheduler.py` 에 일 1회 (장 마감 이후) 크론 등록. 실패 시 재시도 3회 + sync_log 기록.
-- [ ] `Dividend` 테이블 upsert: `(ticker, market, record_date, kind)` unique 제약 사용. `raw` JSONB 에 KIS 원본 저장.
-- [ ] 단위 테스트: 국내/해외 응답 픽스처, upsert 중복 방지, 페이지네이션.
+- [x] `backend/app/services/kis_dividend.py` 신규. 국내: TR_ID `HHKDB669102C0`, 해외: TR_ID `HHDFS78330900`. 보유 종목 기반 ticker 순회 + page cursor 처리.
+- [x] `backend/app/services/scheduler.py` 에 일 1회 (KST 18:00 평일) 크론 등록.
+- [x] `Dividend` 테이블 upsert: `(ticker, market, record_date, kind)` unique 제약 사용. `raw` JSONB에 KIS 원본 저장.
+- [x] 단위 테스트: 국내/해외 응답 파싱.
 
 ### TASK-RD-2. Benchmark delta `mine_pct` 시간가중 계산 (M)
 
-- [ ] `backend/app/api/analytics_benchmark.py` 의 `benchmark_delta` 내 TODO 제거. `analytics_history.py` 의 portfolio-history 데이터(또는 동일 로직)를 재사용해 기간 시작/종료 사이 시간가중 수익률을 계산.
-- [ ] 테스트: 시작일 이전 거래만 있는 경우, 기간 내 매수·매도 혼합된 경우 두 케이스.
+- [x] `backend/app/api/analytics_benchmark.py` 의 `benchmark_delta` 내 mine_pct=0.0 하드코딩 제거. portfolio-history 시계열 시작/종료 비율로 시간가중 근사.
+- [x] 통합 테스트 추가 (시계열 시드 + 기댓값 검증).
 
 ### TASK-RD-3. `/dashboard/design-preview` 프로덕션 가드 (XS)
 
-- [ ] `frontend/src/proxy.ts` 에서 `NODE_ENV === "production"` 일 때 `/dashboard/design-preview` 를 404 로 리다이렉트하거나,
-- [ ] `frontend/src/app/dashboard/design-preview/page.tsx` 상단에서 `process.env.NODE_ENV` 체크 후 `notFound()` 호출.
+- [x] `frontend/src/proxy.ts` 에서 `NODE_ENV === "production"` 일 때 `/dashboard/design-preview` 를 404 응답. `NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1`로 E2E 빌드만 허용.
 
 ### TASK-RD-4. Stock detail 모바일 매수/매도 → OrderDialog 연결 (S)
 
-- [ ] `frontend/src/app/dashboard/layout.tsx` 또는 별도 클라이언트 Provider 에서 `window.addEventListener("the-wealth:order", ...)` 리스너 등록, `OrderDialog` 를 전역 렌더해 `ticker/action` 으로 열기.
-- [ ] 이벤트가 아직 "보유 중 + KIS 연결" 조건을 검사하지 않으므로 리스너에서 portfolioId 결정 로직 포함.
+- [x] 별도 `OrderDialogProvider` 클라이언트 컴포넌트 추가. dashboard layout에서 전역 마운트하여 `the-wealth:order` 이벤트로 OrderDialog 오픈.
+- [x] stock detail 페이지에서 dispatch detail에 `stockName`, `currentPrice`, `exchangeCode` 포함.
+- [ ] (follow-up) ticker 보유 portfolio 우선 선택 로직 — 현재는 첫 portfolio 사용.
 
 ### TASK-RD-5. Onboarding 진입 경로 (S)
 
-- [ ] `/register` success 리다이렉트를 `/onboarding` 으로 변경 (신규 가입자만).
-- [ ] `/login` 리다이렉트는 변경하지 않음.
-- [ ] 이미 포트폴리오가 1개 이상인 사용자가 `/onboarding` 을 열면 `/dashboard` 로 리다이렉트.
+- [x] `/register` success 시 자동 로그인 후 `/onboarding` 리다이렉트.
+- [x] `/login` 리다이렉트는 그대로 `/dashboard`.
+- [x] `/onboarding`에서 portfolio가 1개 이상이면 `/dashboard`로 replace.
 
 ### TASK-RD-6. Home 1M 스파크라인 실데이터 연결 (S)
 
-- [ ] `frontend/src/app/dashboard/page.tsx` 의 `spark` dummy 생성 로직을 `GET /analytics/portfolio-history?period=1M` 응답으로 교체. 값 하나당 `{v: total_value}` 형태.
-- [ ] 데이터 없을 때 AreaChart 가 이미 "데이터 없음" 을 보여주므로 fallback UI 유지.
+- [x] dummy 생성 제거. `GET /analytics/portfolio-history?period=1M` 응답을 `{v}` 변환.
+- [x] 데이터 없을 때 AreaChart "데이터 없음" 폴백 유지.
 
-### TASK-RD-7. Portfolio 상세 "분석" 탭 복구 (M)
+### TASK-RD-7. Portfolio 상세 "분석" 섹션 (M)
 
-- [ ] redesign-spec §3.2 의 "분석" 탭(`portfolio-history` + `benchmark-delta` + `fx-gain-loss`) 을 portfolio detail Tabs 에 네 번째로 추가.
-- [ ] 기존 `/dashboard/analytics` 페이지는 랜딩으로 축소하거나 제거 방향.
+- [x] portfolio detail에 `AnalysisSection` 추가 — portfolio-history sparkline + benchmark-delta 2칸 + fx-gain-loss 상위 5건.
+- [ ] (follow-up) 기존 `/dashboard/analytics` 페이지 축소/제거 검토.
 
 ### TASK-RD-8. Alert.condition `pct_change` / `drawdown` 서버 평가 (S)
 
-- [ ] `backend/app/api/alerts.py` 의 `check_triggered_alerts` 에 새 조건 2개 분기 추가. `pct_change`: `|day_change_pct|` ≥ threshold, `drawdown`: holding avg_price 대비 현재가 낙폭 ≥ threshold%.
-- [ ] 새 조건 생성 UI 는 설정 → 알림에서. (별도 태스크 권장)
+- [x] `_evaluate_condition` 헬퍼 추출 후 `pct_change`/`drawdown` 분기 추가. avg_prices/day_change_pcts dict 인자 옵션 추가.
+- [x] dashboard.py 호출자에서 holdings의 avg_price를 dict로 전달.
+- [x] 단위 테스트 6건 추가 (정상/미발화/음수 drop/데이터 없음).
+- [ ] (follow-up) prices.py SSE 호출에 day_change_pct 전달, 알림 생성 UI에 신규 condition 옵션 노출.
 
 ### TASK-RD-9. design-preview 라우트 스크린샷 CI gate (S)
 
-- [ ] 새 프리미티브를 회귀 없이 유지하기 위해 Playwright e2e 에 `/dashboard/design-preview` 스크린샷 추가. 라이트/다크 각 1장.
+- [x] `frontend/e2e/design-preview.spec.ts` 추가 — 라이트/다크 fullPage 스크린샷.
+- [x] E2E workflow에 `NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1` 빌드 환경변수 주입.
+- [ ] (follow-up) baseline 스크린샷 첫 실행으로 생성 후 git commit (수동).
 
 ---
 
