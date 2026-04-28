@@ -214,11 +214,11 @@ class TestBenchmarkDeltaMinePct:
             for date_str, ticker, close in snapshots:
                 d = _date.fromisoformat(date_str)
                 db.add(PriceSnapshot(ticker=ticker, snapshot_date=d, close=Decimal(str(close))))
-            base = datetime(2026, 1, 1, 16, 0, tzinfo=_KST)
-            for i, (date_str, close) in enumerate(index_snapshots):
+            for date_str, close in index_snapshots:
+                day = _date.fromisoformat(date_str)
                 db.add(IndexSnapshot(
                     index_code="KOSPI200",
-                    timestamp=base + timedelta(days=i),
+                    timestamp=datetime(day.year, day.month, day.day, 16, 0, tzinfo=_KST),
                     close_price=Decimal(str(close)),
                     change_pct=Decimal("0.0"),
                 ))
