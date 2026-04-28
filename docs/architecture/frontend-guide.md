@@ -33,18 +33,19 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 |-------|------|-------------|
 | `/` | `app/page.tsx` | Root -- redirects to `/login` |
 | `/login` | `app/login/page.tsx` | Login form |
-| `/register` | `app/register/page.tsx` | Registration form |
+| `/register` | `app/register/page.tsx` | Registration form — on success, auto-logs in and redirects to `/onboarding` |
 | `/dashboard` | `app/dashboard/page.tsx` | Main dashboard: portfolio summary, holdings table, allocation donut |
 | `/dashboard/analytics` | `app/dashboard/analytics/page.tsx` | Analytics: monthly heatmap, sector allocation, portfolio history |
 | `/dashboard/compare` | `app/dashboard/compare/page.tsx` | Portfolio comparison page |
 | `/dashboard/journal` | `app/dashboard/journal/page.tsx` | Investment journal: transaction memos across all portfolios |
 | `/dashboard/portfolios` | `app/dashboard/portfolios/page.tsx` | Portfolio list with real-time P&L (evaluation value, P&L amount/rate via `/portfolios/with-prices`; red=profit blue=loss Korean convention; `—` fallback) |
-| `/dashboard/portfolios/[id]` | `app/dashboard/portfolios/[id]/page.tsx` | Portfolio detail: holdings, transactions |
+| `/dashboard/portfolios/[id]` | `app/dashboard/portfolios/[id]/page.tsx` | Portfolio detail: holdings, transactions, analysis (AnalysisSection) |
 | `/dashboard/rebalance` | `app/dashboard/rebalance/page.tsx` | Rebalance: sector target allocation editor + suggested orders |
 | `/dashboard/stocks/[ticker]` | `app/dashboard/stocks/[ticker]/page.tsx` | Stock detail: candlestick chart, stock info |
 | `/dashboard/stream` | `app/dashboard/stream/page.tsx` | Activity feed: unified timeline of alerts, fills, dividends, rebalance, and routine events |
 | `/dashboard/settings` | `app/dashboard/settings/page.tsx` | KIS account management, user settings |
 | `/onboarding` | `app/onboarding/page.tsx` | Onboarding flow for new users: KIS account setup walkthrough |
+| `/dashboard/design-preview` | `app/dashboard/design-preview/page.tsx` | Design system preview page — blocked by middleware in production; accessible only when `ALLOW_DESIGN_PREVIEW=1` (server-only env, used in E2E) |
 | `/offline` | `app/offline/page.tsx` | Offline fallback page served by Service Worker when network is unavailable |
 
 ### Dashboard Layout
@@ -54,6 +55,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 - `BottomNav` (mobile) -- tab-based navigation
 - `StockSearchDialog` -- triggered by Cmd+K
 - `KeyboardShortcutsDialog` -- triggered by Cmd+?
+- `OrderDialogProvider` -- global `the-wealth:order` CustomEvent listener that opens `OrderDialog` from any page
 
 ---
 
@@ -91,9 +93,11 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | Component | Description |
 |-----------|-------------|
 | `OrderDialog.tsx` | Buy/sell order dialog orchestrator — delegates to `orders/OrderForm.tsx` and `orders/OrderConfirmation.tsx` |
+| `OrderDialogProvider.tsx` | Global provider mounted in `dashboard/layout.tsx`; listens for the `the-wealth:order` CustomEvent and opens `OrderDialog`. Allows any page/component to trigger the order dialog by dispatching the event with `{ ticker, stockName, currentPrice, exchangeCode }` in `detail`. |
 | `orders/OrderForm.tsx` | Order input form (limit/market toggle, quick ratio buttons 10%/25%/50%/100%, cash balance) |
 | `orders/OrderConfirmation.tsx` | Order confirmation step before submission |
 | `PendingOrdersPanel.tsx` | Pending (unfilled) orders table with cancel action and auto-detect filled orders via toast notification |
+| `portfolios/[id]/AnalysisSection.tsx` | Portfolio analysis panel: portfolio-history sparkline, benchmark-delta cards (vs KOSPI200/S&P500), and FX gain/loss top-5 table. Mounted in portfolio detail page. |
 
 ### Notifications
 | Component | Description |

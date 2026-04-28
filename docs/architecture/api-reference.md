@@ -298,7 +298,7 @@ Rate-limited endpoints for brute force protection.
 - **Rate limit**: 30/minute
 - **Query params**: `index_code: string` (default "KOSPI200"; accepts KOSPI200, SP500), `period: string` (default "6M"; accepts 1M, 3M, 6M, 1Y, ALL)
 - **Response** (200): `BenchmarkDelta` — `{ portfolio_return_pct: decimal, benchmark_return_pct: decimal, delta_pct: decimal, period: string, index_code: string }`
-- **Description**: Returns the difference in percentage points between the user's portfolio cumulative return and the benchmark index return for the given period. Portfolio return is computed from weighted average prices of current holdings vs current snapshot prices. Benchmark return is computed from `index_snapshots` start/end close prices.
+- **Description**: Returns the difference in percentage points between the user's portfolio cumulative return and the benchmark index return for the given period. Portfolio return (`mine_pct`) is computed from `portfolio-history` start/end total value ratio for the period (not from individual holding weighted averages). Benchmark return is computed from `index_snapshots` start/end close prices.
 - **Errors**: 400 (invalid `index_code` or `period`)
 
 ### GET /analytics/stocks/{ticker}/sma
@@ -319,8 +319,9 @@ Rate-limited endpoints for brute force protection.
 
 ### POST /alerts
 - **Auth**: Required
-- **Request body**: `{ "ticker": string, "name": string, "condition": "above"|"below", "threshold": decimal }`
+- **Request body**: `{ "ticker": string, "name": string, "condition": "above"|"below"|"pct_change"|"drawdown", "threshold": decimal }`
 - **Response** (201): `AlertOut`
+- **Notes**: `above`/`below` compare `threshold` against current price. `pct_change` fires when `|day_change_pct| >= threshold` (%). `drawdown` fires when `(avg_price - current_price) / avg_price * 100 >= threshold` (%). The latter two conditions require `avg_prices` and `day_change_pcts` maps populated from holdings data; they do not fire when that data is unavailable.
 
 ### PATCH /alerts/{alert_id}
 - **Auth**: Required (ownership verified)

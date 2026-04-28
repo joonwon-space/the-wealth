@@ -528,6 +528,7 @@ Docker Compose 헬스체크:
 |----|------|------|
 | `VISUAL_QA_EMAIL` | E2E 테스트용 계정 이메일 | `qa@example.com` |
 | `VISUAL_QA_PASSWORD` | E2E 테스트용 계정 비밀번호 | |
+| `ALLOW_DESIGN_PREVIEW` | `/dashboard/design-preview` 접근 허용 (`1` 설정 시). 프론트엔드 미들웨어(`proxy.ts`) 서버 전용 env — `NEXT_PUBLIC_` 접두사 없음. E2E 워크플로우(`e2e.yml`)에서만 사용. | `1` |
 
 ---
 

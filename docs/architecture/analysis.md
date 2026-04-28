@@ -19,7 +19,7 @@
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │
-│   ├── APScheduler (8개 잡: sync, snapshot, FX, benchmark, orders, KIS health recheck) │
+│   ├── APScheduler (9개 잡: sync, snapshot, FX, benchmark, orders, dividends, KIS health recheck) │
 │   └── structlog (request_id tracing)                         │
 └──┬──────────────┬──────────────┬────────────────────────────┘
    │              │              │
@@ -84,8 +84,10 @@ frontend/src/
 │       │   └── [id]/             # 포트폴리오 상세
 │       │       ├── HoldingsSection.tsx       # 보유종목 테이블 오케스트레이터
 │       │       ├── HoldingsTableRow.tsx      # 행 렌더링 컴포넌트 (분리)
-│       │       └── useHoldingsInlineEdit.ts  # 인라인 편집 훅 (분리)
+│       │       ├── useHoldingsInlineEdit.ts  # 인라인 편집 훅 (분리)
+│       │       └── AnalysisSection.tsx       # 포트폴리오 분석 섹션 (히스토리 스파크라인 + 벤치마크 델타 + FX 손익 상위 5)
 │       ├── stocks/[ticker]/      # 종목 상세 (캔들스틱 차트)
+│       ├── design-preview/       # 디자인 시스템 미리보기 (프로덕션 차단; ALLOW_DESIGN_PREVIEW=1 E2E 전용)
 │       └── settings/             # 설정
 ├── components/
 │   ├── AllocationDonut.tsx       # 자산 배분 도넛 차트
@@ -114,6 +116,7 @@ frontend/src/
 │   ├── TableSkeleton.tsx         # 테이블 로딩 스켈레톤
 │   ├── NotificationBell.tsx     # 알림 벨 아이콘 + 미읽음 배지 + 드롭다운
 │   ├── OrderDialog.tsx          # 매수/매도 주문 다이얼로그 오케스트레이터
+│   ├── OrderDialogProvider.tsx  # 글로벌 the-wealth:order 이벤트 리스너 → OrderDialog 오픈 (dashboard/layout.tsx에 마운트)
 │   ├── PendingOrdersPanel.tsx   # 미체결 주문 패널 (주문 취소, 체결 알림)
 │   ├── SentryInit.tsx           # Sentry 초기화 (프로덕션 전용)
 │   ├── dashboard/               # 대시보드 서브컴포넌트
@@ -361,11 +364,12 @@ backend/app/
 │   ├── kis_order_cancel.py    # 주문 취소
 │   ├── kis_order_query.py     # 미체결 조회, 주문 가능 수량, 예수금
 │   ├── kis_benchmark.py       # KOSPI200 + S&P500 지수 스냅샷 수집
+│   ├── kis_dividend.py        # 국내/해외 배당 수집 및 upsert (HHKDB669102C0 / HHDFS78330900)
 │   ├── kis_transaction.py     # KIS 체결내역 조회 (국내 TTTC8001R + 해외 TTTS3035R)
 │   ├── reconciliation.py      # 보유종목 동기화 로직
 │   ├── price_snapshot.py      # 일일 종가 스냅샷 저장
 │   ├── scheduler.py           # APScheduler 설정 + job registration (thin orchestrator)
-│   ├── scheduler_market_jobs.py   # 시장 데이터 스케줄러 잡 (종가·FX·벤치마크 스냅샷)
+│   ├── scheduler_market_jobs.py   # 시장 데이터 스케줄러 잡 (종가·FX·벤치마크 스냅샷·배당 수집)
 │   ├── scheduler_portfolio_jobs.py # 포트폴리오 동기화 스케줄러 잡
 │   ├── scheduler_ops_jobs.py      # 운영 스케줄러 잡 (미체결 주문 자동 체결 확인)
 │   ├── stock_search.py        # KRX 종목 검색
@@ -486,7 +490,7 @@ KIS 토큰 발급 (/oauth2/tokenP) 전용 경로:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ APScheduler (AsyncIOScheduler) — 8개 잡 (7 cron + 1 interval)│
+│ APScheduler (AsyncIOScheduler) — 9개 잡 (8 cron + 1 interval)│
 │                                                         │
 │ Job 1: kis_sync_us (미국 장 마감 후 동기화)               │
 │   trigger: cron(mon-fri, 21:30 UTC) = KST 06:30         │
@@ -523,7 +527,12 @@ KIS 토큰 발급 (/oauth2/tokenP) 전용 경로:
 │   action: KOSPI200 + S&P500 지수 스냅샷 수집              │
 │           → index_snapshots 테이블 저장                   │
 │                                                         │
-│ Job 8: kis_health_recheck (KIS API 가용성 재확인)         │
+│ Job 8: collect_dividends (배당 수집)                      │
+│   trigger: cron(mon-fri, 18:00 KST)                     │
+│   action: 보유종목 기준 국내(HHKDB669102C0) + 해외(HHDFS78330900)│
+│           배당 데이터 KIS 조회 → dividends 테이블 upsert  │
+│                                                         │
+│ Job 9: kis_health_recheck (KIS API 가용성 재확인)         │
 │   trigger: interval(seconds=30)                         │
 │   action: KIS_AVAILABLE=False 시 HEAD 요청으로 복구 시도;  │
 │           KIS_AVAILABLE=True 시 10분 쿨다운 후 1회 확인   │
@@ -773,7 +782,7 @@ Request
 | user_id | Integer | FK→users CASCADE, NOT NULL | 소유자 |
 | ticker | String | NOT NULL | 종목 코드 |
 | name | String | NOT NULL | 종목명 |
-| condition | String | NOT NULL | 조건 ("above" / "below") |
+| condition | String | NOT NULL | 조건 ("above" / "below" / "pct_change" / "drawdown") |
 | threshold | Numeric | NOT NULL | 목표가 |
 | is_active | Boolean | default=True | 활성 여부 |
 | last_triggered_at | DateTime | nullable | 마지막 트리거 시간 (쿨다운 1h) |
@@ -940,7 +949,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 관심종목 | 완료 | 마켓별 구분 |
 | 알림 | 완료 | 가격 알림 CRUD + SSE 조건 체크 + 인앱 알림 센터 (이메일 알림 미구현) |
 | 주식 매매 | 완료 | 국내/해외 매수/매도 주문, 미체결 조회/취소, 예수금 조회 (국내+해외 합산), 이중 주문 방지 락 |
-| 자동 동기화 | 완료 | APScheduler 8개 잡 (7 cron + 1 interval): KST 06:30 미국 장 마감 sync, KST 08:00/16:00 holdings sync + 캐시 워밍, KST 16:10 일일 스냅샷, KST 16:30 환율 스냅샷, 장중 5분마다 미체결 주문 체결 확인, KST 16:20 KOSPI200+S&P500 지수 스냅샷, 30초 KIS health recheck |
+| 자동 동기화 | 완료 | APScheduler 9개 잡 (8 cron + 1 interval): KST 06:30 미국 장 마감 sync, KST 08:00/16:00 holdings sync + 캐시 워밍, KST 16:10 일일 스냅샷, KST 16:30 환율 스냅샷, 장중 5분마다 미체결 주문 체결 확인, KST 16:20 KOSPI200+S&P500 지수 스냅샷, KST 18:00 배당 수집, 30초 KIS health recheck |
 | SSE 연결 관리 | 완료 | 사용자별 최대 3 연결, 15초 하트비트, 2시간 타임아웃 |
 | API 버전관리 | 완료 | /api/v1 prefix |
 | 에러 처리 | 완료 | 표준 에러 응답 (envelope), Error Boundary, 전역 예외 핸들러 |
@@ -961,6 +970,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
 | KIS API 레이트 리미터 (Sprint 14) | 완료 | 토큰 버킷 5/s, burst=15 (KIS 18/s 정책 반영); 9개 call site 래핑 (kis_retry.py); 토큰 발급 전용 1/s 리미터; KIS_MOCK_MODE 지원 |
 | KIS 네트워크 단절 복구 (Sprint 18) | 완료 | bulk failure 감지 → KIS_AVAILABLE=False 즉시 전환; 30초 interval kis_health_recheck 잡으로 자동 복구; KIS_HTTP_NETWORK_RETRY 설정; Sentry fingerprint="kis-unreachable" 그룹화 |
+| TASK-RD-1~9 (Sprint 18 RD) | 완료 | KIS 배당 수집 서비스(kis_dividend.py) + collect_dividends 스케줄러 잡(KST 18:00); 알림 pct_change/drawdown 서버 평가; benchmark-delta mine_pct portfolio-history 비율 기반 재계산; OrderDialogProvider 글로벌 이벤트 리스너; 포트폴리오 상세 AnalysisSection(히스토리 스파크라인+벤치마크 델타+FX 상위 5); 회원가입 성공 후 자동 로그인 + /onboarding 리다이렉트; 홈 1M 스파크라인 portfolio-history API 사용; design-preview 미들웨어 프로덕션 차단(ALLOW_DESIGN_PREVIEW=1 E2E 허용); E2E 스크린샷 테스트(design-preview 라이트+다크) |
 | 브랜드 자산 / PWA 아이콘 (Sprint 18) | 완료 | BrandLogo 컴포넌트 (mark/lockup variant, CSS dark toggle); public/brand/ SVG 패키지; Next.js App Router 규약 favicon.ico + icon.svg + apple-icon.png; manifest theme_color #1574d2; scripts/build-icons.mjs |
 | KIS 토큰 중복 발급 방지 (Sprint 14) | 완료 | Redis asyncio.Lock 기반 동시 요청 직렬화 |
 | 예수금 수익률 재계산 (Sprint 14) | 완료 | profit_loss_rate를 KIS evlu_erng_rt 대신 합산 P&L 기준으로 재계산 |
@@ -968,7 +978,7 @@ slowapi 기반 IP별 레이트 리미팅:
 | PWA / 모바일 앱 (Sprint 17) | 완료 | next-pwa manifest + Service Worker 오프라인 캐시 + A2HS 배너 + 스플래시, 오프라인 폴백 페이지 |
 | 모바일 터치 UX (Sprint 17) | 완료 | pull-to-refresh (의도적 당김만 트리거), iOS BottomNav 첫 탭 버그 수정, 햄버거 메뉴 iOS 스크롤업 지원 |
 | Web Push 알림 (Sprint 17) | 완료 | VAPID 기반 브라우저 푸시 알림, push_subscriptions 테이블, /push/* API 3개, pywebpush 발송, 410/404 자동 구독 삭제 |
-| 온보딩 플로우 (Sprint 17) | 완료 | /onboarding 페이지: KIS 계좌 등록 안내 단계별 가이드 |
+| 온보딩 플로우 (Sprint 17/RD) | 완료 | /onboarding 페이지: KIS 계좌 등록 안내 단계별 가이드; 회원가입 성공 시 자동 로그인 후 /onboarding으로 리다이렉트 (포트폴리오 존재 시 /dashboard로 바이패스) |
 | 리밸런싱 (Sprint 17) | 완료 | /portfolios/{id}/target-allocation + /rebalance-suggestion API, /dashboard/rebalance 페이지 |
 | 활동 피드 / 오늘의 할 일 (Sprint 17) | 완료 | GET /stream, GET /tasks/today, /dashboard/stream 페이지 |
 | 배당 관리 (Sprint 17) | 완료 | GET /dividends/upcoming, Dividend 모델 |
