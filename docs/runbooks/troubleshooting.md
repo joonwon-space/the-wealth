@@ -346,6 +346,59 @@ If curl from local works but not from container: check Docker network settings, 
 
 ---
 
+## 10. `benchmark-delta` 가 0 만 반환 (index_snapshots 비어 있음)
+
+**증상:**
+
+`/api/v1/analytics/benchmark-delta` 응답이 `mine_pct` 와 무관하게 항상 `benchmark_pct=0.0`, `delta_pct_points=mine_pct - 0`. `/api/v1/analytics/benchmark?index_code=KOSPI200` 이 빈 배열 반환.
+
+**원인:**
+
+`index_snapshots` 테이블에 KOSPI200 / SP500 데이터가 한 건도 없음. 스케줄러 잡 `collect_benchmark` (KST 16:20 평일)가 한 번도 정상 실행되지 않았거나, KIS account 미등록·KIS API 호출 실패로 데이터 적재 실패.
+
+**진단:**
+
+```bash
+# index_snapshots 행 개수 확인 (실프로덕션 DB)
+psql "$DATABASE_URL" -c "SELECT index_code, COUNT(*), MIN(timestamp), MAX(timestamp) FROM index_snapshots GROUP BY index_code;"
+
+# 최근 collect_benchmark 잡 실행 결과 확인
+docker logs the-wealth-backend-1 2>&1 | grep -E "collect_snapshots|collect_benchmark"
+
+# KIS account 등록 여부
+psql "$DATABASE_URL" -c "SELECT id, label FROM kis_accounts LIMIT 5;"
+```
+
+**해결 (수동 backfill):**
+
+```python
+# Python REPL on prod backend container
+import asyncio
+from app.db.session import AsyncSessionLocal
+from app.services.kis_benchmark import collect_snapshots
+from app.core.encryption import decrypt
+from sqlalchemy import select
+from app.models.kis_account import KisAccount
+
+async def backfill():
+    async with AsyncSessionLocal() as db:
+        acct = (await db.execute(select(KisAccount).limit(1))).scalar_one_or_none()
+        if not acct:
+            print("No KIS account registered")
+            return
+        await collect_snapshots(decrypt(acct.app_key_enc), decrypt(acct.app_secret_enc))
+
+asyncio.run(backfill())
+```
+
+**또는 잡 실행 대기:** KST 16:20 평일에 `collect_benchmark` 잡이 자동 실행됨. 다음 평일까지 대기.
+
+**장기 fix 후보:**
+
+`benchmark_delta` 응답을 `benchmark_pct: Optional[float]` 로 바꾸고 데이터 부족 시 `null` 반환 → frontend 가 "데이터 부족" 표시. 현재는 `0.0` 으로 misleading하게 표현됨.
+
+---
+
 ## Related
 
 - [`docs/architecture/kis-integration.md`](../architecture/kis-integration.md) — KIS token lifecycle, TR_IDs, error codes
