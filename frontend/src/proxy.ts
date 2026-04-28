@@ -110,6 +110,17 @@ export function proxy(request: NextRequest) {
   const nonce = generateNonce();
   const csp = buildCsp(nonce, process.env.NODE_ENV === "development");
 
+  // /dashboard/design-preview는 디자인 시스템 미리보기용 — 프로덕션에서 차단.
+  if (
+    process.env.NODE_ENV === "production"
+    && pathname === "/dashboard/design-preview"
+  ) {
+    return applySecurityHeaders(
+      new NextResponse(null, { status: 404 }),
+      csp,
+    );
+  }
+
   // access_token(30분) 또는 refresh_token(7일) 중 하나라도 있으면 로그인 상태로 간주.
   // access_token이 만료돼도 refresh_token이 살아있으면 첫 API 호출 시 인터셉터가 자동 갱신.
   const isLoggedIn = !!(
