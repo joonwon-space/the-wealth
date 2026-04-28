@@ -182,6 +182,53 @@ class TestGetPortfolioHistory:
         assert resp.status_code in (401, 403)
 
     @patch("app.services.analytics_utils._analytics_cache")
+    async def test_forward_fills_missing_close(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
+        """일부 ticker가 특정 날짜에 PriceSnapshot이 없으면 직전 값을 유지해야 한다.
+
+        regression: 날짜별로 일부 ticker만 평가에 들어가서 평가금액이 폭락하던 버그.
+        """
+        from app.models.price_snapshot import PriceSnapshot
+
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
+        token = await _register_and_get_token(client, "history_ffill@example.com")
+        await _setup_portfolio_with_holdings(
+            client,
+            token,
+            [
+                {"ticker": "005930", "name": "삼성전자", "quantity": 10, "avg_price": 70000},
+                {"ticker": "000660", "name": "SK하이닉스", "quantity": 5, "avg_price": 100000},
+            ],
+        )
+
+        async with _db_session() as db:
+            d0 = date(2024, 1, 2)
+            d1 = date(2024, 1, 3)
+            d2 = date(2024, 1, 4)
+            # d0: 두 종목 모두 close 존재
+            db.add(PriceSnapshot(ticker="005930", snapshot_date=d0, close=Decimal(70000)))
+            db.add(PriceSnapshot(ticker="000660", snapshot_date=d0, close=Decimal(100000)))
+            # d1: 005930만 close (000660은 누락 — forward-fill로 100000 유지되어야)
+            db.add(PriceSnapshot(ticker="005930", snapshot_date=d1, close=Decimal(75000)))
+            # d2: 000660만 close (005930은 d1 값 75000 유지)
+            db.add(PriceSnapshot(ticker="000660", snapshot_date=d2, close=Decimal(110000)))
+            await db.commit()
+
+        resp = await client.get("/analytics/portfolio-history", headers=_auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 3
+        # d0: 10×70000 + 5×100000 = 1,200,000
+        assert data[0]["value"] == 1_200_000.0
+        # d1: 10×75000 + 5×100000(ffill) = 1,250,000
+        assert data[1]["value"] == 1_250_000.0
+        # d2: 10×75000(ffill) + 5×110000 = 1,300,000
+        assert data[2]["value"] == 1_300_000.0
+
+    @patch("app.services.analytics_utils._analytics_cache")
     async def test_sums_quantity_across_portfolios(
         self, mock_cache: AsyncMock, client: AsyncClient
     ) -> None:

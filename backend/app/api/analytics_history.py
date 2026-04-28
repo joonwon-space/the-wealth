@@ -100,13 +100,19 @@ async def get_portfolio_history(
             date_ticker_map[d] = {}
         date_ticker_map[d][snap.ticker] = float(snap.close)
 
+    # forward-fill: 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면
+    # 직전 값을 유지해 평가금액이 일관되게 계산되도록 한다.
+    # 한 ticker의 첫 등장 이전 날짜는 평가에서 제외(0주 보유로 간주).
+    sorted_dates = sorted(date_ticker_map.keys())
+    last_close: dict[str, float] = {}
     history: list[PortfolioHistoryPoint] = []
-    for date_str in sorted(date_ticker_map.keys()):
-        prices_on_date = date_ticker_map[date_str]
+    for date_str in sorted_dates:
+        for t, close in date_ticker_map[date_str].items():
+            last_close[t] = close
         value = sum(
-            qty_map[t] * prices_on_date[t]
+            qty_map[t] * last_close[t]
             for t in tickers
-            if t in prices_on_date
+            if t in last_close
         )
         if value > 0:
             history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
@@ -210,21 +216,23 @@ async def get_krw_asset_history(
     fallback_fx = await get_cached_fx_rate()
     filled_fx = forward_fill_rates(fx_snapshots, all_dates, fallback_fx)
 
-    # 날짜별 원화 환산 총 자산 계산
+    # forward-fill: 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면 직전 값 유지.
+    last_close: dict[str, float] = {}
     history: list[dict] = []
     for date_str in all_dates:
-        prices_on_date = date_ticker_map[date_str]
+        for t, close in date_ticker_map[date_str].items():
+            last_close[t] = close
         fx_rate = filled_fx.get(date_str, fallback_fx)
 
         domestic_value = sum(
-            qty_map[t] * prices_on_date[t]
+            qty_map[t] * last_close[t]
             for t in domestic_tickers
-            if t in prices_on_date
+            if t in last_close
         )
         overseas_value_usd = sum(
-            qty_map[t] * prices_on_date[t]
+            qty_map[t] * last_close[t]
             for t in overseas_tickers
-            if t in prices_on_date
+            if t in last_close
         )
         overseas_value_krw = overseas_value_usd * fx_rate
         total_value = domestic_value + overseas_value_krw
