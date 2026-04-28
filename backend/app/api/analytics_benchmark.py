@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.index_snapshot import IndexSnapshot
 from app.models.portfolio import Portfolio
+from app.models.price_snapshot import PriceSnapshot
 from app.models.user import User
 from app.schemas.analytics import BenchmarkPoint
 from app.schemas.redesign import BenchmarkDelta
@@ -145,7 +146,11 @@ async def benchmark_delta(
         if first > 0:
             benchmark_pct = (last - first) / first * 100.0
 
-    # --- 내 수익률 (단순화 버전) ----------------------------------------
+    # --- 내 수익률 (시간가중 근사) --------------------------------------
+    # portfolio-history와 동일한 데이터(현재 보유 holdings × 일별 close)를
+    # 사용해 기간 시작값과 종료값 사이 변동률을 산출한다. 정확한 TWRR은
+    # 매수/매도 cashflow를 보정해야 하지만, 1차 구현은 history 시계열의
+    # 시작/종료 값 비교로 근사한다. (TODO: 거래 cashflow 기반 TWRR.)
     portfolios = (
         await db.execute(
             select(Portfolio.id).where(Portfolio.user_id == current_user.id)
@@ -158,10 +163,37 @@ async def benchmark_delta(
                 select(Holding).where(Holding.portfolio_id.in_(portfolios))
             )
         ).scalars().all()
-        invested = sum(float(h.quantity) * float(h.avg_price) for h in holdings)
-        # TODO: 종목별 현재가를 KIS 에서 받아 비교해야 정확한 수익률.
-        # 1차는 0 으로 두고, 추후 summary 서비스와 합치자.
-        mine_pct = 0.0 if invested <= 0 else mine_pct
+        if holdings:
+            tickers = {h.ticker for h in holdings}
+            qty_map = {h.ticker: float(h.quantity) for h in holdings}
+
+            snap_query = (
+                select(PriceSnapshot)
+                .where(PriceSnapshot.ticker.in_(tickers))
+                .order_by(PriceSnapshot.snapshot_date)
+            )
+            if start_date is not None:
+                snap_query = snap_query.where(PriceSnapshot.snapshot_date >= start_date)
+
+            snaps = (await db.execute(snap_query)).scalars().all()
+            date_ticker_map: dict[str, dict[str, float]] = {}
+            for snap in snaps:
+                d = snap.snapshot_date.isoformat()
+                date_ticker_map.setdefault(d, {})[snap.ticker] = float(snap.close)
+
+            day_values: list[float] = []
+            for d in sorted(date_ticker_map.keys()):
+                prices_on_date = date_ticker_map[d]
+                v = sum(
+                    qty_map[t] * prices_on_date[t]
+                    for t in tickers
+                    if t in prices_on_date
+                )
+                if v > 0:
+                    day_values.append(v)
+
+            if len(day_values) >= 2 and day_values[0] > 0:
+                mine_pct = (day_values[-1] - day_values[0]) / day_values[0] * 100.0
 
     return BenchmarkDelta(
         index_code=index_code,

@@ -164,3 +164,95 @@ class TestGetBenchmark:
         token = await _register_and_get_token(client, "bm_default@example.com")
         resp = await client.get("/analytics/benchmark", headers=_auth(token))
         assert resp.status_code == 200
+
+
+@pytest.mark.integration
+class TestBenchmarkDeltaMinePct:
+    """TASK-RD-2: 시간가중 mine_pct 검증."""
+
+    async def _seed(
+        self,
+        email: str,
+        snapshots: list[tuple[str, str, float]],
+        index_snapshots: list[tuple[str, float]],
+        client: AsyncClient,
+    ) -> str:
+        """email로 가입 후 holdings + price_snapshots + index_snapshots 시드."""
+        import os
+        from datetime import date as _date
+        from sqlalchemy.pool import NullPool
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+        from app.models.holding import Holding
+        from app.models.index_snapshot import IndexSnapshot
+        from app.models.portfolio import Portfolio
+        from app.models.price_snapshot import PriceSnapshot
+        from app.models.user import User
+        from sqlalchemy import select
+
+        token = await _register_and_get_token(client, email)
+        TEST_DB_URL = os.environ.get(
+            "TEST_DATABASE_URL",
+            "postgresql+asyncpg://joonwon@localhost:5432/the_wealth_test",
+        )
+        engine = create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        _KST = timezone(timedelta(hours=9))
+        async with factory() as db:
+            user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+            portfolio = Portfolio(user_id=user.id, name="P")
+            db.add(portfolio)
+            await db.flush()
+            db.add(
+                Holding(portfolio_id=portfolio.id, ticker="005930", quantity=Decimal(10), avg_price=Decimal(70000))
+            )
+            for date_str, ticker, close in snapshots:
+                d = _date.fromisoformat(date_str)
+                db.add(PriceSnapshot(ticker=ticker, snapshot_date=d, close=Decimal(str(close))))
+            base = datetime(2026, 1, 1, 16, 0, tzinfo=_KST)
+            for i, (date_str, close) in enumerate(index_snapshots):
+                db.add(IndexSnapshot(
+                    index_code="KOSPI200",
+                    timestamp=base + timedelta(days=i),
+                    close_price=Decimal(str(close)),
+                    change_pct=Decimal("0.0"),
+                ))
+            await db.commit()
+        await engine.dispose()
+        return token
+
+    async def test_mine_pct_uses_history_start_to_end(self, client: AsyncClient) -> None:
+        """boldings × 일별 close 시계열 시작/종료 비율로 mine_pct 산출."""
+        from datetime import date as _date
+
+        today = _date.today()
+        d0 = (today - timedelta(days=20)).isoformat()
+        d1 = (today - timedelta(days=10)).isoformat()
+        d2 = today.isoformat()
+        # 10주 보유, 70000 → 77000 (+10%)
+        token = await self._seed(
+            "bm_delta_mine@example.com",
+            [(d0, "005930", 70000), (d1, "005930", 73500), (d2, "005930", 77000)],
+            [(d0, 2600), (d1, 2625), (d2, 2650)],
+            client,
+        )
+        resp = await client.get(
+            "/analytics/benchmark-delta",
+            params={"index_code": "KOSPI200", "period": "1M"},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["mine_pct"] == pytest.approx(10.0, abs=0.05)
+        # benchmark: 2600 -> 2650 ≈ +1.92%
+        assert body["benchmark_pct"] == pytest.approx(1.92, abs=0.05)
+        assert body["delta_pct_points"] == pytest.approx(10.0 - 1.92, abs=0.05)
+
+    async def test_mine_pct_zero_when_no_snapshots(self, client: AsyncClient) -> None:
+        token = await _register_and_get_token(client, "bm_delta_empty@example.com")
+        resp = await client.get(
+            "/analytics/benchmark-delta",
+            params={"index_code": "KOSPI200", "period": "1M"},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["mine_pct"] == 0.0
