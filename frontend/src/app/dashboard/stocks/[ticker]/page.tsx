@@ -279,7 +279,15 @@ export default function StockDetailPage() {
           onClick={() => {
             // Step 6 의 buy/sell은 기존 OrderDialog 재사용 — 실제 dialog 연결은
             // 포트폴리오 상세의 매수/매도 버튼 패턴을 Step 7 에서 통합한다.
-            window.dispatchEvent(new CustomEvent("the-wealth:order", { detail: { ticker, action: "BUY" } }));
+            window.dispatchEvent(new CustomEvent("the-wealth:order", {
+              detail: {
+                ticker,
+                action: "BUY",
+                stockName: detail?.name ?? ticker,
+                currentPrice: detail?.current_price ?? undefined,
+                exchangeCode: detail?.market ?? undefined,
+              },
+            }));
           }}
           aria-label="매수 주문"
         >
@@ -289,7 +297,15 @@ export default function StockDetailPage() {
           type="button"
           className="flex-1 rounded-xl bg-fall py-3 text-sm font-bold text-white active:opacity-90"
           onClick={() => {
-            window.dispatchEvent(new CustomEvent("the-wealth:order", { detail: { ticker, action: "SELL" } }));
+            window.dispatchEvent(new CustomEvent("the-wealth:order", {
+              detail: {
+                ticker,
+                action: "SELL",
+                stockName: detail?.name ?? ticker,
+                currentPrice: detail?.current_price ?? undefined,
+                exchangeCode: detail?.market ?? undefined,
+              },
+            }));
           }}
           aria-label="매도 주문"
         >
