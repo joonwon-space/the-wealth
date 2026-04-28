@@ -25,7 +25,7 @@ _ALERT_COOLDOWN_SECONDS = 3600  # 1 hour between repeated triggers for same aler
 class AlertCreate(BaseModel):
     ticker: str = Field(max_length=20)
     name: str = Field(default="", max_length=200)
-    condition: Literal["above", "below"]
+    condition: Literal["above", "below", "pct_change", "drawdown"]
     threshold: Decimal
 
     @field_validator("ticker")
@@ -150,9 +150,40 @@ async def delete_alert(
     await db.commit()
 
 
+def _evaluate_condition(
+    alert: Alert,
+    price: Decimal,
+    threshold: Decimal,
+    avg_prices: Optional[dict[str, Optional[Decimal]]],
+    day_change_pcts: Optional[dict[str, Optional[Decimal]]],
+) -> bool:
+    """알림 조건별 hit 여부.
+
+    - above/below: 현재가 vs threshold
+    - pct_change : |day_change_pct| ≥ threshold(%)  (참조 데이터 없으면 미발화)
+    - drawdown   : (avg - price) / avg * 100 ≥ threshold(%)  (avg 없으면 미발화)
+    """
+    if alert.condition == "above":
+        return price >= threshold
+    if alert.condition == "below":
+        return price <= threshold
+    if alert.condition == "pct_change":
+        pct = (day_change_pcts or {}).get(alert.ticker)
+        return pct is not None and abs(pct) >= threshold
+    if alert.condition == "drawdown":
+        avg = (avg_prices or {}).get(alert.ticker)
+        if avg is None or avg <= 0:
+            return False
+        drop_pct = (avg - price) / avg * Decimal(100)
+        return drop_pct >= threshold
+    return False
+
+
 def check_triggered_alerts(
     alerts: list[Alert],
     current_prices: dict[str, Optional[Decimal]],
+    avg_prices: Optional[dict[str, Optional[Decimal]]] = None,
+    day_change_pcts: Optional[dict[str, Optional[Decimal]]] = None,
 ) -> list[dict]:
     """현재가와 알림 조건 비교. 트리거된 알림 목록 반환."""
     triggered: list[dict] = []
@@ -163,10 +194,7 @@ def check_triggered_alerts(
         if price is None:
             continue
         threshold = Decimal(str(alert.threshold))
-        hit = (alert.condition == "above" and price >= threshold) or (
-            alert.condition == "below" and price <= threshold
-        )
-        if hit:
+        if _evaluate_condition(alert, price, threshold, avg_prices, day_change_pcts):
             triggered.append({
                 "id": alert.id,
                 "ticker": alert.ticker,
@@ -191,6 +219,8 @@ def _is_cooldown_active(alert: Alert, now: datetime) -> bool:
 def check_and_dedup_alerts(
     alerts: list[Alert],
     current_prices: dict[str, Optional[Decimal]],
+    avg_prices: Optional[dict[str, Optional[Decimal]]] = None,
+    day_change_pcts: Optional[dict[str, Optional[Decimal]]] = None,
 ) -> list[dict]:
     """현재가와 알림 조건 비교.
 
@@ -210,10 +240,7 @@ def check_and_dedup_alerts(
         if price is None:
             continue
         threshold = Decimal(str(alert.threshold))
-        hit = (alert.condition == "above" and price >= threshold) or (
-            alert.condition == "below" and price <= threshold
-        )
-        if not hit:
+        if not _evaluate_condition(alert, price, threshold, avg_prices, day_change_pcts):
             continue
 
         # Mark alert as triggered and auto-deactivate

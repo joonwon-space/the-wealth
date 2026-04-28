@@ -361,7 +361,12 @@ async def get_summary(
         select(Alert).where(Alert.user_id == current_user.id, Alert.is_active.is_(True))
     )
     active_alerts = list(alert_result.scalars().all())
-    triggered_raw = check_triggered_alerts(active_alerts, price_result.prices)
+    avg_prices_map: dict[str, Optional[Decimal]] = {}
+    for h in holdings:
+        avg_prices_map.setdefault(h.ticker, h.avg_price)
+    triggered_raw = check_triggered_alerts(
+        active_alerts, price_result.prices, avg_prices=avg_prices_map
+    )
     triggered_alerts = [TriggeredAlert(**a) for a in triggered_raw]
 
     summary = DashboardSummary(

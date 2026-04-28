@@ -86,6 +86,55 @@ class TestCheckTriggeredAlerts:
         result = check_triggered_alerts([alert], {"000660": Decimal("120000")})
         assert result == []
 
+    # ── pct_change / drawdown 신규 조건 ──────────────────────────────────────
+
+    def test_pct_change_triggers_when_abs_pct_meets_threshold(self) -> None:
+        alert = _mock_alert(1, "005930", "pct_change", 5)
+        result = check_triggered_alerts(
+            [alert],
+            {"005930": Decimal("75000")},
+            day_change_pcts={"005930": Decimal("5")},
+        )
+        assert len(result) == 1
+
+    def test_pct_change_triggers_on_negative_move(self) -> None:
+        alert = _mock_alert(1, "005930", "pct_change", 5)
+        result = check_triggered_alerts(
+            [alert],
+            {"005930": Decimal("75000")},
+            day_change_pcts={"005930": Decimal("-7.2")},
+        )
+        assert len(result) == 1
+
+    def test_pct_change_no_data_does_not_trigger(self) -> None:
+        alert = _mock_alert(1, "005930", "pct_change", 5)
+        result = check_triggered_alerts([alert], {"005930": Decimal("75000")})
+        assert result == []
+
+    def test_drawdown_triggers_when_drop_meets_threshold(self) -> None:
+        alert = _mock_alert(1, "005930", "drawdown", 10)
+        result = check_triggered_alerts(
+            [alert],
+            {"005930": Decimal("90000")},  # 100k → 90k = 10% drawdown
+            avg_prices={"005930": Decimal("100000")},
+        )
+        assert len(result) == 1
+
+    def test_drawdown_no_avg_does_not_trigger(self) -> None:
+        alert = _mock_alert(1, "005930", "drawdown", 10)
+        result = check_triggered_alerts([alert], {"005930": Decimal("80000")})
+        assert result == []
+
+    def test_drawdown_negative_drop_does_not_trigger(self) -> None:
+        # 현재가가 평균가보다 높은 경우 drawdown 조건 미발화
+        alert = _mock_alert(1, "005930", "drawdown", 5)
+        result = check_triggered_alerts(
+            [alert],
+            {"005930": Decimal("110000")},
+            avg_prices={"005930": Decimal("100000")},
+        )
+        assert result == []
+
     def test_multiple_alerts_multiple_triggers(self) -> None:
         alerts = [
             _mock_alert(1, "005930", "above", 70000),
