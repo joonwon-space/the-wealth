@@ -109,12 +109,14 @@ jobs:
         if: steps.filter.outputs.relevant == 'true'
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW: '1'
         run: npm run build
 
       - name: Start frontend server
         if: steps.filter.outputs.relevant == 'true'
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW: '1'
         run: |
           npm start &
           echo "Waiting for frontend..."
