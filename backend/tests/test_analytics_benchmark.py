@@ -253,6 +253,75 @@ class TestBenchmarkDeltaMinePct:
         assert body["benchmark_pct"] == pytest.approx(1.92, abs=0.05)
         assert body["delta_pct_points"] == pytest.approx(10.0 - 1.92, abs=0.05)
 
+    async def test_mine_pct_sums_quantities_across_portfolios(self, client: AsyncClient) -> None:
+        """같은 ticker가 두 portfolio에 분산된 경우 quantity가 합산되어야 한다.
+
+        regression: dict comprehension `{h.ticker: float(h.quantity) for h in holdings}` 가
+        마지막 holding으로 덮어써서 mine_pct가 음수로 폭주하던 버그 (live: -99.98%).
+        """
+        import os
+        from datetime import date as _date
+        from sqlalchemy.pool import NullPool
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+        from app.models.holding import Holding
+        from app.models.index_snapshot import IndexSnapshot
+        from app.models.portfolio import Portfolio
+        from app.models.price_snapshot import PriceSnapshot
+        from app.models.user import User
+        from sqlalchemy import select
+
+        email = "bm_delta_split@example.com"
+        token = await _register_and_get_token(client, email)
+        TEST_DB_URL = os.environ.get(
+            "TEST_DATABASE_URL",
+            "postgresql+asyncpg://joonwon@localhost:5432/the_wealth_test",
+        )
+        engine = create_async_engine(TEST_DB_URL, echo=False, poolclass=NullPool)
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        _KST = timezone(timedelta(hours=9))
+
+        today = _date.today()
+        d0 = (today - timedelta(days=20)).isoformat()
+        d2 = today.isoformat()
+
+        async with factory() as db:
+            user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+            p1 = Portfolio(user_id=user.id, name="P1")
+            p2 = Portfolio(user_id=user.id, name="P2")
+            db.add_all([p1, p2])
+            await db.flush()
+            # 같은 005930을 두 portfolio에 7주 + 3주 = 합산 10주 보유
+            db.add_all([
+                Holding(portfolio_id=p1.id, ticker="005930", name="삼성전자",
+                        quantity=Decimal(7), avg_price=Decimal(70000)),
+                Holding(portfolio_id=p2.id, ticker="005930", name="삼성전자",
+                        quantity=Decimal(3), avg_price=Decimal(70000)),
+            ])
+            for date_str, close in [(d0, 70000), (d2, 77000)]:
+                d = _date.fromisoformat(date_str)
+                db.add(PriceSnapshot(ticker="005930", snapshot_date=d, close=Decimal(str(close))))
+            for date_str, close in [(d0, 2600), (d2, 2650)]:
+                day = _date.fromisoformat(date_str)
+                db.add(IndexSnapshot(
+                    index_code="KOSPI200",
+                    timestamp=datetime(day.year, day.month, day.day, 16, 0, tzinfo=_KST),
+                    close_price=Decimal(str(close)),
+                    change_pct=Decimal("0.0"),
+                ))
+            await db.commit()
+        await engine.dispose()
+
+        resp = await client.get(
+            "/analytics/benchmark-delta",
+            params={"index_code": "KOSPI200", "period": "1M"},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        # 합산 10주 × (70000→77000) = +10% — dict 덮어쓰기 버그면 ratio는 동일해도
+        # mid-period 합산 누락으로 음수가 나오던 케이스. 합산 후엔 정확히 +10%.
+        assert body["mine_pct"] == pytest.approx(10.0, abs=0.05)
+
     async def test_mine_pct_zero_when_no_snapshots(self, client: AsyncClient) -> None:
         token = await _register_and_get_token(client, "bm_delta_empty@example.com")
         resp = await client.get(

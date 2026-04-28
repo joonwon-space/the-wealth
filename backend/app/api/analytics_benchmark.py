@@ -165,7 +165,11 @@ async def benchmark_delta(
         ).scalars().all()
         if holdings:
             tickers = {h.ticker for h in holdings}
-            qty_map = {h.ticker: float(h.quantity) for h in holdings}
+            # 같은 ticker가 여러 portfolio에 분산된 경우 quantity를 합산해야 한다.
+            # dict comprehension은 마지막 holding으로 덮어써서 일부 보유분이 누락된다.
+            qty_map: dict[str, float] = {}
+            for h in holdings:
+                qty_map[h.ticker] = qty_map.get(h.ticker, 0.0) + float(h.quantity)
 
             snap_query = (
                 select(PriceSnapshot)
