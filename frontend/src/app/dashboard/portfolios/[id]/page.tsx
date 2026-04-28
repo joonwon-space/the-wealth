@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { PortfolioHeader } from "./PortfolioHeader";
 import { HoldingsSection } from "./HoldingsSection";
 import { TransactionSection } from "./TransactionSection";
+import { AnalysisSection } from "./AnalysisSection";
 import type { Holding } from "./HoldingsSection";
 
 interface PortfolioInfo {
@@ -169,6 +170,9 @@ export default function PortfolioDetailPage() {
             </CardContent>
           </Card>
         </section>
+
+        {/* 분석 — 평가금액 추이 + 벤치마크 + 환차손익 */}
+        <AnalysisSection portfolioId={portfolioId} />
 
         {/* 거래내역 */}
         <TransactionSection
