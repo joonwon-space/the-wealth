@@ -181,6 +181,55 @@ class TestGetPortfolioHistory:
         resp = await client.get("/analytics/portfolio-history")
         assert resp.status_code in (401, 403)
 
+    @patch("app.services.analytics_utils._analytics_cache")
+    async def test_sums_quantity_across_portfolios(
+        self, mock_cache: AsyncMock, client: AsyncClient
+    ) -> None:
+        """같은 ticker가 두 portfolio에 분산된 경우 합산되어야 한다.
+
+        regression: holding_map = {h.ticker: h} 가 마지막 holding으로 덮어쓰던 버그
+        (live: -99.98% mine_pct).
+        """
+        from app.models.price_snapshot import PriceSnapshot
+
+        mock_cache.get = AsyncMock(return_value=None)
+        mock_cache.setex = AsyncMock(return_value=True)
+        mock_cache.delete = AsyncMock(return_value=None)
+        token = await _register_and_get_token(client, "history_split@example.com")
+
+        # 같은 005930을 두 portfolio에 분산: 7주 + 3주 = 10주
+        port1 = (
+            await client.post("/portfolios", json={"name": "P1"}, headers=_auth(token))
+        ).json()
+        port2 = (
+            await client.post("/portfolios", json={"name": "P2"}, headers=_auth(token))
+        ).json()
+        await client.post(
+            f"/portfolios/{port1['id']}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 7, "avg_price": 70000},
+            headers=_auth(token),
+        )
+        await client.post(
+            f"/portfolios/{port2['id']}/holdings",
+            json={"ticker": "005930", "name": "삼성전자", "quantity": 3, "avg_price": 70000},
+            headers=_auth(token),
+        )
+
+        async with _db_session() as db:
+            db.add(PriceSnapshot(
+                ticker="005930",
+                snapshot_date=date(2024, 1, 2),
+                close=Decimal(70000),
+            ))
+            await db.commit()
+
+        resp = await client.get("/analytics/portfolio-history", headers=_auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        # 7+3=10주 × 70000 = 700,000. 합산 안 되면 700,000보다 작은 값(예: 210,000)이 나옴.
+        assert len(data) == 1
+        assert data[0]["value"] == 700000.0
+
     async def test_period_filter_1m(self, client: AsyncClient) -> None:
         """period=1M filters snapshots to last 30 days only."""
         from app.models.price_snapshot import PriceSnapshot

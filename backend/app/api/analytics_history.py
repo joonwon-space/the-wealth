@@ -72,7 +72,11 @@ async def get_portfolio_history(
         return []
 
     tickers = list({h.ticker for h in holdings})
-    holding_map = {h.ticker: h for h in holdings}
+    # 같은 ticker가 여러 portfolio에 분산되면 dict comprehension은 마지막
+    # holding으로 덮어써 일부 보유분이 누락된다. ticker별 quantity를 합산한다.
+    qty_map: dict[str, float] = {}
+    for h in holdings:
+        qty_map[h.ticker] = qty_map.get(h.ticker, 0.0) + float(h.quantity)
 
     cutoff = period_cutoff(normalized_period)
     snap_query = (
@@ -100,9 +104,9 @@ async def get_portfolio_history(
     for date_str in sorted(date_ticker_map.keys()):
         prices_on_date = date_ticker_map[date_str]
         value = sum(
-            float(holding_map[t].quantity) * prices_on_date[t]
+            qty_map[t] * prices_on_date[t]
             for t in tickers
-            if t in prices_on_date and t in holding_map
+            if t in prices_on_date
         )
         if value > 0:
             history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
@@ -158,7 +162,10 @@ async def get_krw_asset_history(
         return []
 
     tickers = list({h.ticker for h in holdings})
-    holding_map = {h.ticker: h for h in holdings}
+    # 같은 ticker가 여러 portfolio에 분산되면 quantity를 합산해야 한다.
+    qty_map: dict[str, float] = {}
+    for h in holdings:
+        qty_map[h.ticker] = qty_map.get(h.ticker, 0.0) + float(h.quantity)
     domestic_tickers = [t for t in tickers if is_domestic(t)]
     overseas_tickers = [t for t in tickers if not is_domestic(t)]
 
@@ -210,14 +217,14 @@ async def get_krw_asset_history(
         fx_rate = filled_fx.get(date_str, fallback_fx)
 
         domestic_value = sum(
-            float(holding_map[t].quantity) * prices_on_date[t]
+            qty_map[t] * prices_on_date[t]
             for t in domestic_tickers
-            if t in prices_on_date and t in holding_map
+            if t in prices_on_date
         )
         overseas_value_usd = sum(
-            float(holding_map[t].quantity) * prices_on_date[t]
+            qty_map[t] * prices_on_date[t]
             for t in overseas_tickers
-            if t in prices_on_date and t in holding_map
+            if t in prices_on_date
         )
         overseas_value_krw = overseas_value_usd * fx_rate
         total_value = domestic_value + overseas_value_krw
