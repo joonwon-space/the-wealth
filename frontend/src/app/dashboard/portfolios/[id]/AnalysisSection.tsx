@@ -70,7 +70,14 @@ export function AnalysisSection({ portfolioId }: AnalysisSectionProps) {
     ? history.map((p) => ({ v: Number(p.value) }))
     : [];
 
-  const isUp = (bench?.mine_pct ?? 0) >= 0;
+  const minePct = typeof bench?.mine_pct === "number" ? bench.mine_pct : null;
+  const benchPct = typeof bench?.benchmark_pct === "number" ? bench.benchmark_pct : null;
+  const deltaPct = typeof bench?.delta_pct_points === "number" ? bench.delta_pct_points : null;
+  const isUp = (minePct ?? 0) >= 0;
+  const fmtPct = (v: number | null) =>
+    v === null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+  const fmtPctP = (v: number | null) =>
+    v === null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%p`;
 
   return (
     <section className="space-y-3" aria-label="분석">
@@ -92,25 +99,23 @@ export function AnalysisSection({ portfolioId }: AnalysisSectionProps) {
             <div
               className={
                 "text-sm font-bold " +
-                ((bench?.delta_pct_points ?? 0) >= 0 ? "text-rise" : "text-fall")
+                ((deltaPct ?? 0) >= 0 ? "text-rise" : "text-fall")
               }
             >
-              {bench
-                ? `${bench.delta_pct_points >= 0 ? "+" : ""}${bench.delta_pct_points.toFixed(2)}%p`
-                : "—"}
+              {fmtPctP(deltaPct)}
             </div>
           </div>
           <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-md bg-muted/40 p-2">
               <div className="text-muted-foreground">내 수익률</div>
-              <div className={"font-semibold " + ((bench?.mine_pct ?? 0) >= 0 ? "text-rise" : "text-fall")}>
-                {bench ? `${bench.mine_pct >= 0 ? "+" : ""}${bench.mine_pct.toFixed(2)}%` : "—"}
+              <div className={"font-semibold " + ((minePct ?? 0) >= 0 ? "text-rise" : "text-fall")}>
+                {fmtPct(minePct)}
               </div>
             </div>
             <div className="rounded-md bg-muted/40 p-2">
               <div className="text-muted-foreground">벤치마크</div>
-              <div className={"font-semibold " + ((bench?.benchmark_pct ?? 0) >= 0 ? "text-rise" : "text-fall")}>
-                {bench ? `${bench.benchmark_pct >= 0 ? "+" : ""}${bench.benchmark_pct.toFixed(2)}%` : "—"}
+              <div className={"font-semibold " + ((benchPct ?? 0) >= 0 ? "text-rise" : "text-fall")}>
+                {fmtPct(benchPct)}
               </div>
             </div>
           </div>
