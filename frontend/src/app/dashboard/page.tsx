@@ -116,6 +116,11 @@ interface BenchmarkDelta {
   delta_pct_points: number;
 }
 
+interface PortfolioHistoryPoint {
+  date: string;
+  value: number;
+}
+
 interface SectorAllocationRow {
   sector: string;
   value: number;
@@ -286,6 +291,16 @@ export default function DashboardPage() {
     enabled: !isLoading,
   });
 
+  const { data: portfolioHistory } = useQuery<PortfolioHistoryPoint[]>({
+    queryKey: ["analytics", "portfolio-history", "1M"],
+    queryFn: async () =>
+      (await api.get<PortfolioHistoryPoint[]>("/analytics/portfolio-history", {
+        params: { period: "1M" },
+      })).data,
+    staleTime: 5 * 60_000,
+    enabled: !isLoading,
+  });
+
   // Alerts toast
   const shownAlertIds = useRef<Set<number>>(new Set());
   useEffect(() => {
@@ -428,16 +443,10 @@ export default function DashboardPage() {
     return null;
   })();
 
-  // Sparkline stub — /analytics/portfolio-history 연결은 TASK-RD-6. 여기선
-  // 투자원금→현재자산을 잇는 사인파로 시각적 리듬만 주고 결정론적이게 계산.
   // Number() 변환: Pydantic v2가 Decimal을 문자열로 직렬화하는 경우 NaN 방지.
-  const spark = Array.from({ length: 14 }).map((_, i) => {
-    const base = Number(s.total_invested) || 1;
-    const t = i / 13;
-    const wobble = Math.sin((i / 13) * Math.PI * 3) * base * 0.005;
-    const v = base + (Number(s.total_asset) - base) * t + wobble;
-    return { v };
-  });
+  const spark = Array.isArray(portfolioHistory) && portfolioHistory.length > 0
+    ? portfolioHistory.map((p) => ({ v: Number(p.value) }))
+    : [];
   const isPositiveDay = (dayChangePct ?? Number(s.day_change_amount ?? 0)) >= 0;
 
   const sectorList = Array.isArray(sectorAllocation) ? sectorAllocation : [];
