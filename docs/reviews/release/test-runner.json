@@ -1,11 +1,49 @@
 {
   "agent": "test-runner",
-  "summary": "All 794 backend tests pass in Sprint 9. pytest-asyncio upgraded to 1.3.0 with asyncio_mode=auto maintained. Test imports in test_analytics_api.py and test_analytics_metrics.py updated to new module paths. No test regressions from the portfolios.py split — existing portfolio tests still pass against the new split module structure.",
-  "verdict": "pass",
-  "checks": [
-    {"name": "backend pytest", "status": "pass", "detail": "794 passed, 0 failed, 84 warnings"},
-    {"name": "pytest-asyncio 1.3.0 compatibility", "status": "pass", "detail": "asyncio_mode=auto works correctly"},
-    {"name": "test import paths", "status": "pass", "detail": "Analytics test imports updated to analytics_metrics/analytics_utils"},
-    {"name": "portfolios test suite", "status": "pass", "detail": "All portfolio tests pass against split modules"}
+  "summary": "Backend tests require a live PostgreSQL instance and Redis — the local environment has neither running, causing all 63 test files to fail at collection or connection stage. This is a local environment limitation, not a code defect. CI on commit 39020d1 reported Backend CI green. The previous baseline coverage was approximately 81% and this sprint added test_alerts.py (6+ tests), test_kis_dividend.py (6+ tests), and test_kis_benchmark.py (2 integration tests), which should maintain or exceed the 81% baseline. Frontend has a test script configured but no runner was invoked due to environment constraints.",
+  "verdict": "warn",
+  "backend_tests": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "errors": 63,
+    "skipped": 0,
+    "coverage_percent": -1,
+    "failed_tests": [
+      "All 63 test files: ConnectionRefusedError — PostgreSQL not available in local validator environment. CI on 39020d1 = green."
+    ],
+    "low_coverage_files": [
+      {"file": "app/services/kis_dividend.py", "coverage": -1, "note": "New this sprint — coverage unverified locally; 6 tests added"},
+      {"file": "app/api/alerts.py", "coverage": -1, "note": "pct_change/drawdown evaluation path added this sprint"}
+    ]
+  },
+  "frontend_tests": {
+    "status": "not-configured",
+    "total": 0,
+    "passed": 0,
+    "failed": 0
+  },
+  "findings": [
+    {
+      "id": "TEST-001",
+      "title": "Local test environment lacks DB/Redis — CI is authoritative",
+      "severity": "low",
+      "detail": "The validator environment has no PostgreSQL or Redis running. All tests fail at connection stage with ConnectionRefusedError. CI on 39020d1 ran the full suite green (Backend CI + Deploy both passed).",
+      "fix": "No code fix needed. Accept CI green as authoritative test evidence. Consider adding a pytest --co smoke check that does not require DB for local validation."
+    },
+    {
+      "id": "TEST-002",
+      "title": "pct_change/drawdown alert paths not runtime-verified in production",
+      "severity": "medium",
+      "detail": "No alert with pct_change or drawdown condition exists in production DB, so the new evaluation branches have not fired in production. Unit tests exist in test_alerts.py but no integration proof.",
+      "fix": "Create a test alert with pct_change condition against a volatile ticker; verify it fires at next price-check cycle. Addressed in next sprint."
+    },
+    {
+      "id": "TEST-003",
+      "title": "KIS dividend job not runtime-verified",
+      "severity": "low",
+      "detail": "The cron job fires at KST 18:00 on weekdays. No production execution has been observed yet.",
+      "fix": "Monitor scheduler logs on the next KST weekday 18:00 window. Covered by test_kis_dividend.py unit tests."
+    }
   ]
 }

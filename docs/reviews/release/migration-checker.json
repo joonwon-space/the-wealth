@@ -1,10 +1,21 @@
 {
   "agent": "migration-checker",
-  "summary": "Sprint 9 contains no database schema changes. No new Alembic migrations were created. The current head migration is k3l4m5n6o7p8 (add_security_audit_logs). All existing migrations are intact. starlette 1.0.0 and pytest-asyncio 1.3.0 upgrades do not affect database schema. Safe to deploy without running alembic upgrade head.",
+  "summary": "No new Alembic migrations were added in this sprint. The migration chain is linear with a single head at n6o7p8q9r0s1 (add_push_subscriptions). The two most recent pre-sprint migrations (m5n6o7p8q9r0 redesign step 2, n6o7p8q9r0s1 push_subscriptions) both have proper downgrade() implementations. Migration m5n6o7p8q9r0 adds columns with NULL defaults and a new table — safe for hot deployment. Migration n6o7p8q9r0s1 creates push_subscriptions with CASCADE FK and correct index, fully reversible. No data-destructive operations, no missing downgrades, no branch conflicts.",
   "verdict": "pass",
-  "checks": [
-    {"name": "new migrations", "status": "pass", "detail": "0 new migrations in Sprint 9"},
-    {"name": "existing migrations intact", "status": "pass", "detail": "No migration files modified"},
-    {"name": "alembic head", "status": "pass", "detail": "k3l4m5n6o7p8 unchanged"}
+  "migration_state": {
+    "current_head": "n6o7p8q9r0s1",
+    "pending_migrations": 0,
+    "has_branches": false
+  },
+  "findings": [
+    {
+      "id": "MIG-001",
+      "title": "m5n6o7p8q9r0: alerts.condition type change — already deployed",
+      "severity": "low",
+      "category": "safety",
+      "location": "backend/alembic/versions/m5n6o7p8q9r0_redesign_step2_schema.py",
+      "detail": "The migration changed alerts.condition from a PostgreSQL ENUM to VARCHAR + CHECK constraint to accommodate pct_change/drawdown. This is an additive expansion and is backward compatible. Existing rows with above/below values remain valid. Already applied in production.",
+      "fix": "No action needed. Already deployed and in production at 39020d1."
+    }
   ]
 }

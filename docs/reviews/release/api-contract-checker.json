@@ -1,11 +1,36 @@
 {
   "agent": "api-contract-checker",
-  "summary": "No breaking API changes in Sprint 9. The portfolios.py split into portfolio_holdings.py + portfolio_transactions.py + portfolios.py is purely internal — all existing endpoint URLs remain unchanged. main.py registers all 3 routers with the same /portfolios prefix so no client-facing paths changed. analytics.py shim preserves the invalidate_analytics_cache import contract. No endpoints were removed, renamed, or had their request/response schemas changed. New feature: analytics sections have ErrorBoundary wrapping on frontend — transparent to API consumers.",
-  "verdict": "pass",
-  "checks": [
-    {"name": "portfolio endpoints", "status": "pass", "detail": "All /portfolios/* URLs unchanged, served from split modules"},
-    {"name": "analytics endpoints", "status": "pass", "detail": "All /analytics/* URLs unchanged, shim re-exports intact"},
-    {"name": "response schemas", "status": "pass", "detail": "No schema changes in Sprint 9"},
-    {"name": "no removed endpoints", "status": "pass", "detail": "0 endpoints removed"}
+  "summary": "One HIGH contract mismatch found on FxGainLossItem: the frontend AnalysisSection declares the field as fx_pnl_krw but the backend schema returns fx_gain_krw, causing the FX gain column to silently render undefined in production. BenchmarkDelta and PortfolioHistoryPoint types are fully consistent across both declaration sites and match backend schemas exactly. The alert create UI is incomplete — it only exposes above/below in the dropdown while backend now accepts four conditions — but this is a feature gap, not a data-corrupting mismatch.",
+  "verdict": "fail",
+  "endpoints_count": 42,
+  "breaking_changes": [],
+  "findings": [
+    {
+      "id": "API-001",
+      "title": "FxGainLossItem: fx_pnl_krw in frontend vs fx_gain_krw in backend",
+      "severity": "high",
+      "category": "contract-mismatch",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/AnalysisSection.tsx:22",
+      "detail": "Frontend interface declares fx_pnl_krw but backend FxGainLossItem schema (app/schemas/analytics.py:42) returns fx_gain_krw. The FX gain column in the AnalysisSection portfolio table will silently render undefined/NaN because the field name does not match. Live verification confirmed fx-gain-loss returns HTTP 200, but the displayed FX gain values will be wrong for all overseas holdings.",
+      "fix": "Rename fx_pnl_krw to fx_gain_krw in the FxGainLossItem interface in AnalysisSection.tsx. One-line fix. Alternatively rename the backend field for clarity — pick one canonical name and apply everywhere."
+    },
+    {
+      "id": "API-002",
+      "title": "Alert create UI only exposes above/below; backend accepts 4 conditions",
+      "severity": "medium",
+      "category": "contract-mismatch",
+      "location": "frontend/src/app/dashboard/settings/KisCredentialsSection.tsx:48,86,492-496",
+      "detail": "KisCredentialsSection alert form has condition typed as 'above' | 'below' and the dropdown only has two options. Backend AlertCreate accepts 'above' | 'below' | 'pct_change' | 'drawdown'. Users cannot create pct_change or drawdown alerts through the UI. The display logic at line 523 also only handles above/below, showing <= for pct_change/drawdown alerts if created via API.",
+      "fix": "Expand dropdown with pct_change and drawdown options, widen the type union, add display cases. Schedule for next sprint."
+    },
+    {
+      "id": "API-003",
+      "title": "BenchmarkDelta and PortfolioHistoryPoint duplicated in two frontend files",
+      "severity": "low",
+      "category": "documentation",
+      "location": "frontend/src/app/dashboard/page.tsx:111-122, frontend/src/app/dashboard/portfolios/[id]/AnalysisSection.tsx:9-20",
+      "detail": "Both types are declared inline in two files with identical fields matching backend schemas exactly. Consistent now but duplication creates divergence risk.",
+      "fix": "Extract to a shared src/types/analytics.ts file. Low priority."
+    }
   ]
 }

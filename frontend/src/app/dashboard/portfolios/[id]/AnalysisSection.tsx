@@ -24,7 +24,7 @@ interface FxGainLossItem {
   name: string | null;
   market: string | null;
   stock_pnl_usd: number;
-  fx_pnl_krw: number;
+  fx_gain_krw: number;
   total_pnl_krw: number;
 }
 
@@ -138,11 +138,11 @@ export function AnalysisSection({ portfolioId }: AnalysisSectionProps) {
                   <span
                     className={
                       "font-semibold " +
-                      (it.fx_pnl_krw >= 0 ? "text-rise" : "text-fall")
+                      (it.fx_gain_krw >= 0 ? "text-rise" : "text-fall")
                     }
                   >
-                    {it.fx_pnl_krw >= 0 ? "+" : ""}
-                    {formatKRW(it.fx_pnl_krw)}
+                    {it.fx_gain_krw >= 0 ? "+" : ""}
+                    {formatKRW(it.fx_gain_krw)}
                   </span>
                 </div>
               ))}
