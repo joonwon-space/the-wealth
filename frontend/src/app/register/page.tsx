@@ -4,11 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const login = useAuthStore((s) => s.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,10 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await api.post("/auth/register", { email, password });
-      router.push("/login");
+      // 가입 직후 자동 로그인하여 신규 사용자를 온보딩 위저드로 안내한다.
+      const { data } = await api.post("/auth/login", { email, password });
+      login(data.access_token);
+      router.push("/onboarding");
     } catch (err: unknown) {
       const msg =
         err && typeof err === "object" && "response" in err

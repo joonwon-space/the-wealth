@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
@@ -43,6 +43,19 @@ export default function OnboardingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<Step>(1);
+
+  // 이미 포트폴리오가 있는 사용자는 온보딩 위저드를 건너뛰고 대시보드로.
+  const { data: existingPortfolios } = useQuery<{ id: number }[]>({
+    queryKey: ["portfolios", "onboarding-check"],
+    queryFn: async () => (await api.get<{ id: number }[]>("/portfolios")).data,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (Array.isArray(existingPortfolios) && existingPortfolios.length > 0) {
+      router.replace("/dashboard");
+    }
+  }, [existingPortfolios, router]);
 
   // Step 2
   const [strategy, setStrategy] = useState<InvestMode | "mixed">("mixed");
