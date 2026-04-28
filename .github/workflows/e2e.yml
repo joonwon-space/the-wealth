@@ -109,14 +109,16 @@ jobs:
         if: steps.filter.outputs.relevant == 'true'
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
-          NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW: '1'
+          # server-side env: 미들웨어 런타임에서만 평가. 프로덕션 deploy env 에는 절대 설정하지 않는다.
+          ALLOW_DESIGN_PREVIEW: '1'
         run: npm run build
 
       - name: Start frontend server
         if: steps.filter.outputs.relevant == 'true'
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
-          NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW: '1'
+          # server-side env: 미들웨어 런타임에서만 평가. 프로덕션 deploy env 에는 절대 설정하지 않는다.
+          ALLOW_DESIGN_PREVIEW: '1'
         run: |
           npm start &
           echo "Waiting for frontend..."

@@ -1,25 +1,52 @@
 {
   "agent": "maintainability-reviewer",
-  "summary": "Sprint 9 significantly improves maintainability. analytics.py reduced from 762L to 16L — a clear improvement. portfolios.py reduced from 751L to 170L by splitting holdings and transactions to their own modules. dashboard/page.tsx reduced from 603L to ~280L. All new TypeScript components have explicit interfaces. Python modules follow PEP 8 with type annotations. The _assert_portfolio_owner duplication across 3 modules is the main maintainability concern but is a reasonable trade-off for avoiding circular imports. The DashboardMetrics.tsx file at 225 lines is within guidelines. The PortfolioList.tsx at 136 lines is well within guidelines.",
-  "verdict": "approve",
+  "summary": "The sprint code is generally well-structured and follows project conventions. The new files are appropriately sized and co-located. The primary maintainability concerns are: (1) the fx-gain-loss widget in AnalysisSection.tsx is architecturally misleading — it fetches user-wide data in a portfolio-scoped component without any indication in the UI that the data covers all portfolios, which will cause confusion as the codebase grows; (2) the duplicate PortfolioHistoryPoint interface definition appears in both dashboard/page.tsx and AnalysisSection.tsx; (3) the hardcoded 'NAS' exchange code for all non-domestic overseas holdings is a silent assumption that will fail for ETFs or non-NASDAQ US securities; (4) the tasks.md follow-up items for RD-4, RD-7, RD-8, RD-9 represent real functional gaps that will need explicit tracking to not become permanent tech debt.",
+  "verdict": "request-changes",
   "findings": [
     {
       "id": "MAIN-001",
-      "title": "_assert_portfolio_owner duplicated in 3 backend modules",
-      "severity": "medium",
-      "category": "duplication",
-      "location": "backend/app/api/portfolios.py:30, portfolio_holdings.py:47, portfolio_transactions.py:29",
-      "detail": "The _assert_portfolio_owner and _assert_holding_owner helpers are duplicated. This is the expected outcome of a code split without a shared utils module. Medium severity because the logic is simple and unlikely to change.",
-      "fix": "Create backend/app/api/portfolio_utils.py with shared helpers and import across all 3 modules in the next refactor sprint."
+      "title": "FX gain/loss widget in AnalysisSection is user-scoped, not portfolio-scoped — misleading in context",
+      "severity": "high",
+      "category": "architecture",
+      "location": "frontend/src/app/dashboard/portfolios/[id]/AnalysisSection.tsx:136-141",
+      "detail": "AnalysisSection receives portfolioId as a prop and is rendered inside a portfolio detail page. The portfolio-history and benchmark-delta queries are correctly portfolio-scoped (portfolio_id param). However, the fx-gain-loss query has no portfolioId parameter — it calls /analytics/fx-gain-loss which returns user-wide FX data across all portfolios. The UI comment '// FX gain/loss — user-wide (해외주식)' acknowledges this but the card has no label clarifying the scope difference. A user with 2 portfolios (one domestic, one overseas) will see the same fx-gain-loss numbers on both portfolio pages, creating false attribution. This is a data integrity / UX correctness concern dressed as a maintainability issue.",
+      "fix": "Either (a) pass portfolioId to the fx-gain-loss API endpoint and filter server-side, or (b) add a visible UI label 'across all portfolios' to the card header so users understand the scope, or (c) remove the widget from the portfolio-scoped view and keep it only in the global analytics page. Option (b) is the minimum fix; option (a) is the correct fix."
     },
     {
       "id": "MAIN-002",
-      "title": "WidgetErrorFallback duplicated in page.tsx and PortfolioList.tsx",
+      "title": "PortfolioHistoryPoint interface duplicated across two files",
       "severity": "low",
       "category": "duplication",
-      "location": "frontend/src/app/dashboard/page.tsx:109, PortfolioList.tsx:46",
-      "detail": "The WidgetErrorFallback component is defined in both page.tsx and PortfolioList.tsx with identical logic.",
-      "fix": "Extract to a shared component file, e.g. frontend/src/components/WidgetErrorFallback.tsx."
+      "location": "frontend/src/app/dashboard/page.tsx:124-127 and frontend/src/app/dashboard/portfolios/[id]/AnalysisSection.tsx:83-86",
+      "detail": "The identical interface `PortfolioHistoryPoint { date: string; value: number }` is defined in both files. Similarly, BenchmarkDelta is defined in both dashboard/page.tsx (line 116) and AnalysisSection.tsx (line 88). As more pages consume analytics data, this will proliferate.",
+      "fix": "Extract shared analytics types to frontend/src/types/analytics.ts (or a co-located types file). Import in both files. This is a low-priority cleanup but worth doing before a third consumer appears."
+    },
+    {
+      "id": "MAIN-003",
+      "title": "Overseas dividend collection hardcodes 'NAS' exchange for all non-domestic tickers",
+      "severity": "medium",
+      "category": "architecture",
+      "location": "backend/app/services/kis_dividend.py:431",
+      "detail": "In collect_dividends_for_user_holdings, all non-domestic tickers (those that aren't 6-digit Korean codes) are fetched using `_fetch_overseas_dividend(ticker, 'NAS', ...)` — hardcoding NASDAQ as the exchange. A holding on NYSE (AAPL → fine, but XOM is NYSE), AMEX, or LSE would be queried with the wrong EXCD parameter, likely returning empty results or incorrect data. The Holding model presumably stores exchange/market info but it's not used here.",
+      "fix": "Join Holding with its market/exchange_code field in the query at line 413, and pass the correct market code to _fetch_overseas_dividend. If the Holding model lacks an exchange field, add one. As a stopgap, log a warning when falling back to NAS."
+    },
+    {
+      "id": "MAIN-004",
+      "title": "OrderDialogProvider picks first portfolio without any indication — silent UX assumption",
+      "severity": "medium",
+      "category": "architecture",
+      "location": "frontend/src/components/OrderDialogProvider.tsx:62-63 and JSDoc comment",
+      "detail": "The component selects portfolios[0].id as the target portfolio and the JSDoc comment acknowledges this is a known limitation. For a user with multiple portfolios (portfolio A = Korean stocks, portfolio B = US stocks), clicking Buy on a US stock will always try to place the order into portfolio A. There is no UI cue, no selection prompt. This is already tracked as a follow-up in tasks.md (RD-4) but needs a severity assignment for prioritization.",
+      "fix": "This is a P2 follow-up. Minimum viable improvement: if the ticker exists in only one portfolio, auto-select that one. If it exists in multiple or none, show a portfolio selector inside the OrderDialog before showing the buy/sell form. Track as a dedicated issue with priority 2."
+    },
+    {
+      "id": "MAIN-005",
+      "title": "design-preview spec uses page.waitForTimeout — flaky test pattern",
+      "severity": "low",
+      "category": "testability",
+      "location": "frontend/e2e/design-preview.spec.ts:44 and 56",
+      "detail": "page.waitForTimeout(800) is used to 'let chart animations settle'. This is a Playwright anti-pattern: fixed timeouts cause flakiness on slow CI machines and mask non-deterministic rendering. The test already disables animations via `animations: 'disabled'` in toHaveScreenshot, making the timeout redundant.",
+      "fix": "Replace waitForTimeout(800) with a condition-based wait: await page.waitForLoadState('networkidle') or await expect(page.locator('[data-testid=chart]')).toBeVisible(). Remove the timeout entirely given animations are disabled."
     }
   ]
 }

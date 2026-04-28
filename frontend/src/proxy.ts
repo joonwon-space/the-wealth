@@ -111,10 +111,11 @@ export function proxy(request: NextRequest) {
   const csp = buildCsp(nonce, process.env.NODE_ENV === "development");
 
   // /dashboard/design-preview는 디자인 시스템 미리보기용 — 프로덕션에서 차단.
-  // E2E 빌드는 NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1로 일시 허용 (실프로덕션 env 에는 절대 설정하지 않는다).
+  // E2E 환경은 ALLOW_DESIGN_PREVIEW=1로 일시 허용. server-side env (NEXT_PUBLIC_ 미사용)
+  // 이라 클라이언트 번들에 굳어 들어가지 않고 미들웨어 런타임에서만 평가된다.
   if (
     process.env.NODE_ENV === "production"
-    && process.env.NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW !== "1"
+    && process.env.ALLOW_DESIGN_PREVIEW !== "1"
     && pathname === "/dashboard/design-preview"
   ) {
     return applySecurityHeaders(

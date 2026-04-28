@@ -1027,7 +1027,7 @@ Source: 이 브랜치의 커밋 히스토리 + `docs/plan/redesign-followups.md`
 
 ### TASK-RD-3. `/dashboard/design-preview` 프로덕션 가드 (XS)
 
-- [x] `frontend/src/proxy.ts` 에서 `NODE_ENV === "production"` 일 때 `/dashboard/design-preview` 를 404 응답. `NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1`로 E2E 빌드만 허용.
+- [x] `frontend/src/proxy.ts` 에서 `NODE_ENV === "production"` 일 때 `/dashboard/design-preview` 를 404 응답. `ALLOW_DESIGN_PREVIEW=1` (server-only env, NEXT_PUBLIC_ 접두사 없음 — 클라이언트 번들에 굳지 않음) 로 E2E 빌드만 허용.
 
 ### TASK-RD-4. Stock detail 모바일 매수/매도 → OrderDialog 연결 (S)
 

@@ -1,16 +1,43 @@
 {
   "agent": "performance-reviewer",
-  "summary": "Sprint 9 changes are performance-neutral to slightly positive. The portfolios.py split reduces module load time by removing unused imports from the main portfolios module. The DashboardMetrics.tsx and PortfolioList.tsx split does not introduce new queries or re-renders — props flow down from the parent query. The analytics.py shim is 16 lines and has zero overhead. ErrorBoundary wrapping in analytics/page.tsx adds negligible React overhead. The generateSparklineData function in DashboardMetrics.tsx uses Math.random() on every render which could cause unnecessary re-renders if the parent re-renders — this is low severity as it existed before in page.tsx.",
-  "verdict": "approve",
+  "summary": "The sprint's performance profile is mostly acceptable. The biggest concern is the dividend upsert loop in kis_dividend.py, which executes one DB statement per row inside a loop without batching — for a user with 50 holdings each returning 10 dividend rows, this is 500 sequential DB round-trips. The benchmark_delta endpoint loads all PriceSnapshot rows for all tickers across the period with no pagination or row limit, which can become a large query for portfolios with many tickers over long periods. The AnalysisSection component fires 3 independent API queries on every mount (portfolio-history, benchmark-delta, fx-gain-loss) with no loading skeletons, causing cumulative waterfall layout shifts. The OrderDialogProvider adds a portfolios query that runs on every dashboard page load even when the user never opens an order dialog.",
+  "verdict": "request-changes",
   "findings": [
     {
       "id": "PERF-001",
-      "title": "generateSparklineData called on every render in DashboardMetrics",
-      "severity": "low",
+      "title": "Dividend upsert loop: N sequential DB round-trips, no batching",
+      "severity": "high",
+      "category": "database",
+      "location": "backend/app/services/kis_dividend.py:373-396",
+      "detail": "upsert_dividends iterates rows one by one, executing a separate INSERT ... ON CONFLICT statement per row. For a typical run with 30 tickers × 5 dividend records = 150 sequential DB calls per scheduler invocation. PostgreSQL supports bulk upsert using VALUES lists with a single ON CONFLICT clause. The current approach also calls db.commit() inside the function for every batch passed by the caller, creating unnecessary commit overhead. Estimated impact: 150 x ~2ms round-trip = ~300ms added latency per scheduler run, plus connection pool pressure.",
+      "fix": "Rewrite upsert_dividends to build a single INSERT ... VALUES (...), (...) ... ON CONFLICT DO UPDATE statement using SQLAlchemy's insert().values(list_of_dicts). Call db.commit() once at the end. This reduces N DB round-trips to 1 per batch."
+    },
+    {
+      "id": "PERF-002",
+      "title": "benchmark_delta loads all PriceSnapshot rows for all tickers without a row limit",
+      "severity": "medium",
+      "category": "database",
+      "location": "backend/app/api/analytics_benchmark.py:144-152",
+      "detail": "The snap_query selects all PriceSnapshot rows for all user tickers from start_date onward, with no LIMIT. For a user with 20 tickers over a 1-year period (250 trading days), this is 5,000 rows loaded into memory as Python objects in date_ticker_map. The query also lacks an index hint for the (ticker, snapshot_date) composite scan. As portfolios grow this will become a measurable slow query.",
+      "fix": "Add `.limit(10000)` as a safety cap. Ensure the PriceSnapshot table has a composite index on (ticker, snapshot_date). Consider aggregating in SQL using a window function or GROUP BY instead of loading all rows into Python memory."
+    },
+    {
+      "id": "PERF-003",
+      "title": "AnalysisSection fires 3 independent queries on mount with no loading state",
+      "severity": "medium",
       "category": "rendering",
-      "location": "frontend/src/app/dashboard/DashboardMetrics.tsx:81",
-      "detail": "generateSparklineData uses Math.random() so memoization would not help, but it runs on every parent re-render. This was the same in the original page.tsx — not a regression.",
-      "fix": "Consider moving sparkline generation to parent component as a derived constant, or accept it as acceptable cost (7 data points, no network calls)."
+      "location": "frontend/src/app/dashboard/portfolios/[id]/AnalysisSection.tsx:113-141",
+      "detail": "Three useQuery calls (portfolio-history, benchmark-delta, fx-gain-loss) are all independent with no skeleton/loading UI. Each resolves at different times causing incremental layout shifts in the portfolio detail page. The benchmark-delta query does not include portfolioId in the queryKey or params, so it shares cache with the same query in dashboard/page.tsx — but if the cache is cold, it adds a third concurrent request. The fx-gain-loss query has staleTime=10min which means it may show stale data from a different portfolio context.",
+      "fix": "Add loading skeleton placeholders for each card while queries are pending. Use Promise.all or React Suspense boundaries to batch the visual update. Consider a single aggregated analytics endpoint to reduce request count."
+    },
+    {
+      "id": "PERF-004",
+      "title": "OrderDialogProvider eagerly fetches portfolios on every dashboard mount",
+      "severity": "low",
+      "category": "api",
+      "location": "frontend/src/components/OrderDialogProvider.tsx:41-45",
+      "detail": "The portfolios query runs immediately on mount with staleTime=60_000. This adds one background API request on every dashboard page load, even for users who never visit a stock detail page or click Buy/Sell. While staleTime=60s prevents excessive refetching, the initial cold request adds to first-load API waterfall.",
+      "fix": "Consider lazy-initializing the query only when the first 'the-wealth:order' event fires (i.e., use `enabled: false` and call `refetch()` on event). Or rely on the existing ['portfolios'] cache key that is likely already populated by the portfolios list page."
     }
   ]
 }

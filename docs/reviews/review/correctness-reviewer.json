@@ -1,16 +1,52 @@
 {
   "agent": "correctness-reviewer",
-  "summary": "Sprint 9 changes are primarily refactoring (code splits) and dependency upgrades with no new business logic. The analytics.py shim correctly re-exports invalidate_analytics_cache. The portfolios.py split faithfully duplicates and separates endpoints without logic changes. DashboardMetrics.tsx and PortfolioList.tsx receive props immutably and render without mutation. Test imports were correctly updated to match new module paths. The starlette 1.0.0 and pytest-asyncio 1.3.0 upgrades passed all 794 tests. The update_portfolio endpoint in the new portfolios.py now correctly calls invalidate_analytics_cache, which was previously missing — this is a net improvement. No financial calculation changes.",
-  "verdict": "approve",
+  "summary": "The sprint introduces 9 features across backend and frontend. The most critical correctness issue is the misleading rowcount returned by upsert_dividends — PostgreSQL ON CONFLICT DO UPDATE always returns rowcount=1 regardless of insert vs update, so the 'inserted' counter double-counts updates and the log message claiming 'newly inserted' is factually wrong. The pct_change/drawdown alert conditions are functionally correct but are dead code in the SSE path since day_change_pcts is never passed from the SSE caller, meaning the new conditions silently never fire in the real-time alert path. The benchmark mine_pct approximation is architecturally sound but the comment doesn't adequately convey that it will be systematically biased high for users who added holdings mid-period (buys inflate the start value relative to end, distorting returns). The OrderDialogProvider silently drops order events if portfolios haven't loaded yet — user taps Buy on a fast interaction before the query resolves and nothing happens with no feedback.",
+  "verdict": "request-changes",
   "findings": [
     {
       "id": "COR-001",
-      "title": "_assert_portfolio_owner duplicated across 3 modules",
-      "severity": "low",
+      "title": "upsert_dividends rowcount counts both inserts AND updates as 'inserted'",
+      "severity": "medium",
+      "category": "logic-error",
+      "location": "backend/app/services/kis_dividend.py:392-395",
+      "detail": "PostgreSQL ON CONFLICT DO UPDATE returns rowcount=1 for both a new insert and an existing-row update. The variable is named 'inserted' and returned as 'domestic'/'overseas' counts implying net-new rows. Log message and callers in scheduler_market_jobs.py treat these as insertion counts. After the first run, all subsequent runs will report non-zero counts even when no new dividends were collected — misleading ops and masking true data growth.",
+      "fix": "Rename variable to 'upserted'. Update the docstring to say 'upsert count (insert + update)'. Update log and return keys to 'domestic_upserted'/'overseas_upserted'. If true insert count is needed, use `INSERT ... ON CONFLICT DO NOTHING` and count separately, or add an `xmax = 0` filter on the returned row."
+    },
+    {
+      "id": "COR-002",
+      "title": "pct_change/drawdown alerts never fire in SSE real-time path",
+      "severity": "high",
+      "category": "logic-error",
+      "location": "backend/app/api/alerts.py:193-207",
+      "detail": "check_triggered_alerts and check_and_dedup_alerts both accept day_change_pcts as an optional parameter. The dashboard.py GET /summary call (line 183-188) passes avg_prices but still passes day_change_pcts=None (default). The SSE streaming path also does not pass day_change_pcts. As a result, any alert with condition='pct_change' will always evaluate to False — the new condition is effectively dead code in both callers. Users who set a pct_change alert will never receive a notification.",
+      "fix": "In dashboard.py get_summary, compute day_change_pct per ticker from price_result (if the price service provides it) and pass it to check_triggered_alerts. Same fix needed in the SSE handler. This is already noted as a follow-up in tasks.md (RD-8) but deserves HIGH severity since the feature is user-facing and silently broken."
+    },
+    {
+      "id": "COR-003",
+      "title": "OrderDialogProvider silently drops events if portfolios not yet loaded",
+      "severity": "medium",
+      "category": "edge-case",
+      "location": "frontend/src/components/OrderDialogProvider.tsx:60-65",
+      "detail": "handleOrderEvent returns early with no feedback when portfolios list is empty (line 62: `if (list.length === 0) return`). On first render or slow network the portfolios query may not have resolved. A user who taps Buy immediately after navigation will see nothing happen — no toast, no loading indicator. The event is lost.",
+      "fix": "Queue the pending event in state and reprocess when portfolios resolve. Or disable the Buy/Sell buttons until portfolios are confirmed loaded. At minimum, show a toast 'Loading portfolio data...' on the early return."
+    },
+    {
+      "id": "COR-004",
+      "title": "benchmark mine_pct distorted for mid-period holdings additions",
+      "severity": "medium",
       "category": "data-integrity",
-      "location": "backend/app/api/portfolios.py:30, portfolio_holdings.py:47, portfolio_transactions.py:29",
-      "detail": "The helper function _assert_portfolio_owner is copy-pasted into all three split modules. If the authorization logic changes it must be updated in 3 places.",
-      "fix": "Extract to app/api/portfolio_utils.py and import from there in a future sprint."
+      "location": "backend/app/api/analytics_benchmark.py:163-170",
+      "detail": "The calculation uses current holdings × historical close from period start to end. If a user bought a stock on day 10 of a 30-day window, the PriceSnapshot for days 1-9 won't include that ticker, so day_values[0] reflects a smaller portfolio than day_values[-1]. This produces an inflated return that has nothing to do with actual performance. The comment documents TWRR approximation but doesn't warn about systematic upward bias from mid-period buys.",
+      "fix": "Expand the comment: 'NOTE: mid-period buys inflate mine_pct because the start value excludes newly added holdings. This overstates returns for active portfolios. Full TWRR requires cashflow-adjusted calculation (TODO).' Also consider showing '—' instead of a positive but misleading number until the TODO is resolved."
+    },
+    {
+      "id": "COR-005",
+      "title": "collect_dividends_for_user_holdings uses single KIS account for all users",
+      "severity": "medium",
+      "category": "logic-error",
+      "location": "backend/app/services/scheduler_market_jobs.py:524-527",
+      "detail": "The scheduler job fetches `select(KisAccount).limit(1)` — the first KIS account found. If multiple users have registered KIS accounts, dividends are fetched using only the first user's credentials, but upserted using all holdings from all users (collect_dividends_for_user_holdings queries all Holding.ticker). This means: (a) the credentials may not have permission for other users' holdings, (b) per-user dividend accuracy is not guaranteed.",
+      "fix": "Either make dividend collection per-user (iterate KisAccount records), or document clearly that dividend collection is a best-effort market-data pull using any valid KIS credential and is not user-scoped."
     }
   ]
 }

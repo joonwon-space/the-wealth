@@ -122,11 +122,15 @@ export function AnalysisSection({ portfolioId }: AnalysisSectionProps) {
         </CardContent>
       </Card>
 
-      {/* FX gain/loss — user-wide (해외주식) */}
+      {/* FX gain/loss — user-wide (해외주식). 백엔드가 portfolio scope 미지원이라
+          전체 portfolio 합산 값을 보여준다. portfolio별 분리는 backend 작업 후 도입. */}
       {Array.isArray(fxItems) && fxItems.length > 0 && (
         <Card>
           <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground mb-2">환차손익 (해외주식)</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs text-muted-foreground">환차손익 (해외주식)</div>
+              <div className="text-[10px] text-muted-foreground/70">전체 포트폴리오 합산</div>
+            </div>
             <div className="space-y-1.5">
               {fxItems.slice(0, 5).map((it) => (
                 <div key={it.ticker} className="flex items-center justify-between text-xs">

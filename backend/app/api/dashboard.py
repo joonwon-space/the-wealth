@@ -365,7 +365,10 @@ async def get_summary(
     for h in holdings:
         avg_prices_map.setdefault(h.ticker, h.avg_price)
     triggered_raw = check_triggered_alerts(
-        active_alerts, price_result.prices, avg_prices=avg_prices_map
+        active_alerts,
+        price_result.prices,
+        avg_prices=avg_prices_map,
+        day_change_pcts=price_result.day_change_rates,
     )
     triggered_alerts = [TriggeredAlert(**a) for a in triggered_raw]
 

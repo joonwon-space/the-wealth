@@ -1,16 +1,43 @@
 {
   "agent": "security-reviewer",
-  "summary": "Sprint 9 is security-positive overall. All endpoints in the new portfolio_holdings.py and portfolio_transactions.py correctly use Depends(get_current_user) and _assert_portfolio_owner/holding_owner for IDOR prevention. The analytics.py shim only re-exports — no new endpoints, no new attack surface. Dependency upgrades (starlette 1.0.0, requests 2.33.0) patch known CVEs (CVE-2026-25645). The KisCredentialsSection toast message change is cosmetic-only. No hardcoded secrets, no injection paths, no new data exposure issues found.",
-  "verdict": "approve",
+  "summary": "The sprint introduces several security concerns in a financial application. The most significant is the NEXT_PUBLIC_ prefix on the design-preview bypass flag — because Next.js bakes all NEXT_PUBLIC_ variables into the client bundle at build time, any build that sets NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1 permanently exposes the design-preview route even in production deployments, contradicting the guard's intent. The register auto-login flow holds plaintext password in React component state for the duration of the register+login round-trip, creating a brief but real plaintext-in-memory window. The window CustomEvent pattern for OrderDialog trusts unvalidated event.detail from any caller on the page, and the e2e.yml CI workflow hardcodes the bypass flag without a comment warning against production use.",
+  "verdict": "request-changes",
   "findings": [
     {
       "id": "SEC-001",
-      "title": "portfolio_transactions.py delete_transaction does not check user ownership in one path",
+      "title": "NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW baked into client bundle — bypass is permanent per build",
+      "severity": "high",
+      "category": "data-exposure",
+      "location": "frontend/src/proxy.ts:1459-1468 and .github/workflows/e2e.yml:9-16",
+      "detail": "The Next.js build system inlines all NEXT_PUBLIC_* env vars into the JavaScript bundle at compile time. When e2e.yml sets NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1 and then runs `npm start`, the resulting bundle permanently has the bypass flag set to '1'. If that same build artifact were ever deployed (e.g., an artifact promotion pipeline), the design-preview route would be unguarded in production. The middleware check `process.env.NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW !== '1'` reads the baked-in compile-time value, not a runtime env var. This is a conceptual security model error. Exploitation: an attacker who can access the deployed bundle can trivially determine the flag value.",
+      "fix": "Use a server-only env var without the NEXT_PUBLIC_ prefix (e.g., ALLOW_DESIGN_PREVIEW). In middleware/proxy.ts, read process.env.ALLOW_DESIGN_PREVIEW which is evaluated at request time on the server, not baked into the bundle. In e2e.yml, set this as a server env var (not a NEXT_PUBLIC_ one). This ensures production builds without the var set are always blocked."
+    },
+    {
+      "id": "SEC-002",
+      "title": "Plaintext password held in React state during register+auto-login round-trip",
+      "severity": "medium",
+      "category": "data-exposure",
+      "location": "frontend/src/app/register/page.tsx:22-47",
+      "detail": "The register page stores the user's password in React useState (const [password, setPassword]). The handleSubmit function first POSTs to /auth/register, then immediately POSTs to /auth/login with the same password variable. The password remains in component state from initial keystroke until the component unmounts after navigation. While React state is in-memory and not persisted, it extends the window during which a React DevTools inspector, browser extension, or XSS payload could read the plaintext credential. Standard practice is to clear the password field immediately after the first API call succeeds.",
+      "fix": "After `await api.post('/auth/register', ...)` succeeds, call `setPassword('')` before the login call. This minimizes the window during which plaintext is in state. Consider also using a controlled input with autocomplete='new-password' to prevent password managers from logging the value."
+    },
+    {
+      "id": "SEC-003",
+      "title": "window CustomEvent detail is untrusted — any script can forge an order event",
+      "severity": "medium",
+      "category": "injection",
+      "location": "frontend/src/components/OrderDialogProvider.tsx:56-65",
+      "detail": "The OrderDialogProvider listens to 'the-wealth:order' on window and reads event.detail.ticker without any validation of source or content. Any JavaScript running in the same origin — including third-party scripts, browser extensions, or XSS payloads — can dispatch this event with an arbitrary ticker and action, causing the OrderDialog to open with attacker-controlled content. While the actual trade is confirmed server-side (presumably), the UI can be manipulated to display misleading ticker/price/action combinations to confuse the user into placing an unintended order.",
+      "fix": "Add input validation in handleOrderEvent: validate ticker against a known pattern (e.g., alphanumeric, max 10 chars), validate action is strictly 'BUY' or 'SELL', validate currentPrice is a positive number if provided. Consider using a typed event registry or in-app state management (Zustand) instead of window events to eliminate the open surface."
+    },
+    {
+      "id": "SEC-004",
+      "title": "e2e.yml CI workflow permanently enables design-preview with no production warning comment",
       "severity": "low",
-      "category": "auth",
-      "location": "backend/app/api/portfolio_transactions.py:124",
-      "detail": "delete_transaction fetches the transaction, then fetches the portfolio, and calls _assert_portfolio_owner. This is correct. However if the portfolio is not found (line 131-134) it raises 404 — this is appropriate behavior and does not expose data.",
-      "fix": "No fix needed — current behavior is correct."
+      "category": "data-exposure",
+      "location": ".github/workflows/e2e.yml:9-16",
+      "detail": "The workflow sets NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1 in two steps (build and start) with no inline comment warning that this must never be set in production deployments. Future engineers adding deploy steps or promoting CI artifacts may inadvertently carry this flag forward.",
+      "fix": "Add an inline comment: `# WARNING: This flag is for E2E testing only. NEVER set in production deployments.` Also add a CI check or comment in proxy.ts pointing to this risk."
     }
   ]
 }
