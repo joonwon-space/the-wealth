@@ -1247,7 +1247,7 @@ Plan doc: `docs/plan/mobile-app-web-plan.md`. Goal: native-like PWA experience (
 - [ ] 모바일 375px 에서 5개 탭 라벨("계정/KIS 계좌/알림/보안 로그/세션 관리") 모두 두 줄로 깨짐 (`계 / 정`, `KIS 계 / 좌`). 탭 컨테이너에 `overflow-x-auto whitespace-nowrap` 적용해 가로 스크롤 또는 폰트사이즈 축소.
 
 ### TASK-QA-7. 태블릿 portfolio detail "현재가" 헤더 수직 줄바꿈 (XS)
-- [ ] 태블릿 768px 에서 보유종목 테이블의 "현재가" 헤더가 수직 줄바꿈 ("현/재/가"). 컬럼 min-width 확보, 또는 태블릿에서도 모바일 카드 레이아웃 사용 검토.
+- [x] **TASK-QA-5 (5374e74)에서 함께 해결** — `<th>` 에 `whitespace-nowrap` 적용으로 태블릿/모바일 양쪽에서 현재가/손익 라벨 수직 줄바꿈 제거.
 
 ### TASK-QA-8. analytics 페이지 "포트폴리오 가치 추이" 1M 차트 sparse (S)
 - [ ] `/dashboard/analytics` 의 1M 차트가 1~2개 점만 보임. API (`/analytics/portfolio-history?period=1M`) 는 21 points 정상 반환. 프론트 렌더링 문제 — Recharts 데이터 매핑 또는 dataKey 누락 가능. 디버깅: React DevTools 로 차트 props 확인.
@@ -1255,6 +1255,6 @@ Plan doc: `docs/plan/mobile-app-web-plan.md`. Goal: native-like PWA experience (
 ### TASK-QA-9. analytics "성과 지표" 카드 의심 수치 (S)
 - [ ] `/dashboard/analytics` 의 1년/3년/5년/샤프지수 카드가 -21.97% / +2000.04% / -100.00% / 4.530 표시. +2000% 와 -100% 는 데이터 부족 또는 계산 분모 문제 가능. 서비스 로직 (`backend/app/api/analytics_*`) 확인 후 데이터 부족 시 "—" 폴백 또는 NaN 가드 추가.
 
-### TASK-QA-10. fx-gain-loss 라벨 폭 부족으로 W- 표시 잘림 (XS)
-- [ ] portfolio detail 의 "환차손익 (해외주식)" 섹션에서 우측 금액 컬럼이 `W-43,595` 같은 표시. `W` 는 `₩` 의 fallback (폰트 미지원?) 또는 라벨 폭 부족으로 ₩ 가 잘리는 것. 컬럼 폭 또는 폰트 지정 점검.
+### TASK-QA-10. fx-gain-loss 라벨에서 ₩ 가 W 로 보임 (XS) — 실제 코드 버그 아님
+- [x] **진단 결과 (2026-04-29)**: DOM 에는 정상 `₩` (U+20A9, hex `20a9`) 가 들어있음. Playwright headless Chrome 의 폰트 fallback 이 ₩ 글리프 미지원 폰트를 선택해 `W` 처럼 보이는 screenshot 아티팩트. 실제 사용자 브라우저(Pretendard / Apple SD Gothic Neo / Noto Sans KR fallback)에서는 정상 렌더. **WONTFIX** — Playwright 캡처 환경 한정 이슈.
 
