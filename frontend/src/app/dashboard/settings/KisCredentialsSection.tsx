@@ -41,13 +41,35 @@ interface AccountBalance {
   error?: string;
 }
 
+type AlertCondition = "above" | "below" | "pct_change" | "drawdown";
+
 interface AlertItem {
   id: number;
   ticker: string;
   name: string;
-  condition: "above" | "below";
+  condition: AlertCondition;
   threshold: number;
   is_active: boolean;
+}
+
+const CONDITION_OPTIONS: { value: AlertCondition; label: string; thresholdHint: string }[] = [
+  { value: "above", label: "이상 (≥)", thresholdHint: "목표가" },
+  { value: "below", label: "이하 (≤)", thresholdHint: "목표가" },
+  { value: "pct_change", label: "일일 변동 ±%", thresholdHint: "변동 % (절댓값)" },
+  { value: "drawdown", label: "평균단가 대비 하락 %", thresholdHint: "하락 %" },
+];
+
+function formatAlertCondition(c: AlertCondition, threshold: number): string {
+  switch (c) {
+    case "above":
+      return `≥ ${formatKRW(threshold)}`;
+    case "below":
+      return `≤ ${formatKRW(threshold)}`;
+    case "pct_change":
+      return `일일 변동 ±${threshold}%`;
+    case "drawdown":
+      return `평균단가 대비 -${threshold}% 이상 하락`;
+  }
 }
 
 interface KisAccount {
@@ -83,7 +105,12 @@ export function KisCredentialsSection() {
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [newAlert, setNewAlert] = useState({ ticker: "", name: "", condition: "above" as "above" | "below", threshold: "" });
+  const [newAlert, setNewAlert] = useState<{
+    ticker: string;
+    name: string;
+    condition: AlertCondition;
+    threshold: string;
+  }>({ ticker: "", name: "", condition: "above", threshold: "" });
   const [addingAlert, setAddingAlert] = useState(false);
 
   const fetchKisAccounts = () => {
@@ -489,16 +516,32 @@ export function KisCredentialsSection() {
             <select
               aria-label="조건"
               value={newAlert.condition}
-              onChange={(e) => setNewAlert((p) => ({ ...p, condition: e.target.value as "above" | "below" }))}
+              onChange={(e) =>
+                setNewAlert((p) => ({ ...p, condition: e.target.value as AlertCondition }))
+              }
               className="h-11 sm:h-9 rounded-md border bg-background px-3 py-2 text-sm"
             >
-              <option value="above">이상 (≥)</option>
-              <option value="below">이하 (≤)</option>
+              {CONDITION_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
             <Input
-              aria-label="목표가"
+              aria-label={
+                CONDITION_OPTIONS.find((o) => o.value === newAlert.condition)?.thresholdHint ??
+                "목표가"
+              }
               type="number"
-              placeholder="목표가"
+              step={
+                newAlert.condition === "pct_change" || newAlert.condition === "drawdown"
+                  ? "0.1"
+                  : "1"
+              }
+              placeholder={
+                CONDITION_OPTIONS.find((o) => o.value === newAlert.condition)?.thresholdHint ??
+                "목표가"
+              }
               value={newAlert.threshold}
               onChange={(e) => setNewAlert((p) => ({ ...p, threshold: e.target.value }))}
               className="h-11 sm:h-9"
@@ -520,7 +563,7 @@ export function KisCredentialsSection() {
                     <span className="font-medium">{a.name || a.ticker}</span>
                     {a.name && <span className="ml-1 text-xs text-muted-foreground">({a.ticker})</span>}
                     <span className="ml-2 text-muted-foreground">
-                      {a.condition === "above" ? "≥" : "≤"} {formatKRW(a.threshold)}
+                      {formatAlertCondition(a.condition, a.threshold)}
                     </span>
                   </div>
                   <button

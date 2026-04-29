@@ -142,10 +142,14 @@ async def _check_alerts_and_emit(
     user_id: int,
     prices: dict[str, str],
     alerts: list[Alert],
+    avg_prices: Optional[dict[str, Optional[Decimal]]] = None,
 ) -> Optional[str]:
     """활성 알림을 가격과 비교해 트리거된 알림 SSE 이벤트 문자열 반환.
 
     - alerts: 호출자가 관리하는 인메모리 알림 목록 (per-tick DB 조회 제거).
+    - avg_prices: ticker → 평균 매입가 dict. drawdown 조건 평가에 필요.
+      pct_change 조건은 day_change_pcts 가 필요하지만 SSE 는 detail fetch 추가
+      비용을 피하려 dashboard 30s tick 경로에 위임 (real-time SSE 에서는 미발화).
     - 트리거된 알림은 last_triggered_at 기록 및 is_active=False 처리.
     - 트리거 없으면 None 반환.
     """
@@ -155,7 +159,7 @@ async def _check_alerts_and_emit(
         decimal_prices: dict[str, Optional[Decimal]] = {
             ticker: Decimal(price_str) for ticker, price_str in prices.items()
         }
-        triggered = check_and_dedup_alerts(alerts, decimal_prices)
+        triggered = check_and_dedup_alerts(alerts, decimal_prices, avg_prices=avg_prices)
 
         if triggered:
             from app.services.push_sender import PushPayload, send_push
@@ -164,12 +168,33 @@ async def _check_alerts_and_emit(
                 # Create notification records for each triggered alert
                 push_payloads: list[PushPayload] = []
                 for alert_data in triggered:
-                    condition_kr = "이상" if alert_data["condition"] == "above" else "이하"
-                    title = f"{alert_data['name'] or alert_data['ticker']} 목표가 도달"
-                    body = (
-                        f"{alert_data['ticker']} 현재가 {alert_data['current_price']:,.0f}이 "
-                        f"목표가 {alert_data['threshold']:,.0f}{condition_kr}에 도달했습니다."
-                    )
+                    cond = alert_data["condition"]
+                    label = alert_data['name'] or alert_data['ticker']
+                    if cond == "above":
+                        title = f"{label} 목표가 도달"
+                        body = (
+                            f"{alert_data['ticker']} 현재가 {alert_data['current_price']:,.0f}이 "
+                            f"목표가 {alert_data['threshold']:,.0f} 이상에 도달했습니다."
+                        )
+                    elif cond == "below":
+                        title = f"{label} 목표가 도달"
+                        body = (
+                            f"{alert_data['ticker']} 현재가 {alert_data['current_price']:,.0f}이 "
+                            f"목표가 {alert_data['threshold']:,.0f} 이하에 도달했습니다."
+                        )
+                    elif cond == "drawdown":
+                        title = f"{label} 평균단가 대비 하락"
+                        body = (
+                            f"{alert_data['ticker']} 가 평균단가 대비 "
+                            f"{alert_data['threshold']:.2f}% 이상 하락했습니다 "
+                            f"(현재가 {alert_data['current_price']:,.0f})."
+                        )
+                    else:  # pct_change — SSE 경로에서는 미발화 가정이지만 방어적 처리
+                        title = f"{label} 일일 변동 알림"
+                        body = (
+                            f"{alert_data['ticker']} 일일 변동이 "
+                            f"±{alert_data['threshold']:.2f}% 이상 발생했습니다."
+                        )
                     notification = Notification(
                         user_id=user_id,
                         type="alert_triggered",
@@ -276,6 +301,25 @@ async def stream_prices(
                 )
                 acct = acct_result.scalar_one_or_none()
 
+                # ticker → 평균 매입가 (drawdown 알림 평가용). 같은 ticker 가
+                # 여러 portfolio 에 걸쳐 있으면 quantity 가중 평균.
+                avg_prices: dict[str, Optional[Decimal]] = {}
+                if portfolio_ids:
+                    hold_result = await db.execute(
+                        select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
+                    )
+                    qty_value: dict[str, Decimal] = {}
+                    qty_total: dict[str, Decimal] = {}
+                    for h in hold_result.scalars().all():
+                        qty = Decimal(str(h.quantity))
+                        avg = Decimal(str(h.avg_price))
+                        qty_value[h.ticker] = qty_value.get(h.ticker, Decimal(0)) + qty * avg
+                        qty_total[h.ticker] = qty_total.get(h.ticker, Decimal(0)) + qty
+                    for ticker, total in qty_total.items():
+                        avg_prices[ticker] = (
+                            (qty_value[ticker] / total) if total > 0 else None
+                        )
+
             if not portfolio_ids or not acct:
                 yield "data: {\"error\": \"no_data\"}\n\n"
                 return
@@ -353,7 +397,7 @@ async def stream_prices(
 
                             # Check alerts and emit triggered events
                             alert_event = await _check_alerts_and_emit(
-                                current_user.id, prices, active_alerts
+                                current_user.id, prices, active_alerts, avg_prices
                             )
                             if alert_event:
                                 yield alert_event

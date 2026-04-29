@@ -309,9 +309,20 @@ export default function DashboardPage() {
       if (shownAlertIds.current.has(alert.id)) continue;
       shownAlertIds.current.add(alert.id);
       const label = alert.name || alert.ticker;
-      const dir = alert.condition === "above" ? "이상" : "이하";
-      toast.warning(`목표가 도달 — ${label}`, {
-        description: `현재 ${formatKRW(alert.current_price)} — 목표 ${dir} ${formatKRW(alert.threshold)}`,
+      const description = (() => {
+        switch (alert.condition) {
+          case "above":
+            return `현재 ${formatKRW(alert.current_price)} — 목표 이상 ${formatKRW(alert.threshold)}`;
+          case "below":
+            return `현재 ${formatKRW(alert.current_price)} — 목표 이하 ${formatKRW(alert.threshold)}`;
+          case "pct_change":
+            return `일일 변동 ±${alert.threshold}% 도달 — 현재 ${formatKRW(alert.current_price)}`;
+          case "drawdown":
+            return `평균단가 대비 -${alert.threshold}% 이상 하락 — 현재 ${formatKRW(alert.current_price)}`;
+        }
+      })();
+      toast.warning(`알림 발화 — ${label}`, {
+        description,
         duration: 8000,
       });
     }
