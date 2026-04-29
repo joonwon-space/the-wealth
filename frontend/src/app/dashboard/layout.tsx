@@ -46,7 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="sticky top-0 z-20 flex min-h-16 items-center justify-end border-b bg-background/90 pl-14 pr-4 backdrop-blur-md md:min-h-14 md:pl-6 md:pr-6">
           <NotificationBell />
         </div>
-        <div className="p-4 pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:p-6 md:pb-6">
+        <div className="p-4 pb-[calc(env(safe-area-inset-bottom,0px)+80px+var(--install-banner-h,0px))] md:p-6 md:pb-6">
           {children}
         </div>
       </main>

@@ -102,6 +102,21 @@ export function InstallBanner() {
     }
   }, [dismissed]);
 
+  // Reserve body bottom space while the banner is visible so it does not
+  // overlap page content (holdings table, bottom nav, etc). Layout consumes
+  // `--install-banner-h` in its mobile bottom padding calc.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (shouldShow) {
+      root.style.setProperty("--install-banner-h", "80px");
+    } else {
+      root.style.removeProperty("--install-banner-h");
+    }
+    return () => {
+      root.style.removeProperty("--install-banner-h");
+    };
+  }, [shouldShow]);
+
   const handleInstall = async () => {
     if (isIos && !canInstall) {
       setIosOpen(true);
