@@ -1033,7 +1033,7 @@ Source: 이 브랜치의 커밋 히스토리 + `docs/plan/redesign-followups.md`
 
 - [x] 별도 `OrderDialogProvider` 클라이언트 컴포넌트 추가. dashboard layout에서 전역 마운트하여 `the-wealth:order` 이벤트로 OrderDialog 오픈.
 - [x] stock detail 페이지에서 dispatch detail에 `stockName`, `currentPrice`, `exchangeCode` 포함.
-- [ ] (follow-up) ticker 보유 portfolio 우선 선택 로직 — 현재는 첫 portfolio 사용.
+- [x] **a8c187a**: ticker 보유 portfolio 우선 선택 로직 — held → currency-match → first 순. `OrderDialogProvider` 가 dashboard summary 캐시에서 ticker → portfolio_name 조회 후 portfolios list 와 join.
 
 ### TASK-RD-5. Onboarding 진입 경로 (S)
 
@@ -1049,20 +1049,20 @@ Source: 이 브랜치의 커밋 히스토리 + `docs/plan/redesign-followups.md`
 ### TASK-RD-7. Portfolio 상세 "분석" 섹션 (M)
 
 - [x] portfolio detail에 `AnalysisSection` 추가 — portfolio-history sparkline + benchmark-delta 2칸 + fx-gain-loss 상위 5건.
-- [ ] (follow-up) 기존 `/dashboard/analytics` 페이지 축소/제거 검토.
+- [x] **ffba786 (option B)**: `/dashboard/analytics` 의 `HistorySection` 을 user-wide KRW 환산 자산 추이 단일 차트로 축소. 포트폴리오별 history + 벤치마크 overlay 는 portfolio detail `AnalysisSection` 에 위임. 354→172 lines.
 
 ### TASK-RD-8. Alert.condition `pct_change` / `drawdown` 서버 평가 (S)
 
 - [x] `_evaluate_condition` 헬퍼 추출 후 `pct_change`/`drawdown` 분기 추가. avg_prices/day_change_pcts dict 인자 옵션 추가.
 - [x] dashboard.py 호출자에서 holdings의 avg_price를 dict로 전달.
 - [x] 단위 테스트 6건 추가 (정상/미발화/음수 drop/데이터 없음).
-- [ ] (follow-up) prices.py SSE 호출에 day_change_pct 전달, 알림 생성 UI에 신규 condition 옵션 노출.
+- [x] **7b01a39**: AlertCreate UI 에 `pct_change` / `drawdown` 옵션 노출 + dashboard toast / SSE notification body 가 condition 별 한국어 문구 사용. SSE prices.py 가 holdings 로딩 후 `avg_prices` dict 빌드해 `_check_alerts_and_emit` 에 전달 — drawdown 실시간 발화 가능. pct_change 의 SSE 실시간 평가는 detail TR_ID 추가 비용 회피로 dashboard 30s tick 경로에 위임 (의도된 미구현).
 
 ### TASK-RD-9. design-preview 라우트 스크린샷 CI gate (S)
 
 - [x] `frontend/e2e/design-preview.spec.ts` 추가 — 라이트/다크 fullPage 스크린샷.
 - [x] E2E workflow에 `NEXT_PUBLIC_ALLOW_DESIGN_PREVIEW=1` 빌드 환경변수 주입.
-- [ ] (follow-up) baseline 스크린샷 첫 실행으로 생성 후 git commit (수동).
+- [→] (follow-up) baseline 스크린샷 첫 실행으로 생성 후 git commit. **이관**: 로컬 dev server + auth 가 필요한 1회 수동 작업이라 `docs/plan/manual-tasks.md` 의 "P3 -- design-preview baseline 스크린샷 생성" 섹션 참조.
 
 ---
 

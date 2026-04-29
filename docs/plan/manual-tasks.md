@@ -23,6 +23,50 @@ Items requiring user action.
 - [x] Configure backup container env vars and enable R2 upload in backup script
 - [x] Test restore from backup on staging environment — 2026-03-21 검증 완료 (users 2, portfolios 6, sync_logs 408)
 
+## P3 -- design-preview baseline 스크린샷 생성 (TASK-RD-9 follow-up, 2026-04-29)
+
+`frontend/e2e/design-preview.spec.ts` 는 작성 완료, CI workflow 도 `ALLOW_DESIGN_PREVIEW=1` 환경변수 주입 설정됨. **단, baseline PNG 가 없어** Playwright 첫 실행에서 fail. 1회 수동 baseline 생성이 필요하다. 디자인 토큰/프리미티브 변경 시에도 같은 절차로 갱신.
+
+소요 시간: ~3분 (frontend dev server 부팅 + auth + 스크린샷 생성).
+
+### 사전 준비
+- `frontend/.env.local` 에 `E2E_TEST_EMAIL` / `E2E_TEST_PASSWORD` 설정 (이미 본 세션에서 추가됨, qa계정 = `jwon3711@gmail.com`).
+- backend dev server 가 띄워져 있어야 한다 (auth + dashboard 데이터 fetch). `cd backend && uvicorn app.main:app --reload`.
+
+### 절차
+
+1. **frontend dev server 기동 (design-preview 허용 모드)**
+   ```bash
+   cd frontend
+   ALLOW_DESIGN_PREVIEW=1 npm run dev
+   # → http://localhost:3000
+   ```
+2. **다른 터미널에서 baseline 생성**
+   ```bash
+   cd frontend
+   npx playwright test design-preview.spec.ts --update-snapshots --project=chromium
+   ```
+3. **결과 확인**: `frontend/e2e/design-preview.spec.ts-snapshots/` (혹은 `frontend/test-results/...`) 디렉토리에 `design-preview-light-chromium-*.png` 와 `design-preview-dark-chromium-*.png` 2장 생성.
+4. **commit**
+   ```bash
+   git add 'frontend/e2e/design-preview.spec.ts-snapshots/'
+   git commit -m "test(e2e): design-preview baseline screenshots"
+   git push origin main
+   ```
+
+### 검증
+
+- 같은 명령을 `--update-snapshots` 없이 다시 실행하면 PASS 해야 한다 (`npx playwright test design-preview.spec.ts --project=chromium`).
+- CI 의 e2e workflow 가 PR에서 자동 실행될 때 baseline 과 비교, 디자인 회귀가 있으면 fail.
+
+### Troubleshooting
+
+- 로그인 실패 → `E2E_TEST_EMAIL` 미설정. `frontend/.env.local` 확인.
+- 페이지가 404 → dev server 가 `ALLOW_DESIGN_PREVIEW=1` 없이 실행됨. 환경변수 다시 설정 후 재기동.
+- 스크린샷이 비어있음 → backend 가 안 띄워져서 dashboard fetch 가 실패. backend 부팅 로그 확인.
+
+---
+
 ## P3 -- Cloudflare Web Analytics 콘솔 노이즈 제거 (TASK-QA-2, 2026-04-29)
 
 CF Web Analytics 자동 주입 beacon (`/beacon.min.js/v8c78...`) 가 path-versioned URL → canonical 로 edge rewrite 되면서 Chrome 의 `strict-dynamic` CSP 가 redirect 로 감지해 `[ERROR] The script resource is behind a redirect, which is disallowed.` 콘솔 경고를 페이지당 26회 출력. 코드 수정 불필요 — Cloudflare dashboard 설정 사안. **기능 영향 없음, 콘솔 노이즈만 발생.**
