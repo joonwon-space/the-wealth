@@ -1228,8 +1228,11 @@ Plan doc: `docs/plan/mobile-app-web-plan.md`. Goal: native-like PWA experience (
 ### TASK-QA-1. Hydration 에러 #418 진단 — 대시보드 (M)
 - [ ] `https://joonwon.dev/dashboard` 첫 로딩 시 console에 `Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]=` 발생 (HTML hydration mismatch). 라이브 prod build 에서만 발생, 어떤 SSR 출력 vs 첫 클라이언트 렌더 노드가 다른지 식별 필요. 후보: `OrderDialogProvider`, `<time>` 또는 시각 표시 컴포넌트 (`오전 9:21:01` 같은 실시간 텍스트), Recharts hydration. 디버그: `next dev` 로 비-minified 에러 메시지 확보 후 component tree 추적. 수정 옵션: 시간 표시는 `useEffect` 내부 mount 후 setState, suppressHydrationWarning 사용, 또는 클라이언트 전용 `dynamic({ssr:false})`.
 
-### TASK-QA-2. "script behind redirect" 콘솔 에러 26회 — chunk 로딩 (S)
-- [ ] 모든 라우트 진입 시 `[ERROR] The script resource is behind a redirect, which is disallowed.` 가 다수 발생. Next 16 + CF/Vercel 환경에서 정적 chunk 가 301/302 응답을 받는 케이스. 프로덕션 cache header 또는 `next.config` static path 설정으로 해결 가능. `frontend/next.config.ts` 의 `output`/`headers` 점검 후 정적 자산은 직접 응답 (no redirect) 으로 보장.
+### TASK-QA-2. "script behind redirect" 콘솔 에러 — Cloudflare Web Analytics 자동 주입 (S, 운영)
+- [ ] **진단 결과 (2026-04-29)**: 우리 정적 chunk 는 모두 200 직접 응답 (redirect 없음). 원인은 Cloudflare Web Analytics 가 HTML 응답에 자동 주입하는 `<script src="https://static.cloudflareinsights.com/beacon.min.js/v8c78...">` — CF edge 가 path-suffix versioned URL 을 canonical 로 rewrite 하면서 Chrome 의 `strict-dynamic` CSP 가 이를 redirect 로 감지해 경고. **코드 수정 불필요** — Cloudflare dashboard 에서 처리.
+- [ ] **선택지 1 (권장)**: CF dashboard → Web Analytics → 해당 사이트 설정에서 "Automatic injection" 끄고 manual snippet 으로 전환. manual 은 canonical `https://static.cloudflareinsights.com/beacon.min.js` 사용 → redirect 없음. snippet 을 `frontend/src/app/layout.tsx` 의 `<head>` 에 추가하고 `proxy.ts` 의 `script-src` 에 호스트 추가.
+- [ ] **선택지 2**: CF Web Analytics 비활성화. 분석은 Sentry/Vercel Analytics 로 대체.
+- [ ] **선택지 3 (영향 수용)**: 콘솔 노이즈만 발생, 기능 정상. WONTFIX 처리 후 dev 환경 콘솔 필터링 가이드 추가.
 
 ### TASK-QA-3. PWA 설치 배너가 모바일 콘텐츠 위에 겹침 (S)
 - [ ] `frontend/src/components/InstallPrompt*` (또는 동등 컴포넌트) 의 fixed-bottom 배너가 portfolio detail 의 보유종목 테이블 + 하단 nav 와 겹쳐 row 한 줄을 가린다. 해결: (a) 본문에 `pb-{banner-height}` 추가, (b) 배너 z-index/위치를 nav 위로 띄우되 본문 padding 으로 영역 확보, 또는 (c) 한 번 닫으면 localStorage 에 저장해 재표시 안 함. 모바일 전용으로 영향 큼.
