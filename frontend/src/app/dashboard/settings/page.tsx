@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { SecurityLogsSection } from "./SecurityLogsSection";
 import { ActiveSessionsSection } from "./ActiveSessionsSection";
 import { AccountSection } from "./AccountSection";
@@ -26,42 +26,52 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "sessions", label: "세션 관리" },
 ];
 
-function getInitialTab(): Tab {
-  if (typeof window === "undefined") return "account";
+function readHashTab(): Tab {
   const hash = window.location.hash.slice(1) as Tab;
   return VALID_TABS.includes(hash) ? hash : "account";
 }
 
+function subscribeHash(callback: () => void): () => void {
+  const handler = () => callback();
+  window.addEventListener("hashchange", handler);
+  return () => window.removeEventListener("hashchange", handler);
+}
+
+const getServerTab = (): Tab => "account";
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
+  // The URL hash IS the source of truth for the active tab. useSyncExternalStore
+  // keeps SSR and first client render aligned to "account" then switches to the
+  // hash-derived tab post-hydration (no React 19 #418). Tab clicks update the
+  // hash directly, which triggers the subscriber and re-renders.
+  const activeTab = useSyncExternalStore(subscribeHash, readHashTab, getServerTab);
 
-  useEffect(() => {
-    window.location.hash = activeTab;
-  }, [activeTab]);
-
-  const handleTabChange = (tab: Tab) => {
-    setActiveTab(tab);
-  };
+  const handleTabChange = useCallback((tab: Tab) => {
+    if (window.location.hash.slice(1) === tab) return;
+    window.location.hash = tab;
+  }, []);
 
   return (
     <div className="space-y-6 max-w-xl">
       <h1 className="text-2xl font-bold">설정</h1>
 
-      {/* Tab navigation */}
-      <div className="flex gap-1 border-b">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Tab navigation — horizontal scroll on mobile so labels never wrap */}
+      <div className="-mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === tab.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Account tab */}
