@@ -90,6 +90,16 @@ export function PortfolioHistoryChart({ data, period, onPeriodChange }: Props) {
   const lineColor = gain >= 0 ? "#1e90ff" : "#1A56DB";
   const gradientId = `historyGrad-${gain >= 0 ? "pos" : "neg"}`;
 
+  // Tight Y domain so small monthly changes are visible. Recharts' default
+  // auto-domain includes 0, which compresses real movements (e.g. ₩143M→150M)
+  // into a near-flat line at the chart's top edge. Add ~3% padding for room.
+  const values = filtered.map((p) => p.value);
+  const dataMin = values.length > 0 ? Math.min(...values) : 0;
+  const dataMax = values.length > 0 ? Math.max(...values) : 0;
+  const range = dataMax - dataMin;
+  const pad = range > 0 ? range * 0.1 : Math.max(1, dataMax * 0.02);
+  const yDomain: [number, number] = [Math.max(0, dataMin - pad), dataMax + pad];
+
   // Compute per-point gain for tooltip
   function pointGain(value: number): number {
     return first > 0 ? ((value - first) / first) * 100 : 0;
@@ -151,6 +161,7 @@ export function PortfolioHistoryChart({ data, period, onPeriodChange }: Props) {
             tickLine={false}
             axisLine={false}
             width={48}
+            domain={yDomain}
           />
           <Tooltip
             content={({ active, payload, label }) => (
