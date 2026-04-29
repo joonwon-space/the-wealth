@@ -12,18 +12,24 @@ function isStandaloneMode(): boolean {
 
 /**
  * A 300ms fade-in overlay shown only when the app launches in PWA standalone
- * mode. Browser tabs: no-op (standalone is false → initial state is false and
- * never flips on).
+ * mode. Browser tabs: no-op.
+ *
+ * State starts `false` so SSR and the first client render emit identical DOM
+ * (no hydration mismatch). The standalone check + auto-hide timer fire in
+ * useEffect after mount.
  */
 export function AppSplash() {
-  // Lazy init: read once on mount, avoid React 19 set-state-in-effect rule.
-  const [visible, setVisible] = useState<boolean>(() => isStandaloneMode());
+  const [visible, setVisible] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!isStandaloneMode()) return;
+    // Cascading render is intentional: hydration must commit with the
+    // server-equivalent `null` first, then the splash flashes in for 300ms.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisible(true);
     const timer = window.setTimeout(() => setVisible(false), 300);
     return () => window.clearTimeout(timer);
-  }, [visible]);
+  }, []);
 
   if (!visible) return null;
 

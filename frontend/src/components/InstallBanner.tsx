@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
@@ -10,34 +10,74 @@ const DISMISSED_KEY = "install-banner-dismissed-at";
 const VISIT_COUNTER_KEY = "install-banner-visits";
 const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const VISITS_REQUIRED = 2;
+const ELIGIBILITY_EVENT = "thewealth:install-banner-eligibility";
 
 interface BannerEligibility {
   eligible: boolean;
 }
 
 /**
- * Reads persisted visit count / dismissal, bumps the counter exactly once per
- * component mount, and returns whether the banner is eligible to show. Lazily
- * evaluated so React 19's `set-state-in-effect` rule is satisfied.
+ * Bumps the per-mount visit counter once and returns whether the banner is
+ * eligible to show. Counter increment runs post-mount in useEffect so render
+ * stays pure.
+ *
+ * `useSyncExternalStore` returns `false` on the server snapshot and the live
+ * computed value on the client, keeping SSR and first-client-render DOM
+ * identical (no React 19 hydration mismatch #418).
  */
+function computeEligibility(): boolean {
+  try {
+    const dismissedAt = Number(
+      window.localStorage.getItem(DISMISSED_KEY) || "0",
+    );
+    if (dismissedAt && Date.now() - dismissedAt < COOLDOWN_MS) return false;
+    const visits = Number(
+      window.localStorage.getItem(VISIT_COUNTER_KEY) || "0",
+    );
+    return visits >= VISITS_REQUIRED;
+  } catch {
+    return false;
+  }
+}
+
+function subscribeEligibility(callback: () => void): () => void {
+  const handler = () => callback();
+  window.addEventListener("storage", handler);
+  window.addEventListener(ELIGIBILITY_EVENT, handler);
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener(ELIGIBILITY_EVENT, handler);
+  };
+}
+
+const getEligibilityServerSnapshot = (): boolean => false;
+
 function useBannerEligibility(): BannerEligibility {
-  const [eligible] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
+  const eligible = useSyncExternalStore(
+    subscribeEligibility,
+    computeEligibility,
+    getEligibilityServerSnapshot,
+  );
+
+  const bumpedRef = useRef(false);
+  useEffect(() => {
+    if (bumpedRef.current) return;
+    bumpedRef.current = true;
     try {
       const dismissedAt = Number(
         window.localStorage.getItem(DISMISSED_KEY) || "0",
       );
-      if (dismissedAt && Date.now() - dismissedAt < COOLDOWN_MS) return false;
+      if (dismissedAt && Date.now() - dismissedAt < COOLDOWN_MS) return;
       const prevVisits = Number(
         window.localStorage.getItem(VISIT_COUNTER_KEY) || "0",
       );
-      const nextVisits = prevVisits + 1;
-      window.localStorage.setItem(VISIT_COUNTER_KEY, String(nextVisits));
-      return nextVisits >= VISITS_REQUIRED;
+      window.localStorage.setItem(VISIT_COUNTER_KEY, String(prevVisits + 1));
+      window.dispatchEvent(new Event(ELIGIBILITY_EVENT));
     } catch {
-      return false;
+      // localStorage unavailable — banner stays hidden
     }
-  });
+  }, []);
+
   return { eligible };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: readonly string[];
@@ -16,27 +16,45 @@ export interface InstallPromptState {
 }
 
 function detectIos(): boolean {
-  if (typeof window === "undefined") return false;
   const ua = window.navigator.userAgent;
   return /iPad|iPhone|iPod/.test(ua) && !("MSStream" in window);
 }
 
-function detectStandalone(): boolean {
-  if (typeof window === "undefined") return false;
+function detectStandaloneNow(): boolean {
   if (window.matchMedia("(display-mode: standalone)").matches) return true;
   const navAny = window.navigator as Navigator & { standalone?: boolean };
   return Boolean(navAny.standalone);
 }
 
+const STANDALONE_QUERY = "(display-mode: standalone)";
+
+function subscribeStandalone(callback: () => void): () => void {
+  const mql = window.matchMedia(STANDALONE_QUERY);
+  const handler = () => callback();
+  mql.addEventListener("change", handler);
+  window.addEventListener("appinstalled", handler);
+  return () => {
+    mql.removeEventListener("change", handler);
+    window.removeEventListener("appinstalled", handler);
+  };
+}
+
+const subscribeIos = (): (() => void) => () => {};
+const getServerFalse = (): boolean => false;
+
 export function useInstallPrompt(): InstallPromptState {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  // Lazy init so the value is derived once on mount from browser APIs —
-  // avoids the React 19 "setState in effect" rule.
-  const [isStandalone, setIsStandalone] = useState<boolean>(() =>
-    detectStandalone(),
+
+  // useSyncExternalStore guarantees SSR returns false and the client reads the
+  // live value post-hydration — keeps the first client render identical to
+  // server output (avoids React 19 hydration mismatch #418).
+  const isStandalone = useSyncExternalStore(
+    subscribeStandalone,
+    detectStandaloneNow,
+    getServerFalse,
   );
-  const [isIos] = useState<boolean>(() => detectIos());
+  const isIos = useSyncExternalStore(subscribeIos, detectIos, getServerFalse);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -45,7 +63,6 @@ export function useInstallPrompt(): InstallPromptState {
     };
     const installed = () => {
       setDeferredPrompt(null);
-      setIsStandalone(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
     window.addEventListener("appinstalled", installed);
