@@ -138,8 +138,8 @@ export function MetricsSection() {
               label="CAGR"
               value={metrics.cagr}
               suffix="%"
-              tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 30일 미만이면 표시되지 않습니다."
-              nullHint="데이터 30일 이상 필요"
+              tooltip="연평균 복리 수익률(CAGR): 투자 원금이 현재 가치가 되기까지 매년 몇 %씩 성장했는지 나타냅니다. 데이터가 90일 미만이면 외삽 신뢰성이 낮아 표시되지 않습니다."
+              nullHint="데이터 90일 이상 필요"
             />
             <MetricCard
               label="MDD"

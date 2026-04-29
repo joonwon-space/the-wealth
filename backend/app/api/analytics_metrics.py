@@ -196,16 +196,26 @@ async def get_metrics(
             date_ticker_map[d] = {}
         date_ticker_map[d][snap.ticker] = float(snap.close)
 
-    # 날짜별 포트폴리오 총 가치 (날짜 추적 포함)
-    holding_map = {h.ticker: h for h in holdings}
+    # forward-fill + backward-fill (analytics_history.py와 동일 패턴):
+    # 일부 ticker가 특정 날짜에 PriceSnapshot이 없으면 직전 값을 forward-fill
+    # 하고, 첫 등장 이전 날짜는 첫 close로 backward-fill 한다. 그렇지 않으면
+    # 누락 ticker가 있는 날짜의 portfolio value 가 비정상적으로 작아 CAGR /
+    # MDD 가 spuriously 큰 값으로 계산된다 (peak 대비 99% drawdown 등).
+    holding_qty: dict[str, float] = {}
+    for h in holdings:
+        holding_qty[h.ticker] = holding_qty.get(h.ticker, 0.0) + float(h.quantity)
+    first_close: dict[str, float] = {}
+    for snap in snapshots:
+        if snap.ticker not in first_close:
+            first_close[snap.ticker] = float(snap.close)
+
+    last_close: dict[str, float] = {}
     portfolio_date_values: list[tuple[str, float]] = []
     for date_str in sorted(date_ticker_map.keys()):
-        prices_on_date = date_ticker_map[date_str]
-        value = sum(
-            float(holding_map[t].quantity) * prices_on_date[t]
-            for t in tickers
-            if t in prices_on_date and t in holding_map
-        )
+        for t, close in date_ticker_map[date_str].items():
+            last_close[t] = close
+        effective = {**first_close, **last_close}
+        value = sum(holding_qty[t] * effective[t] for t in tickers if t in effective)
         if value > 0:
             portfolio_date_values.append((date_str, value))
 
@@ -218,13 +228,14 @@ async def get_metrics(
         if prev > 0:
             daily_returns.append((portfolio_values[i] - prev) / prev)
 
-    # CAGR: 실제 날짜 범위 기반 (최소 30일 이상 데이터 필요)
+    # CAGR: 실제 날짜 범위 기반. 90일 미만이면 연복리 외삽이 신뢰성 낮음
+    # (예: 41일 +17% → CAGR 290%) — None 반환해 UI 가 "데이터 부족" 폴백.
     cagr: Optional[float] = None
     if portfolio_date_values:
         start_date = date_type.fromisoformat(portfolio_date_values[0][0])
         end_date = date_type.fromisoformat(portfolio_date_values[-1][0])
         days = (end_date - start_date).days
-        if days >= 30:
+        if days >= 90:
             years = days / 365.25
             cagr = _calc_cagr(portfolio_date_values[0][1], total_current, years)
 
