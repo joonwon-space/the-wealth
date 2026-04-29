@@ -22,3 +22,16 @@ Items requiring user action.
 - [x] Add `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` to `backend/.env`
 - [x] Configure backup container env vars and enable R2 upload in backup script
 - [x] Test restore from backup on staging environment — 2026-03-21 검증 완료 (users 2, portfolios 6, sync_logs 408)
+
+## P3 -- Cloudflare Web Analytics 콘솔 노이즈 제거 (TASK-QA-2, 2026-04-29)
+
+CF Web Analytics 자동 주입 beacon (`/beacon.min.js/v8c78...`) 가 path-versioned URL → canonical 로 edge rewrite 되면서 Chrome 의 `strict-dynamic` CSP 가 redirect 로 감지해 `[ERROR] The script resource is behind a redirect, which is disallowed.` 콘솔 경고를 페이지당 26회 출력. 코드 수정 불필요 — Cloudflare dashboard 설정 사안. **기능 영향 없음, 콘솔 노이즈만 발생.**
+
+소요 시간: ~2분.
+
+- [ ] https://dash.cloudflare.com 로그인 → `joonwon.dev` 사이트 선택
+- [ ] 좌측 메뉴 → **Analytics & Logs** → **Web Analytics** → 해당 사이트 **Settings (⚙️)**
+- [ ] 셋 중 하나 선택:
+  - **(권장)** "Automatic Setup" 끄고 **Manual setup** 으로 전환. dashboard 가 보여주는 snippet (`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"..."}'></script>`) 을 알려주면 `frontend/src/app/layout.tsx` 의 `<head>` 에 추가하고 CSP `script-src` (`frontend/src/proxy.ts` line 24-32) 에 `static.cloudflareinsights.com` 명시적 추가하는 작업은 코드 쪽에서 처리.
+  - **대안 1**: Web Analytics 자체 비활성화. 분석은 Sentry / Vercel Analytics 로 대체.
+  - **대안 2**: 그대로 두기 — 콘솔 경고만 발생, 기능 정상. WONTFIX.
