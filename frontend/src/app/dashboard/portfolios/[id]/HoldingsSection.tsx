@@ -325,11 +325,11 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
             </Button>
           </div>
           <div className="overflow-x-auto rounded-xl border">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted/50">
               <tr>
                 {["종목", "수량", "평균단가", "현재가", "손익 (KRW)", "평가금액 (KRW)", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
+                  <th key={h} className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
