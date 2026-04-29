@@ -1226,31 +1226,31 @@ Plan doc: `docs/plan/mobile-app-web-plan.md`. Goal: native-like PWA experience (
 라이브(https://joonwon.dev) read-only QA에서 발견된 follow-up. RD-1~9 sprint 회귀는 없음 (RD-3 design-preview 404 OK, RD-6 1M 스파크라인 200 OK, RD-7 분석 섹션 OK). 아래는 별도 후속 작업.
 
 ### TASK-QA-1. Hydration 에러 #418 진단 — 대시보드 (M)
-- [ ] `https://joonwon.dev/dashboard` 첫 로딩 시 console에 `Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]=` 발생 (HTML hydration mismatch). 라이브 prod build 에서만 발생, 어떤 SSR 출력 vs 첫 클라이언트 렌더 노드가 다른지 식별 필요. 후보: `OrderDialogProvider`, `<time>` 또는 시각 표시 컴포넌트 (`오전 9:21:01` 같은 실시간 텍스트), Recharts hydration. 디버그: `next dev` 로 비-minified 에러 메시지 확보 후 component tree 추적. 수정 옵션: 시간 표시는 `useEffect` 내부 mount 후 setState, suppressHydrationWarning 사용, 또는 클라이언트 전용 `dynamic({ssr:false})`.
+- [x] **d391ff6**: `useInvestMode` / `useInstallPrompt` / `useBannerEligibility` 의 lazy `useState(() => readBrowserState())` 패턴이 SSR=default vs 클라이언트=실제값 으로 나뉘어 hydration mismatch 유발. `useSyncExternalStore` + `getServerSnapshot` 패턴으로 교체. `AppSplash` 는 post-mount 1회 transition 으로 정리.
 
 ### TASK-QA-2. "script behind redirect" 콘솔 에러 — Cloudflare Web Analytics 자동 주입
 - [→] **이관**: 코드 수정 불필요한 운영 액션. `docs/plan/manual-tasks.md` 의 "P3 -- Cloudflare Web Analytics 콘솔 노이즈 제거" 항목 참조.
 
 ### TASK-QA-3. PWA 설치 배너가 모바일 콘텐츠 위에 겹침 (S)
-- [ ] `frontend/src/components/InstallPrompt*` (또는 동등 컴포넌트) 의 fixed-bottom 배너가 portfolio detail 의 보유종목 테이블 + 하단 nav 와 겹쳐 row 한 줄을 가린다. 해결: (a) 본문에 `pb-{banner-height}` 추가, (b) 배너 z-index/위치를 nav 위로 띄우되 본문 padding 으로 영역 확보, 또는 (c) 한 번 닫으면 localStorage 에 저장해 재표시 안 함. 모바일 전용으로 영향 큼.
+- [x] **809e681**: `InstallBanner` 가 표시되는 동안 `--install-banner-h: 80px` CSS 변수를 `document.documentElement` 에 설정. dashboard layout 의 모바일 bottom padding 이 `calc(safe-area + 80px + var(--install-banner-h, 0px))` 으로 변수를 합산해 배너만큼 영역 확보.
 
 ### TASK-QA-4. 모바일 portfolio detail "보유 종목" 헤딩 줄바꿈 (XS)
-- [ ] `frontend/src/app/dashboard/portfolios/[id]/page.tsx` (또는 헤더 컴포넌트) — 모바일 ≤375px 에서 헤딩 "보유 종목" 이 CSV 다운로드 버튼 3개와 같은 row 에 배치되어 두 글자 폭(`보유 종 / 목`)으로 줄바꿈. 헤딩과 버튼을 flex-col 또는 wrap 으로 재배치, 또는 모바일에선 버튼을 2열 grid 로 묶어 헤딩 폭 보장.
+- [x] **0a156fc**: `PortfolioHeader.tsx` 의 헤더 컨테이너를 `flex-col gap-3 sm:flex-row sm:items-center sm:justify-between` 으로 변경. 모바일에서는 헤딩이 한 줄, 그 아래에 export/sync 버튼 그룹이 위치.
 
 ### TASK-QA-5. 모바일 portfolio detail 보유종목 테이블 컬럼 잘림 (S)
-- [ ] 모바일 375px 에서 "현재가/손익(KRW)/평가금액(KRW)" 우측 3개 컬럼이 보이지 않거나 라벨이 수직 줄바꿈("현/재/가"). 옵션: (a) overflow-x-auto 로 가로 스크롤, (b) 모바일 전용 카드 레이아웃 (1행 = 종목명+수량+평가금액 합산, 탭 시 펼침), (c) 평균단가 컬럼 숨김. 디자인 결정 필요.
+- [x] **5374e74**: 보유종목 `<table>` 에 `min-w-[720px]` 적용해 모바일 viewport (375px) 보다 넓게 강제 → `overflow-x-auto` 가 자연스러운 가로 스크롤 유발. `<th>` 에 `whitespace-nowrap` 추가해 "현재가" 등 라벨 수직 줄바꿈 방지.
 
 ### TASK-QA-6. 모바일 settings 탭 라벨 줄바꿈 (XS)
-- [ ] 모바일 375px 에서 5개 탭 라벨("계정/KIS 계좌/알림/보안 로그/세션 관리") 모두 두 줄로 깨짐 (`계 / 정`, `KIS 계 / 좌`). 탭 컨테이너에 `overflow-x-auto whitespace-nowrap` 적용해 가로 스크롤 또는 폰트사이즈 축소.
+- [x] **de9bb17**: 탭 strip 을 `-mx-4 overflow-x-auto px-4` 로 감싸고 각 버튼에 `shrink-0 whitespace-nowrap` 적용해 가로 스크롤 처리. **보너스 fix**: `getInitialTab` lazy-init (`window.location.hash` 동기 read) 도 hydration mismatch 원인이라 `useSyncExternalStore` + `hashchange` 구독으로 교체.
 
 ### TASK-QA-7. 태블릿 portfolio detail "현재가" 헤더 수직 줄바꿈 (XS)
 - [x] **TASK-QA-5 (5374e74)에서 함께 해결** — `<th>` 에 `whitespace-nowrap` 적용으로 태블릿/모바일 양쪽에서 현재가/손익 라벨 수직 줄바꿈 제거.
 
 ### TASK-QA-8. analytics 페이지 "포트폴리오 가치 추이" 1M 차트 sparse (S)
-- [ ] `/dashboard/analytics` 의 1M 차트가 1~2개 점만 보임. API (`/analytics/portfolio-history?period=1M`) 는 21 points 정상 반환. 프론트 렌더링 문제 — Recharts 데이터 매핑 또는 dataKey 누락 가능. 디버깅: React DevTools 로 차트 props 확인.
+- [x] **6042584**: 차트 자체는 21점 모두 그렸으나 Recharts 의 기본 Y auto-domain 이 0 까지 확장돼 ₩143M~150M 변동이 차트 상단에 평선으로 압축돼 보였음. `<YAxis domain={[max(0, dataMin - 10%), dataMax + 10%]}>` 로 데이터 범위에 맞춰 zoom 처리.
 
 ### TASK-QA-9. analytics "성과 지표" 카드 의심 수치 (S)
-- [ ] `/dashboard/analytics` 의 1년/3년/5년/샤프지수 카드가 -21.97% / +2000.04% / -100.00% / 4.530 표시. +2000% 와 -100% 는 데이터 부족 또는 계산 분모 문제 가능. 서비스 로직 (`backend/app/api/analytics_*`) 확인 후 데이터 부족 시 "—" 폴백 또는 NaN 가드 추가.
+- [x] **4f52d62**: 두 가지 버그. (1) MDD 100% — `analytics_metrics.py` 가 ticker별 PriceSnapshot 누락된 날짜에 부분 합산 값을 계산해 spurious 저값 생성 → 같은 forward/backward-fill 패턴을 portfolio-history 처럼 적용. (2) CAGR 2050% — 41일 기간을 연복리 외삽한 결과. 최소 기간을 30→90일 로 상향, 미만이면 `null` 반환하고 UI 가 "데이터 90일 이상 필요" 폴백.
 
 ### TASK-QA-10. fx-gain-loss 라벨에서 ₩ 가 W 로 보임 (XS) — 실제 코드 버그 아님
 - [x] **진단 결과 (2026-04-29)**: DOM 에는 정상 `₩` (U+20A9, hex `20a9`) 가 들어있음. Playwright headless Chrome 의 폰트 fallback 이 ₩ 글리프 미지원 폰트를 선택해 `W` 처럼 보이는 screenshot 아티팩트. 실제 사용자 브라우저(Pretendard / Apple SD Gothic Neo / Noto Sans KR fallback)에서는 정상 렌더. **WONTFIX** — Playwright 캡처 환경 한정 이슈.
