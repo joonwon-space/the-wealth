@@ -514,9 +514,16 @@ class TestSSEEventGeneratorPaths:
         acct_result = MagicMock()
         acct_result.scalar_one_or_none.return_value = acct
 
+        # Third execute() in event_generator's first session: Holdings query
+        # for avg_prices (drawdown alert). Empty list keeps avg_prices = {}.
+        holdings_scalars = MagicMock()
+        holdings_scalars.all.return_value = []
+        holdings_result = MagicMock()
+        holdings_result.scalars.return_value = holdings_scalars
+
         first_session = MagicMock()
         first_session.execute = AsyncMock(
-            side_effect=[portfolio_execute_result, acct_result]
+            side_effect=[portfolio_execute_result, acct_result, holdings_result]
         )
         first_session.__aenter__ = AsyncMock(return_value=first_session)
         first_session.__aexit__ = AsyncMock(return_value=False)
