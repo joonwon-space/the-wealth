@@ -70,7 +70,12 @@ function DialogContent({
                 "inset-x-0 bottom-0 max-h-[92vh] overflow-y-auto rounded-t-2xl",
                 "pb-[max(1rem,env(safe-area-inset-bottom,0px))]",
                 "data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom",
-                "sm:inset-auto sm:bottom-auto sm:max-h-[none] sm:rounded-xl sm:pb-4 sm:data-open:zoom-in-95 sm:data-open:slide-in-from-bottom-0 sm:data-closed:zoom-out-95 sm:data-closed:slide-out-to-bottom-0",
+                // On desktop, cancel only the mobile-specific anchors. Using
+                // `sm:inset-auto` here blows away the base `sm:top-1/2
+                // sm:left-1/2` via tailwind-merge (inset is a 4-side
+                // shorthand), which leaves the popup at the default top/left
+                // and pushes it offscreen after the -50% translate.
+                "sm:right-auto sm:bottom-auto sm:max-h-[none] sm:rounded-xl sm:pb-4 sm:data-open:zoom-in-95 sm:data-open:slide-in-from-bottom-0 sm:data-closed:zoom-out-95 sm:data-closed:slide-out-to-bottom-0",
               ]
             : [
                 "top-1/2 left-1/2 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl",
