@@ -2,6 +2,7 @@
 
 국내: TTTC8434R (예수금 상세현황)
 해외: TTTS3012R (해외주식 체결기준잔고)
+해외 외화예수금: CTRP6504R (해외주식 체결기준현재잔고)
 """
 
 from dataclasses import dataclass
@@ -245,3 +246,93 @@ async def _get_overseas_balance(
             "Failed to fetch overseas cash balance for %s: %s", account_no, e
         )
         raise RuntimeError(f"해외 예수금 조회 실패 ({account_no}): {e}") from e
+
+
+@dataclass(frozen=True)
+class OverseasPresentBalance:
+    """CTRP6504R 응답에서 추출한 USD 외화예수금 + 환율."""
+
+    usd_cash: Decimal
+    usd_krw_rate: Decimal
+
+
+async def get_overseas_present_balance(
+    app_key: str,
+    app_secret: str,
+    account_no: str,
+    account_product_code: str = "01",
+    *,
+    _retried: bool = False,
+) -> OverseasPresentBalance:
+    """해외주식 체결기준현재잔고 조회 (CTRP6504R) — USD 외화예수금/환율 추출.
+
+    TTTS3012R 의 output2 에는 외화 예수금(`frcr_dncl_amt`) 필드가 없어,
+    해외주식 위주의 계좌에서 USD cash 가 노출되지 않는다. CTRP6504R 은
+    통화별로 외화예수금/환율을 함께 내려주므로, USD row 만 골라 사용한다.
+
+    실패 시 RuntimeError 를 raise — 호출 측에서 graceful fallback 한다.
+    """
+    token = await get_kis_access_token(app_key, app_secret)
+    headers = {
+        "authorization": f"Bearer {token}",
+        "appkey": app_key,
+        "appsecret": app_secret,
+        "tr_id": "CTRP6504R",
+        "Content-Type": "application/json; charset=utf-8",
+    }
+    params = {
+        "CANO": account_no,
+        "ACNT_PRDT_CD": account_product_code,
+        "WCRC_FRCR_DVSN_CD": "02",  # 02 = 외화
+        "NATN_CD": "000",            # 전체
+        "TR_MKET_CD": "00",          # 전체
+        "INQR_DVSN_CD": "00",        # 전체
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/inquire-present-balance",
+                headers=headers,
+                params=params,
+            )
+
+        if resp.status_code in (401, 500) and not _retried:
+            logger.warning(
+                "KIS overseas present-balance returned %d for %s — invalidating token and retrying",
+                resp.status_code,
+                account_no,
+            )
+            await invalidate_kis_token(app_key)
+            return await get_overseas_present_balance(
+                app_key, app_secret, account_no, account_product_code,
+                _retried=True,
+            )
+
+        resp.raise_for_status()
+        data = resp.json()
+
+        rt_cd = data.get("rt_cd")
+        if rt_cd != "0":
+            msg = data.get("msg1", "Unknown KIS API error")
+            raise RuntimeError(f"KIS 해외 현재잔고 오류 (rt_cd={rt_cd}): {msg}")
+
+        usd_cash = Decimal("0")
+        usd_rate = Decimal("0")
+        for row in (data.get("output2") or []):
+            if (row.get("crcy_cd") or "").upper() != "USD":
+                continue
+            usd_cash = Decimal(str(row.get("frcr_dncl_amt_2") or "0"))
+            usd_rate = Decimal(str(row.get("frst_bltn_exrt") or "0"))
+            break
+
+        return OverseasPresentBalance(usd_cash=usd_cash, usd_krw_rate=usd_rate)
+
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.warning(
+            "Failed to fetch overseas present-balance for %s: %s", account_no, e
+        )
+        raise RuntimeError(f"해외 현재잔고 조회 실패 ({account_no}): {e}") from e
