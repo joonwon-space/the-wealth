@@ -494,12 +494,12 @@ async def get_portfolio_cash_balance(
 
             balance = CashBalance(
                 # total_cash now includes USD cash converted to KRW so it
-                # represents the user's full cash buying power.
+                # represents the user's full cash buying power. total_evaluation
+                # is stocks-only (frontend renders 총 자산 = cash + eval, so we
+                # must not double-count cash here).
                 total_cash=domestic.total_cash + usd_cash_krw,
                 available_cash=domestic.available_cash + usd_cash_krw,
-                total_evaluation=(
-                    domestic.total_cash + usd_cash_krw + combined_stock_eval
-                ),
+                total_evaluation=combined_stock_eval,
                 total_profit_loss=domestic.total_profit_loss + ovrs_pnl_krw,
                 profit_loss_rate=domestic.profit_loss_rate,
                 currency="KRW",
@@ -507,13 +507,26 @@ async def get_portfolio_cash_balance(
                 usd_krw_rate=usd_rate,
             )
         else:
-            balance = domestic
+            # Domestic-only path: KIS tot_evlu_amt includes cash. Strip cash so
+            # total_evaluation is stocks-only and the frontend 총 자산 sum is
+            # correct.
+            balance = CashBalance(
+                total_cash=domestic.total_cash,
+                available_cash=domestic.available_cash,
+                total_evaluation=domestic.total_evaluation - domestic.total_cash,
+                total_profit_loss=domestic.total_profit_loss,
+                profit_loss_rate=domestic.profit_loss_rate,
+                currency=domestic.currency,
+                foreign_cash=domestic.foreign_cash,
+                usd_krw_rate=domestic.usd_krw_rate,
+            )
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     # KIS `evlu_erng_rt`는 해외 손익이 반영되지 않거나 0으로 내려오는 경우가 있어,
-    # 합산된 total_profit_loss 기반으로 재계산한다.
-    stock_eval = balance.total_evaluation - balance.total_cash
+    # 합산된 total_profit_loss 기반으로 재계산한다. balance.total_evaluation 은
+    # 이미 stocks-only 라 cash 차감 불필요.
+    stock_eval = balance.total_evaluation
     invested = stock_eval - balance.total_profit_loss
     computed_rate = (
         (balance.total_profit_loss / invested * Decimal("100")).quantize(Decimal("0.01"))

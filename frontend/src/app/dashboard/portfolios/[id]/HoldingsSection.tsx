@@ -250,6 +250,19 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
                 대기 중: {formatKRW(String(Number(cashBalance.total_cash) - Number(cashBalance.available_cash)))}
               </div>
             )}
+            {cashBalance.foreign_cash != null && Number(cashBalance.foreign_cash) > 0 && (
+              <div className="mt-1 border-t pt-1 text-xs text-muted-foreground">
+                외화: ${Number(cashBalance.foreign_cash).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+                {cashBalance.usd_krw_rate && (
+                  <span className="ml-1 text-muted-foreground/70">
+                    @ ₩{Number(cashBalance.usd_krw_rate).toLocaleString("ko-KR", { maximumFractionDigits: 2 })}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="rounded-lg border p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
