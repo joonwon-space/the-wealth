@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { SecurityLogsSection } from "./SecurityLogsSection";
 import { ActiveSessionsSection } from "./ActiveSessionsSection";
 import { AccountSection } from "./AccountSection";
@@ -51,16 +51,35 @@ export default function SettingsPage() {
     window.location.hash = tab;
   }, []);
 
+  // Scroll the active tab into view so the last tab ("세션 관리") never sits
+  // clipped at the viewport edge on narrow screens.
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
+    account: null,
+    kis: null,
+    notifications: null,
+    "security-logs": null,
+    sessions: null,
+  });
+  useEffect(() => {
+    const el = tabRefs.current[activeTab];
+    el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [activeTab]);
+
   return (
     <div className="space-y-6 max-w-xl">
       <h1 className="text-2xl font-bold">설정</h1>
 
-      {/* Tab navigation — horizontal scroll on mobile so labels never wrap */}
-      <div className="-mx-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
+      {/* Tab navigation — horizontal scroll on mobile so labels never wrap.
+          overflow-y-hidden suppresses the vertical scrollbar that some
+          browsers render alongside overflow-x-auto. */}
+      <div className="-mx-4 overflow-x-auto overflow-y-hidden border-b px-4 sm:mx-0 sm:px-0">
         <div className="flex gap-1">
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
               onClick={() => handleTabChange(tab.id)}
               className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 activeTab === tab.id
