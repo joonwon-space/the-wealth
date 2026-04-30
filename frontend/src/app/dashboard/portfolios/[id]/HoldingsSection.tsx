@@ -150,7 +150,12 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
       setOrderTicker(ticker);
       setOrderName(name);
       setOrderCurrentPrice(undefined);
-      setOrderDialogOpen(true);
+      setOrderExchangeCode(undefined);
+      setOrderExistingHolding(undefined);
+      setOrderInitialTab("BUY");
+      // Defer until StockSearchDialog finishes its close transition;
+      // base-ui keeps a backdrop-blurred overlay if two dialogs toggle in the same tick.
+      setTimeout(() => setOrderDialogOpen(true), 200);
     } else {
       setAddForm({ ...EMPTY_FORM, ticker, name });
     }
