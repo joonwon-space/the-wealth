@@ -32,6 +32,13 @@ interface OrderFormProps {
 
   availableCash: number | null;
   pendingCash: number;
+  /**
+   * Currency the cash figures are denominated in. KRW for domestic orders,
+   * USD for overseas — keeps the displayed amount in the same units as the
+   * price the user is entering, so 사용가능 예수금 doesn't show ₩2M when the
+   * user only has $1,300 in USD.
+   */
+  cashCurrency?: "KRW" | "USD";
   maxBuyQuantity: number | null;
   existingHolding: ExistingHoldingDisplay | null;
 
@@ -66,6 +73,7 @@ export function OrderForm({
   onMemoChange,
   availableCash,
   pendingCash,
+  cashCurrency = "KRW",
   maxBuyQuantity,
   existingHolding,
   parsedQuantity,
@@ -87,6 +95,11 @@ export function OrderForm({
   const heldAvgPrice = existingHolding?.avgPrice ?? 0;
   const heldPnlAmount = existingHolding?.pnlAmount ?? null;
   const heldPnlRate = existingHolding?.pnlRate ?? null;
+
+  const formatCash = (n: number) =>
+    cashCurrency === "USD"
+      ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : formatKRW(n);
 
   return (
     <>
@@ -146,12 +159,12 @@ export function OrderForm({
               <div className="text-xs text-muted-foreground space-y-0.5">
                 <div className="flex justify-between">
                   <span>사용가능 예수금</span>
-                  <span className="font-medium">{formatKRW(availableCash)}</span>
+                  <span className="font-medium">{formatCash(availableCash)}</span>
                 </div>
                 {pendingCash > 0 && (
                   <div className="flex justify-between text-accent-amber">
                     <span>체결 대기 중</span>
-                    <span className="font-medium">{formatKRW(pendingCash)}</span>
+                    <span className="font-medium">{formatCash(pendingCash)}</span>
                   </div>
                 )}
                 {tab === "BUY" && maxBuyQuantity !== null && maxBuyQuantity > 0 && (

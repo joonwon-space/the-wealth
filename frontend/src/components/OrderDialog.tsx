@@ -73,6 +73,10 @@ export function OrderDialog({
   const totalCash = cashBalance ? parseFloat(cashBalance.total_cash) : null;
   const pendingCash =
     totalCash !== null && availableCash !== null ? totalCash - availableCash : 0;
+  // Raw USD foreign cash (not KRW-converted). Used for fallback max-quantity
+  // on overseas orders so we don't divide a KRW total by a USD price.
+  const foreignCash =
+    cashBalance?.foreign_cash != null ? parseFloat(cashBalance.foreign_cash) : null;
 
   const debouncedPrice = useDebounce(parsedPrice, 500);
 
@@ -90,9 +94,14 @@ export function OrderDialog({
 
   const effectivePrice = isMarketOrder ? (currentPrice ?? 0) : parsedPrice;
   const orderableQty = orderable ? Math.floor(parseFloat(orderable.orderable_quantity)) : 0;
+  // Pick cash in the same currency as the price. KIS only exposes orderable
+  // for domestic, so for overseas we rely on this client-side fallback —
+  // mixing currencies (KRW available_cash / USD price) would over-report
+  // by ~1,500x for accounts that mostly hold USD.
+  const fallbackCash = isDomestic ? availableCash : foreignCash;
   const clientFallbackQty =
-    availableCash !== null && effectivePrice > 0
-      ? Math.floor(availableCash / effectivePrice)
+    fallbackCash !== null && effectivePrice > 0
+      ? Math.floor(fallbackCash / effectivePrice)
       : 0;
   const maxBuyQuantity =
     activeTab === "BUY" && (orderableQty > 0 || clientFallbackQty > 0)
@@ -138,8 +147,8 @@ export function OrderDialog({
   function handleQuickQuantity(ratio: number) {
     if (maxBuyQuantity !== null && maxBuyQuantity > 0) {
       setQuantity(String(Math.floor(maxBuyQuantity * ratio)));
-    } else if (availableCash && parsedPrice) {
-      setQuantity(String(Math.floor((availableCash * ratio) / parsedPrice)));
+    } else if (fallbackCash && parsedPrice) {
+      setQuantity(String(Math.floor((fallbackCash * ratio) / parsedPrice)));
     }
   }
 
@@ -306,8 +315,9 @@ export function OrderDialog({
           onPriceChange={setPrice}
           memo={memo}
           onMemoChange={setMemo}
-          availableCash={availableCash}
-          pendingCash={pendingCash}
+          availableCash={isDomestic ? availableCash : foreignCash}
+          pendingCash={isDomestic ? pendingCash : 0}
+          cashCurrency={isDomestic ? "KRW" : "USD"}
           maxBuyQuantity={maxBuyQuantity}
           existingHolding={holdingDisplay}
           parsedQuantity={parsedQuantity}
