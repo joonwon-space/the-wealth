@@ -149,7 +149,9 @@ export function InstallBanner() {
             <Download className="size-5" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">홈 화면에 THE WEALTH 추가</p>
+            <p className="break-keep text-sm font-semibold leading-tight">
+              홈 화면에 THE WEALTH 추가
+            </p>
             <p className="truncate text-xs text-muted-foreground">
               앱처럼 빠르게 실행하고 알림도 받아보세요.
             </p>
