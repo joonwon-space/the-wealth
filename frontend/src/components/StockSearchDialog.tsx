@@ -20,7 +20,7 @@ interface StockItem {
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSelect: (ticker: string, name: string) => void;
+  onSelect: (ticker: string, name: string, market: string) => void;
 }
 
 const RECENT_KEY = "stock_search_recent";
@@ -92,7 +92,7 @@ export function StockSearchDialog({ open, onClose, onSelect }: Props) {
 
   const handleSelect = (item: StockItem) => {
     addRecent(item.name);
-    onSelect(item.ticker, item.name);
+    onSelect(item.ticker, item.name, item.market);
     onClose();
   };
 

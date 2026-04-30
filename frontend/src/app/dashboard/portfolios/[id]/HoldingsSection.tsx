@@ -145,12 +145,22 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
     },
   });
 
-  const handleStockSelect = (ticker: string, name: string) => {
+  const handleStockSelect = (ticker: string, name: string, market?: string) => {
     if (isKisConnected) {
       setOrderTicker(ticker);
       setOrderName(name);
       setOrderCurrentPrice(undefined);
-      setOrderExchangeCode(undefined);
+      // Map search-result market to the KIS exchange code expected by the
+      // overseas order endpoint. Domestic markets stay undefined so the
+      // dialog treats the order as KRW.
+      const overseasMarketMap: Record<string, string> = {
+        AMEX: "AMEX",
+        NASDAQ: "NASD",
+        NASD: "NASD",
+        NYSE: "NYSE",
+        ARCA: "NYSE",
+      };
+      setOrderExchangeCode(market ? overseasMarketMap[market.toUpperCase()] : undefined);
       setOrderExistingHolding(undefined);
       setOrderInitialTab("BUY");
       // Defer until StockSearchDialog finishes its close transition;
