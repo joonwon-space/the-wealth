@@ -312,32 +312,44 @@ async def get_monthly_returns(
             date_ticker_map[d] = {}
         date_ticker_map[d][snap.ticker] = float(snap.close)
 
-    # 월별 마지막 날짜의 포트폴리오 가치 계산
-    month_end_values: dict[str, float] = {}  # key: "YYYY-MM"
+    # 월별 {ticker: last_close} 맵 — 같은 월 내 더 늦은 날짜가 덮어쓴다.
+    # 이전 구현은 "월 마지막 날짜의 부분 합계"를 비교했는데, 일부 티커만
+    # 스냅샷이 있는 날에 합계가 작아져 다음 달 -100% 같은 가짜 손실이
+    # 발생했다. 티커별로 인접 월의 종가를 비교한 뒤 현재 보유 가치로
+    # 가중평균하면 부분 커버리지 영향을 받지 않는다.
+    month_ticker_close: dict[str, dict[str, float]] = {}
     for date_str in sorted(date_ticker_map.keys()):
-        prices_on_date = date_ticker_map[date_str]
-        value = sum(
-            float(holding_map[t].quantity) * prices_on_date[t]
-            for t in tickers
-            if t in prices_on_date and t in holding_map
-        )
-        if value > 0:
-            month_key = date_str[:7]  # "YYYY-MM"
-            month_end_values[month_key] = value  # 월 내 마지막 날로 덮어쓰기
+        month_key = date_str[:7]  # "YYYY-MM"
+        bucket = month_ticker_close.setdefault(month_key, {})
+        for ticker, close in date_ticker_map[date_str].items():
+            if ticker in holding_map:
+                bucket[ticker] = close
 
-    if len(month_end_values) < 2:
+    if len(month_ticker_close) < 2:
         return []
 
-    # 월별 수익률 계산
-    sorted_months = sorted(month_end_values.keys())
+    sorted_months = sorted(month_ticker_close.keys())
     monthly_returns: list[MonthlyReturn] = []
     for i in range(1, len(sorted_months)):
         prev_key = sorted_months[i - 1]
         curr_key = sorted_months[i]
-        prev_value = month_end_values[prev_key]
-        curr_value = month_end_values[curr_key]
-        if prev_value > 0:
-            return_rate = (curr_value - prev_value) / prev_value * 100
+        prev_closes = month_ticker_close[prev_key]
+        curr_closes = month_ticker_close[curr_key]
+
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for ticker, holding in holding_map.items():
+            prev_close = prev_closes.get(ticker)
+            curr_close = curr_closes.get(ticker)
+            if prev_close is None or curr_close is None or prev_close <= 0:
+                continue
+            ticker_return = (curr_close - prev_close) / prev_close
+            weight = float(holding.quantity) * curr_close
+            weighted_sum += ticker_return * weight
+            weight_total += weight
+
+        if weight_total > 0:
+            return_rate = (weighted_sum / weight_total) * 100
             year, month = int(curr_key[:4]), int(curr_key[5:7])
             monthly_returns.append(
                 MonthlyReturn(year=year, month=month, return_rate=round(return_rate, 2))
