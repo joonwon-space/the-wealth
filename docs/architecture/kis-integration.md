@@ -59,6 +59,7 @@
 | `TTTC8434R` | 국내주식 잔고 조회 | 실전 |
 | `VTTC8434R` | 국내주식 잔고 조회 | 모의 |
 | `TTTS3012R` | 해외주식 잔고 조회 | 실전/모의 |
+| `CTRP6504R` | 해외주식 체결기준현재잔고 (USD 외화예수금 + 환율) | 실전 |
 | `TTTC8908R` | 국내 미체결 주문 조회 | 실전 |
 | `VTTC8908R` | 국내 미체결 주문 조회 | 모의 |
 | `TTTC8001R` | 국내 거래 내역 | 실전 |
@@ -66,7 +67,7 @@
 | `TTTC8036R` | 국내 당일 주문 내역 | 실전 |
 | `TTTS3035R` | 해외 거래 내역 | 실전 |
 
-출처: `kis_balance.py:64`, `kis_account.py:40,126`, `kis_order_query.py:77,146,256`, `kis_transaction.py:42,108`
+출처: `kis_balance.py:64,193,264`, `kis_account.py:40,126`, `kis_order_query.py:77,146,256`, `kis_transaction.py:42,108`
 
 ---
 

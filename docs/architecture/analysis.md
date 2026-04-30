@@ -358,7 +358,7 @@ backend/app/
 │   ├── kis_price.py           # 현재가/OHLCV 조회 (병렬); FX 함수는 kis_fx.py 위임 re-export
 │   ├── kis_fx.py              # USD/KRW 환율 조회·캐시·DB 스냅샷 (kis_price.py에서 분리)
 │   ├── kis_account.py         # KIS 잔고 조회
-│   ├── kis_balance.py         # KIS 예수금 조회 (국내 TTTC8434R + 해외 TTTS3012R)
+│   ├── kis_balance.py         # KIS 예수금 조회 (국내 TTTC8434R + 해외 TTTS3012R + 해외 외화예수금 CTRP6504R); OverseasPresentBalance dataclass
 │   ├── kis_order.py           # KIS 주문 thin re-export shim (→ kis_order_place/cancel/query)
 │   ├── kis_order_place.py     # 국내/해외 매수/매도 주문 실행
 │   ├── kis_order_cancel.py    # 주문 취소
@@ -437,9 +437,9 @@ async def fetch_prices_parallel(
 KIS API 호출 속도를 서버 측 토큰 버킷으로 제어하는 `kis_rate_limiter.py` 모듈과, HTTP 429 / `rt_cd=EGW00201` 수신 시 재시도하는 `kis_retry.py` 래퍼를 운영합니다.
 
 ```
-읽기 전용 KIS HTTP 호출 (9개 call site: kis_price 5, kis_balance 2, kis_account 2,
-                                        kis_benchmark 2, kis_order_query 3,
-                                        kis_transaction 2, price_snapshot 1)
+읽기 전용 KIS HTTP 호출 (10개 call site: kis_price 5, kis_balance 3, kis_account 2,
+                                         kis_benchmark 2, kis_order_query 3,
+                                         kis_transaction 2, price_snapshot 1)
   │
   ▼ kis_get() / kis_request()  ← kis_retry.py 래퍼 (429 감지 → 지터+재시도)
   │
@@ -469,13 +469,14 @@ KIS 토큰 발급 (/oauth2/tokenP) 전용 경로:
 | `KIS_HTTP_MAX_RETRIES` | `1` | 429/EGW00201 수신 시 재시도 횟수 |
 | `KIS_MOCK_MODE` | `false` | `true` 설정 시 레이트 리밋 비활성화 (로컬 개발/테스트용) |
 
-**Wrapped call sites (읽기 전용 — 9개)**:
+**Wrapped call sites (읽기 전용 — 10개)**:
 - `kis_price.fetch_domestic_price` — 국내주식 현재가 (TR FHKST01010100)
 - `kis_price.fetch_overseas_price` — 해외주식 현재가 (TR HHDFS00000300)
 - `kis_price.fetch_domestic_daily_ohlcv` — 국내주식 OHLCV (TR FHKST01010400)
 - `kis_price.fetch_overseas_price_detail` — 해외주식 상세 (TR HHDFS00000300 + HHDFS76200200 fallback)
 - `kis_price.fetch_fx_rate` — USD/KRW 환율 조회 (kis_fx.py 포함)
-- `kis_balance.fetch_balance` — 잔고 조회
+- `kis_balance.get_cash_balance` — 국내/해외 잔고 조회 (TR TTTC8434R / TTTS3012R)
+- `kis_balance.get_overseas_present_balance` — 해외 외화예수금/환율 (TR CTRP6504R)
 - `kis_account.fetch_account_info` — 계좌 정보 조회
 - `kis_benchmark.fetch_benchmark` — 벤치마크 지수 조회
 - `price_snapshot.fetch_domestic_price_detail` — 국내주식 상세 (TR FHKST01010100)
@@ -968,9 +969,11 @@ slowapi 기반 IP별 레이트 리미팅:
 | 보안 강화 (sprint-3) | 완료 | bcrypt DoS 방지(max_length=128), Sentry 자격증명 스크러빙, CSP 수정, tags 길이 제한 |
 | 성능 최적화 (sprint-3) | 완료 | Redis ConnectionPool 싱글턴, DISTINCT ON prev_close 쿼리, fx-gain-loss 캐시, SSE React Compiler 호환 |
 | 멀티 에이전트 개발 도구 | 완료 | team-implement (backend-worker + frontend-worker + infra-worker + implement-synthesizer) 병렬 구현 |
-| KIS API 레이트 리미터 (Sprint 14) | 완료 | 토큰 버킷 5/s, burst=15 (KIS 18/s 정책 반영); 9개 call site 래핑 (kis_retry.py); 토큰 발급 전용 1/s 리미터; KIS_MOCK_MODE 지원 |
+| KIS API 레이트 리미터 (Sprint 14) | 완료 | 토큰 버킷 5/s, burst=15 (KIS 18/s 정책 반영); 10개 call site 래핑 (kis_retry.py, CTRP6504R 포함); 토큰 발급 전용 1/s 리미터; KIS_MOCK_MODE 지원 |
 | KIS 네트워크 단절 복구 (Sprint 18) | 완료 | bulk failure 감지 → KIS_AVAILABLE=False 즉시 전환; 30초 interval kis_health_recheck 잡으로 자동 복구; KIS_HTTP_NETWORK_RETRY 설정; Sentry fingerprint="kis-unreachable" 그룹화 |
 | TASK-RD-1~9 (Sprint 18 RD) | 완료 | KIS 배당 수집 서비스(kis_dividend.py) + collect_dividends 스케줄러 잡(KST 18:00); 알림 pct_change/drawdown 서버 평가; benchmark-delta mine_pct portfolio-history 비율 기반 재계산; OrderDialogProvider 글로벌 이벤트 리스너; 포트폴리오 상세 AnalysisSection(히스토리 스파크라인+벤치마크 델타+FX 상위 5); 회원가입 성공 후 자동 로그인 + /onboarding 리다이렉트; 홈 1M 스파크라인 portfolio-history API 사용; design-preview 미들웨어 프로덕션 차단(ALLOW_DESIGN_PREVIEW=1 E2E 허용); E2E 스크린샷 테스트(design-preview 라이트+다크) |
+| USD 외화예수금 노출 (2026-04-30) | 완료 | CTRP6504R(해외주식 체결기준현재잔고) 신규 호출로 USD cash + 환율 조회; OverseasPresentBalance dataclass 추가; total_cash/available_cash에 USD→KRW 환산 포함; total_evaluation을 stocks-only로 변경(캐시 제외)하여 프론트 "총 자산" 이중합산 해소; foreign_cash(USD 원액) + usd_krw_rate 응답 필드 활성화 |
+| 월별 수익률 알고리즘 개선 (2026-04-30) | 완료 | analytics/monthly-returns: 월말 포트폴리오 합산 방식 → 티커별 가중평균 MoM 방식으로 변경; 보유종목 변경 시 발생하던 spurious -100% 수익률 제거 |
 | 브랜드 자산 / PWA 아이콘 (Sprint 18) | 완료 | BrandLogo 컴포넌트 (mark/lockup variant, CSS dark toggle); public/brand/ SVG 패키지; Next.js App Router 규약 favicon.ico + icon.svg + apple-icon.png; manifest theme_color #1574d2; scripts/build-icons.mjs |
 | KIS 토큰 중복 발급 방지 (Sprint 14) | 완료 | Redis asyncio.Lock 기반 동시 요청 직렬화 |
 | 예수금 수익률 재계산 (Sprint 14) | 완료 | profit_loss_rate를 KIS evlu_erng_rt 대신 합산 P&L 기준으로 재계산 |
@@ -1059,7 +1062,7 @@ CI 수정 사항:
 - Redis 장애 폴백: RedisCache 래퍼가 in-memory dict으로 자동 전환
 - KIS 주식 매매: 국내/해외 매수/매도 주문 실행 + 주문 취소 + 미체결 조회
 - 이중 주문 방지: Redis 락 (TTL 10초) + 레이트 리밋 (5회/분)
-- 예수금 조회: 국내+해외 합산 (TTTC8434R + 해외 잔고), Redis 캐시 30초
+- 예수금 조회: 국내 KRW (TTTC8434R) + 해외 USD cash (CTRP6504R 환산) 합산; total_evaluation은 주식 평가금액만 포함(현금 제외); Redis 캐시 30초
 - 계좌 유형별 TR_ID 분기: 일반/ISA/연금저축/IRP 자동 구분
 - 주문 다이얼로그: 지정가/시장가 전환, 빠른 비율 버튼(10%/25%/50%/100%), 확인 스텝
 - 미체결 주문 패널: 주문 취소 + 체결 감지 시 toast 알림
@@ -1133,7 +1136,7 @@ CI 수정 사항:
 - **[Sprint 13/TD-003]** HoldingsSection.tsx → HoldingsTableRow.tsx + useHoldingsInlineEdit.ts 분리
 - **[Sprint 13/TD-004]** scheduler.py → scheduler_market_jobs.py + scheduler_portfolio_jobs.py + scheduler_ops_jobs.py 분리 (scheduler.py thin orchestrator 유지)
 - **[Sprint 13/TD-007]** kis_price.py → kis_fx.py FX 로직 분리 (USD/KRW 환율 조회·캐시·DB 스냅샷; kis_price.py re-export shim 유지)
-- **[Sprint 14/RL-001~RL-008]** KIS API 토큰 버킷 레이트 리미터 추가: kis_rate_limiter.py (5/s, burst=20→15), 9개 KIS HTTP call site 래핑, KIS_RATE_LIMIT_PER_SEC / KIS_RATE_LIMIT_BURST / KIS_MOCK_MODE 환경변수 지원
+- **[Sprint 14/RL-001~RL-008]** KIS API 토큰 버킷 레이트 리미터 추가: kis_rate_limiter.py (5/s, burst=20→15), 10개 KIS HTTP call site 래핑 (CTRP6504R 포함), KIS_RATE_LIMIT_PER_SEC / KIS_RATE_LIMIT_BURST / KIS_MOCK_MODE 환경변수 지원
 - **[Sprint 14+]** KIS 정책 준수 강화: KIS_RATE_LIMIT_BURST 기본값 20→15 (KIS 18/s 정책), kis_retry.py 추가 (HTTP 429 + rt_cd=EGW00201 감지, 지터 후 1회 재시도), 토큰 발급 전용 1/s 리미터 acquire_token_issuance(), KIS_TOKEN_RATE_LIMIT_PER_SEC / KIS_TOKEN_RATE_LIMIT_BURST / KIS_HTTP_MAX_RETRIES 환경변수 추가
 - **[Sprint 14+]** GET /portfolios/with-prices 엔드포인트 추가: 포트폴리오 목록 화면에서 포트폴리오별 시가총액/P&L 금액/P&L 비율 표시 (KRW 환산, 한국 컬러 컨벤션 적용)
 - **[Sprint 17/MB-P1~P5]** PWA 앱화: manifest/viewport, Service Worker 오프라인 캐시, A2HS 설치 배너, 모바일 터치 UX (pull-to-refresh 의도적 트리거), Web Push VAPID 알림
@@ -1144,6 +1147,8 @@ CI 수정 사항:
 - **[Sprint 14]** KIS 토큰 중복 발급 방지: Redis asyncio.Lock 기반 동시 요청 직렬화 (b277160)
 - **[Sprint 14]** KIS 계좌 미연결 포트폴리오 가격 조회 수정: reconcile_holdings 시 KIS 계좌 없는 포트폴리오도 처리 (73d448c)
 - **[Sprint 14]** 예수금 profit_loss_rate 재계산 수정: KIS evlu_erng_rt 대신 합산된 total_profit_loss / invested_stock_amount 기준으로 재계산 (해외 손익 미반영 문제 해결) (38c63b8)
+- **[2026-04-30]** USD 외화예수금 정확도: CTRP6504R 호출로 해외 USD cash 직접 노출; total_evaluation stocks-only로 변경하여 프론트엔드 총 자산 이중합산 해소
+- **[2026-04-30]** 월별 수익률 정확도: 티커 가중 MoM 방식으로 spurious -100% 수익률 제거
 - **[Sprint 14]** 수익률 표시 개선: 0.01% 미만 소수점 손익 표시 수정 (6d04922), KIS 평가손익 카드 formatRate 적용 (2c5d69d)
 - **[Sprint 14]** frankfurter FX API URL 업데이트 (신 도메인으로 전환) (eb96796)
 - **[Sprint 14]** 의존성 보안 패치: python-multipart 0.0.22→0.0.26 (CVE-2026-40347), pytest 8.4.2→9.0.3 (CVE-2025-71176), cryptography 46.0.6→46.0.7 (CVE-2026-39892)

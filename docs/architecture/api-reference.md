@@ -259,7 +259,8 @@ Rate-limited endpoints for brute force protection.
 ### GET /analytics/monthly-returns
 - **Auth**: Required
 - **Query params**: `since: string (YYYY-MM-DD)` (optional; default: today - 365 days). Use to extend the lookback window beyond one year.
-- **Response** (200): `MonthlyReturn[]` -- monthly return percentages from price snapshots
+- **Response** (200): `MonthlyReturn[]` -- monthly return percentages
+- **Algorithm**: Ticker-weighted month-over-month return. For each calendar month, computes each holding's MoM return (`close_this_month / close_prev_month - 1`) and weights it by that ticker's share of total invested capital (`quantity * avg_price`) across the user's holdings. This avoids spurious -100% months that occurred under the previous "month-end portfolio sum" approach when holdings changed mid-month.
 
 ### GET /analytics/portfolio-history
 - **Auth**: Required
@@ -404,7 +405,7 @@ Rate-limited endpoints for brute force protection.
 ### GET /portfolios/{portfolio_id}/cash-balance
 - **Auth**: Required (ownership verified)
 - **Response** (200): `CashBalanceResponse` -- `{ total_cash, available_cash, total_evaluation, total_profit_loss, profit_loss_rate, currency, foreign_cash?, usd_krw_rate? }`
-- **Notes**: Combines domestic balance (TTTC8434R) with overseas holdings evaluation (converted to KRW). When overseas holdings have `frcr_evlu_pfls_amt == 0`, falls back to `sum(quantity * avg_price)`. `profit_loss_rate` is recomputed from the aggregated `total_profit_loss / invested_stock_amount` (where `invested_stock_amount = stock_evaluation - total_profit_loss`) rather than relying on KIS `evlu_erng_rt`, which does not reflect overseas P&L and can be zero. Result cached in Redis for 30 seconds.
+- **Notes**: Combines domestic KRW cash (TTTC8434R) with USD foreign cash from overseas account (CTRP6504R — 해외주식 체결기준현재잔고). `total_cash` and `available_cash` include USD cash converted to KRW at the current exchange rate from CTRP6504R, so they represent the user's full cross-currency cash buying power. `total_evaluation` is **stocks-only** (does not include cash); this avoids double-counting when the frontend adds cash and evaluation to compute "총 자산". `foreign_cash` (raw USD amount) and `usd_krw_rate` are populated when overseas holdings exist; both are `null` when the portfolio has no overseas holdings or CTRP6504R is unavailable. `profit_loss_rate` is recomputed from the aggregated `total_profit_loss / invested_stock_amount` (where `invested_stock_amount = stock_evaluation - total_profit_loss`) rather than relying on KIS `evlu_erng_rt`, which does not reflect overseas P&L and can be zero. Result cached in Redis for 30 seconds.
 
 ---
 
