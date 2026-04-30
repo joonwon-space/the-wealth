@@ -34,7 +34,11 @@ from app.schemas.order import (
     PendingOrderResponse,
 )
 from app.services.kis_account import fetch_overseas_account_holdings
-from app.services.kis_balance import CashBalance, get_cash_balance
+from app.services.kis_balance import (
+    CashBalance,
+    get_cash_balance,
+    get_overseas_present_balance,
+)
 from app.services.kis_price import get_exchange_rate
 from app.services.kis_order import (
     cancel_order,
@@ -467,14 +471,40 @@ async def get_portfolio_cash_balance(
             # domestic.total_evaluation = deposit + domestic_stock_eval
             dom_stock_eval = domestic.total_evaluation - domestic.total_cash
             combined_stock_eval = dom_stock_eval + ovrs_eval_krw
+
+            # Fetch USD cash via CTRP6504R. Failure is non-fatal — fall back to
+            # KRW-only display so a flaky present-balance call doesn't 502 the
+            # whole endpoint.
+            usd_cash = Decimal("0")
+            usd_rate = rate
+            try:
+                ovrs_present = await get_overseas_present_balance(
+                    app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
+                )
+                usd_cash = ovrs_present.usd_cash
+                if ovrs_present.usd_krw_rate > 0:
+                    usd_rate = ovrs_present.usd_krw_rate
+            except RuntimeError as e:
+                logger.warning(
+                    "Falling back to KRW-only cash for portfolio %d: %s",
+                    portfolio_id, e,
+                )
+
+            usd_cash_krw = Decimal(int(usd_cash * usd_rate))
+
             balance = CashBalance(
-                total_cash=domestic.total_cash,
-                available_cash=domestic.available_cash,
-                total_evaluation=domestic.total_cash + combined_stock_eval,
+                # total_cash now includes USD cash converted to KRW so it
+                # represents the user's full cash buying power.
+                total_cash=domestic.total_cash + usd_cash_krw,
+                available_cash=domestic.available_cash + usd_cash_krw,
+                total_evaluation=(
+                    domestic.total_cash + usd_cash_krw + combined_stock_eval
+                ),
                 total_profit_loss=domestic.total_profit_loss + ovrs_pnl_krw,
                 profit_loss_rate=domestic.profit_loss_rate,
                 currency="KRW",
-                usd_krw_rate=rate,
+                foreign_cash=usd_cash if usd_cash > 0 else None,
+                usd_krw_rate=usd_rate,
             )
         else:
             balance = domestic
