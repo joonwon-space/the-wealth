@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { QueryProvider } from "@/components/QueryProvider";
 import { SentryInit } from "@/components/SentryInit";
 import { Toaster } from "@/components/ui/sonner";
+import { InstallPromptModal } from "@/components/InstallPromptModal";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -78,6 +79,7 @@ export default async function RootLayout({
           <ThemeProvider nonce={nonce}>
             <SentryInit />
             {children}
+            <InstallPromptModal />
             <Toaster richColors position="top-right" />
           </ThemeProvider>
         </QueryProvider>
