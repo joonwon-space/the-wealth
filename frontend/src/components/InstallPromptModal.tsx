@@ -63,8 +63,7 @@ export function InstallPromptModal() {
     <>
       <div
         className="fixed inset-0 z-50 bg-black/50 md:hidden animate-in fade-in duration-200"
-        onClick={dismiss}
-        aria-hidden
+        aria-hidden="true"
       />
       <div
         role="dialog"
