@@ -1,5 +1,6 @@
 """KIS price 서비스 단위 테스트 — Redis 캐시 폴백 로직."""
 
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,6 +12,12 @@ from app.services.kis_price import (
     fetch_domestic_price,
     fetch_prices_parallel,
 )
+
+
+@asynccontextmanager
+async def _noop_call_slot(*args, **kwargs):
+    """Replacement for kis_call_slot in tests — bypasses rate limiter + concurrency cap."""
+    yield
 
 
 @pytest.mark.unit
@@ -113,11 +120,11 @@ class TestFetchPricesParallel:
 class TestFetchDomesticPriceErrorClassification:
     """TASK-KIS-OUT-4 / TASK-KIS-OUT-9: 네트워크 오류 분류 및 anyio 회귀."""
 
-    @patch("app.services.kis_price._rate_limit_acquire", new_callable=AsyncMock)
+    @patch("app.services.kis_price.kis_call_slot", new=_noop_call_slot)
     @patch("app.services.kis_price._get_headers", new_callable=AsyncMock)
     @patch("app.services.kis_price.kis_get", new_callable=AsyncMock)
     async def test_anyio_empty_oserrors_returns_none(
-        self, mock_kis_get, mock_headers, mock_acquire
+        self, mock_kis_get, mock_headers
     ) -> None:
         """anyio empty oserrors 버그 재현: ValueError 던져도 None 반환 + 예외 전파 없음.
 
@@ -137,11 +144,11 @@ class TestFetchDomesticPriceErrorClassification:
 
         assert result is None
 
-    @patch("app.services.kis_price._rate_limit_acquire", new_callable=AsyncMock)
+    @patch("app.services.kis_price.kis_call_slot", new=_noop_call_slot)
     @patch("app.services.kis_price._get_headers", new_callable=AsyncMock)
     @patch("app.services.kis_price.kis_get", new_callable=AsyncMock)
     async def test_connect_error_returns_none(
-        self, mock_kis_get, mock_headers, mock_acquire
+        self, mock_kis_get, mock_headers
     ) -> None:
         """httpx.ConnectError 발생 시 None 반환."""
         import httpx
@@ -154,11 +161,11 @@ class TestFetchDomesticPriceErrorClassification:
 
         assert result is None
 
-    @patch("app.services.kis_price._rate_limit_acquire", new_callable=AsyncMock)
+    @patch("app.services.kis_price.kis_call_slot", new=_noop_call_slot)
     @patch("app.services.kis_price._get_headers", new_callable=AsyncMock)
     @patch("app.services.kis_price.kis_get", new_callable=AsyncMock)
     async def test_timeout_error_returns_none(
-        self, mock_kis_get, mock_headers, mock_acquire
+        self, mock_kis_get, mock_headers
     ) -> None:
         """httpx.TimeoutException 발생 시 None 반환."""
         import httpx
