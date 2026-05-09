@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.redis_cache import RedisCache
 from app.services.kis_health import get_kis_availability, set_kis_availability
-from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_rate_limiter import kis_call_slot
 from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
@@ -105,7 +105,6 @@ async def fetch_domestic_price(
     ticker: str, app_key: str, app_secret: str, client: httpx.AsyncClient
 ) -> Optional[Decimal]:
     """국내주식 현재가 조회 (FHKST01010100)."""
-    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     headers["tr_id"] = "FHKST01010100"
     params = {
@@ -113,12 +112,13 @@ async def fetch_domestic_price(
         "fid_input_iscd": ticker,
     }
     try:
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         data = resp.json()
         price_str: str = data.get("output", {}).get("stck_prpr", "0")
@@ -141,7 +141,6 @@ async def fetch_overseas_price(
     ticker: str, market: str, app_key: str, app_secret: str, client: httpx.AsyncClient
 ) -> Optional[Decimal]:
     """해외주식 현재가 조회 (HHDFS00000300)."""
-    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     headers["tr_id"] = "HHDFS00000300"
     params = {
@@ -150,12 +149,13 @@ async def fetch_overseas_price(
         "SYMB": ticker,
     }
     try:
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         data = resp.json()
         price_str: str = data.get("output", {}).get("last", "0") or "0"
@@ -202,7 +202,6 @@ async def fetch_domestic_daily_ohlcv(
     Returns dict with open, high, low, close, volume or None on failure.
     target_date: YYYYMMDD format. If None, uses latest available.
     """
-    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     headers["tr_id"] = "FHKST01010400"
     from datetime import date as date_type, timedelta
@@ -223,12 +222,13 @@ async def fetch_domestic_daily_ohlcv(
         "fid_org_adj_prc": "0",
     }
     try:
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         output_list = resp.json().get("output2", [])
         if not output_list:
@@ -272,7 +272,6 @@ async def fetch_overseas_daily_ohlcv(
     Returns dict with open, high, low, close, volume or None on failure.
     target_date: YYYYMMDD format. If None, uses latest available.
     """
-    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     headers["tr_id"] = "HHDFS76240000"
 
@@ -289,12 +288,13 @@ async def fetch_overseas_daily_ohlcv(
         "MODP": "0",
     }
     try:
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/dailyprice",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/dailyprice",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         output_list = resp.json().get("output2", [])
         if not output_list:
@@ -403,7 +403,6 @@ async def fetch_overseas_price_detail(
     2차: last == "0" 시 base(전일 종가) fallback
     3차: 52주 고/저 없으면 HHDFS76200200 (price-detail) fallback
     """
-    await _rate_limit_acquire()
     headers = await _get_headers(app_key, app_secret)
     params = {
         "AUTH": "",
@@ -411,12 +410,13 @@ async def fetch_overseas_price_detail(
         "SYMB": ticker,
     }
     try:
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
-            headers={**headers, "tr_id": "HHDFS00000300"},
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
+                headers={**headers, "tr_id": "HHDFS00000300"},
+                params=params,
+            )
         resp.raise_for_status()
         output = resp.json().get("output", {})
 
@@ -435,13 +435,13 @@ async def fetch_overseas_price_detail(
         # 52주 고/저 없으면 HHDFS76200200 fallback
         if not w52_high_str or w52_high_str == "0":
             try:
-                await _rate_limit_acquire()
-                detail_resp = await kis_get(
-                    client,
-                    f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
-                    headers={**headers, "tr_id": "HHDFS76200200"},
-                    params=params,
-                )
+                async with kis_call_slot():
+                    detail_resp = await kis_get(
+                        client,
+                        f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
+                        headers={**headers, "tr_id": "HHDFS76200200"},
+                        params=params,
+                    )
                 detail_resp.raise_for_status()
                 detail_out = detail_resp.json().get("output", {})
                 w52_high_str = (

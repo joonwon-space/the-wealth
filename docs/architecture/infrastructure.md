@@ -494,12 +494,13 @@ Docker Compose 헬스체크:
 | `R2_ACCESS_KEY_ID` | - | R2 액세스 키 | |
 | `R2_SECRET_ACCESS_KEY` | - | R2 시크릿 키 | |
 | `KIS_RATE_LIMIT_PER_SEC` | - | KIS API 토큰 버킷 보충 속도 (기본: 5.0 req/s) | `5.0` |
-| `KIS_RATE_LIMIT_BURST` | - | KIS API 버스트 최대 크기 (기본: 15 토큰, KIS 18/s 정책 반영) | `15` |
+| `KIS_RATE_LIMIT_BURST` | - | KIS API 버스트 최대 크기 (기본: 12 토큰, KIS 18/s 정책 + 1초 윈도우 마진 반영) | `12` |
+| `KIS_MAX_CONCURRENCY` | - | KIS API 동시 in-flight 요청 최대 개수 (기본: 6) | `6` |
 | `KIS_TOKEN_RATE_LIMIT_PER_SEC` | - | KIS 토큰 발급 전용 레이트 리밋 속도 (기본: 1.0 req/s) | `1.0` |
 | `KIS_TOKEN_RATE_LIMIT_BURST` | - | KIS 토큰 발급 버스트 크기 (기본: 1 토큰) | `1` |
 | `KIS_HTTP_MAX_RETRIES` | - | KIS HTTP 429/EGW00201 수신 시 재시도 횟수 (기본: 1) | `1` |
 | `KIS_HTTP_NETWORK_RETRY` | - | KIS 네트워크 단절(ConnectError/TimeoutException) 시 재시도 횟수 (기본: 1) | `1` |
-| `KIS_MOCK_MODE` | - | `true` 설정 시 KIS 레이트 리밋 비활성화 (로컬 개발/테스트용) | `false` |
+| `KIS_MOCK_MODE` | - | `true` 설정 시 KIS 레이트 리밋 + 동시성 캡 비활성화 (로컬 개발/테스트용) | `false` |
 
 > KIS App Key/Secret은 환경변수가 아닌 `kis_accounts` 테이블에 AES-256-GCM 암호화하여 저장됩니다.
 

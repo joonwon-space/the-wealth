@@ -16,6 +16,7 @@ from app.services.kis_rate_limiter import (
     _token_limiter,
     acquire,
     acquire_token_issuance,
+    kis_call_slot,
 )
 
 
@@ -282,3 +283,134 @@ class TestTokenIssuanceLimiter:
                 mock_sleep.assert_awaited_once()
                 wait = mock_sleep.call_args.args[0]
                 assert wait > 0.5  # should be ~1s
+
+
+# ---------------------------------------------------------------------------
+# RL-009 — Staircase fix: concurrent waiters must get *staggered* wait times,
+# not all the same wait. This prevents a second-burst pattern after the first.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestStaircaseFix:
+    """When N callers > burst arrive concurrently, post-burst callers should
+    receive linearly-increasing wait times (1/rate apart), not identical waits."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_waiters_get_staggered_waits(self) -> None:
+        """22 concurrent acquire() calls with burst=15, rate=5/s.
+
+        Expected: calls 0–14 fire immediately. Calls 15–21 fire at
+        200ms / 400ms / 600ms / ... — each 1/rate apart.
+        """
+        rate = 5.0
+        burst = 15
+        n = 22
+        limiter = KisRateLimiter(rate=rate, burst=burst)
+
+        async def acq() -> float:
+            t0 = time.monotonic()
+            await limiter.acquire()
+            return time.monotonic() - t0
+
+        latencies = sorted(
+            await asyncio.gather(*[acq() for _ in range(n)])
+        )
+
+        # First `burst` should be ~0
+        for i in range(burst):
+            assert latencies[i] < 0.05, f"call#{i} should be immediate, got {latencies[i]:.3f}s"
+
+        # Remaining (n - burst) should be staggered by 1/rate intervals
+        step = 1.0 / rate
+        for i in range(burst, n):
+            expected = (i - burst + 1) * step
+            actual = latencies[i]
+            # Allow generous tolerance for asyncio scheduling overhead
+            assert abs(actual - expected) < 0.05, (
+                f"call#{i} expected ~{expected:.3f}s, got {actual:.3f}s"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Concurrency cap — kis_call_slot() bounds in-flight HTTP requests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestKisCallSlot:
+    """kis_call_slot() must hold the concurrency semaphore for the duration of
+    the with-block, releasing it on exit (including exception)."""
+
+    @pytest.mark.asyncio
+    async def test_call_slot_immediate_acquire_when_idle(self) -> None:
+        """Idle limiter + idle semaphore → kis_call_slot enters immediately."""
+        t0 = time.monotonic()
+        async with kis_call_slot():
+            elapsed = time.monotonic() - t0
+        assert elapsed < 0.05
+
+    @pytest.mark.asyncio
+    async def test_call_slot_caps_concurrent_in_flight(self) -> None:
+        """N+1 workers each holding the slot for D seconds must take ~2D total
+        when concurrency cap = N."""
+        # Patch the module-level semaphore to a known small size for this test
+        from app.services import kis_rate_limiter as rl_mod
+
+        cap = 3
+        original_sem = rl_mod._concurrency_sem
+        rl_mod._concurrency_sem = asyncio.Semaphore(cap)
+
+        try:
+            hold = 0.05  # 50ms simulated in-flight
+            workers = cap + 2  # 5 workers, cap=3 → 2 waves
+
+            async def worker() -> None:
+                async with kis_call_slot():
+                    await asyncio.sleep(hold)
+
+            t0 = time.monotonic()
+            await asyncio.gather(*[worker() for _ in range(workers)])
+            elapsed = time.monotonic() - t0
+
+            # 5 workers / cap 3 = ceil(5/3) = 2 waves × 50ms = 100ms
+            assert 0.09 < elapsed < 0.18, (
+                f"expected ~100ms (2 waves × {int(hold * 1000)}ms), got {elapsed * 1000:.0f}ms"
+            )
+        finally:
+            rl_mod._concurrency_sem = original_sem
+
+    @pytest.mark.asyncio
+    async def test_call_slot_releases_on_exception(self) -> None:
+        """Slot must be released even when the with-body raises."""
+        from app.services import kis_rate_limiter as rl_mod
+
+        # Tiny semaphore so we'd quickly notice a leaked slot
+        original_sem = rl_mod._concurrency_sem
+        rl_mod._concurrency_sem = asyncio.Semaphore(1)
+
+        try:
+            with pytest.raises(RuntimeError, match="boom"):
+                async with kis_call_slot():
+                    raise RuntimeError("boom")
+
+            # If the slot leaked, this would block forever — guard with timeout.
+            async with asyncio.timeout(0.5):
+                async with kis_call_slot():
+                    pass
+        finally:
+            rl_mod._concurrency_sem = original_sem
+
+    @pytest.mark.asyncio
+    async def test_call_slot_mock_mode_bypasses_both(self) -> None:
+        """In mock mode, kis_call_slot should not block on rate or concurrency."""
+        with patch("app.services.kis_rate_limiter.settings.KIS_MOCK_MODE", True):
+            t0 = time.monotonic()
+            # Burst many slots simultaneously — should all complete instantly
+            async def w() -> None:
+                async with kis_call_slot():
+                    pass
+
+            await asyncio.gather(*[w() for _ in range(50)])
+            elapsed = time.monotonic() - t0
+            assert elapsed < 0.1, f"mock mode should not block, took {elapsed:.3f}s"

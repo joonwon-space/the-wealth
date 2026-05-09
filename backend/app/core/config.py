@@ -43,12 +43,16 @@ class Settings(BaseSettings):
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET: str = ""
 
-    # KIS API rate limiting (token bucket).
+    # KIS API rate limiting (token bucket + concurrency cap).
     # Policy (실전투자): 1초당 18건 per account; /oauth2/tokenP 1초당 1건.
-    # BURST kept below the per-second cap so an idle-bucket cold start cannot
-    # exceed 18 requests in any 1-second window.
+    # BURST + (PER_SEC × 1s) must stay ≤ 18 within any 1-second sliding window.
     KIS_RATE_LIMIT_PER_SEC: float = 5.0
-    KIS_RATE_LIMIT_BURST: int = 15
+    KIS_RATE_LIMIT_BURST: int = 12
+    # Max in-flight KIS HTTP requests at any time (independent of req/sec).
+    # Prevents a flat-burst from opening dozens of concurrent TCP connections,
+    # which can trigger KIS connection-level rejection (ConnectTimeout) even
+    # when the per-second rate is within policy.
+    KIS_MAX_CONCURRENCY: int = 6
     # /oauth2/tokenP dedicated limiter (1/s policy).
     KIS_TOKEN_RATE_LIMIT_PER_SEC: float = 1.0
     KIS_TOKEN_RATE_LIMIT_BURST: int = 1
