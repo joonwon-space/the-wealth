@@ -127,11 +127,15 @@ async def _get_domestic_balance(
         evlu_erng_rt = Decimal(str(output2.get("evlu_erng_rt", "0")))
 
         # 실질 잔액 계산 (우선순위):
-        # 1) nxdy_excc_amt < dnca_tot_amt → KIS가 직접 반영한 익일 정산금액 사용
-        # 2) thdt_buy_amt > 0 → 연금저축 등 nxdy_excc_amt 미반영 계좌: 직접 계산
-        # 3) 그 외 → dnca_tot_amt 그대로
+        # 1) 0 < nxdy < dnca → KIS가 오늘 매수를 이미 반영한 익일 정산금액 사용
+        # 2) nxdy >= dnca > 0 → 내일 정산 입금(매도 수익 등)이 더 많은 경우.
+        #    nxdy 는 입금 예정을 포함하지만 오늘 매수는 미반영 → 수동 차감.
+        # 3) nxdy = 0, thdt_buy > 0 → 연금저축 등 nxdy 미반영 계좌: 직접 계산
+        # 4) 그 외 → dnca_tot_amt 그대로
         if Decimal("0") < nxdy_excc_amt < dnca_tot_amt:
             effective_cash = nxdy_excc_amt
+        elif nxdy_excc_amt >= dnca_tot_amt and nxdy_excc_amt > Decimal("0"):
+            effective_cash = nxdy_excc_amt - thdt_buy_amt + thdt_sll_amt
         elif thdt_buy_amt > Decimal("0"):
             effective_cash = dnca_tot_amt - thdt_buy_amt + thdt_sll_amt
         else:
