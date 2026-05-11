@@ -4,16 +4,13 @@ import { forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
 
 export interface AreaChartPoint {
-  /** 0..1 정규화 값. 절대치는 caller가 미리 normalize. */
   v: number;
-  /** 옵션 레이블 (tooltip 훗날 연결용) */
   label?: string;
 }
 
 export interface AreaChartProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   data: AreaChartPoint[] | number[];
-  /** true면 --rise, false면 --fall. 미지정 시 마지막 값으로 자동 판별. */
   up?: boolean;
   width?: number;
   height?: number;
@@ -32,11 +29,29 @@ function normalize(raw: AreaChartProps["data"]): number[] {
   return nums.map((n) => (n - min) / (max - min));
 }
 
-/**
- * 간단한 SVG 기반 area + line chart. redesign.html 의 primitives.jsx 버전을
- * React 19 + Tailwind v4 토큰으로 이식. 0..1 정규화 값 배열 또는 `{v}` 객체
- * 배열을 받고, 저-고 기준으로 캔버스에 맞게 스케일.
- */
+/** Catmull-Rom → cubic bezier 변환으로 부드러운 곡선 생성. */
+function smoothPath(xs: number[], ys: number[], tension = 0.4): string {
+  const n = xs.length;
+  if (n === 0) return "";
+  if (n === 1) return `M${xs[0]},${ys[0]}`;
+
+  let d = `M${xs[0].toFixed(2)},${ys[0].toFixed(2)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = [xs[Math.max(0, i - 1)], ys[Math.max(0, i - 1)]];
+    const p1 = [xs[i], ys[i]];
+    const p2 = [xs[i + 1], ys[i + 1]];
+    const p3 = [xs[Math.min(n - 1, i + 2)], ys[Math.min(n - 1, i + 2)]];
+
+    const cp1x = p1[0] + (p2[0] - p0[0]) * tension;
+    const cp1y = p1[1] + (p2[1] - p0[1]) * tension;
+    const cp2x = p2[0] - (p3[0] - p1[0]) * tension;
+    const cp2y = p2[1] - (p3[1] - p1[1]) * tension;
+
+    d += ` C${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  return d;
+}
+
 export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
   (
     {
@@ -46,15 +61,17 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
       height = 120,
       showGrid = true,
       showDot = true,
-      padTop = 12,
-      padBottom = 8,
+      padTop = 16,
+      padBottom = 4,
       className,
       ...props
     },
     ref,
   ) => {
     const normalized = normalize(data);
-    const gradientId = useId();
+    const gradId = useId();
+    const glowId = useId();
+
     if (normalized.length === 0) {
       return (
         <div
@@ -78,13 +95,15 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
     const color = direction ? "var(--rise)" : "var(--fall)";
 
     const n = normalized.length;
-    const sx = (i: number) => (i / Math.max(1, n - 1)) * width;
+    const xs = normalized.map((_, i) => (i / Math.max(1, n - 1)) * width);
     const sy = (v: number) => padTop + (1 - v) * (height - padTop - padBottom);
-    const path = normalized
-      .map((v, i) => (i === 0 ? "M" : "L") + sx(i).toFixed(1) + "," + sy(v).toFixed(1))
-      .join(" ");
-    const area = `${path} L${width},${height} L0,${height} Z`;
-    const lastY = sy(normalized[n - 1]!);
+    const ys = normalized.map(sy);
+
+    const linePath = smoothPath(xs, ys);
+    const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
+
+    const lastX = xs[n - 1]!;
+    const lastY = ys[n - 1]!;
 
     return (
       <div
@@ -101,11 +120,23 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
           preserveAspectRatio="none"
         >
           <defs>
-            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stopColor={color} stopOpacity="0.28" />
-              <stop offset="1" stopColor={color} stopOpacity="0" />
+            {/* 면 그라디언트 — 위쪽만 살짝 착색 */}
+            <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+              <stop offset="60%" stopColor={color} stopOpacity="0.04" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
             </linearGradient>
+            {/* 끝점 글로우 필터 */}
+            <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
+
+          {/* 그리드 */}
           {showGrid &&
             [0.25, 0.5, 0.75].map((f) => {
               const y = padTop + f * (height - padTop - padBottom);
@@ -117,17 +148,44 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
                   y1={y}
                   y2={y}
                   stroke="var(--border)"
-                  strokeDasharray="2 4"
-                  strokeWidth={1}
+                  strokeOpacity="0.4"
+                  strokeDasharray="3 6"
+                  strokeWidth={0.75}
                 />
               );
             })}
-          <path d={area} fill={`url(#${gradientId})`} />
-          <path d={path} fill="none" stroke={color} strokeWidth={2} />
+
+          {/* 면 채우기 */}
+          <path d={areaPath} fill={`url(#${gradId})`} />
+
+          {/* 라인 */}
+          <path
+            d={linePath}
+            fill="none"
+            stroke={color}
+            strokeWidth={1.75}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* 끝점 도트 */}
           {showDot && (
             <>
-              <circle cx={width - 2} cy={lastY} r={8} fill={color} opacity={0.25} />
-              <circle cx={width - 2} cy={lastY} r={3.5} fill={color} />
+              <circle
+                cx={lastX}
+                cy={lastY}
+                r={10}
+                fill={color}
+                opacity={0.12}
+              />
+              <circle
+                cx={lastX}
+                cy={lastY}
+                r={4}
+                fill={color}
+                filter={`url(#${glowId})`}
+              />
+              <circle cx={lastX} cy={lastY} r={2.5} fill="white" opacity={0.9} />
             </>
           )}
         </svg>
