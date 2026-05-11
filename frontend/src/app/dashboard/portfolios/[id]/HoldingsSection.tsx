@@ -93,6 +93,7 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
 
   const summary = useMemo(() => {
     let investedKrw = 0;
+    let pricedInvestedKrw = 0;
     let marketValueKrw = 0;
     let pnlKrw = 0;
     let hasPrices = false;
@@ -100,16 +101,18 @@ export function HoldingsSection({ portfolioId, isKisConnected }: HoldingsSection
       const qty = Number(h.quantity);
       const avg = Number(h.avg_price);
       const fx = h.currency === "USD" ? Number(h.exchange_rate ?? 0) || 1 : 1;
-      investedKrw += qty * avg * fx;
+      const invested = qty * avg * fx;
+      investedKrw += invested;
       if (h.market_value_krw != null) {
         marketValueKrw += Number(h.market_value_krw);
         hasPrices = true;
       }
       if (h.pnl_amount != null) {
+        pricedInvestedKrw += invested;
         pnlKrw += Number(h.pnl_amount);
       }
     }
-    const pnlRate = investedKrw > 0 ? (pnlKrw / investedKrw) * 100 : 0;
+    const pnlRate = pricedInvestedKrw > 0 ? (pnlKrw / pricedInvestedKrw) * 100 : 0;
     return { investedKrw, marketValueKrw, pnlKrw, pnlRate, hasPrices };
   }, [holdings]);
 

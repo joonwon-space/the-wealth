@@ -223,16 +223,14 @@ async def list_portfolios_with_prices(
                 cp = prices.get(h.ticker)
                 is_os = not is_domestic(h.ticker)
                 h_invested = h.quantity * h.avg_price
-                if is_os:
-                    inv_total += h_invested * exchange_rate
-                    if cp is not None:
+                if cp is not None:
+                    has_prices = True
+                    if is_os:
+                        inv_total += h_invested * exchange_rate
                         mv_total += h.quantity * cp * exchange_rate
-                        has_prices = True
-                else:
-                    inv_total += h_invested
-                    if cp is not None:
+                    else:
+                        inv_total += h_invested
                         mv_total += h.quantity * cp
-                        has_prices = True
 
             if has_prices and inv_total > 0:
                 market_value_krw = mv_total
