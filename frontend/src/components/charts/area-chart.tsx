@@ -88,15 +88,12 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
       showDot = true,
       showXAxis = false,
       padTop = 16,
-      padBottom,
+      padBottom = 4,
       className,
       ...props
     },
     ref,
   ) => {
-    const X_AXIS_H = 20; // x축 레이블 영역 높이
-    const effectivePadBottom = padBottom ?? (showXAxis ? X_AXIS_H + 4 : 4);
-
     const normalized = normalize(data);
     const labels = getLabels(data);
     const gradId = useId();
@@ -127,110 +124,108 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
     const n = normalized.length;
     const xs = normalized.map((_, i) => (i / Math.max(1, n - 1)) * width);
     const sy = (v: number) =>
-      padTop + (1 - v) * (height - padTop - effectivePadBottom);
+      padTop + (1 - v) * (height - padTop - padBottom);
     const ys = normalized.map(sy);
 
     const linePath = smoothPath(xs, ys);
-    const chartBottom = height - (showXAxis ? X_AXIS_H : 0);
-    const areaPath = `${linePath} L${width},${chartBottom} L0,${chartBottom} Z`;
-
+    const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
     const lastX = xs[n - 1]!;
     const lastY = ys[n - 1]!;
 
+    // x축 틱: % 기반 left 값으로 HTML에 렌더링
     const ticks = showXAxis ? pickTicks(n) : [];
 
     return (
-      <div
-        ref={ref}
-        className={cn("w-full", className)}
-        role="img"
-        aria-label="시계열 차트"
-        {...props}
-      >
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          width="100%"
-          height={height}
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-              <stop offset="60%" stopColor={color} stopOpacity="0.04" />
-              <stop offset="100%" stopColor={color} stopOpacity="0" />
-            </linearGradient>
-            <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+      <div ref={ref} className={cn("w-full", className)} {...props}>
+        {/* SVG 차트 — preserveAspectRatio="none" 이라 텍스트는 여기에 넣지 않음 */}
+        <div role="img" aria-label="시계열 차트">
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            width="100%"
+            height={height}
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+                <stop offset="60%" stopColor={color} stopOpacity="0.04" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+              <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
 
-          {/* 그리드 */}
-          {showGrid &&
-            [0.25, 0.5, 0.75].map((f) => {
-              const y = padTop + f * (height - padTop - effectivePadBottom);
+            {showGrid &&
+              [0.25, 0.5, 0.75].map((f) => {
+                const y = padTop + f * (height - padTop - padBottom);
+                return (
+                  <line
+                    key={f}
+                    x1="0"
+                    x2={width}
+                    y1={y}
+                    y2={y}
+                    stroke="var(--border)"
+                    strokeOpacity="0.4"
+                    strokeDasharray="3 6"
+                    strokeWidth={0.75}
+                  />
+                );
+              })}
+
+            <path d={areaPath} fill={`url(#${gradId})`} />
+            <path
+              d={linePath}
+              fill="none"
+              stroke={color}
+              strokeWidth={1.75}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {showDot && (
+              <>
+                <circle cx={lastX} cy={lastY} r={10} fill={color} opacity={0.12} />
+                <circle cx={lastX} cy={lastY} r={4} fill={color} filter={`url(#${glowId})`} />
+                <circle cx={lastX} cy={lastY} r={2.5} fill="white" opacity={0.9} />
+              </>
+            )}
+          </svg>
+        </div>
+
+        {/* x축 레이블 — SVG 밖 HTML로 렌더링해 글자 찌그러짐 방지 */}
+        {showXAxis && ticks.length > 0 && (
+          <div className="relative mt-1 h-4 w-full select-none">
+            {ticks.map((idx) => {
+              const raw = labels[idx];
+              if (!raw) return null;
+              const pct = (idx / Math.max(1, n - 1)) * 100;
+              const isFirst = idx === 0;
+              const isLast = idx === n - 1;
               return (
-                <line
-                  key={f}
-                  x1="0"
-                  x2={width}
-                  y1={y}
-                  y2={y}
-                  stroke="var(--border)"
-                  strokeOpacity="0.4"
-                  strokeDasharray="3 6"
-                  strokeWidth={0.75}
-                />
+                <span
+                  key={idx}
+                  className="absolute text-[10px] leading-none text-muted-foreground/60"
+                  style={{
+                    left: `${pct}%`,
+                    transform: isFirst
+                      ? "none"
+                      : isLast
+                        ? "translateX(-100%)"
+                        : "translateX(-50%)",
+                  }}
+                >
+                  {fmtDate(raw)}
+                </span>
               );
             })}
-
-          {/* 면 채우기 */}
-          <path d={areaPath} fill={`url(#${gradId})`} />
-
-          {/* 라인 */}
-          <path
-            d={linePath}
-            fill="none"
-            stroke={color}
-            strokeWidth={1.75}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* 끝점 도트 */}
-          {showDot && (
-            <>
-              <circle cx={lastX} cy={lastY} r={10} fill={color} opacity={0.12} />
-              <circle cx={lastX} cy={lastY} r={4} fill={color} filter={`url(#${glowId})`} />
-              <circle cx={lastX} cy={lastY} r={2.5} fill="white" opacity={0.9} />
-            </>
-          )}
-
-          {/* x축 날짜 레이블 */}
-          {showXAxis && ticks.map((idx) => {
-            const raw = labels[idx];
-            if (!raw) return null;
-            const x = xs[idx]!;
-            const anchor =
-              idx === 0 ? "start" : idx === n - 1 ? "end" : "middle";
-            return (
-              <text
-                key={idx}
-                x={x}
-                y={height - 3}
-                textAnchor={anchor}
-                fontSize={10}
-                fill="var(--muted-foreground)"
-                opacity={0.7}
-              >
-                {fmtDate(raw)}
-              </text>
-            );
-          })}
-        </svg>
+          </div>
+        )}
       </div>
     );
   },
