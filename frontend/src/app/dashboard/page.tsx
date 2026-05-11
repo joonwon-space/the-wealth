@@ -456,7 +456,7 @@ export default function DashboardPage() {
 
   // Number() 변환: Pydantic v2가 Decimal을 문자열로 직렬화하는 경우 NaN 방지.
   const spark = Array.isArray(portfolioHistory) && portfolioHistory.length > 0
-    ? portfolioHistory.map((p) => ({ v: Number(p.value) }))
+    ? portfolioHistory.map((p) => ({ v: Number(p.value), label: p.date }))
     : [];
   const isPositiveDay = (dayChangePct ?? Number(s.day_change_amount ?? 0)) >= 0;
 
@@ -560,7 +560,7 @@ export default function DashboardPage() {
                   }
                 />
                 <div className="mt-4 -mx-2">
-                  <AreaChart data={spark} height={140} showDot up={isPositiveDay} />
+                  <AreaChart data={spark} height={140} showDot showXAxis up={isPositiveDay} />
                 </div>
               </CardContent>
             </Card>

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 export interface AreaChartPoint {
   v: number;
+  /** ISO date string (YYYY-MM-DD). showXAxis 사용 시 필요. */
   label?: string;
 }
 
@@ -16,6 +17,7 @@ export interface AreaChartProps
   height?: number;
   showGrid?: boolean;
   showDot?: boolean;
+  showXAxis?: boolean;
   padTop?: number;
   padBottom?: number;
 }
@@ -29,7 +31,18 @@ function normalize(raw: AreaChartProps["data"]): number[] {
   return nums.map((n) => (n - min) / (max - min));
 }
 
-/** Catmull-Rom → cubic bezier 변환으로 부드러운 곡선 생성. */
+function getLabels(raw: AreaChartProps["data"]): (string | undefined)[] {
+  return raw.map((p) => (typeof p === "number" ? undefined : p.label));
+}
+
+/** "YYYY-MM-DD" → "M/D" */
+function fmtDate(iso: string): string {
+  const parts = iso.split("-");
+  if (parts.length < 3) return iso;
+  return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+}
+
+/** Catmull-Rom → cubic bezier */
 function smoothPath(xs: number[], ys: number[], tension = 0.4): string {
   const n = xs.length;
   if (n === 0) return "";
@@ -52,6 +65,18 @@ function smoothPath(xs: number[], ys: number[], tension = 0.4): string {
   return d;
 }
 
+/** 균등 간격으로 최대 tickCount개 인덱스 선택 (첫/끝 포함). */
+function pickTicks(n: number, tickCount = 5): number[] {
+  if (n <= tickCount) return Array.from({ length: n }, (_, i) => i);
+  const ticks: number[] = [0];
+  const step = (n - 1) / (tickCount - 1);
+  for (let i = 1; i < tickCount - 1; i++) {
+    ticks.push(Math.round(i * step));
+  }
+  ticks.push(n - 1);
+  return ticks;
+}
+
 export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
   (
     {
@@ -61,14 +86,19 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
       height = 120,
       showGrid = true,
       showDot = true,
+      showXAxis = false,
       padTop = 16,
-      padBottom = 4,
+      padBottom,
       className,
       ...props
     },
     ref,
   ) => {
+    const X_AXIS_H = 20; // x축 레이블 영역 높이
+    const effectivePadBottom = padBottom ?? (showXAxis ? X_AXIS_H + 4 : 4);
+
     const normalized = normalize(data);
+    const labels = getLabels(data);
     const gradId = useId();
     const glowId = useId();
 
@@ -96,14 +126,18 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
 
     const n = normalized.length;
     const xs = normalized.map((_, i) => (i / Math.max(1, n - 1)) * width);
-    const sy = (v: number) => padTop + (1 - v) * (height - padTop - padBottom);
+    const sy = (v: number) =>
+      padTop + (1 - v) * (height - padTop - effectivePadBottom);
     const ys = normalized.map(sy);
 
     const linePath = smoothPath(xs, ys);
-    const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
+    const chartBottom = height - (showXAxis ? X_AXIS_H : 0);
+    const areaPath = `${linePath} L${width},${chartBottom} L0,${chartBottom} Z`;
 
     const lastX = xs[n - 1]!;
     const lastY = ys[n - 1]!;
+
+    const ticks = showXAxis ? pickTicks(n) : [];
 
     return (
       <div
@@ -120,13 +154,11 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
           preserveAspectRatio="none"
         >
           <defs>
-            {/* 면 그라디언트 — 위쪽만 살짝 착색 */}
             <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity="0.18" />
               <stop offset="60%" stopColor={color} stopOpacity="0.04" />
               <stop offset="100%" stopColor={color} stopOpacity="0" />
             </linearGradient>
-            {/* 끝점 글로우 필터 */}
             <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="3" result="blur" />
               <feMerge>
@@ -139,7 +171,7 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
           {/* 그리드 */}
           {showGrid &&
             [0.25, 0.5, 0.75].map((f) => {
-              const y = padTop + f * (height - padTop - padBottom);
+              const y = padTop + f * (height - padTop - effectivePadBottom);
               return (
                 <line
                   key={f}
@@ -171,23 +203,33 @@ export const AreaChart = forwardRef<HTMLDivElement, AreaChartProps>(
           {/* 끝점 도트 */}
           {showDot && (
             <>
-              <circle
-                cx={lastX}
-                cy={lastY}
-                r={10}
-                fill={color}
-                opacity={0.12}
-              />
-              <circle
-                cx={lastX}
-                cy={lastY}
-                r={4}
-                fill={color}
-                filter={`url(#${glowId})`}
-              />
+              <circle cx={lastX} cy={lastY} r={10} fill={color} opacity={0.12} />
+              <circle cx={lastX} cy={lastY} r={4} fill={color} filter={`url(#${glowId})`} />
               <circle cx={lastX} cy={lastY} r={2.5} fill="white" opacity={0.9} />
             </>
           )}
+
+          {/* x축 날짜 레이블 */}
+          {showXAxis && ticks.map((idx) => {
+            const raw = labels[idx];
+            if (!raw) return null;
+            const x = xs[idx]!;
+            const anchor =
+              idx === 0 ? "start" : idx === n - 1 ? "end" : "middle";
+            return (
+              <text
+                key={idx}
+                x={x}
+                y={height - 3}
+                textAnchor={anchor}
+                fontSize={10}
+                fill="var(--muted-foreground)"
+                opacity={0.7}
+              >
+                {fmtDate(raw)}
+              </text>
+            );
+          })}
         </svg>
       </div>
     );
