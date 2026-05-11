@@ -33,7 +33,6 @@ from app.services.kis_price import (
 from app.services.price_snapshot import fetch_domestic_price_detail
 from app.models.alert import Alert
 from app.api.alerts import check_triggered_alerts
-from app.services.price_snapshot import get_prev_close
 from app.core.ticker import is_domestic
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -73,11 +72,12 @@ def _calc_pnl(
 
 class _PriceFetchResult:
     """_fetch_prices 반환값."""
-    __slots__ = ("prices", "day_change_rates", "w52_highs", "w52_lows", "exchange_rate", "kis_status")
+    __slots__ = ("prices", "prev_closes", "day_change_rates", "w52_highs", "w52_lows", "exchange_rate", "kis_status")
 
     def __init__(
         self,
         prices: dict[str, Optional[Decimal]],
+        prev_closes: dict[str, Optional[Decimal]],
         day_change_rates: dict[str, Optional[Decimal]],
         w52_highs: dict[str, Optional[Decimal]],
         w52_lows: dict[str, Optional[Decimal]],
@@ -85,6 +85,7 @@ class _PriceFetchResult:
         kis_status: str,
     ) -> None:
         self.prices = prices
+        self.prev_closes = prev_closes
         self.day_change_rates = day_change_rates
         self.w52_highs = w52_highs
         self.w52_lows = w52_lows
@@ -108,6 +109,7 @@ async def _fetch_prices(
             ticker_to_market[h.ticker] = _normalize_market(h.market)
 
     prices: dict[str, Optional[Decimal]] = {}
+    prev_closes: dict[str, Optional[Decimal]] = {}
     day_change_rates: dict[str, Optional[Decimal]] = {}
     w52_highs: dict[str, Optional[Decimal]] = {}
     w52_lows: dict[str, Optional[Decimal]] = {}
@@ -145,6 +147,8 @@ async def _fetch_prices(
             for ticker, detail in zip(domestic_tickers, all_results[: len(domestic_tickers)]):
                 if detail and not isinstance(detail, Exception):
                     prices[ticker] = detail.current
+                    if detail.prev_close and detail.prev_close > _ZERO:
+                        prev_closes[ticker] = detail.prev_close
                     day_change_rates[ticker] = detail.day_change_rate
                     w52_highs[ticker] = detail.w52_high
                     w52_lows[ticker] = detail.w52_low
@@ -159,6 +163,8 @@ async def _fetch_prices(
             for ticker, detail in zip(overseas_tickers, all_results[len(domestic_tickers):]):
                 if detail and not isinstance(detail, Exception):
                     prices[ticker] = detail.current
+                    if detail.prev_close and detail.prev_close > _ZERO:
+                        prev_closes[ticker] = detail.prev_close
                     day_change_rates[ticker] = detail.day_change_rate
                     w52_highs[ticker] = detail.w52_high
                     w52_lows[ticker] = detail.w52_low
@@ -178,7 +184,7 @@ async def _fetch_prices(
             kis_status = "degraded"
             logger.warning("Failed to fetch prices from KIS API: %s", e)
 
-    return _PriceFetchResult(prices, day_change_rates, w52_highs, w52_lows, exchange_rate, kis_status)
+    return _PriceFetchResult(prices, prev_closes, day_change_rates, w52_highs, w52_lows, exchange_rate, kis_status)
 
 
 def _aggregate_holdings(
@@ -312,8 +318,6 @@ async def get_summary(
 
     allocation = _build_allocation(holding_items, total_asset, price_result.exchange_rate)
 
-    tickers = [h.ticker for h in holdings]
-
     # 포트폴리오 전일 대비: 시가총액 가중 평균
     total_day_change_rate: Optional[Decimal] = None
     weighted_sum = _ZERO
@@ -328,30 +332,29 @@ async def get_summary(
     exchange_rate = price_result.exchange_rate
     overseas_tickers = [h.ticker for h in holdings if not is_domestic(h.ticker)]
 
-    # price_snapshots 기반 전일 대비 계산
+    # KIS 실시간 API prev_close 기반 전일 대비 계산.
+    # DB 스냅샷 대신 실시간 API의 전일종가를 사용해 타임존 불일치 문제를 방지한다.
+    # (스냅샷은 KST 16:10 = UTC 07:10에 저장되므로 미국장 마감 전 데이터가 들어감)
     day_change_pct: Optional[Decimal] = None
     day_change_amount: Optional[Decimal] = None
-    prev_closes = await get_prev_close(db, tickers)
-    if prev_closes and total_asset > _ZERO:
+    api_prev_closes = price_result.prev_closes
+    if api_prev_closes and total_asset > _ZERO:
         prev_total = _ZERO
         curr_total = _ZERO
         for item in holding_items:
-            prev_close = prev_closes.get(item.ticker)
-            if prev_close is not None and prev_close > _ZERO:
-                if item.currency == "USD":
-                    prev_total += item.quantity * prev_close * exchange_rate
-                    curr_total += (
-                        item.market_value_krw
-                        if item.market_value_krw is not None
-                        else item.quantity * item.avg_price * exchange_rate
-                    )
-                else:
-                    prev_total += item.quantity * prev_close
-                    curr_total += (
-                        item.market_value
-                        if item.market_value is not None
-                        else item.quantity * item.avg_price
-                    )
+            prev_close = api_prev_closes.get(item.ticker)
+            if prev_close is None or prev_close <= _ZERO:
+                continue
+            if item.currency == "USD":
+                if item.market_value_krw is None:
+                    continue
+                prev_total += item.quantity * prev_close * exchange_rate
+                curr_total += item.market_value_krw
+            else:
+                if item.market_value is None:
+                    continue
+                prev_total += item.quantity * prev_close
+                curr_total += item.market_value
         if prev_total > _ZERO:
             day_change_amount = curr_total - prev_total
             day_change_pct = day_change_amount / prev_total * 100
