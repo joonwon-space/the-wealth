@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
@@ -17,19 +17,15 @@ const BENEFITS = [
 
 export function InstallPromptModal() {
   const { canInstall, isStandalone, isIos, promptInstall } = useInstallPrompt();
-  const [visible, setVisible] = useState(false);
-  const [iosOpen, setIosOpen] = useState(false);
-
-  useEffect(() => {
+  const [visible, setVisible] = useState(() => {
     try {
       const dismissedAt = Number(localStorage.getItem(DISMISSED_KEY) || "0");
-      if (!dismissedAt || Date.now() - dismissedAt >= COOLDOWN_MS) {
-        setVisible(true);
-      }
+      return !dismissedAt || Date.now() - dismissedAt >= COOLDOWN_MS;
     } catch {
-      setVisible(true);
+      return true;
     }
-  }, []);
+  });
+  const [iosOpen, setIosOpen] = useState(false);
 
   const dismiss = () => {
     setVisible(false);
