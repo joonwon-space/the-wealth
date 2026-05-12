@@ -24,6 +24,10 @@ jobs:
           DOCKER_CONFIG: ${{ runner.temp }}/docker-config
         run: |
           mkdir -p "$DOCKER_CONFIG"
+          # Symlink cli-plugins/contexts from real config so `docker compose` and buildx still work
+          ln -sf "$HOME/.docker/cli-plugins" "$DOCKER_CONFIG/cli-plugins"
+          ln -sf "$HOME/.docker/contexts" "$DOCKER_CONFIG/contexts"
+          # config.json without credsStore — falls back to anonymous Docker Hub pulls
           echo '{"auths":{},"currentContext":"desktop-linux"}' > "$DOCKER_CONFIG/config.json"
           cd ${{ github.workspace }}
           docker compose build --parallel
