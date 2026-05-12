@@ -542,8 +542,8 @@ class TestDashboardSummary:
         assert float(data["holdings"][0]["current_price"]) == 160
 
     async def test_summary_day_change_from_prev_close(self, client: AsyncClient) -> None:
-        """fetch_domestic_price_detail의 prev_close로 day_change_pct 계산."""
-        from app.services.price_snapshot import PriceDetail
+        """prev_close가 있을 때 day_change_pct 계산 (_fetch_prices mock)."""
+        from app.api.dashboard import _PriceFetchResult
 
         await client.post(
             "/auth/register",
@@ -564,17 +564,19 @@ class TestDashboardSummary:
             headers=headers,
         )
 
-        mock_detail = PriceDetail(
-            current=Decimal("70000"),
-            prev_close=Decimal("68000"),
-            day_change_rate=Decimal("2.94"),
-            w52_high=None,
-            w52_low=None,
+        mock_result = _PriceFetchResult(
+            prices={"005930": Decimal("70000")},
+            prev_closes={"005930": Decimal("68000")},
+            day_change_rates={"005930": Decimal("2.94")},
+            w52_highs={},
+            w52_lows={},
+            exchange_rate=Decimal("1450"),
+            kis_status="ok",
         )
         with patch(
-            "app.api.dashboard.fetch_domestic_price_detail",
+            "app.api.dashboard._fetch_prices",
             new_callable=AsyncMock,
-            return_value=mock_detail,
+            return_value=mock_result,
         ):
             resp = await client.get("/dashboard/summary", headers=headers)
 
