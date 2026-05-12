@@ -19,8 +19,12 @@ jobs:
 
       - name: Build and restart services
         env:
-          PATH: /Applications/Docker.app/Contents/Resources/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+          # Isolated Docker config without credsStore — avoids docker-credential-desktop
+          # hanging on macOS keychain access in non-interactive runner session.
+          DOCKER_CONFIG: ${{ runner.temp }}/docker-config
         run: |
+          mkdir -p "$DOCKER_CONFIG"
+          echo '{"auths":{},"currentContext":"desktop-linux"}' > "$DOCKER_CONFIG/config.json"
           cd ${{ github.workspace }}
           docker compose build --parallel
           docker compose up -d --remove-orphans
