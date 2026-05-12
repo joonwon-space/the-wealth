@@ -145,9 +145,12 @@ async def place_order(
             )
 
     # Execute order via KIS API
+    # Normalize short-form codes (NAS/NYS/AMS) used in the DB to KIS API codes (NASD/NYSE/AMEX)
+    _KIS_EXCHANGE_MAP = {"NAS": "NASD", "NYS": "NYSE", "AMS": "AMEX", "HKS": "SEHK", "TSE": "TKSE"}
     try:
         if is_overseas:
-            exchange_code = body.exchange_code or "NASD"
+            raw_code = body.exchange_code or "NASD"
+            exchange_code = _KIS_EXCHANGE_MAP.get(raw_code, raw_code)
             order_result = await place_overseas_order(
                 app_key=app_key,
                 app_secret=app_secret,

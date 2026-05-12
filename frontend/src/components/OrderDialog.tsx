@@ -168,6 +168,22 @@ export function OrderDialog({
     setConfirmMode(true);
   }
 
+  function getApiErrorMessage(err: unknown): string {
+    if (err && typeof err === "object") {
+      const e = err as Record<string, unknown>;
+      const data = (e.response as Record<string, unknown> | undefined)?.data;
+      if (data && typeof data === "object") {
+        const d = data as Record<string, unknown>;
+        if (d.error && typeof d.error === "object") {
+          const msg = (d.error as Record<string, unknown>).message;
+          if (typeof msg === "string") return msg;
+        }
+        if (typeof d.detail === "string") return d.detail;
+      }
+    }
+    return "주문 처리 중 오류가 발생했습니다";
+  }
+
   function handleSubmit() {
     const isBuyTab = activeTab === "BUY";
 
@@ -203,7 +219,7 @@ export function OrderDialog({
           haptic.success();
         },
         onError: (err) => {
-          setSuccessMessage(`주문 오류: ${err.message}`);
+          setSuccessMessage(`주문 오류: ${getApiErrorMessage(err)}`);
           setConfirmMode(false);
           haptic.warning();
         },
@@ -278,6 +294,7 @@ export function OrderDialog({
         avgPriceDiff={avgPriceDiff}
         realizedPnl={realizedPnl}
         realizedPnlRate={realizedPnlRate}
+        currency={isDomestic ? "KRW" : "USD"}
         isPending={placeOrderMutation.isPending}
         onSubmit={handleSubmit}
         onCancel={() => setConfirmMode(false)}
@@ -329,7 +346,7 @@ export function OrderDialog({
           realizedPnlRate={realizedPnlRate}
           actionColor={actionColor}
           isError={placeOrderMutation.isError}
-          errorMessage={placeOrderMutation.error?.message}
+          errorMessage={placeOrderMutation.isError ? getApiErrorMessage(placeOrderMutation.error) : undefined}
           onConfirm={handleConfirm}
           onMaxQuantity={handleMaxQuantity}
           onSellAll={handleSellAll}

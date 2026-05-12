@@ -10,6 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatKRW } from "@/lib/format";
 
+function formatPrice(n: number, currency: "KRW" | "USD"): string {
+  return currency === "USD"
+    ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : formatKRW(n);
+}
+
 interface OrderConfirmationProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,6 +36,7 @@ interface OrderConfirmationProps {
   /** 매도: 예상 실현손익 */
   realizedPnl: number | null;
   realizedPnlRate: number | null;
+  currency?: "KRW" | "USD";
   isPending: boolean;
   onSubmit: () => void;
   onCancel: () => void;
@@ -53,10 +60,12 @@ export function OrderConfirmation({
   avgPriceDiff,
   realizedPnl,
   realizedPnlRate,
+  currency = "KRW",
   isPending,
   onSubmit,
   onCancel,
 }: OrderConfirmationProps) {
+  const fmt = (n: number) => formatPrice(n, currency);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
@@ -81,13 +90,13 @@ export function OrderConfirmation({
           {orderClass === "limit" && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">단가</span>
-              <span className="font-medium">{formatKRW(parsedPrice)}</span>
+              <span className="font-medium">{fmt(parsedPrice)}</span>
             </div>
           )}
           <div className="flex justify-between border-t pt-2">
             <span className="text-muted-foreground">주문금액</span>
             <span className="font-bold">
-              {orderClass === "market" ? "시장가" : formatKRW(orderAmount)}
+              {orderClass === "market" ? "시장가" : fmt(orderAmount)}
             </span>
           </div>
           {/* 매수: 예상 평단가 */}
@@ -95,7 +104,7 @@ export function OrderConfirmation({
             <div className="flex justify-between text-xs text-muted-foreground border-t pt-2">
               <span>예상 평단가</span>
               <span className={avgPriceDiff !== null && avgPriceDiff > 0 ? "text-rise" : "text-fall"}>
-                {formatKRW(heldAvgPrice)} → {formatKRW(estimatedAvgPrice)}
+                {fmt(heldAvgPrice)} → {fmt(estimatedAvgPrice)}
               </span>
             </div>
           )}
@@ -104,7 +113,7 @@ export function OrderConfirmation({
             <div className="flex justify-between text-xs border-t pt-2">
               <span className="text-muted-foreground">예상 실현손익</span>
               <span className={realizedPnl >= 0 ? "text-rise font-medium" : "text-fall font-medium"}>
-                {realizedPnl >= 0 ? "+" : ""}{formatKRW(realizedPnl)}
+                {realizedPnl >= 0 ? "+" : ""}{fmt(realizedPnl)}
                 {realizedPnlRate !== null && (
                   <span className="ml-1">
                     ({realizedPnlRate >= 0 ? "+" : ""}{realizedPnlRate.toFixed(1)}%)

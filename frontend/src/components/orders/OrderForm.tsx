@@ -186,7 +186,7 @@ export function OrderForm({
             {orderClass === "limit" && (
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">
-                  단가 (원)
+                  단가 ({cashCurrency === "USD" ? "$" : "원"})
                 </label>
                 <Input
                   type="number"
@@ -284,7 +284,7 @@ export function OrderForm({
             {parsedQuantity > 0 && orderClass === "limit" && parsedPrice > 0 && (
               <div className="flex justify-between text-sm border-t pt-2">
                 <span className="text-muted-foreground">주문금액</span>
-                <span className="font-semibold">{formatKRW(orderAmount)}</span>
+                <span className="font-semibold">{formatCash(orderAmount)}</span>
               </div>
             )}
 
