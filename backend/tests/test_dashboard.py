@@ -542,7 +542,9 @@ class TestDashboardSummary:
         assert float(data["holdings"][0]["current_price"]) == 160
 
     async def test_summary_day_change_from_prev_close(self, client: AsyncClient) -> None:
-        """get_prev_close 반환값으로 day_change_pct 계산 (lines 341-362 coverage)."""
+        """fetch_domestic_price_detail의 prev_close로 day_change_pct 계산."""
+        from app.services.price_snapshot import PriceDetail
+
         await client.post(
             "/auth/register",
             json={"email": "prevclose@example.com", "password": "Test1234!"},
@@ -562,11 +564,17 @@ class TestDashboardSummary:
             headers=headers,
         )
 
-        # Mock get_prev_close to return a previous close price so day_change is computed
+        mock_detail = PriceDetail(
+            current=Decimal("70000"),
+            prev_close=Decimal("68000"),
+            day_change_rate=Decimal("2.94"),
+            w52_high=None,
+            w52_low=None,
+        )
         with patch(
-            "app.api.dashboard.get_prev_close",
+            "app.api.dashboard.fetch_domestic_price_detail",
             new_callable=AsyncMock,
-            return_value={"005930": Decimal("68000")},
+            return_value=mock_detail,
         ):
             resp = await client.get("/dashboard/summary", headers=headers)
 
@@ -574,6 +582,6 @@ class TestDashboardSummary:
         data = resp.json()
         # day_change_pct should now be populated
         assert data["day_change_pct"] is not None
-        # current = avg_price * qty = 700000, prev = 68000 * 10 = 680000
+        # current = 70000 * 10 = 700000, prev = 68000 * 10 = 680000
         # change = (700000 - 680000) / 680000 * 100 ≈ 2.94%
         assert float(data["day_change_pct"]) > 0
