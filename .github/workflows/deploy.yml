@@ -18,6 +18,8 @@ jobs:
         run: security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
 
       - name: Build and restart services
+        env:
+          PATH: /Applications/Docker.app/Contents/Resources/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
         run: |
           cd ${{ github.workspace }}
           docker compose build --parallel
