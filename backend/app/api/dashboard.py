@@ -129,19 +129,22 @@ async def _fetch_prices(
             app_key = decrypt(kis_acct.app_key_enc)
             app_secret = decrypt(kis_acct.app_secret_enc)
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                if overseas_tickers:
-                    exchange_rate = await fetch_usd_krw_rate(app_key, app_secret, client)
+            # 전체 KIS 조회에 20초 글로벌 타임아웃 — degraded 시 배치 누적으로
+            # Cloudflare 30초 제한 초과하는 것을 방지한다.
+            async with asyncio.timeout(20):
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    if overseas_tickers:
+                        exchange_rate = await fetch_usd_krw_rate(app_key, app_secret, client)
 
-                domestic_tasks = [
-                    fetch_domestic_price_detail(t, app_key, app_secret, client)
-                    for t in domestic_tickers
-                ]
-                overseas_tasks = [
-                    fetch_overseas_price_detail(t, ticker_to_market.get(t, "NAS"), app_key, app_secret, client)
-                    for t in overseas_tickers
-                ]
-                all_results = await asyncio.gather(*domestic_tasks, *overseas_tasks, return_exceptions=True)
+                    domestic_tasks = [
+                        fetch_domestic_price_detail(t, app_key, app_secret, client)
+                        for t in domestic_tickers
+                    ]
+                    overseas_tasks = [
+                        fetch_overseas_price_detail(t, ticker_to_market.get(t, "NAS"), app_key, app_secret, client)
+                        for t in overseas_tickers
+                    ]
+                    all_results = await asyncio.gather(*domestic_tasks, *overseas_tasks, return_exceptions=True)
 
             fetched_count = 0
             for ticker, detail in zip(domestic_tickers, all_results[: len(domestic_tickers)]):
