@@ -28,12 +28,34 @@ TEST_REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 
 
 async def _flush_redis_cache() -> None:
-    """테스트 간 Redis analytics/price 캐시를 제거하여 캐시 오염을 방지한다."""
+    """테스트 간 Redis 캐시를 제거하여 캐시 오염을 방지한다.
+
+    이전엔 analytics:* 만 처리했으나, Sprint 2-3 도입 후 price_detail:,
+    sf_lock:, stock_detail:, chart_daily:, cash_balance:, cash_summary: 등
+    여러 키 namespace 가 추가되어 cross-test pollution 발생. 각 테스트의
+    mock 이 예상한 'cache miss → mock fetch' 흐름이 'cache hit (이전 테스트
+    잔재) → 다른 값 반환' 으로 변질됨.
+
+    모든 app 관리 prefix 를 명시적으로 처리한다.
+    """
     try:
         r = aioredis.from_url(TEST_REDIS_URL)
-        keys = await r.keys("analytics:*")
-        if keys:
-            await r.delete(*keys)
+        patterns = (
+            "analytics:*",
+            "price:*",
+            "price_detail:*",
+            "sf_lock:*",
+            "stock_detail:*",
+            "chart_daily:*",
+            "cash_balance:*",
+            "cash_summary:*",
+            "kis:token:*",
+            "fx:*",
+        )
+        for pattern in patterns:
+            keys = await r.keys(pattern)
+            if keys:
+                await r.delete(*keys)
         await r.aclose()
     except Exception:
         pass  # Redis 미사용 환경에서는 무시

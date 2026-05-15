@@ -41,8 +41,13 @@ async def _add_kis_account(client: AsyncClient, token: str) -> None:
 
 
 def _make_kis_resp(items: list[dict]) -> MagicMock:
-    """Build a mock httpx.Response that returns *items* in the KIS shape."""
+    """Build a mock httpx.Response that returns *items* in the KIS shape.
+
+    status_code=200 명시 — kis_retry.kis_get 가 429/rate-limit 감지를 위해
+    응답 status_code 를 검사하므로 누락 시 AttributeError 발생.
+    """
     mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 200
     mock_resp.raise_for_status = MagicMock()
     mock_resp.json.return_value = {"output2": items}
     return mock_resp
@@ -243,6 +248,7 @@ class TestDailyChartEndpoint:
         await _add_kis_account(client, token)
 
         mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
         mock_resp.json.return_value = {}  # no output key
 
