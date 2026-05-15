@@ -1,5 +1,6 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HoldingsTable } from "./HoldingsTable";
 
 // Minimal mock for next/link to avoid Next.js context requirement
@@ -8,6 +9,17 @@ vi.mock("next/link", () => ({
     <a href={href}>{children}</a>
   ),
 }));
+
+// HoldingsTable 의 StockNameLink 가 prefetch 를 위해 useQueryClient 를 호출하므로
+// 테스트 렌더 시 QueryClientProvider 가 필요하다.
+function render(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return rtlRender(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+}
 
 const krwHolding = {
   id: 1,
