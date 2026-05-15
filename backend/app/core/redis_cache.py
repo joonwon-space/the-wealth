@@ -103,6 +103,20 @@ class _InMemoryFallback:
             value=value, expires_at=time.monotonic() + ttl
         )
 
+    def set_nx(self, key: str, ttl: int, value: str) -> bool:
+        """Atomic SET-if-not-exists for in-memory fallback. Single-process only.
+
+        Returns True if key did not exist (lock acquired), False otherwise.
+        Expired entries are first evicted so they don't block re-acquisition.
+        """
+        self._evict_expired(key)
+        if key in self._store:
+            return False
+        self._store[key] = _CacheEntry(
+            value=value, expires_at=time.monotonic() + ttl
+        )
+        return True
+
     def delete(self, key: str) -> None:
         self._store.pop(key, None)
 
@@ -181,3 +195,30 @@ class RedisCache:
                 )
                 _redis_healthy = False
             _fallback.delete(key)
+
+    async def set_nx(self, key: str, ttl: int, value: str = "1") -> bool:
+        """Atomic SETNX (SET if Not eXists) with TTL — distributed lock primitive.
+
+        Returns True if the key was set (caller is leader), False if it already
+        existed (caller is follower). Used for single-flight request coalescing
+        so N concurrent KIS lookups for the same ticker collapse to 1.
+
+        Redis 실패 시 in-memory fallback. 멀티 워커에서 fallback 동작 시 워커
+        간 동시성은 막을 수 없지만 워커 내 동시성은 차단된다.
+        """
+        global _redis_healthy
+        try:
+            async with get_redis_client(self._url) as r:
+                # redis SET key value NX EX ttl — atomic, returns True if set
+                result = await r.set(key, value, nx=True, ex=ttl)
+                if not _redis_healthy:
+                    logger.info("Redis connection restored")
+                    _redis_healthy = True
+                return bool(result)
+        except Exception as e:
+            if _redis_healthy:
+                logger.warning(
+                    "Redis unavailable, falling back to in-memory cache: %s", e
+                )
+                _redis_healthy = False
+            return _fallback.set_nx(key, ttl, value)

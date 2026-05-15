@@ -46,6 +46,13 @@ _PRICE_CACHE_TTL_MARKET_CLOSED = 86400  # 24 h after market close
 _PRICE_CACHE_TTL_HOLDINGS_OPEN = 30    # 30 s during market hours (user-facing)
 _PRICE_CACHE_TTL_HOLDINGS_CLOSED = 300  # 5 min outside market hours (user-facing)
 
+# Single-flight (request coalescing) — KIS API 호출 중복 제거.
+# N 동시 요청 → leader 1명만 KIS 호출, follower 는 캐시 쓰기를 short-polling.
+_SINGLEFLIGHT_LOCK_PREFIX = "sf_lock:price_detail:"
+_SINGLEFLIGHT_LOCK_TTL = 5             # 락 만료 (leader 멈춤 보호)
+_SINGLEFLIGHT_POLL_INTERVAL_MS = 80    # follower polling 간격
+_SINGLEFLIGHT_POLL_TIMEOUT_MS = 3000   # follower 최대 대기 — 이후 자체 fetch
+
 # KST market hours constants (reused from prices.py logic)
 _KST = timezone(timedelta(hours=9))
 _MARKET_OPEN_HOUR_MIN = (9, 0)
@@ -622,6 +629,23 @@ async def _cache_price_detail(
     )
 
 
+async def _singleflight_wait_for_detail(ticker: str) -> Optional[dict]:
+    """Follower 가 leader 의 캐시 쓰기를 polling 으로 대기.
+
+    Polling 간격 80ms, 총 3s 대기. 그래도 캐시가 비어 있으면 None 리턴 →
+    호출자가 자체 fetch (leader 가 멈춘 케이스 보호).
+    """
+    elapsed_ms = 0
+    interval_s = _SINGLEFLIGHT_POLL_INTERVAL_MS / 1000.0
+    while elapsed_ms < _SINGLEFLIGHT_POLL_TIMEOUT_MS:
+        await asyncio.sleep(interval_s)
+        elapsed_ms += _SINGLEFLIGHT_POLL_INTERVAL_MS
+        cached = await _get_cached_price_detail(ticker)
+        if cached is not None:
+            return cached
+    return None
+
+
 async def get_or_fetch_domestic_price_detail(
     ticker: str,
     app_key: str,
@@ -629,37 +653,55 @@ async def get_or_fetch_domestic_price_detail(
     client: httpx.AsyncClient,
     ttl: Optional[int] = None,
 ) -> Optional[dict]:
-    """국내주식 price_detail cache-first 조회.
+    """국내주식 price_detail cache-first 조회 with single-flight.
 
-    캐시 hit → KIS 호출 없이 dict 반환.
-    캐시 miss → fetch_domestic_price_detail 호출 후 결과 캐시.
+    1. 캐시 hit → 즉시 반환.
+    2. SETNX 락 획득 시도 → leader 면 KIS 호출 후 캐시 쓰기.
+    3. follower 면 leader 의 캐시 쓰기를 polling 대기.
+    4. follower timeout 시 자체 fetch (leader 가 죽은 케이스 보호).
     반환 dict 키: current, prev_close, day_change_rate, w52_high, w52_low.
     """
     cached = await _get_cached_price_detail(ticker)
     if cached is not None:
         return cached
+
+    lock_key = f"{_SINGLEFLIGHT_LOCK_PREFIX}{ticker}"
+    is_leader = await _cache.set_nx(lock_key, _SINGLEFLIGHT_LOCK_TTL)
+    if not is_leader:
+        follower_result = await _singleflight_wait_for_detail(ticker)
+        if follower_result is not None:
+            return follower_result
+        logger.warning(
+            "Single-flight timeout for %s — leader unresponsive, falling back to direct fetch",
+            ticker,
+        )
+
     # Local import to avoid circular dependency (price_snapshot also imports kis_price).
     from app.services.price_snapshot import fetch_domestic_price_detail
 
-    detail = await fetch_domestic_price_detail(ticker, app_key, app_secret, client)
-    if detail is None or detail.current <= 0:
-        return None
-    await _cache_price_detail(
-        ticker,
-        detail.current,
-        detail.prev_close,
-        detail.day_change_rate,
-        detail.w52_high,
-        detail.w52_low,
-        ttl,
-    )
-    return {
-        "current": detail.current,
-        "prev_close": detail.prev_close,
-        "day_change_rate": detail.day_change_rate,
-        "w52_high": detail.w52_high,
-        "w52_low": detail.w52_low,
-    }
+    try:
+        detail = await fetch_domestic_price_detail(ticker, app_key, app_secret, client)
+        if detail is None or detail.current <= 0:
+            return None
+        await _cache_price_detail(
+            ticker,
+            detail.current,
+            detail.prev_close,
+            detail.day_change_rate,
+            detail.w52_high,
+            detail.w52_low,
+            ttl,
+        )
+        return {
+            "current": detail.current,
+            "prev_close": detail.prev_close,
+            "day_change_rate": detail.day_change_rate,
+            "w52_high": detail.w52_high,
+            "w52_low": detail.w52_low,
+        }
+    finally:
+        if is_leader:
+            await _cache.delete(lock_key)
 
 
 async def get_or_fetch_overseas_price_detail(
@@ -670,28 +712,47 @@ async def get_or_fetch_overseas_price_detail(
     client: httpx.AsyncClient,
     ttl: Optional[int] = None,
 ) -> Optional[dict]:
-    """해외주식 price_detail cache-first 조회. dict 반환 형태는 domestic 과 동일."""
+    """해외주식 price_detail cache-first 조회 with single-flight.
+
+    동작은 get_or_fetch_domestic_price_detail 와 동일.
+    """
     cached = await _get_cached_price_detail(ticker)
     if cached is not None:
         return cached
-    detail = await fetch_overseas_price_detail(ticker, market, app_key, app_secret, client)
-    if detail is None or detail.current <= 0:
-        return None
-    await _cache_price_detail(
-        ticker,
-        detail.current,
-        detail.prev_close,
-        detail.day_change_rate,
-        detail.w52_high,
-        detail.w52_low,
-        ttl,
-    )
-    return {
-        "current": detail.current,
-        "prev_close": detail.prev_close,
-        "day_change_rate": detail.day_change_rate,
-        "w52_high": detail.w52_high,
-        "w52_low": detail.w52_low,
-    }
+
+    lock_key = f"{_SINGLEFLIGHT_LOCK_PREFIX}{ticker}"
+    is_leader = await _cache.set_nx(lock_key, _SINGLEFLIGHT_LOCK_TTL)
+    if not is_leader:
+        follower_result = await _singleflight_wait_for_detail(ticker)
+        if follower_result is not None:
+            return follower_result
+        logger.warning(
+            "Single-flight timeout for %s — leader unresponsive, falling back to direct fetch",
+            ticker,
+        )
+
+    try:
+        detail = await fetch_overseas_price_detail(ticker, market, app_key, app_secret, client)
+        if detail is None or detail.current <= 0:
+            return None
+        await _cache_price_detail(
+            ticker,
+            detail.current,
+            detail.prev_close,
+            detail.day_change_rate,
+            detail.w52_high,
+            detail.w52_low,
+            ttl,
+        )
+        return {
+            "current": detail.current,
+            "prev_close": detail.prev_close,
+            "day_change_rate": detail.day_change_rate,
+            "w52_high": detail.w52_high,
+            "w52_low": detail.w52_low,
+        }
+    finally:
+        if is_leader:
+            await _cache.delete(lock_key)
 
 
