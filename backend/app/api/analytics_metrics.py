@@ -264,8 +264,8 @@ async def get_monthly_returns(
     since: Optional[date_type] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[MonthlyReturn]:
-    """월별 포트폴리오 수익률 계산.
+) -> FastAPIResponse:
+    """월별 포트폴리오 수익률 계산 (ETag/304 적용).
 
     price_snapshots에서 각 월의 마지막 거래일 종가를 취합하여
     전월 대비 수익률을 반환한다.
@@ -278,21 +278,21 @@ async def get_monthly_returns(
     cache_key = analytics_key(current_user.id, f"monthly-returns:{cutoff.isoformat()}")
     cached = await _cache.get(cache_key)
     if cached:
-        return [MonthlyReturn(**item) for item in json.loads(cached)]
+        return etag_response(request, json.loads(cached))
 
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
-        return []
+        return etag_response(request, [])
 
     hold_result = await db.execute(
         select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
     )
     holdings = hold_result.scalars().all()
     if not holdings:
-        return []
+        return etag_response(request, [])
 
     tickers = list({h.ticker for h in holdings})
     holding_map = {h.ticker: h for h in holdings}
@@ -307,7 +307,7 @@ async def get_monthly_returns(
     )
     snapshots = snap_result.scalars().all()
     if not snapshots:
-        return []
+        return etag_response(request, [])
 
     # 날짜별 {ticker: close} 맵 구축
     date_ticker_map: dict[str, dict[str, float]] = {}
@@ -331,7 +331,7 @@ async def get_monthly_returns(
                 bucket[ticker] = close
 
     if len(month_ticker_close) < 2:
-        return []
+        return etag_response(request, [])
 
     sorted_months = sorted(month_ticker_close.keys())
     monthly_returns: list[MonthlyReturn] = []
@@ -360,11 +360,9 @@ async def get_monthly_returns(
                 MonthlyReturn(year=year, month=month, return_rate=round(return_rate, 2))
             )
 
-    await _cache.setex(
-        cache_key, ANALYTICS_CACHE_TTL,
-        json.dumps([r.model_dump() for r in monthly_returns])
-    )
-    return monthly_returns
+    payload = [r.model_dump() for r in monthly_returns]
+    await _cache.setex(cache_key, ANALYTICS_CACHE_TTL, json.dumps(payload))
+    return etag_response(request, payload)
 
 
 @router.get("/sector-allocation", response_model=list[SectorAllocation])

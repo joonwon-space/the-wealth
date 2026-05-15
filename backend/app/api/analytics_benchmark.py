@@ -48,8 +48,8 @@ async def get_benchmark(
     ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[BenchmarkPoint]:
-    """벤치마크 지수 일별 종가 시계열 반환.
+) -> FastAPIResponse:
+    """벤치마크 지수 일별 종가 시계열 반환 (ETag/304 적용).
 
     index_snapshots 테이블에서 지정 지수의 날짜별 종가를 조회하여
     [{date, close_price}] 형태로 반환한다.
@@ -93,7 +93,7 @@ async def get_benchmark(
             date=day_str, close_price=float(snap.close_price)
         )
 
-    return list(seen_dates.values())
+    return etag_response(request, [p.model_dump() for p in seen_dates.values()])
 
 
 @router.get("/benchmark-delta", response_model=BenchmarkDelta)

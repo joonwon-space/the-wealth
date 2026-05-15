@@ -168,8 +168,8 @@ async def get_fx_history(
     days: int = Query(default=90, ge=1, le=365, description="조회 기간 (일, 최대 365)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
-    """USD/KRW 환율 히스토리 반환.
+) -> FastAPIResponse:
+    """USD/KRW 환율 히스토리 반환 (ETag/304 적용).
 
     fx_rate_snapshots 테이블에서 최근 N일 환율 데이터를 조회한다.
     스케줄러가 매 평일 장 마감 후(KST 16:30) 저장한다.
@@ -194,7 +194,8 @@ async def get_fx_history(
         .order_by(FxRateSnapshot.snapshot_date)
     )
     snapshots = result.scalars().all()
-    return [
+    payload = [
         {"date": snap.snapshot_date.isoformat(), "rate": float(snap.rate)}
         for snap in snapshots
     ]
+    return etag_response(request, payload)

@@ -137,8 +137,8 @@ async def get_krw_asset_history(
     period: str = Query(default="ALL", description="기간 필터: 1M, 3M, 6M, 1Y, ALL"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
-    """환율 변동 반영 원화 환산 총 자산 추이.
+) -> FastAPIResponse:
+    """환율 변동 반영 원화 환산 총 자산 추이 (ETag/304 적용).
 
     price_snapshots와 fx_rate_snapshots를 결합하여 날짜별로
     국내주식(KRW)과 해외주식(USD→KRW 환산)을 합산한 총 자산 추이를 반환한다.
@@ -157,21 +157,21 @@ async def get_krw_asset_history(
     cache_key = analytics_key(current_user.id, f"krw-asset-history:{normalized_period}")
     cached = await _cache.get(cache_key)
     if cached:
-        return json.loads(cached)
+        return etag_response(request, json.loads(cached))
 
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
-        return []
+        return etag_response(request, [])
 
     hold_result = await db.execute(
         select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
     )
     holdings = hold_result.scalars().all()
     if not holdings:
-        return []
+        return etag_response(request, [])
 
     tickers = list({h.ticker for h in holdings})
     # 같은 ticker가 여러 portfolio에 분산되면 quantity를 합산해야 한다.
@@ -194,7 +194,7 @@ async def get_krw_asset_history(
     snap_result = await db.execute(snap_query)
     snapshots = snap_result.scalars().all()
     if not snapshots:
-        return []
+        return etag_response(request, [])
 
     # 날짜별 {ticker: close} 맵
     date_ticker_map: dict[str, dict[str, float]] = {}
@@ -258,4 +258,4 @@ async def get_krw_asset_history(
             })
 
     await _cache.setex(cache_key, ANALYTICS_CACHE_TTL, json.dumps(history))
-    return history
+    return etag_response(request, history)
