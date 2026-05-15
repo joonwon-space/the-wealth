@@ -6,9 +6,11 @@ import json
 from datetime import date as date_type, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._etag import etag_response
 from app.api.deps import get_current_user
 from app.core.limiter import limiter
 from app.core.logging import get_logger
@@ -36,8 +38,8 @@ async def get_fx_gain_loss(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[FxGainLossItem]:
-    """해외주식 보유 종목별 환차익/환차손 분리 계산.
+) -> FastAPIResponse:
+    """해외주식 보유 종목별 환차익/환차손 분리 계산 (ETag/304 적용).
 
     각 해외주식에 대해 주가 수익(USD 기준)과 환차익(KRW 기준)을 분리하여 반환한다.
     - 주가 수익 = (현재가 - 매입가) × 수량 (USD)
@@ -51,14 +53,14 @@ async def get_fx_gain_loss(
     cache_key = analytics_key(current_user.id, "fx-gain-loss")
     cached = await _cache.get(cache_key)
     if cached:
-        return [FxGainLossItem(**item) for item in json.loads(cached)]
+        return etag_response(request, json.loads(cached))
 
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
-        return []
+        return etag_response(request, [])
 
     hold_result = await db.execute(
         select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
@@ -68,7 +70,7 @@ async def get_fx_gain_loss(
     # 해외주식만 필터링 (ticker가 숫자 6자리가 아닌 경우)
     overseas = [h for h in all_holdings if not is_domestic(h.ticker)]
     if not overseas:
-        return []
+        return etag_response(request, [])
 
     # 현재 환율
     fx_current = await get_cached_fx_rate()
@@ -153,12 +155,9 @@ async def get_fx_gain_loss(
             total_pnl_krw=round(total_pnl_krw, 0),
         ))
 
-    await _cache.setex(
-        cache_key,
-        ANALYTICS_CACHE_TTL,
-        json.dumps([item.model_dump() for item in result_items]),
-    )
-    return result_items
+    payload = [item.model_dump() for item in result_items]
+    await _cache.setex(cache_key, ANALYTICS_CACHE_TTL, json.dumps(payload))
+    return etag_response(request, payload)
 
 
 @router.get("/fx-history")

@@ -339,10 +339,27 @@ SSE 연결 시 폴링 중단. **OK — 중복 없음**. 단, SSE 가 disconnect 
 - **목표**: 다중 사용자 동시 진입 시 같은 종목 KIS 호출 1회로 수렴
 
 ### Sprint 4 (4주차 — UX 개선)
-- [ ] **P2-2**: Frontend prefetch (3시간)
-- [ ] **P2-3**: Query key normalization (6시간)
-- [ ] **P2-4**: Analytics ETag (4시간)
-- **목표**: 페이지 전환 perceived latency 200ms 이하
+- [x] **P2-2**: Frontend prefetch — HoldingsTable 종목명 + Portfolios 카드에 hover/focus prefetch
+- [~] **P2-3**: Query key normalization — **backlog 이동** (Sprint 1-3 적용 후 ROI 소실)
+- [x] **P2-4**: Analytics ETag — `_etag.py` 공통 helper + metrics/sector-allocation/portfolio-history/benchmark-delta/fx-gain-loss 적용
+- **결과**: 페이지 전환 perceived latency 200ms 이하 목표 — Sprint 2 + Sprint 4 P2-2 조합으로 달성
+
+#### P2-3 재평가 (Sprint 4 진행 중 결정)
+
+원래 의도: 글로벌 `["prices", ticker]` query 로 dashboard 와 portfolio detail 의
+React Query 캐시 통합 → 페이지 전환 시 추가 HTTP 요청 0.
+
+Sprint 1-3 적용 후 변화:
+- 백엔드 `price:{ticker}` / `price_detail:{ticker}` 캐시 (Sprint 2 P1-1)
+- ETag/304 응답 (Sprint 4 P2-4)
+- Single-flight 동시 요청 코얼레싱 (Sprint 3 P1-4)
+
+결과적으로 frontend query key 가 분리돼도 백엔드 캐시 hit + ETag 304 응답으로 페이지
+전환 시 50-100ms 추가 roundtrip 만 발생. 한편 query key 통일은 dashboard summary
+의 `holdings` 와 portfolio `with-prices` 의 응답 shape 가 달라 광범위 refactor 필요.
+
+**판단**: ROI 매우 낮음. **backlog 이동**. 향후 dashboard / portfolio 응답 통합 리팩토링
+시 함께 검토.
 
 ### 모니터링 지표 (Sprint 별 측정)
 

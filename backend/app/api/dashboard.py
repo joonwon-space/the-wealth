@@ -1,8 +1,6 @@
 """대시보드 집계 API — 현재가 기반 동적 손익 계산."""
 
 import asyncio
-import hashlib
-import json
 from decimal import Decimal
 from typing import Optional
 
@@ -12,6 +10,7 @@ from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._etag import etag_response
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -406,16 +405,7 @@ async def get_summary(
 
     # ETag / 304 Not Modified — skip during force-refresh to always return fresh data
     if not refresh:
-        body = json.dumps(summary.model_dump(mode="json"), default=str, sort_keys=True)
-        etag = hashlib.sha256(body.encode()).hexdigest()[:16]
-        if_none_match = request.headers.get("if-none-match", "")
-        if if_none_match == etag:
-            return FastAPIResponse(status_code=304, headers={"ETag": etag})
-        return FastAPIResponse(
-            content=body,
-            media_type="application/json",
-            headers={"ETag": etag},
-        )
+        return etag_response(request, summary.model_dump(mode="json"))
 
     return summary
 

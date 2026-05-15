@@ -84,6 +84,7 @@ function SortablePortfolioRow({
   onDelete: (id: number) => void;
   renamePending: boolean;
 }) {
+  const queryClient = useQueryClient();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: portfolio.id });
 
@@ -94,6 +95,21 @@ function SortablePortfolioRow({
   };
 
   const isEditing = editingId === portfolio.id;
+
+  // 카드 hover/focus 시 detail 페이지의 holdings query 를 미리 워밍.
+  // staleTime 30s 로 dedup — 빠른 hover-out 시 중복 요청 차단.
+  const prefetchDetail = () => {
+    queryClient.prefetchQuery({
+      queryKey: ["portfolios", portfolio.id, "holdings"],
+      queryFn: async () =>
+        (
+          await api.get(
+            `/portfolios/${portfolio.id}/holdings/with-prices`,
+          )
+        ).data,
+      staleTime: 30_000,
+    });
+  };
 
   return (
     <div
@@ -151,6 +167,8 @@ function SortablePortfolioRow({
           <div className="flex items-center gap-1">
             <Link
               href={`/dashboard/portfolios/${portfolio.id}`}
+              onMouseEnter={prefetchDetail}
+              onFocus={prefetchDetail}
               className="font-semibold truncate hover:underline"
             >
               {portfolio.name}

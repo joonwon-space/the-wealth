@@ -9,9 +9,11 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._etag import etag_response
 from app.api.deps import get_current_user
 from app.core.limiter import limiter
 from app.db.session import get_db
@@ -131,22 +133,25 @@ def _compute_holding_pnl(
     return total_invested, total_current
 
 
+_EMPTY_METRICS = {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+
+
 @router.get("/metrics")
 @limiter.limit("30/minute")
 async def get_metrics(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> FastAPIResponse:
     """포트폴리오 성과 지표 계산.
 
-    Returns: total_return_rate, cagr, mdd, sharpe_ratio
+    Returns: total_return_rate, cagr, mdd, sharpe_ratio (ETag/304 적용).
     """
     _cache = get_analytics_cache()
     cache_key = analytics_key(current_user.id, "metrics")
     cached = await _cache.get(cache_key)
     if cached:
-        return json.loads(cached)
+        return etag_response(request, json.loads(cached))
 
     # 보유 종목 조회
     port_result = await db.execute(
@@ -154,7 +159,7 @@ async def get_metrics(
     )
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
-        return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+        return etag_response(request, _EMPTY_METRICS)
 
     # 보유 종목 + KIS 계좌를 병렬로 조회 (독립적 쿼리)
     hold_result, acct_result = await asyncio.gather(
@@ -163,7 +168,7 @@ async def get_metrics(
     )
     holdings = hold_result.scalars().all()
     if not holdings:
-        return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+        return etag_response(request, _EMPTY_METRICS)
 
     acct = acct_result.scalar_one_or_none()
 
@@ -172,7 +177,7 @@ async def get_metrics(
     total_invested, total_current = _compute_holding_pnl(list(holdings), current_prices)
 
     if total_invested <= 0:
-        return {"total_return_rate": None, "cagr": None, "mdd": None, "sharpe_ratio": None}
+        return etag_response(request, _EMPTY_METRICS)
 
     total_return_rate = (total_current - total_invested) / total_invested * 100
 
@@ -249,7 +254,7 @@ async def get_metrics(
         "sharpe_ratio": round(sharpe, 3) if sharpe is not None else None,
     }
     await _cache.setex(cache_key, ANALYTICS_CACHE_TTL, json.dumps(result))
-    return result
+    return etag_response(request, result)
 
 
 @router.get("/monthly-returns", response_model=list[MonthlyReturn])
@@ -368,8 +373,8 @@ async def get_sector_allocation(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[SectorAllocation]:
-    """보유 종목의 섹터별 자산 배분 반환.
+) -> FastAPIResponse:
+    """보유 종목의 섹터별 자산 배분 반환 (ETag/304 적용).
 
     평균 매입가 기준으로 섹터별 투자 금액 비중을 계산한다.
     현재가 조회 없이 빠르게 응답한다.
@@ -378,21 +383,21 @@ async def get_sector_allocation(
     cache_key = analytics_key(current_user.id, "sector-allocation")
     cached = await _cache.get(cache_key)
     if cached:
-        return [SectorAllocation(**item) for item in json.loads(cached)]
+        return etag_response(request, json.loads(cached))
 
     port_result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == current_user.id)
     )
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
-        return []
+        return etag_response(request, [])
 
     hold_result = await db.execute(
         select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
     )
     holdings = hold_result.scalars().all()
     if not holdings:
-        return []
+        return etag_response(request, [])
 
     # 해외주식 USD → KRW 환산을 위해 캐시에서 환율 조회
     usd_krw = await get_cached_fx_rate()
@@ -407,7 +412,7 @@ async def get_sector_allocation(
 
     total = sum(sector_values.values())
     if total <= 0:
-        return []
+        return etag_response(request, [])
 
     result = [
         SectorAllocation(
@@ -417,8 +422,6 @@ async def get_sector_allocation(
         )
         for sector, value in sorted(sector_values.items(), key=lambda x: x[1], reverse=True)
     ]
-    await _cache.setex(
-        cache_key, ANALYTICS_CACHE_TTL,
-        json.dumps([r.model_dump() for r in result])
-    )
-    return result
+    payload = [r.model_dump() for r in result]
+    await _cache.setex(cache_key, ANALYTICS_CACHE_TTL, json.dumps(payload))
+    return etag_response(request, payload)

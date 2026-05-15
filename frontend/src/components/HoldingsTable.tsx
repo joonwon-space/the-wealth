@@ -8,11 +8,47 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
-import Link from "next/link";
+import { useCallback, useState } from "react";
+import NextLink from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { PnLBadge } from "@/components/PnLBadge";
+import { api } from "@/lib/api";
 import { formatKRW, formatUSD, formatPrice, formatNumber } from "@/lib/format";
+
+/**
+ * 종목 상세 prefetch — hover/focus 시 백엔드 cache 워밍.
+ * 30s staleTime 으로 dedup, hover 폭주를 막는다.
+ */
+function StockNameLink({
+  ticker,
+  children,
+  className,
+}: {
+  ticker: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const queryClient = useQueryClient();
+  const prefetch = useCallback(() => {
+    queryClient.prefetchQuery({
+      queryKey: ["stock-detail", ticker],
+      queryFn: async () =>
+        (await api.get(`/stocks/${ticker}/detail`)).data,
+      staleTime: 30_000,
+    });
+  }, [queryClient, ticker]);
+  return (
+    <NextLink
+      href={`/dashboard/stocks/${ticker}`}
+      onMouseEnter={prefetch}
+      onFocus={prefetch}
+      className={className}
+    >
+      {children}
+    </NextLink>
+  );
+}
 
 interface HoldingRow {
   id: number;
@@ -66,7 +102,7 @@ const columns: ColumnDef<HoldingRow>[] = [
     accessorKey: "name",
     header: "종목명",
     cell: ({ row }) => (
-      <Link href={`/dashboard/stocks/${row.original.ticker}`} className="hover:underline">
+      <StockNameLink ticker={row.original.ticker} className="hover:underline">
         <div className="font-semibold text-sm leading-tight">{row.original.name}</div>
         <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
           <span>{row.original.ticker}</span>
@@ -81,7 +117,7 @@ const columns: ColumnDef<HoldingRow>[] = [
             </span>
           )}
         </div>
-      </Link>
+      </StockNameLink>
     ),
   },
   {
@@ -222,7 +258,7 @@ export function HoldingsTable({ holdings }: Props) {
           return (
             <div key={row.id} className={`rounded-lg border p-3 space-y-2 transition-colors ${tint}`}>
               <div className="flex items-center justify-between">
-                <Link href={`/dashboard/stocks/${h.ticker}`} className="hover:underline">
+                <StockNameLink ticker={h.ticker} className="hover:underline">
                   <div className="font-semibold text-sm leading-tight">{h.name}</div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <span>{h.ticker}</span>
@@ -237,7 +273,7 @@ export function HoldingsTable({ holdings }: Props) {
                       </span>
                     )}
                   </div>
-                </Link>
+                </StockNameLink>
                 <div className="text-right space-y-0.5">
                   {h.pnl_rate != null ? (
                     <div className="flex flex-col items-end gap-1">

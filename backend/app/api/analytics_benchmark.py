@@ -4,9 +4,11 @@ from datetime import date as date_type, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._etag import etag_response
 from app.api.deps import get_current_user
 from app.core.limiter import limiter
 from app.core.logging import get_logger
@@ -102,7 +104,7 @@ async def benchmark_delta(
     period: str = Query(default="6M", description="1M | 3M | 6M | 1Y | ALL"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> BenchmarkDelta:
+) -> FastAPIResponse:
     """내 포트폴리오 누적 수익률 vs 벤치마크 지수의 기간별 차이(%p).
 
     1차 구현:
@@ -205,10 +207,11 @@ async def benchmark_delta(
             if len(day_values) >= 2 and day_values[0] > 0:
                 mine_pct = (day_values[-1] - day_values[0]) / day_values[0] * 100.0
 
-    return BenchmarkDelta(
+    result = BenchmarkDelta(
         index_code=index_code,
         period=period,
         mine_pct=round(mine_pct, 2),
         benchmark_pct=round(benchmark_pct, 2),
         delta_pct_points=round(mine_pct - benchmark_pct, 2),
     )
+    return etag_response(request, result.model_dump())

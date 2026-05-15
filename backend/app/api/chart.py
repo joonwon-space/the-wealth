@@ -1,6 +1,5 @@
 """Stock chart data API — KIS daily OHLCV for candlestick charts."""
 
-import hashlib
 import json
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
@@ -11,6 +10,7 @@ from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._etag import etag_response
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -58,18 +58,6 @@ def _chart_cache_key(ticker: str, period: str, market: Optional[str]) -> str:
     return f"{_CHART_CACHE_PREFIX}{market_segment}:{ticker}:{period}"
 
 
-def _build_chart_response(
-    request: Request, payload: dict
-) -> FastAPIResponse:
-    """payload(dict) → ETag/304 응답으로 변환. dashboard.py 와 동일 패턴."""
-    body = json.dumps(payload, default=str, sort_keys=True)
-    etag = hashlib.sha256(body.encode()).hexdigest()[:16]
-    if_none_match = request.headers.get("if-none-match", "")
-    if if_none_match == etag:
-        return FastAPIResponse(status_code=304, headers={"ETag": etag})
-    return FastAPIResponse(
-        content=body, media_type="application/json", headers={"ETag": etag}
-    )
 
 
 @router.get("/daily")
@@ -95,7 +83,7 @@ async def get_daily_chart(
     if cached_raw:
         try:
             payload = json.loads(cached_raw)
-            return _build_chart_response(request, payload)
+            return etag_response(request, payload)
         except json.JSONDecodeError:
             pass  # malformed → refetch
 
@@ -128,7 +116,7 @@ async def get_daily_chart(
         except (TypeError, ValueError) as e:
             logger.warning("Failed to cache chart for %s/%s: %s", ticker, period, e)
 
-    return _build_chart_response(request, payload)
+    return etag_response(request, payload)
 
 
 async def _fetch_domestic_candles(

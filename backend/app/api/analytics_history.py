@@ -5,9 +5,11 @@ from datetime import date as date_type, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._etag import etag_response
 from app.api.deps import get_current_user
 from app.core.limiter import limiter
 from app.core.logging import get_logger
@@ -40,8 +42,8 @@ async def get_portfolio_history(
     portfolio_id: Optional[int] = Query(default=None, description="특정 포트폴리오 ID (미지정 시 전체 합산)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[PortfolioHistoryPoint]:
-    """일별 포트폴리오 총 평가금액 시계열 반환.
+) -> FastAPIResponse:
+    """일별 포트폴리오 총 평가금액 시계열 반환 (ETag/304 적용).
 
     price_snapshots에서 보유 종목의 날짜별 종가를 집계하여
     일별 포트폴리오 가치를 계산한다.
@@ -54,7 +56,7 @@ async def get_portfolio_history(
     cache_key = analytics_key(current_user.id, cache_suffix)
     cached = await _cache.get(cache_key)
     if cached:
-        return [PortfolioHistoryPoint(**item) for item in json.loads(cached)]
+        return etag_response(request, json.loads(cached))
 
     port_query = select(Portfolio).where(Portfolio.user_id == current_user.id)
     if portfolio_id is not None:
@@ -62,14 +64,14 @@ async def get_portfolio_history(
     port_result = await db.execute(port_query)
     portfolio_ids = [p.id for p in port_result.scalars().all()]
     if not portfolio_ids:
-        return []
+        return etag_response(request, [])
 
     hold_result = await db.execute(
         select(Holding).where(Holding.portfolio_id.in_(portfolio_ids))
     )
     holdings = hold_result.scalars().all()
     if not holdings:
-        return []
+        return etag_response(request, [])
 
     tickers = list({h.ticker for h in holdings})
     # 같은 ticker가 여러 portfolio에 분산되면 dict comprehension은 마지막
@@ -90,7 +92,7 @@ async def get_portfolio_history(
     snap_result = await db.execute(snap_query)
     snapshots = snap_result.scalars().all()
     if not snapshots:
-        return []
+        return etag_response(request, [])
 
     # 날짜별 {ticker: close}
     date_ticker_map: dict[str, dict[str, float]] = {}
@@ -123,11 +125,9 @@ async def get_portfolio_history(
         if value > 0:
             history.append(PortfolioHistoryPoint(date=date_str, value=round(value, 0)))
 
-    await _cache.setex(
-        cache_key, ANALYTICS_CACHE_TTL,
-        json.dumps([h.model_dump() for h in history])
-    )
-    return history
+    payload = [h.model_dump() for h in history]
+    await _cache.setex(cache_key, ANALYTICS_CACHE_TTL, json.dumps(payload))
+    return etag_response(request, payload)
 
 
 @router.get("/krw-asset-history")
