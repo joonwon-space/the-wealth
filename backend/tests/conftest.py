@@ -11,21 +11,14 @@ tests isolated from each other.
 
 import asyncio
 import os
+from typing import AsyncGenerator
 
-# KIS_MOCK_MODE 를 Settings import 이전에 강제 set. 누락 시 background task
-# (예: _bg_sync_user) 가 실제 KIS prod URL 로 connect 시도 → kis_call_slot
-# rate token + concurrency 잡고 hang → fixture teardown 와 race → "Event loop
-# is closed" flaky failure. backend.yml 의 env 와 이중 방어.
-os.environ.setdefault("KIS_MOCK_MODE", "true")
-
-from typing import AsyncGenerator  # noqa: E402
-
-import pytest  # noqa: E402
-import pytest_asyncio  # noqa: E402
-import redis.asyncio as aioredis  # noqa: E402
-from httpx import ASGITransport, AsyncClient  # noqa: E402
-from sqlalchemy.pool import NullPool  # noqa: E402
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
+import pytest
+import pytest_asyncio
+import redis.asyncio as aioredis
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
@@ -64,6 +57,25 @@ def _reset_kis_availability():
     set_kis_availability(True, "")
     yield
     set_kis_availability(True, "")
+
+
+@pytest.fixture(autouse=True)
+def _disable_login_bg_sync(monkeypatch):
+    """`/auth/login` 응답 후 실행되는 _bg_sync_user 백그라운드 태스크를 비활성화한다.
+
+    프로덕션에서는 login 응답 반환 즉시 KIS 잔고 동기화를 백그라운드로 돌리지만,
+    테스트 환경에서는:
+    1. 진짜 KIS URL 로 connect 시도 → kis_call_slot rate token / concurrency 잡고
+       fixture teardown 까지 살아있음
+    2. teardown 후 event loop close → "Event loop is closed" / "attached to a
+       different loop" flaky failure
+
+    test 함수 자체에서 sync 가 필요하면 명시적으로 호출하면 된다.
+    """
+    async def _noop(user_id: int) -> None:  # noqa: ARG001
+        return
+
+    monkeypatch.setattr("app.api.auth._bg_sync_user", _noop)
 
 
 @pytest.fixture(scope="session", autouse=True)
