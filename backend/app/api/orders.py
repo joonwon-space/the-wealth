@@ -33,6 +33,10 @@ from app.schemas.order import (
     OrderableInfoResponse,
     PendingOrderResponse,
 )
+from app.services.cash_balance_aggregator import (
+    invalidate_account_cash_balance,
+    invalidate_user_cash_summary,
+)
 from app.services.kis_account import fetch_overseas_account_holdings
 from app.services.kis_balance import (
     CashBalance,
@@ -215,8 +219,12 @@ async def place_order(
     await db.commit()
     await db.refresh(db_order)
 
-    # Invalidate cash balance cache
+    # Invalidate cash balance caches:
+    #  - per-portfolio key used by /portfolios/{id}/cash-balance
+    #  - per-account + user-summary keys used by /dashboard/cash-summary
     await _cache.delete(_CASH_BALANCE_CACHE_PREFIX.format(portfolio_id=portfolio_id))
+    await invalidate_account_cash_balance(acct.id)
+    await invalidate_user_cash_summary(current_user.id)
 
     return db_order
 

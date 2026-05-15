@@ -74,3 +74,29 @@ class DashboardSummary(BaseModel):
     kis_status: str = "ok"  # "ok" | "degraded" — KIS 가격 조회 실패 시 "degraded"
     total_cash: Optional[Decimal] = None  # 예수금 합계 (KIS 연결 포트폴리오에서만)
     total_assets: Optional[Decimal] = None  # 총 자산 = total_asset + total_cash
+
+
+class CashSummaryAccount(BaseModel):
+    """사용자의 단일 KIS 계좌에 대한 예수금/평가 정보."""
+
+    kis_account_id: int
+    label: str
+    total_cash: Optional[Decimal] = None  # KRW 통합 (국내 + 해외 USD 환산)
+    available_cash: Optional[Decimal] = None
+    total_evaluation: Optional[Decimal] = None  # 종목 평가금액 (cash 미포함)
+    total_profit_loss: Optional[Decimal] = None
+    foreign_cash: Optional[Decimal] = None  # USD 외화예수금 원본
+    usd_krw_rate: Optional[Decimal] = None
+    error: Optional[str] = None  # 호출 실패 시 사유
+
+
+class CashSummaryResponse(BaseModel):
+    """사용자의 모든 KIS 계좌 예수금 합산. /dashboard/cash-summary 응답."""
+
+    total_cash: Decimal  # 모든 KIS 계좌 예수금 합계 (KRW)
+    available_cash: Decimal
+    total_evaluation: Decimal  # 모든 계좌 종목 평가 합계
+    total_profit_loss: Decimal
+    kis_connected: bool  # KIS 계좌가 하나라도 연결되어 있는지
+    accounts: list[CashSummaryAccount] = []
+    has_errors: bool = False  # 부분 실패 시 true

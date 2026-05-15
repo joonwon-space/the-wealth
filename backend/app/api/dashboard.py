@@ -23,7 +23,15 @@ from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
-from app.schemas.dashboard import AllocationItem, DashboardSummary, DashboardSummaryResponse, HoldingWithPnL, TriggeredAlert
+from app.schemas.dashboard import (
+    AllocationItem,
+    CashSummaryResponse,
+    DashboardSummary,
+    DashboardSummaryResponse,
+    HoldingWithPnL,
+    TriggeredAlert,
+)
+from app.services.cash_balance_aggregator import aggregate_cash_balance_for_user
 from app.services.kis_price import (
     _cache_price,
     _get_cached_price,
@@ -407,3 +415,19 @@ async def get_summary(
         )
 
     return summary
+
+
+@router.get("/cash-summary", response_model=CashSummaryResponse)
+@limiter.limit("60/minute")
+async def get_cash_summary(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CashSummaryResponse:
+    """사용자의 모든 KIS 계좌 예수금 합산. Redis 30초 캐시.
+
+    KIS 가 연결된 계좌가 없으면 `kis_connected=false` 와 0 합계를 반환한다.
+    각 계좌의 KIS 호출은 병렬 실행되며, 한 계좌가 실패해도 나머지 계좌는
+    정상 반환된다 (`has_errors=true` + 해당 계좌의 `error` 필드).
+    """
+    return await aggregate_cash_balance_for_user(db, current_user)

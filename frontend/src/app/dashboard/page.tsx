@@ -21,6 +21,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
+import { useCashSummary } from "@/hooks/useCashSummary";
 import { useInvestMode } from "@/hooks/useInvestMode";
 import { useAuthStore } from "@/store/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -301,6 +302,10 @@ export default function DashboardPage() {
     enabled: !isLoading,
   });
 
+  // 사용자의 모든 KIS 계좌 예수금 합산. KIS 가 연결돼 있지 않으면
+  // kis_connected=false 가 내려와 카드는 placeholder 로 표시된다.
+  const { data: cashSummary } = useCashSummary({ enabled: !isLoading });
+
   // Alerts toast
   const shownAlertIds = useRef<Set<number>>(new Set());
   useEffect(() => {
@@ -388,7 +393,13 @@ export default function DashboardPage() {
 
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
-  const animatedTotalAsset = summary?.total_asset ?? 0;
+  // 종목 평가금액. day-change 계산은 이 값을 기준으로 한다 (예수금은 변동 없음).
+  const stocksAsset = summary?.total_asset ?? 0;
+  const totalCash = cashSummary?.kis_connected
+    ? Number(cashSummary.total_cash) || 0
+    : 0;
+  // 화면 표시용 "총 자산" — 종목 평가 + 예수금.
+  const animatedTotalAsset = stocksAsset + totalCash;
 
   if (isLoading) {
     return (
@@ -471,7 +482,7 @@ export default function DashboardPage() {
     todayTasks && Array.isArray(todayTasks.tasks) ? todayTasks : { count: 0, tasks: [] };
 
   const goalPortfolio = (s as Summary & { target_value?: number }).target_value
-    ? { total: s.total_asset, target: (s as Summary & { target_value: number }).target_value }
+    ? { total: animatedTotalAsset, target: (s as Summary & { target_value: number }).target_value }
     : null;
 
   return (
@@ -550,7 +561,11 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="p-6">
                 <HeroValue
-                  label="총 평가금액 · KRW"
+                  label={
+                    cashSummary?.kis_connected
+                      ? "총 자산 (종목 + 예수금) · KRW"
+                      : "총 평가금액 · KRW"
+                  }
                   value={formatKRW(animatedTotalAsset)}
                   change={s.day_change_amount != null ? formatKRW(s.day_change_amount) : undefined}
                   changePct={dayChangePct}
@@ -559,6 +574,11 @@ export default function DashboardPage() {
                     s.usd_krw_rate != null ? `USD/KRW ${formatKRW(s.usd_krw_rate)}` : null
                   }
                 />
+                {cashSummary?.kis_connected && totalCash > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                    종목 {formatKRW(stocksAsset)} · 예수금 {formatKRW(totalCash)}
+                  </p>
+                )}
                 <div className="mt-4 -mx-2">
                   <AreaChart data={spark} height={140} showDot showXAxis up={isPositiveDay} />
                 </div>
@@ -640,10 +660,14 @@ export default function DashboardPage() {
               <CardContent className="p-4">
                 <p className="text-section-header">예수금</p>
                 <p className="mt-2 text-lg font-bold tabular-nums">
-                  {s.total_cash != null ? formatKRW(s.total_cash) : "—"}
+                  {cashSummary?.kis_connected ? formatKRW(totalCash) : "—"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {s.total_cash != null ? "KIS 계좌 합계" : "KIS 연동 시 노출됩니다"}
+                  {cashSummary?.kis_connected
+                    ? cashSummary.has_errors
+                      ? "일부 계좌 조회 실패 — 합계 부정확"
+                      : `KIS 계좌 ${cashSummary.accounts.length}개 합계`
+                    : "KIS 연동 시 노출됩니다"}
                 </p>
               </CardContent>
             </Card>
