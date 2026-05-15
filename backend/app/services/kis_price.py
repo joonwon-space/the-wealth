@@ -43,7 +43,10 @@ _PRICE_CACHE_PREFIX = "price:"
 _PRICE_DETAIL_CACHE_PREFIX = "price_detail:"  # current + prev_close + day_change + 52w
 _PRICE_CACHE_TTL_MARKET_OPEN = 300     # 5 min during market hours
 _PRICE_CACHE_TTL_MARKET_CLOSED = 86400  # 24 h after market close
-_PRICE_CACHE_TTL_HOLDINGS_OPEN = 30    # 30 s during market hours (user-facing)
+# 60s during market hours (user-facing) — SSE 30s push 와 dashboard polling 사이
+# rate limiter burst 소진 빈도를 줄이기 위해 30→60s. day-change 변동은 1분 단위로
+# 사용자가 체감하기 어렵고, SSE 가 fresh push 를 별도 채널로 공급.
+_PRICE_CACHE_TTL_HOLDINGS_OPEN = 60
 _PRICE_CACHE_TTL_HOLDINGS_CLOSED = 300  # 5 min outside market hours (user-facing)
 
 # Single-flight (request coalescing) — KIS API 호출 중복 제거.

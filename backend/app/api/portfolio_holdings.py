@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.analytics import invalidate_analytics_cache
 from app.api.deps import get_current_user
+from app.api.portfolios import invalidate_portfolios_with_prices_cache
 from app.api.prices import invalidate_sse_ticker_cache
 from app.core.encryption import decrypt
 from app.core.limiter import limiter
@@ -245,6 +246,7 @@ async def add_holding(
     await db.commit()
     await db.refresh(holding)
     await invalidate_analytics_cache(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
     await invalidate_sse_ticker_cache(current_user.id)
     return holding
 
@@ -314,6 +316,7 @@ async def bulk_add_holdings(
 
     await db.commit()
     await invalidate_analytics_cache(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
     await invalidate_sse_ticker_cache(current_user.id)
     logger.info(
         "Bulk holdings upsert: portfolio=%d created=%d updated=%d errors=%d",
@@ -350,6 +353,7 @@ async def update_holding(
     await db.commit()
     await db.refresh(holding)
     await invalidate_analytics_cache(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
     return holding
 
 
@@ -376,4 +380,5 @@ async def delete_holding(
     await db.delete(holding)
     await db.commit()
     await invalidate_analytics_cache(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
     await invalidate_sse_ticker_cache(current_user.id)

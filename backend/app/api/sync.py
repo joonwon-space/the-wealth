@@ -28,6 +28,7 @@ from app.services.kis_rate_limiter import kis_call_slot
 from app.services.kis_token import get_kis_access_token, invalidate_kis_token
 from app.services.reconciliation import reconcile_holdings
 from app.api.analytics import invalidate_analytics_cache
+from app.api.portfolios import invalidate_portfolios_with_prices_cache
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 logger = get_logger(__name__)
@@ -317,6 +318,7 @@ async def sync_portfolio(
         db.add(log)
         await db.commit()
         await invalidate_analytics_cache(current_user.id)
+        await invalidate_portfolios_with_prices_cache(current_user.id)
         return {"status": "success", **counts}
     except Exception as exc:
         log = SyncLog(

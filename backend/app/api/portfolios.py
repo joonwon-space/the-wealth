@@ -1,6 +1,7 @@
 """Portfolio CRUD endpoints — create, list, update, delete, reorder."""
 
 import asyncio
+import json
 from decimal import Decimal
 
 import httpx
@@ -8,11 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api._etag import etag_response
 from app.api.analytics import invalidate_analytics_cache
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.encryption import decrypt
 from app.core.limiter import limiter
 from app.core.logging import get_logger
+from app.core.redis_cache import RedisCache
 from app.core.ticker import is_domestic
 from app.db.session import get_db
 from app.models.holding import Holding
@@ -40,6 +44,15 @@ _MARKET_MAP = {
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 logger = get_logger(__name__)
+
+_cache = RedisCache(settings.REDIS_URL)
+_PWP_CACHE_PREFIX = "pwp:user:{user_id}"  # /portfolios/with-prices response cache
+_PWP_CACHE_TTL = 30  # seconds — matches holdings price TTL during market hours
+
+
+async def invalidate_portfolios_with_prices_cache(user_id: int) -> None:
+    """holdings/orders/sync 변경 시 응답 캐시 무효화."""
+    await _cache.delete(_PWP_CACHE_PREFIX.format(user_id=user_id))
 
 
 def _assert_portfolio_owner(portfolio: Portfolio, user: User) -> None:
@@ -96,13 +109,27 @@ async def list_portfolios_with_prices(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+):
     """All portfolios with aggregated KIS real-time prices, KRW-normalized.
 
     Price fields are None when KIS is not connected or the call fails.
     De-duplicates tickers across portfolios before KIS requests to stay within
-    the rate limit (5/s burst 20).
+    the rate limit.
+
+    Response 자체를 Redis 캐시 (pwp:user:{id}, 30s TTL) — 같은 사용자가 빠르게
+    재진입해도 DB query + KIS cache lookup + 집계를 모두 skip. holdings/orders/sync
+    변경 시 호출자가 invalidate_portfolios_with_prices_cache 호출해 무효화.
+    ETag/304 로 클라이언트 측 재전송도 차단.
     """
+    cache_key = _PWP_CACHE_PREFIX.format(user_id=current_user.id)
+    cached_raw = await _cache.get(cache_key)
+    if cached_raw:
+        try:
+            cached_payload = json.loads(cached_raw)
+            return etag_response(request, cached_payload)
+        except json.JSONDecodeError:
+            pass  # malformed → refetch
+
     # 1. Fetch all portfolios with holding counts and total_invested (same query as list)
     stmt = (
         select(
@@ -121,7 +148,9 @@ async def list_portfolios_with_prices(
     )
     portfolio_rows = list((await db.execute(stmt)).all())
     if not portfolio_rows:
-        return []
+        # 빈 응답도 캐시 — invalidate 는 portfolio 생성 시점에 발생
+        await _cache.setex(cache_key, _PWP_CACHE_TTL, "[]")
+        return etag_response(request, [])
 
     portfolio_ids = [p.id for p, *_ in portfolio_rows]
 
@@ -256,7 +285,13 @@ async def list_portfolios_with_prices(
             "exchange_rate": exchange_rate if all_overseas and acct else None,
         })
 
-    return results
+    # 응답 캐시 — json.dumps default=str 로 Decimal/datetime 자동 변환
+    try:
+        await _cache.setex(cache_key, _PWP_CACHE_TTL, json.dumps(results, default=str))
+    except (TypeError, ValueError) as e:
+        logger.warning("Failed to cache /portfolios/with-prices for user %d: %s", current_user.id, e)
+
+    return etag_response(request, results)
 
 
 @router.post("", response_model=PortfolioResponse, status_code=status.HTTP_201_CREATED)
@@ -280,6 +315,7 @@ async def create_portfolio(
     db.add(portfolio)
     await db.commit()
     await db.refresh(portfolio)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
     return portfolio
 
 
@@ -304,6 +340,7 @@ async def reorder_portfolios(
             .values(display_order=item.display_order)
         )
     await db.commit()
+    await invalidate_portfolios_with_prices_cache(current_user.id)
 
 
 @router.patch("/{portfolio_id}", response_model=PortfolioResponse)
@@ -335,6 +372,7 @@ async def update_portfolio(
     await db.commit()
     await db.refresh(portfolio)
     await invalidate_analytics_cache(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
 
     stats = await db.execute(
         select(
@@ -372,3 +410,4 @@ async def delete_portfolio(
     _assert_portfolio_owner(portfolio, current_user)
     await db.delete(portfolio)
     await db.commit()
+    await invalidate_portfolios_with_prices_cache(current_user.id)

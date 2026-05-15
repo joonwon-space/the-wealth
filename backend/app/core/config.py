@@ -49,11 +49,14 @@ class Settings(BaseSettings):
     # Policy (실전투자): 1초당 18건 per account; /oauth2/tokenP 1초당 1건.
     # BURST + (PER_SEC × 1s) must stay ≤ 18 within any 1-second sliding window.
     #
-    # 단계적 상향 — Sprint 1 의 concurrency cap + Sprint 2 의 cache-first +
-    # Sprint 3 의 single-flight 적용 후 헤드룸 확보됨. KIS 정책 18/s 의 44%.
-    # 모니터링 (Sentry KIS 429 카운터 + _timeout_counter) 안정 시 12/s 까지 추가 상향.
+    # 단계적 상향 history:
+    #   Sprint 0: 5/s burst 12 (KIS 정책 28%)
+    #   Sprint 3: 8/s burst 16 (KIS 정책 44%)
+    #   Sprint 5: 8/s burst 20 (KIS 정책 헤드룸 활용) — 라이브 P95 slow acquire
+    #            로그 다수 발견 (dashboard polling + portfolios fanout 시점 겹침)
+    #            burst 토큰 4개 추가로 동시 fanout 시 wait 감소.
     KIS_RATE_LIMIT_PER_SEC: float = 8.0
-    KIS_RATE_LIMIT_BURST: int = 16
+    KIS_RATE_LIMIT_BURST: int = 20
     # Max in-flight KIS HTTP requests at any time (independent of req/sec).
     # Prevents a flat-burst from opening dozens of concurrent TCP connections,
     # which can trigger KIS connection-level rejection (ConnectTimeout) even

@@ -215,6 +215,93 @@ Rules apply by file path pattern. Key rules to follow:
 Types: feat, fix, refactor, docs, test, chore, perf, ci
 ```
 
+## Live Debugging (Production on mac-mini)
+
+라이브 운영 인스턴스는 mac-mini 의 docker compose 로 돌고 있다. 사용자가 라이브
+이슈("느림", "오류", "응답 안 옴" 등)를 보고하면 **추측하기 전에 실제 로그부터 확인**.
+
+### SSH 접속 + 컨테이너 목록
+```bash
+ssh mac-mini "docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'"
+```
+
+핵심 컨테이너:
+- `the-wealth-backend-1` — FastAPI + uvicorn
+- `the-wealth-frontend-1` — Next.js
+- `the-wealth-postgres-1` — DB
+- `the-wealth-redis-1` — 캐시
+- `the-wealth-dozzle-1` — 웹 기반 로그 뷰어 (8888 포트)
+
+### 자주 쓰는 로그 패턴
+
+**최근 N분 로그 한꺼번에**:
+```bash
+ssh mac-mini "docker logs --since 10m the-wealth-backend-1 2>&1 | tail -200"
+```
+
+**느린 요청 찾기** (`request completed` 로그 + `process_time_ms`):
+```bash
+ssh mac-mini "docker logs --tail 500 the-wealth-backend-1 2>&1 | grep 'request completed' | tail -40"
+```
+
+**특정 엔드포인트 latency**:
+```bash
+ssh mac-mini "docker logs --since 10m the-wealth-backend-1 2>&1 | grep 'path=/api/v1/portfolios/with-prices' | tail -20"
+```
+
+**KIS rate-limit wait 감지** (`P95 slow acquire` 경고):
+```bash
+ssh mac-mini "docker logs --since 30m the-wealth-backend-1 2>&1 | grep 'P95 slow acquire' | tail -20"
+```
+
+**KIS 429 / EGW00201 재시도**:
+```bash
+ssh mac-mini "docker logs --since 1h the-wealth-backend-1 2>&1 | grep -E '429|EGW00201|rate-limit'"
+```
+
+**에러/예외**:
+```bash
+ssh mac-mini "docker logs --since 1h the-wealth-backend-1 2>&1 | grep -iE 'ERROR|Traceback|Exception' | tail -30"
+```
+
+**KIS 가용성 변경 이력**:
+```bash
+ssh mac-mini "docker logs --since 24h the-wealth-backend-1 2>&1 | grep -E 'KIS availability|kis_availability'"
+```
+
+### 컨테이너 상태 / 자원
+
+```bash
+ssh mac-mini "docker stats --no-stream the-wealth-backend-1 the-wealth-postgres-1 the-wealth-redis-1"
+ssh mac-mini "docker exec the-wealth-redis-1 redis-cli INFO memory | head -10"
+ssh mac-mini "docker exec the-wealth-redis-1 redis-cli DBSIZE"
+```
+
+### Redis 캐시 검사
+
+```bash
+# 사용자별 cache 키 확인
+ssh mac-mini "docker exec the-wealth-redis-1 redis-cli KEYS 'pwp:user:*'"
+ssh mac-mini "docker exec the-wealth-redis-1 redis-cli KEYS 'price:*' | head -20"
+ssh mac-mini "docker exec the-wealth-redis-1 redis-cli KEYS 'sf_lock:*'"
+
+# 특정 키 TTL
+ssh mac-mini "docker exec the-wealth-redis-1 redis-cli TTL 'pwp:user:1'"
+```
+
+### 컨테이너 재시작 (사용자 명시 지시 시에만)
+
+```bash
+ssh mac-mini "cd /path/to/the-wealth && docker compose restart backend"
+```
+
+### 진단 흐름 권장
+
+1. **사용자 보고 → SSH 로그 확인** (추측 금지, 실제 latency / 에러 먼저 확인)
+2. **process_time_ms 분포 측정** — backend 자체 vs 외부 요인 판별
+3. **rate limiter / KIS 가용성 / Redis 캐시 hit ratio** 점검
+4. **코드 분석은 로그 데이터 확보 후**
+
 ## Environment
 
 Copy `backend/.env.example` to `backend/.env` before running the backend.

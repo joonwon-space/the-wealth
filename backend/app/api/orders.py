@@ -33,6 +33,7 @@ from app.schemas.order import (
     OrderableInfoResponse,
     PendingOrderResponse,
 )
+from app.api.portfolios import invalidate_portfolios_with_prices_cache
 from app.services.cash_balance_aggregator import (
     invalidate_account_cash_balance,
     invalidate_user_cash_summary,
@@ -225,6 +226,7 @@ async def place_order(
     await _cache.delete(_CASH_BALANCE_CACHE_PREFIX.format(portfolio_id=portfolio_id))
     await invalidate_account_cash_balance(acct.id)
     await invalidate_user_cash_summary(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
 
     return db_order
 
@@ -414,6 +416,7 @@ async def cancel_order_endpoint(
     await _cache.delete(_CASH_BALANCE_CACHE_PREFIX.format(portfolio_id=portfolio_id))
     await invalidate_account_cash_balance(acct.id)
     await invalidate_user_cash_summary(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
 
 
 @router.post("/portfolios/{portfolio_id}/orders/settle")
@@ -448,6 +451,7 @@ async def settle_orders_endpoint(
     await _cache.delete(_CASH_BALANCE_CACHE_PREFIX.format(portfolio_id=portfolio_id))
     await invalidate_account_cash_balance(acct.id)
     await invalidate_user_cash_summary(current_user.id)
+    await invalidate_portfolios_with_prices_cache(current_user.id)
 
     return counts
 
