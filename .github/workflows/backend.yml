@@ -81,6 +81,11 @@ jobs:
           ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           REDIS_URL: redis://localhost:6379
           KIS_BASE_URL: https://openapi.koreainvestment.com:9443
+          # 테스트는 KIS 를 mock 으로 처리. rate limiter / concurrency cap 도 즉시 통과시켜
+          # background task (예: _bg_sync_user) 가 진짜 KIS prod 로 connect 시도 후 hang
+          # 하지 않도록 한다. 누락 시 login → KIS connect timeout → fixture teardown 와
+          # background task 가 race → "Event loop is closed" flaky failure.
+          KIS_MOCK_MODE: 'true'
         run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage report
