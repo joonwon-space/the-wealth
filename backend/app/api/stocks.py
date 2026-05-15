@@ -18,6 +18,8 @@ from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
+from app.services.kis_rate_limiter import kis_call_slot
+from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 from app.services.kis_price import fetch_usd_krw_rate
 from app.services.stock_search import search_stocks as _search
@@ -122,11 +124,13 @@ async def _fetch_domestic_detail(
         }
         params = {"fid_cond_mrkt_div_code": "J", "fid_input_iscd": ticker}
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
-                headers=headers,
-                params=params,
-            )
+            async with kis_call_slot():
+                resp = await kis_get(
+                    client,
+                    f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
+                    headers=headers,
+                    params=params,
+                )
         resp.raise_for_status()
         output = resp.json().get("output", {})
     except Exception as e:
@@ -184,11 +188,13 @@ async def _fetch_overseas_detail(
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             # 기본 현재가 조회
-            resp = await client.get(
-                f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
-                headers={**base_headers, "tr_id": "HHDFS00000300"},
-                params=params,
-            )
+            async with kis_call_slot():
+                resp = await kis_get(
+                    client,
+                    f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price",
+                    headers={**base_headers, "tr_id": "HHDFS00000300"},
+                    params=params,
+                )
             resp.raise_for_status()
             output = resp.json().get("output", {})
             usd_krw_rate = await fetch_usd_krw_rate(app_key, app_secret, client)
@@ -198,11 +204,13 @@ async def _fetch_overseas_detail(
             w52_low_raw = output.get("w52lwpr", "")
             if not w52_high_raw or w52_high_raw == "0":
                 try:
-                    detail_resp = await client.get(
-                        f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
-                        headers={**base_headers, "tr_id": "HHDFS76200200"},
-                        params=params,
-                    )
+                    async with kis_call_slot():
+                        detail_resp = await kis_get(
+                            client,
+                            f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/price-detail",
+                            headers={**base_headers, "tr_id": "HHDFS76200200"},
+                            params=params,
+                        )
                     detail_resp.raise_for_status()
                     detail_out = detail_resp.json().get("output", {})
                     # price-detail 응답에서 52주 필드 시도

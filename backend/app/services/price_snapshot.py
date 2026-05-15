@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.price_snapshot import PriceSnapshot
-from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_rate_limiter import kis_call_slot
 from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
@@ -39,7 +39,6 @@ async def fetch_domestic_price_detail(
 
     Returns PriceDetail with current, prev_close, day_change_rate.
     """
-    await _rate_limit_acquire()
     token = await get_kis_access_token(app_key, app_secret)
     headers = {
         "authorization": f"Bearer {token}",
@@ -53,12 +52,13 @@ async def fetch_domestic_price_detail(
         "fid_input_iscd": ticker,
     }
     try:
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         output = resp.json().get("output", {})
         current_str = output.get("stck_prpr", "0")

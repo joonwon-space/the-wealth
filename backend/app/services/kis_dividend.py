@@ -24,7 +24,7 @@ from app.models.dividend import Dividend
 from app.models.holding import Holding
 from app.services.kis_health import get_kis_availability
 from app.services.kis_price import _get_headers
-from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_rate_limiter import kis_call_slot
 from app.services.kis_retry import kis_get
 
 logger = get_logger(__name__)
@@ -110,7 +110,6 @@ async def _fetch_domestic_dividend_pages(
     ctx_area_fk100 = ""
     ctx_area_nk100 = ""
     for _ in range(20):  # 안전 상한
-        await _rate_limit_acquire()
         headers = {
             **headers_base,
             "tr_id": _DOMESTIC_TR_ID,
@@ -126,12 +125,13 @@ async def _fetch_domestic_dividend_pages(
             "CTX_AREA_FK100": ctx_area_fk100,
             "CTX_AREA_NK100": ctx_area_nk100,
         }
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}{_DOMESTIC_PATH}",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}{_DOMESTIC_PATH}",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         body = resp.json()
         chunk = body.get("output1") or body.get("output") or []
@@ -150,19 +150,19 @@ async def _fetch_overseas_dividend(
     ticker: str, market: str, app_key: str, app_secret: str, client: httpx.AsyncClient,
 ) -> list[dict[str, Any]]:
     headers_base = await _get_headers(app_key, app_secret)
-    await _rate_limit_acquire()
     headers = {**headers_base, "tr_id": _OVERSEAS_TR_ID}
     params = {
         "AUTH": "",
         "EXCD": market or "NAS",
         "SYMB": ticker,
     }
-    resp = await kis_get(
-        client,
-        f"{settings.KIS_BASE_URL}{_OVERSEAS_PATH}",
-        headers=headers,
-        params=params,
-    )
+    async with kis_call_slot():
+        resp = await kis_get(
+            client,
+            f"{settings.KIS_BASE_URL}{_OVERSEAS_PATH}",
+            headers=headers,
+            params=params,
+        )
     resp.raise_for_status()
     body = resp.json()
     chunk = body.get("output") or body.get("output1") or []

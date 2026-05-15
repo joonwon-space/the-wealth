@@ -10,7 +10,7 @@ import httpx
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_rate_limiter import kis_call_slot
 from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 
@@ -60,13 +60,13 @@ async def fetch_domestic_transactions(
     }
     results: list[dict] = []
     try:
-        await _rate_limit_acquire()
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         data = resp.json()
         for row in data.get("output1", []):
@@ -125,13 +125,13 @@ async def _fetch_overseas_transactions_by_exchange(
     }
     results: list[dict] = []
     try:
-        await _rate_limit_acquire()
-        resp = await kis_get(
-            client,
-            f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/inquire-ccnl",
-            headers=headers,
-            params=params,
-        )
+        async with kis_call_slot():
+            resp = await kis_get(
+                client,
+                f"{settings.KIS_BASE_URL}/uapi/overseas-stock/v1/trading/inquire-ccnl",
+                headers=headers,
+                params=params,
+            )
         resp.raise_for_status()
         data = resp.json()
         rows = data.get("output") or []

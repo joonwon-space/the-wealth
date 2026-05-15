@@ -16,6 +16,8 @@ from app.core.encryption import decrypt
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.user import User
+from app.services.kis_rate_limiter import kis_call_slot
+from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
 from app.core.ticker import is_domestic
 
@@ -102,11 +104,13 @@ async def _fetch_domestic_candles(
         async with httpx.AsyncClient(timeout=10.0) as client:
             for _ in range(max_pages):
                 params["FID_INPUT_DATE_2"] = current_end.strftime("%Y%m%d")
-                resp = await client.get(
-                    f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
-                    headers=headers,
-                    params=params,
-                )
+                async with kis_call_slot():
+                    resp = await kis_get(
+                        client,
+                        f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+                        headers=headers,
+                        params=params,
+                    )
                 resp.raise_for_status()
                 data = resp.json()
 
@@ -210,11 +214,13 @@ async def _fetch_overseas_candles(
                     "BYMD": current_end.strftime("%Y%m%d"),
                     "MODP": "0",
                 }
-                resp = await client.get(
-                    f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/dailyprice",
-                    headers=headers,
-                    params=params,
-                )
+                async with kis_call_slot():
+                    resp = await kis_get(
+                        client,
+                        f"{settings.KIS_BASE_URL}/uapi/overseas-price/v1/quotations/dailyprice",
+                        headers=headers,
+                        params=params,
+                    )
                 resp.raise_for_status()
                 data = resp.json()
 

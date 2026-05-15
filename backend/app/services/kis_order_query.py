@@ -16,7 +16,7 @@ import httpx
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.services.kis_rate_limiter import acquire as _rate_limit_acquire
+from app.services.kis_rate_limiter import kis_call_slot
 from app.services.kis_retry import kis_get
 
 logger = get_logger(__name__)
@@ -99,13 +99,13 @@ async def get_orderable_quantity(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            await _rate_limit_acquire()
-            resp = await kis_get(
-                client,
-                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-psbl-order",
-                headers=headers,
-                params=params,
-            )
+            async with kis_call_slot():
+                resp = await kis_get(
+                    client,
+                    f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-psbl-order",
+                    headers=headers,
+                    params=params,
+                )
 
         if resp.status_code in (401, 500) and not _retried:
             logger.warning(
@@ -198,8 +198,8 @@ async def get_pending_orders(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            await _rate_limit_acquire()
-            resp = await kis_get(client, url, headers=headers, params=params)
+            async with kis_call_slot():
+                resp = await kis_get(client, url, headers=headers, params=params)
 
         if resp.status_code in (401, 500) and not _retried:
             logger.warning(
@@ -323,13 +323,13 @@ async def check_filled_orders(
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            await _rate_limit_acquire()
-            resp = await kis_get(
-                client,
-                f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
-                headers=headers,
-                params=params,
-            )
+            async with kis_call_slot():
+                resp = await kis_get(
+                    client,
+                    f"{settings.KIS_BASE_URL}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",
+                    headers=headers,
+                    params=params,
+                )
 
         if resp.status_code in (401, 500) and not _retried:
             logger.warning(
