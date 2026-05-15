@@ -5,7 +5,9 @@ _PLACEHOLDER_SECRETS = {"change-me", "change-me-32-bytes-placeholder00"}
 
 
 class Settings(BaseSettings):
-    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # extra='ignore' — 운영/로컬 환경에 따라 .env 가 추가 키를 가질 수 있음
+    # (e.g. VISUAL_QA_EMAIL/PASSWORD 같은 보조 도구용). 미선언 키는 무시한다.
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     DATABASE_URL: str = (
         "postgresql+asyncpg://postgres:postgres@localhost:5432/the_wealth"

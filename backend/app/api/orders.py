@@ -410,6 +410,11 @@ async def cancel_order_endpoint(
         db_order.status = "cancelled"
         await db.commit()
 
+    # 미체결 매수 취소 시 available_cash 가 즉시 복원되므로 cash 캐시 무효화.
+    await _cache.delete(_CASH_BALANCE_CACHE_PREFIX.format(portfolio_id=portfolio_id))
+    await invalidate_account_cash_balance(acct.id)
+    await invalidate_user_cash_summary(current_user.id)
+
 
 @router.post("/portfolios/{portfolio_id}/orders/settle")
 @limiter.limit("10/minute")
@@ -436,6 +441,13 @@ async def settle_orders_endpoint(
         )
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+    # 체결 발생 시 cash + holdings 가 변동되므로 캐시 무효화.
+    # 미체결만 있고 settled/partial=0 이어도 cash 는 변동 없음 — 그러나
+    # 비용이 작아 일관적으로 invalidate (사용자가 settle 누른 시점에 fresh 필요).
+    await _cache.delete(_CASH_BALANCE_CACHE_PREFIX.format(portfolio_id=portfolio_id))
+    await invalidate_account_cash_balance(acct.id)
+    await invalidate_user_cash_summary(current_user.id)
 
     return counts
 
