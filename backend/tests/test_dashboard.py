@@ -115,7 +115,7 @@ class TestDashboardSummary:
         )
 
         with patch(
-            "app.api.dashboard.fetch_domestic_price_detail",
+            "app.services.price_snapshot.fetch_domestic_price_detail",
             new_callable=AsyncMock,
             return_value=mock_price_detail,
         ):
@@ -275,7 +275,7 @@ class TestDashboardSummary:
 
         with (
             patch(
-                "app.api.dashboard.fetch_domestic_price_detail",
+                "app.services.price_snapshot.fetch_domestic_price_detail",
                 new_callable=AsyncMock,
                 return_value=mock_detail,
             ),
@@ -346,7 +346,7 @@ class TestDashboardSummary:
 
         with (
             patch(
-                "app.api.dashboard.fetch_overseas_price_detail",
+                "app.services.kis_price.fetch_overseas_price_detail",
                 new_callable=AsyncMock,
                 return_value=mock_ovrs_detail,
             ),
@@ -378,7 +378,7 @@ class TestDashboardSummary:
 
         with (
             patch(
-                "app.api.dashboard.fetch_domestic_price_detail",
+                "app.services.price_snapshot.fetch_domestic_price_detail",
                 new_callable=AsyncMock,
                 side_effect=Exception("KIS API error"),
             ),
@@ -456,7 +456,7 @@ class TestDashboardSummary:
 
         with (
             patch(
-                "app.api.dashboard.fetch_domestic_price_detail",
+                "app.services.price_snapshot.fetch_domestic_price_detail",
                 new_callable=AsyncMock,
                 side_effect=Exception("KIS timeout"),
             ),
@@ -514,7 +514,7 @@ class TestDashboardSummary:
 
         with (
             patch(
-                "app.api.dashboard.fetch_overseas_price_detail",
+                "app.services.kis_price.fetch_overseas_price_detail",
                 new_callable=AsyncMock,
                 side_effect=Exception("KIS overseas timeout"),
             ),

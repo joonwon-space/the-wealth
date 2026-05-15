@@ -33,12 +33,11 @@ from app.schemas.dashboard import (
 )
 from app.services.cash_balance_aggregator import aggregate_cash_balance_for_user
 from app.services.kis_price import (
-    _cache_price,
     _get_cached_price,
-    fetch_overseas_price_detail,
     fetch_usd_krw_rate,
+    get_or_fetch_domestic_price_detail,
+    get_or_fetch_overseas_price_detail,
 )
-from app.services.price_snapshot import fetch_domestic_price_detail
 from app.models.alert import Alert
 from app.api.alerts import check_triggered_alerts
 from app.core.ticker import is_domestic
@@ -139,17 +138,21 @@ async def _fetch_prices(
 
             # 전체 KIS 조회에 20초 글로벌 타임아웃 — degraded 시 배치 누적으로
             # Cloudflare 30초 제한 초과하는 것을 방지한다.
+            #
+            # cache-first: get_or_fetch_*_detail 은 `price_detail:{ticker}` 캐시 hit 시
+            # KIS 를 호출하지 않는다. holdings 30s TTL (장중) 동안 dashboard refetch /
+            # 페이지 전환이 발생해도 KIS 부하는 발생하지 않음.
             async with asyncio.timeout(20):
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     if overseas_tickers:
                         exchange_rate = await fetch_usd_krw_rate(app_key, app_secret, client)
 
                     domestic_tasks = [
-                        fetch_domestic_price_detail(t, app_key, app_secret, client)
+                        get_or_fetch_domestic_price_detail(t, app_key, app_secret, client)
                         for t in domestic_tickers
                     ]
                     overseas_tasks = [
-                        fetch_overseas_price_detail(t, ticker_to_market.get(t, "NAS"), app_key, app_secret, client)
+                        get_or_fetch_overseas_price_detail(t, ticker_to_market.get(t, "NAS"), app_key, app_secret, client)
                         for t in overseas_tickers
                     ]
                     all_results = await asyncio.gather(*domestic_tasks, *overseas_tasks, return_exceptions=True)
@@ -157,13 +160,13 @@ async def _fetch_prices(
             fetched_count = 0
             for ticker, detail in zip(domestic_tickers, all_results[: len(domestic_tickers)]):
                 if detail and not isinstance(detail, Exception):
-                    prices[ticker] = detail.current
-                    if detail.prev_close and detail.prev_close > _ZERO:
-                        prev_closes[ticker] = detail.prev_close
-                    day_change_rates[ticker] = detail.day_change_rate
-                    w52_highs[ticker] = detail.w52_high
-                    w52_lows[ticker] = detail.w52_low
-                    await _cache_price(ticker, detail.current)
+                    prices[ticker] = detail["current"]
+                    prev_close = detail.get("prev_close")
+                    if prev_close and prev_close > _ZERO:
+                        prev_closes[ticker] = prev_close
+                    day_change_rates[ticker] = detail.get("day_change_rate")
+                    w52_highs[ticker] = detail.get("w52_high")
+                    w52_lows[ticker] = detail.get("w52_low")
                     fetched_count += 1
                 else:
                     cached = await _get_cached_price(ticker)
@@ -173,13 +176,13 @@ async def _fetch_prices(
 
             for ticker, detail in zip(overseas_tickers, all_results[len(domestic_tickers):]):
                 if detail and not isinstance(detail, Exception):
-                    prices[ticker] = detail.current
-                    if detail.prev_close and detail.prev_close > _ZERO:
-                        prev_closes[ticker] = detail.prev_close
-                    day_change_rates[ticker] = detail.day_change_rate
-                    w52_highs[ticker] = detail.w52_high
-                    w52_lows[ticker] = detail.w52_low
-                    await _cache_price(ticker, detail.current)
+                    prices[ticker] = detail["current"]
+                    prev_close = detail.get("prev_close")
+                    if prev_close and prev_close > _ZERO:
+                        prev_closes[ticker] = prev_close
+                    day_change_rates[ticker] = detail.get("day_change_rate")
+                    w52_highs[ticker] = detail.get("w52_high")
+                    w52_lows[ticker] = detail.get("w52_low")
                     fetched_count += 1
                 else:
                     cached = await _get_cached_price(ticker)

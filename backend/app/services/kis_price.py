@@ -5,6 +5,7 @@ KIS API 장애 시 폴백.
 """
 
 import asyncio
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
@@ -39,6 +40,7 @@ logger = get_logger(__name__)
 _cache = RedisCache(settings.REDIS_URL)
 
 _PRICE_CACHE_PREFIX = "price:"
+_PRICE_DETAIL_CACHE_PREFIX = "price_detail:"  # current + prev_close + day_change + 52w
 _PRICE_CACHE_TTL_MARKET_OPEN = 300     # 5 min during market hours
 _PRICE_CACHE_TTL_MARKET_CLOSED = 86400  # 24 h after market close
 _PRICE_CACHE_TTL_HOLDINGS_OPEN = 30    # 30 s during market hours (user-facing)
@@ -552,5 +554,144 @@ async def get_or_fetch_overseas_price(
         )
         return detail.current
     return None
+
+
+# ---------------------------------------------------------------------------
+# Price detail cache — current + prev_close + day_change_rate + 52w high/low.
+# Dashboard `_fetch_prices` 가 이 캐시를 통해 cache-first 로 동작한다.
+# ---------------------------------------------------------------------------
+
+
+def _serialize_price_detail(
+    current: Decimal,
+    prev_close: Optional[Decimal],
+    day_change_rate: Optional[Decimal],
+    w52_high: Optional[Decimal],
+    w52_low: Optional[Decimal],
+) -> str:
+    """PriceDetail 류 dataclass 를 단일 JSON 으로 직렬화 (Decimal → str)."""
+    return json.dumps({
+        "current": str(current),
+        "prev_close": str(prev_close) if prev_close is not None else None,
+        "day_change_rate": str(day_change_rate) if day_change_rate is not None else None,
+        "w52_high": str(w52_high) if w52_high is not None else None,
+        "w52_low": str(w52_low) if w52_low is not None else None,
+    })
+
+
+def _deserialize_price_detail(raw: str) -> Optional[dict]:
+    """Redis 페이로드를 dict {current, prev_close, day_change_rate, w52_high, w52_low} 로 복원."""
+    try:
+        data = json.loads(raw)
+        return {
+            "current": Decimal(data["current"]),
+            "prev_close": Decimal(data["prev_close"]) if data.get("prev_close") else None,
+            "day_change_rate": (
+                Decimal(data["day_change_rate"]) if data.get("day_change_rate") else None
+            ),
+            "w52_high": Decimal(data["w52_high"]) if data.get("w52_high") else None,
+            "w52_low": Decimal(data["w52_low"]) if data.get("w52_low") else None,
+        }
+    except (json.JSONDecodeError, KeyError, ValueError):
+        return None
+
+
+async def _get_cached_price_detail(ticker: str) -> Optional[dict]:
+    raw = await _cache.get(f"{_PRICE_DETAIL_CACHE_PREFIX}{ticker}")
+    if raw is None:
+        return None
+    return _deserialize_price_detail(raw)
+
+
+async def _cache_price_detail(
+    ticker: str,
+    current: Decimal,
+    prev_close: Optional[Decimal],
+    day_change_rate: Optional[Decimal],
+    w52_high: Optional[Decimal],
+    w52_low: Optional[Decimal],
+    ttl: Optional[int] = None,
+) -> None:
+    payload = _serialize_price_detail(current, prev_close, day_change_rate, w52_high, w52_low)
+    effective_ttl = ttl if ttl is not None else get_holdings_ttl()
+    await _cache.setex(f"{_PRICE_DETAIL_CACHE_PREFIX}{ticker}", effective_ttl, payload)
+    # current 가격은 기존 price:{ticker} 키에도 함께 기록해 holdings/orderable 등
+    # current-only consumer 가 같은 fetch 를 재사용할 수 있게 한다.
+    await _cache.setex(
+        f"{_PRICE_CACHE_PREFIX}{ticker}", effective_ttl, str(current)
+    )
+
+
+async def get_or_fetch_domestic_price_detail(
+    ticker: str,
+    app_key: str,
+    app_secret: str,
+    client: httpx.AsyncClient,
+    ttl: Optional[int] = None,
+) -> Optional[dict]:
+    """국내주식 price_detail cache-first 조회.
+
+    캐시 hit → KIS 호출 없이 dict 반환.
+    캐시 miss → fetch_domestic_price_detail 호출 후 결과 캐시.
+    반환 dict 키: current, prev_close, day_change_rate, w52_high, w52_low.
+    """
+    cached = await _get_cached_price_detail(ticker)
+    if cached is not None:
+        return cached
+    # Local import to avoid circular dependency (price_snapshot also imports kis_price).
+    from app.services.price_snapshot import fetch_domestic_price_detail
+
+    detail = await fetch_domestic_price_detail(ticker, app_key, app_secret, client)
+    if detail is None or detail.current <= 0:
+        return None
+    await _cache_price_detail(
+        ticker,
+        detail.current,
+        detail.prev_close,
+        detail.day_change_rate,
+        detail.w52_high,
+        detail.w52_low,
+        ttl,
+    )
+    return {
+        "current": detail.current,
+        "prev_close": detail.prev_close,
+        "day_change_rate": detail.day_change_rate,
+        "w52_high": detail.w52_high,
+        "w52_low": detail.w52_low,
+    }
+
+
+async def get_or_fetch_overseas_price_detail(
+    ticker: str,
+    market: str,
+    app_key: str,
+    app_secret: str,
+    client: httpx.AsyncClient,
+    ttl: Optional[int] = None,
+) -> Optional[dict]:
+    """해외주식 price_detail cache-first 조회. dict 반환 형태는 domestic 과 동일."""
+    cached = await _get_cached_price_detail(ticker)
+    if cached is not None:
+        return cached
+    detail = await fetch_overseas_price_detail(ticker, market, app_key, app_secret, client)
+    if detail is None or detail.current <= 0:
+        return None
+    await _cache_price_detail(
+        ticker,
+        detail.current,
+        detail.prev_close,
+        detail.day_change_rate,
+        detail.w52_high,
+        detail.w52_low,
+        ttl,
+    )
+    return {
+        "current": detail.current,
+        "prev_close": detail.prev_close,
+        "day_change_rate": detail.day_change_rate,
+        "w52_high": detail.w52_high,
+        "w52_low": detail.w52_low,
+    }
 
 

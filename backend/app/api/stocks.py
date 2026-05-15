@@ -1,5 +1,6 @@
 """종목 검색 엔드포인트 — KIS 마스터 파일 기반 로컬 검색."""
 
+import json
 from typing import Optional
 
 import httpx
@@ -12,20 +13,24 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.encryption import decrypt
+from app.core.redis_cache import RedisCache
 from app.core.ticker import is_domestic
 from app.db.session import get_db
 from app.models.holding import Holding
 from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.user import User
+from app.services.kis_price import fetch_usd_krw_rate, get_holdings_ttl
 from app.services.kis_rate_limiter import kis_call_slot
 from app.services.kis_retry import kis_get
 from app.services.kis_token import get_kis_access_token
-from app.services.kis_price import fetch_usd_krw_rate
 from app.services.stock_search import search_stocks as _search
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 logger = get_logger(__name__)
+
+_cache = RedisCache(settings.REDIS_URL)
+_STOCK_DETAIL_CACHE_PREFIX = "stock_detail:"
 
 
 @router.get("/search")
@@ -95,15 +100,39 @@ async def get_stock_detail(
             holding_market = holding.market
             holding_name = holding.name
 
+    # User-specific my_holding 은 캐시하지 않고, KIS 응답만 캐시한 뒤 응답 시 합성.
+    cache_key = f"{_STOCK_DETAIL_CACHE_PREFIX}{ticker}"
+    cached_raw = await _cache.get(cache_key)
+    if cached_raw:
+        try:
+            detail = json.loads(cached_raw)
+            detail["my_holding"] = my_holding
+            return detail
+        except json.JSONDecodeError:
+            pass  # malformed cache → refetch
+
     if is_domestic(ticker):
-        return await _fetch_domestic_detail(
-            ticker, app_key, app_secret, holding_name, my_holding
+        detail = await _fetch_domestic_detail(
+            ticker, app_key, app_secret, holding_name, None
         )
     else:
         market = holding_market or "NAS"
-        return await _fetch_overseas_detail(
-            ticker, market, app_key, app_secret, holding_name, my_holding
+        detail = await _fetch_overseas_detail(
+            ticker, market, app_key, app_secret, holding_name, None
         )
+
+    # 에러 응답은 캐시하지 않음 — 다음 요청에서 재시도 가능해야 함
+    if "error" not in detail:
+        cacheable = {k: v for k, v in detail.items() if k != "my_holding"}
+        try:
+            await _cache.setex(
+                cache_key, get_holdings_ttl(), json.dumps(cacheable)
+            )
+        except (TypeError, ValueError) as e:
+            logger.warning("Failed to cache stock detail for %s: %s", ticker, e)
+
+    detail["my_holding"] = my_holding
+    return detail
 
 
 async def _fetch_domestic_detail(

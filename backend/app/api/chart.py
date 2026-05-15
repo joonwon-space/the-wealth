@@ -1,10 +1,13 @@
 """Stock chart data API — KIS daily OHLCV for candlestick charts."""
 
-from datetime import date, timedelta
+import hashlib
+import json
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +16,7 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import get_logger
 from app.core.encryption import decrypt
+from app.core.redis_cache import RedisCache
 from app.db.session import get_db
 from app.models.kis_account import KisAccount
 from app.models.user import User
@@ -24,6 +28,49 @@ from app.core.ticker import is_domestic
 router = APIRouter(prefix="/chart", tags=["chart"])
 logger = get_logger(__name__)
 
+_cache = RedisCache(settings.REDIS_URL)
+_CHART_CACHE_PREFIX = "chart_daily:"
+
+_KST = timezone(timedelta(hours=9))
+_MARKET_OPEN_HM = (9, 0)
+_MARKET_CLOSE_HM = (15, 30)
+
+
+def _chart_cache_ttl() -> int:
+    """차트 데이터는 일별이라 변동 빈도가 낮음.
+
+    - 평일 장중 (KST 09:00-15:30): 5분 (당일 캔들 갱신 반영)
+    - 평일 장외: 1시간 (당일 종가 안정)
+    - 주말: 24시간 (과거 데이터)
+    """
+    now = datetime.now(_KST)
+    if now.weekday() >= 5:
+        return 86400
+    t = (now.hour, now.minute)
+    if _MARKET_OPEN_HM <= t <= _MARKET_CLOSE_HM:
+        return 300
+    return 3600
+
+
+def _chart_cache_key(ticker: str, period: str, market: Optional[str]) -> str:
+    """캐시 키 — 국내는 'KR', 해외는 거래소 코드 차원에서 분리."""
+    market_segment = "KR" if is_domestic(ticker) else (market or "NAS")
+    return f"{_CHART_CACHE_PREFIX}{market_segment}:{ticker}:{period}"
+
+
+def _build_chart_response(
+    request: Request, payload: dict
+) -> FastAPIResponse:
+    """payload(dict) → ETag/304 응답으로 변환. dashboard.py 와 동일 패턴."""
+    body = json.dumps(payload, default=str, sort_keys=True)
+    etag = hashlib.sha256(body.encode()).hexdigest()[:16]
+    if_none_match = request.headers.get("if-none-match", "")
+    if if_none_match == etag:
+        return FastAPIResponse(status_code=304, headers={"ETag": etag})
+    return FastAPIResponse(
+        content=body, media_type="application/json", headers={"ETag": etag}
+    )
+
 
 @router.get("/daily")
 @limiter.limit("30/minute")
@@ -34,12 +81,24 @@ async def get_daily_chart(
     market: Optional[str] = Query(default=None, description="해외주식 거래소 코드 (NAS/NYS/HKS 등)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> FastAPIResponse:
     """Fetch daily OHLCV data from KIS API for candlestick chart.
 
     - 국내주식(6자리): FHKST01010400
     - 해외주식(그 외): HHDFS76240000 — market 파라미터 필요
+
+    캐시: chart_daily:{market}:{ticker}:{period} (장중 5min / 장외 1h / 주말 24h).
+    ETag/304 응답으로 클라이언트 측 재전송도 차단.
     """
+    cache_key = _chart_cache_key(ticker, period, market)
+    cached_raw = await _cache.get(cache_key)
+    if cached_raw:
+        try:
+            payload = json.loads(cached_raw)
+            return _build_chart_response(request, payload)
+        except json.JSONDecodeError:
+            pass  # malformed → refetch
+
     result = await db.execute(
         select(KisAccount).where(KisAccount.user_id == current_user.id).limit(1)
     )
@@ -55,10 +114,21 @@ async def get_daily_chart(
     token = await get_kis_access_token(app_key, app_secret)
 
     if is_domestic(ticker):
-        return await _fetch_domestic_candles(ticker, period, app_key, app_secret, token)
+        payload = await _fetch_domestic_candles(ticker, period, app_key, app_secret, token)
     else:
         excd = market or "NAS"
-        return await _fetch_overseas_candles(ticker, excd, period, app_key, app_secret, token)
+        payload = await _fetch_overseas_candles(ticker, excd, period, app_key, app_secret, token)
+
+    # candles 가 비어 있으면 캐시하지 않음 — 일시적 실패 가능성
+    if payload.get("candles"):
+        try:
+            await _cache.setex(
+                cache_key, _chart_cache_ttl(), json.dumps(payload, default=str)
+            )
+        except (TypeError, ValueError) as e:
+            logger.warning("Failed to cache chart for %s/%s: %s", ticker, period, e)
+
+    return _build_chart_response(request, payload)
 
 
 async def _fetch_domestic_candles(
