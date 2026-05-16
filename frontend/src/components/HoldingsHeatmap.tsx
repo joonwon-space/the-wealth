@@ -1,7 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import { Maximize2, X } from "lucide-react";
 import { useTheme } from "next-themes";
-import { ResponsiveContainer, Treemap } from "recharts";
+import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatKRW, formatRate } from "@/lib/format";
 
 export interface HeatmapHolding {
@@ -21,13 +28,6 @@ interface HeatmapNode {
   size: number;
   changeRate: number | null;
   [key: string]: unknown;
-}
-
-function truncateForWidth(text: string, width: number, isKorean: boolean): string {
-  const charWidth = isKorean ? 11 : 6.2;
-  const maxChars = Math.max(3, Math.floor((width - 14) / charWidth));
-  if (text.length <= maxChars) return text;
-  return `${text.slice(0, Math.max(2, maxChars - 2))}..`;
 }
 
 interface ColorPalette {
@@ -59,6 +59,13 @@ function getCellColor(rate: number | null, palette: ColorPalette): string {
   if (rate == null || rate === 0) return palette.neutral;
   const idx = pickIntensity(Math.abs(rate));
   return rate > 0 ? palette.rise[idx] : palette.fall[idx];
+}
+
+function truncateForWidth(text: string, width: number, isKorean: boolean): string {
+  const charWidth = isKorean ? 11 : 6.2;
+  const maxChars = Math.max(3, Math.floor((width - 14) / charWidth));
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, Math.max(2, maxChars - 2))}..`;
 }
 
 interface CellTextProps {
@@ -115,7 +122,6 @@ function CellText({
           {formatKRW(value)}
         </text>
       )}
-      {/* Reserve width hint to satisfy unused-var on width */}
       <desc>{`w=${width}`}</desc>
     </>
   );
@@ -144,7 +150,6 @@ function HeatmapCell(props: RechartsCellProps) {
     height = 0,
     depth,
     ticker,
-    fullName,
     label,
     isKorean = false,
     changeRate,
@@ -166,13 +171,8 @@ function HeatmapCell(props: RechartsCellProps) {
   const rawLabel = label ?? ticker ?? "";
   const displayLabel = truncateForWidth(rawLabel, width, isKorean);
 
-  const titleText = `${fullName ?? ticker ?? ""} · ${formattedRate}${
-    value != null ? ` · ${formatKRW(value)}` : ""
-  }`;
-
   return (
     <g>
-      <title>{titleText}</title>
       <rect
         x={x + 1}
         y={y + 1}
@@ -198,6 +198,67 @@ function HeatmapCell(props: RechartsCellProps) {
   );
 }
 
+interface TooltipPayloadEntry {
+  payload?: HeatmapNode;
+}
+
+interface HeatmapTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+}
+
+function HeatmapTooltip({ active, payload }: HeatmapTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const node = payload[0]?.payload;
+  if (!node) return null;
+  const rate = node.changeRate;
+  const rateText =
+    rate != null
+      ? `${rate >= 0 ? "+" : ""}${formatRate(rate)}%`
+      : "—";
+  const rateTone =
+    rate == null ? "text-muted-foreground" : rate > 0 ? "text-rise" : rate < 0 ? "text-fall" : "text-muted-foreground";
+  return (
+    <div className="pointer-events-none rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
+      <div className="font-semibold text-foreground">{node.fullName}</div>
+      <div className="text-muted-foreground">{node.ticker}</div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className={`text-sm font-bold tabular-nums ${rateTone}`}>{rateText}</span>
+        <span className="text-muted-foreground tabular-nums">{formatKRW(node.size)}</span>
+      </div>
+    </div>
+  );
+}
+
+interface HeatmapChartProps {
+  data: HeatmapNode[];
+  palette: ColorPalette;
+  height: number | `${number}%`;
+}
+
+function HeatmapChart({ data, palette, height }: HeatmapChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <Treemap
+        data={data}
+        dataKey="size"
+        aspectRatio={16 / 9}
+        // recharts v3 TreemapDataType 호환을 위해 any 캐스트 필요
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        content={<HeatmapCell palette={palette} /> as any}
+        isAnimationActive={false}
+      >
+        <Tooltip
+          content={<HeatmapTooltip />}
+          animationDuration={0}
+          cursor={{ stroke: "rgba(255,255,255,0.4)", strokeWidth: 2 }}
+          wrapperStyle={{ outline: "none" }}
+        />
+      </Treemap>
+    </ResponsiveContainer>
+  );
+}
+
 export interface HoldingsHeatmapProps {
   holdings: HeatmapHolding[];
   height?: number;
@@ -206,6 +267,7 @@ export interface HoldingsHeatmapProps {
 export function HoldingsHeatmap({ holdings, height = 320 }: HoldingsHeatmapProps) {
   const { resolvedTheme } = useTheme();
   const palette = resolvedTheme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
+  const [fullscreen, setFullscreen] = useState(false);
 
   const data: HeatmapNode[] = holdings
     .filter((h) => Number(h.market_value_krw ?? 0) > 0)
@@ -242,7 +304,17 @@ export function HoldingsHeatmap({ holdings, height = 320 }: HoldingsHeatmapProps
     .join(", ")}`;
 
   return (
-    <div role="img" aria-label={ariaLabel} data-testid="holdings-heatmap">
+    <div role="img" aria-label={ariaLabel} data-testid="holdings-heatmap" className="relative">
+      <button
+        type="button"
+        onClick={() => setFullscreen(true)}
+        className="absolute right-1 top-1 z-10 inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label="히트맵 전체화면"
+        title="전체화면"
+      >
+        <Maximize2 className="size-4" />
+      </button>
+
       {/* Screen-reader data table */}
       <table className="sr-only">
         <caption>보유 종목 히트맵 — 시가총액 비례 크기, 당일 등락률 색상</caption>
@@ -267,16 +339,30 @@ export function HoldingsHeatmap({ holdings, height = 320 }: HoldingsHeatmapProps
           ))}
         </tbody>
       </table>
-      <ResponsiveContainer width="100%" height={height}>
-        <Treemap
-          data={data}
-          dataKey="size"
-          aspectRatio={16 / 9}
-          // recharts v3 TreemapDataType 호환을 위해 any 캐스트 필요
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          content={<HeatmapCell palette={palette} /> as any}
-        />
-      </ResponsiveContainer>
+
+      <HeatmapChart data={data} palette={palette} height={height} />
+
+      <Dialog open={fullscreen} onOpenChange={setFullscreen}>
+        <DialogContent
+          className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col gap-3 p-4 sm:max-w-[96vw]"
+          showCloseButton={false}
+        >
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-section-header">종목 히트맵</DialogTitle>
+            <button
+              type="button"
+              onClick={() => setFullscreen(false)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="닫기"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1">
+            <HeatmapChart data={data} palette={palette} height="100%" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

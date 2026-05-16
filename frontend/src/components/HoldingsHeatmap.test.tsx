@@ -7,6 +7,7 @@ vi.mock("recharts", () => ({
   ),
   Treemap: ({
     data,
+    children,
   }: {
     data: Array<{
       ticker: string;
@@ -15,6 +16,7 @@ vi.mock("recharts", () => ({
       label: string;
       isKorean: boolean;
     }>;
+    children?: React.ReactNode;
   }) => (
     <div data-testid="treemap" data-count={data.length}>
       {data.map((d) => (
@@ -27,8 +29,10 @@ vi.mock("recharts", () => ({
           data-korean={String(d.isKorean)}
         />
       ))}
+      {children}
     </div>
   ),
+  Tooltip: () => <div data-testid="recharts-tooltip" />,
 }));
 
 vi.mock("next-themes", () => ({
@@ -53,9 +57,10 @@ describe("HoldingsHeatmap", () => {
   it("sorts holdings by market value descending", () => {
     render(<HoldingsHeatmap holdings={SAMPLE} />);
     const treemap = screen.getByTestId("treemap");
-    const order = Array.from(treemap.children).map(
-      (el) => el.getAttribute("data-testid")?.replace("tm-node-", ""),
-    );
+    const order = Array.from(treemap.children)
+      .map((el) => el.getAttribute("data-testid") ?? "")
+      .filter((id) => id.startsWith("tm-node-"))
+      .map((id) => id.replace("tm-node-", ""));
     expect(order).toEqual(["MSFT", "AAPL", "TSLA", "NVDA"]);
   });
 
