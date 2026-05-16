@@ -121,65 +121,64 @@ interface RechartsCellProps {
   fullName?: string;
   changeRate?: number | null;
   value?: number;
+  palette?: ColorPalette;
 }
 
-function makeHeatmapCell(palette: ColorPalette) {
-  function HeatmapCell(props: RechartsCellProps) {
-    const {
-      x = 0,
-      y = 0,
-      width = 0,
-      height = 0,
-      depth,
-      ticker,
-      fullName,
-      changeRate,
-      value,
-    } = props;
+function HeatmapCell(props: RechartsCellProps) {
+  const {
+    x = 0,
+    y = 0,
+    width = 0,
+    height = 0,
+    depth,
+    ticker,
+    fullName,
+    changeRate,
+    value,
+    palette = LIGHT_PALETTE,
+  } = props;
 
-    if (depth !== 1 || width < 4 || height < 4) return null;
+  if (depth !== 1 || width < 4 || height < 4) return null;
 
-    const color = getCellColor(changeRate ?? null, palette);
-    const isTiny = width < 52 || height < 40;
-    const isSmall = width < 90 || height < 65;
-    const rx = Math.min(6, width / 20, height / 20);
-    const formattedRate =
-      changeRate != null
-        ? `${changeRate >= 0 ? "+" : ""}${Number(changeRate).toFixed(1)}%`
-        : "—";
+  const color = getCellColor(changeRate ?? null, palette);
+  const isTiny = width < 52 || height < 40;
+  const isSmall = width < 90 || height < 65;
+  const rx = Math.min(6, width / 20, height / 20);
+  const formattedRate =
+    changeRate != null
+      ? `${changeRate >= 0 ? "+" : ""}${Number(changeRate).toFixed(1)}%`
+      : "—";
 
-    const titleText = `${fullName ?? ticker ?? ""} · ${formattedRate}${
-      value != null ? ` · ${formatKRW(value)}` : ""
-    }`;
+  const titleText = `${fullName ?? ticker ?? ""} · ${formattedRate}${
+    value != null ? ` · ${formatKRW(value)}` : ""
+  }`;
 
-    return (
-      <g>
-        <title>{titleText}</title>
-        <rect
-          x={x + 1}
-          y={y + 1}
-          width={Math.max(0, width - 2)}
-          height={Math.max(0, height - 2)}
-          fill={color}
-          rx={rx}
-          ry={rx}
+  return (
+    <g>
+      <title>{titleText}</title>
+      <rect
+        x={x + 1}
+        y={y + 1}
+        width={Math.max(0, width - 2)}
+        height={Math.max(0, height - 2)}
+        fill={color}
+        rx={rx}
+        ry={rx}
+      />
+      {!isTiny && (
+        <CellText
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          ticker={ticker ?? ""}
+          formattedRate={formattedRate}
+          value={value}
+          isSmall={isSmall}
         />
-        {!isTiny && (
-          <CellText
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            ticker={ticker ?? ""}
-            formattedRate={formattedRate}
-            value={value}
-            isSmall={isSmall}
-          />
-        )}
-      </g>
-    );
-  }
-  return HeatmapCell;
+      )}
+    </g>
+  );
 }
 
 export interface HoldingsHeatmapProps {
@@ -220,8 +219,6 @@ export function HoldingsHeatmap({ holdings, height = 220 }: HoldingsHeatmapProps
     )
     .join(", ")}`;
 
-  const CellComponent = makeHeatmapCell(palette);
-
   return (
     <div role="img" aria-label={ariaLabel} data-testid="holdings-heatmap">
       {/* Screen-reader data table */}
@@ -255,7 +252,7 @@ export function HoldingsHeatmap({ holdings, height = 220 }: HoldingsHeatmapProps
           aspectRatio={16 / 5}
           // recharts v3 TreemapDataType 호환을 위해 any 캐스트 필요
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          content={<CellComponent /> as any}
+          content={<HeatmapCell palette={palette} /> as any}
         />
       </ResponsiveContainer>
     </div>
