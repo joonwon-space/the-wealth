@@ -39,6 +39,7 @@ import { AreaChart } from "@/components/charts/area-chart";
 import { Donut } from "@/components/charts/donut";
 import { ProgressRing } from "@/components/charts/progress-ring";
 import { PortfolioList } from "@/components/dashboard/PortfolioList";
+import { HoldingsHeatmap } from "@/components/HoldingsHeatmap";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const DASHBOARD_QUERY_KEY = ["dashboard", "summary"] as const;
@@ -703,6 +704,16 @@ export default function DashboardPage() {
               </div>
             </section>
           )}
+
+          {/* ----- Holdings heatmap ----- */}
+          <section className="space-y-2">
+            <h2 className="text-section-header">종목 히트맵</h2>
+            <Card>
+              <CardContent className="p-3">
+                <HoldingsHeatmap holdings={s.holdings} height={220} />
+              </CardContent>
+            </Card>
+          </section>
 
           {/* ----- Sector donut + Dividends ----- */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
