@@ -706,11 +706,11 @@ export default function DashboardPage() {
           )}
 
           {/* ----- Holdings heatmap ----- */}
-          <section className="space-y-2">
+          <section className="mx-auto w-full max-w-4xl space-y-2">
             <h2 className="text-section-header">종목 히트맵</h2>
             <Card>
               <CardContent className="p-3">
-                <HoldingsHeatmap holdings={s.holdings} height={220} />
+                <HoldingsHeatmap holdings={s.holdings} height={320} />
               </CardContent>
             </Card>
           </section>

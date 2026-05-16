@@ -8,7 +8,13 @@ vi.mock("recharts", () => ({
   Treemap: ({
     data,
   }: {
-    data: Array<{ ticker: string; changeRate: number | null; size: number }>;
+    data: Array<{
+      ticker: string;
+      changeRate: number | null;
+      size: number;
+      label: string;
+      isKorean: boolean;
+    }>;
   }) => (
     <div data-testid="treemap" data-count={data.length}>
       {data.map((d) => (
@@ -17,6 +23,8 @@ vi.mock("recharts", () => ({
           data-testid={`tm-node-${d.ticker}`}
           data-rate={d.changeRate ?? "null"}
           data-size={d.size}
+          data-label={d.label}
+          data-korean={String(d.isKorean)}
         />
       ))}
     </div>
@@ -30,10 +38,10 @@ vi.mock("next-themes", () => ({
 import { HoldingsHeatmap, type HeatmapHolding } from "./HoldingsHeatmap";
 
 const SAMPLE: HeatmapHolding[] = [
-  { ticker: "AAPL", name: "Apple Inc.", market_value_krw: 5_000_000, day_change_rate: 1.2 },
-  { ticker: "TSLA", name: "Tesla", market_value_krw: 3_000_000, day_change_rate: -4.5 },
-  { ticker: "MSFT", name: "Microsoft", market_value_krw: 8_000_000, day_change_rate: 0.3 },
-  { ticker: "NVDA", name: "Nvidia", market_value_krw: 2_000_000, day_change_rate: null },
+  { ticker: "AAPL", name: "Apple Inc.", market_value_krw: 5_000_000, day_change_rate: 1.2, currency: "USD" },
+  { ticker: "TSLA", name: "Tesla", market_value_krw: 3_000_000, day_change_rate: -4.5, currency: "USD" },
+  { ticker: "MSFT", name: "Microsoft", market_value_krw: 8_000_000, day_change_rate: 0.3, currency: "USD" },
+  { ticker: "NVDA", name: "Nvidia", market_value_krw: 2_000_000, day_change_rate: null, currency: "USD" },
 ];
 
 describe("HoldingsHeatmap", () => {
@@ -84,6 +92,32 @@ describe("HoldingsHeatmap", () => {
     expect(screen.getByText("Nvidia")).toBeInTheDocument();
   });
 
+  it("uses name as label for Korean holdings, ticker for foreign", () => {
+    const data: HeatmapHolding[] = [
+      {
+        ticker: "005930",
+        name: "삼성전자",
+        market_value_krw: 5_000_000,
+        day_change_rate: 1.0,
+        currency: "KRW",
+      },
+      {
+        ticker: "AAPL",
+        name: "Apple Inc.",
+        market_value_krw: 4_000_000,
+        day_change_rate: -1.0,
+        currency: "USD",
+      },
+    ];
+    render(<HoldingsHeatmap holdings={data} />);
+    const koreanNode = screen.getByTestId("tm-node-005930");
+    expect(koreanNode.getAttribute("data-label")).toBe("삼성전자");
+    expect(koreanNode.getAttribute("data-korean")).toBe("true");
+    const foreignNode = screen.getByTestId("tm-node-AAPL");
+    expect(foreignNode.getAttribute("data-label")).toBe("AAPL");
+    expect(foreignNode.getAttribute("data-korean")).toBe("false");
+  });
+
   it("coerces numeric strings safely", () => {
     const data = [
       {
@@ -91,6 +125,7 @@ describe("HoldingsHeatmap", () => {
         name: "X Corp",
         market_value_krw: "1500" as unknown as number,
         day_change_rate: "2.5" as unknown as number,
+        currency: "USD",
       },
     ];
     render(<HoldingsHeatmap holdings={data} />);

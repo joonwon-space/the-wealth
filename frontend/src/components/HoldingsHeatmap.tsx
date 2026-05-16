@@ -9,15 +9,25 @@ export interface HeatmapHolding {
   name: string;
   market_value_krw: number | null;
   day_change_rate: number | null;
+  currency?: "KRW" | "USD" | string | null;
 }
 
 interface HeatmapNode {
   name: string;
   ticker: string;
   fullName: string;
+  label: string;
+  isKorean: boolean;
   size: number;
   changeRate: number | null;
   [key: string]: unknown;
+}
+
+function truncateForWidth(text: string, width: number, isKorean: boolean): string {
+  const charWidth = isKorean ? 11 : 6.2;
+  const maxChars = Math.max(3, Math.floor((width - 14) / charWidth));
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, Math.max(2, maxChars - 2))}..`;
 }
 
 interface ColorPalette {
@@ -56,7 +66,7 @@ interface CellTextProps {
   y: number;
   width: number;
   height: number;
-  ticker: string;
+  label: string;
   formattedRate: string;
   value: number | undefined;
   isSmall: boolean;
@@ -67,7 +77,7 @@ function CellText({
   y,
   width,
   height,
-  ticker,
+  label,
   formattedRate,
   value,
   isSmall,
@@ -78,11 +88,11 @@ function CellText({
       <text
         x={x + 8}
         y={midY - (isSmall ? 10 : 14)}
-        fill="rgba(255,255,255,0.78)"
+        fill="rgba(255,255,255,0.85)"
         fontSize={isSmall ? 9 : 10}
         fontFamily="system-ui, sans-serif"
       >
-        {ticker}
+        {label}
       </text>
       <text
         x={x + 8}
@@ -119,6 +129,8 @@ interface RechartsCellProps {
   depth?: number;
   ticker?: string;
   fullName?: string;
+  label?: string;
+  isKorean?: boolean;
   changeRate?: number | null;
   value?: number;
   palette?: ColorPalette;
@@ -133,6 +145,8 @@ function HeatmapCell(props: RechartsCellProps) {
     depth,
     ticker,
     fullName,
+    label,
+    isKorean = false,
     changeRate,
     value,
     palette = LIGHT_PALETTE,
@@ -148,6 +162,9 @@ function HeatmapCell(props: RechartsCellProps) {
     changeRate != null
       ? `${changeRate >= 0 ? "+" : ""}${Number(changeRate).toFixed(1)}%`
       : "—";
+
+  const rawLabel = label ?? ticker ?? "";
+  const displayLabel = truncateForWidth(rawLabel, width, isKorean);
 
   const titleText = `${fullName ?? ticker ?? ""} · ${formattedRate}${
     value != null ? ` · ${formatKRW(value)}` : ""
@@ -171,7 +188,7 @@ function HeatmapCell(props: RechartsCellProps) {
           y={y}
           width={width}
           height={height}
-          ticker={ticker ?? ""}
+          label={displayLabel}
           formattedRate={formattedRate}
           value={value}
           isSmall={isSmall}
@@ -186,19 +203,24 @@ export interface HoldingsHeatmapProps {
   height?: number;
 }
 
-export function HoldingsHeatmap({ holdings, height = 220 }: HoldingsHeatmapProps) {
+export function HoldingsHeatmap({ holdings, height = 320 }: HoldingsHeatmapProps) {
   const { resolvedTheme } = useTheme();
   const palette = resolvedTheme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
 
   const data: HeatmapNode[] = holdings
     .filter((h) => Number(h.market_value_krw ?? 0) > 0)
-    .map((h) => ({
-      name: h.ticker,
-      ticker: h.ticker,
-      fullName: h.name,
-      size: Number(h.market_value_krw),
-      changeRate: h.day_change_rate != null ? Number(h.day_change_rate) : null,
-    }))
+    .map((h) => {
+      const isKorean = h.currency === "KRW";
+      return {
+        name: h.ticker,
+        ticker: h.ticker,
+        fullName: h.name,
+        label: isKorean ? h.name || h.ticker : h.ticker,
+        isKorean,
+        size: Number(h.market_value_krw),
+        changeRate: h.day_change_rate != null ? Number(h.day_change_rate) : null,
+      };
+    })
     .sort((a, b) => b.size - a.size);
 
   if (data.length === 0) {
@@ -249,7 +271,7 @@ export function HoldingsHeatmap({ holdings, height = 220 }: HoldingsHeatmapProps
         <Treemap
           data={data}
           dataKey="size"
-          aspectRatio={16 / 5}
+          aspectRatio={16 / 9}
           // recharts v3 TreemapDataType 호환을 위해 any 캐스트 필요
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           content={<HeatmapCell palette={palette} /> as any}
