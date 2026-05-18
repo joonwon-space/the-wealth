@@ -77,8 +77,13 @@ def _is_rate_limited(resp: httpx.Response) -> bool:
 
 
 def _is_server_error(resp: httpx.Response) -> bool:
-    """KIS 5xx — 즉시 재호출이 권장되는 일시 internal error."""
-    return 500 <= resp.status_code < 600
+    """KIS 5xx — 즉시 재호출이 권장되는 일시 internal error.
+
+    Mock 응답에서 status_code 가 비-int(MagicMock 등) 인 경우 비교 연산이
+    TypeError 를 던지지 않도록 isinstance 가드.
+    """
+    code = resp.status_code
+    return isinstance(code, int) and 500 <= code < 600
 
 
 async def kis_request(
