@@ -114,15 +114,25 @@ async def snapshot_daily_close(
                         volume=result.get("volume"),
                     )
 
-            if ohlcv_map:
-                count = await save_ohlcv_snapshots(db, ohlcv_map)
-            else:
-                prices: dict[str, Decimal] = {}
+            # OHLCV 실패 ticker 는 단가만이라도 fallback 으로 저장.
+            # 이전 구현은 ohlcv_map 이 1개라도 있으면 else 분기로 가지 않아,
+            # 국내 OHLCV 만 일제히 실패하면 국내 종목이 통째로 price_snapshots
+            # 에서 누락되어 portfolio-history 그래프가 끊어졌다.
+            missing_domestic = [t for t in domestic if t not in ohlcv_map]
+            missing_overseas = [(t, m) for t, m in overseas if t not in ohlcv_map]
+
+            prices: dict[str, Decimal] = {}
+            if missing_domestic or missing_overseas:
+                logger.info(
+                    "[Scheduler] OHLCV 미수신 ticker fallback 조회 — domestic=%d overseas=%d",
+                    len(missing_domestic),
+                    len(missing_overseas),
+                )
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     dom_price_results = await asyncio.gather(
                         *[
                             fetch_domestic_price(t, app_key, app_secret, client)
-                            for t in domestic
+                            for t in missing_domestic
                         ],
                         return_exceptions=True,
                     )
@@ -135,19 +145,27 @@ async def snapshot_daily_close(
                                 app_secret,
                                 client,
                             )
-                            for t, m in overseas
+                            for t, m in missing_overseas
                         ],
                         return_exceptions=True,
                     )
-                for ticker, price in zip(domestic, dom_price_results):
+                for ticker, price in zip(missing_domestic, dom_price_results):
                     if isinstance(price, Decimal) and price > 0:
                         prices[ticker] = price
-                for (ticker, _), price in zip(overseas, ovs_price_results):
+                for (ticker, _), price in zip(missing_overseas, ovs_price_results):
                     if isinstance(price, Decimal) and price > 0:
                         prices[ticker] = price
-                count = await save_snapshots(db, prices)
 
-            logger.info("[Scheduler] Saved %d price snapshots", count)
+            count_ohlcv = await save_ohlcv_snapshots(db, ohlcv_map) if ohlcv_map else 0
+            count_price = await save_snapshots(db, prices) if prices else 0
+
+            logger.info(
+                "[Scheduler] Saved snapshots — ohlcv=%d price-fallback=%d "
+                "missing=%d",
+                count_ohlcv,
+                count_price,
+                len(all_tickers) - count_ohlcv - count_price,
+            )
 
         record_success(job_id)
 
