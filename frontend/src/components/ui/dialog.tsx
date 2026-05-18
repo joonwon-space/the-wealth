@@ -62,8 +62,13 @@ function DialogContent({
         data-mobile-sheet={mobileSheet ? "true" : undefined}
         className={cn(
           "fixed z-50 grid gap-4 bg-background p-4 text-sm ring-1 ring-foreground/10 duration-150 outline-none",
-          // Desktop (≥sm) styling — centered modal.
-          "sm:top-1/2 sm:left-1/2 sm:w-full sm:max-w-sm sm:max-w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
+          // Desktop (≥sm) styling — centered modal. NOTE: do NOT set `sm:max-w-*`
+          // here — tailwind-merge treats it as a separate group from the
+          // caller's `max-w-*` (different modifier), so a `sm:` value would
+          // win at desktop and silently override the caller's intent.
+          // Callers are responsible for max-w-* (all DialogContent sites
+          // currently specify one).
+          "sm:top-1/2 sm:left-1/2 sm:w-full sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
           mobileSheet
             ? [
                 // Mobile sheet: full width, anchored bottom, slide-up animation.

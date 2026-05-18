@@ -156,10 +156,10 @@ export function OrderForm({
 
             {/* 예수금 표시 */}
             {availableCash !== null && (
-              <div className="text-xs text-muted-foreground space-y-0.5">
+              <div className="rounded-md bg-muted/30 px-3 py-2 text-xs space-y-1">
                 <div className="flex justify-between">
-                  <span>사용가능 예수금</span>
-                  <span className="font-medium">{formatCash(availableCash)}</span>
+                  <span className="text-muted-foreground">사용가능 예수금</span>
+                  <span className="font-medium text-foreground">{formatCash(availableCash)}</span>
                 </div>
                 {pendingCash > 0 && (
                   <div className="flex justify-between text-accent-amber">
@@ -169,7 +169,7 @@ export function OrderForm({
                 )}
                 {tab === "BUY" && maxBuyQuantity !== null && maxBuyQuantity > 0 && (
                   <div className="flex justify-between items-center">
-                    <span>최대 매수 가능</span>
+                    <span className="text-muted-foreground">최대 매수 가능</span>
                     <button
                       type="button"
                       onClick={onMaxQuantity}
@@ -282,9 +282,9 @@ export function OrderForm({
 
             {/* 주문금액 표시 */}
             {parsedQuantity > 0 && orderClass === "limit" && parsedPrice > 0 && (
-              <div className="flex justify-between text-sm border-t pt-2">
-                <span className="text-muted-foreground">주문금액</span>
-                <span className="font-semibold">{formatCash(orderAmount)}</span>
+              <div className="flex justify-between items-baseline rounded-md border bg-muted/30 px-3 py-2.5">
+                <span className="text-xs text-muted-foreground">주문금액</span>
+                <span className="font-bold text-base tabular-nums">{formatCash(orderAmount)}</span>
               </div>
             )}
 

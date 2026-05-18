@@ -253,7 +253,7 @@ export function OrderDialog({
   if (successMessage) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-sm" mobileSheet>
+        <DialogContent className="max-w-md" mobileSheet>
           <DialogHeader>
             <DialogTitle>주문 결과</DialogTitle>
           </DialogHeader>

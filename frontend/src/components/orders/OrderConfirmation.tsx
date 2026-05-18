@@ -68,7 +68,7 @@ export function OrderConfirmation({
   const fmt = (n: number) => formatPrice(n, currency);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>주문 확인</DialogTitle>
         </DialogHeader>
