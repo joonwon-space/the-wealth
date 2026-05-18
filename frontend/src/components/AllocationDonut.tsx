@@ -90,22 +90,25 @@ export function AllocationDonut({ data, totalAsset }: Props) {
         role="img"
         aria-label={ariaLabel}
       >
-        {/* Screen reader data table */}
-        <table className="sr-only">
-          <caption>자산 배분</caption>
-          <thead>
-            <tr><th>종목명</th><th>비중</th><th>금액</th></tr>
-          </thead>
-          <tbody>
-            {numericData.map((d) => (
-              <tr key={d.ticker}>
-                <td>{d.name} ({d.ticker})</td>
-                <td>{formatRate(d.ratio)}%</td>
-                <td>{formatKRW(d.value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Screen reader data table — wrapper div keeps width:1px enforced
+            because <table> display:table ignores the sr-only width rule. */}
+        <div className="sr-only">
+          <table>
+            <caption>자산 배분</caption>
+            <thead>
+              <tr><th>종목명</th><th>비중</th><th>금액</th></tr>
+            </thead>
+            <tbody>
+              {numericData.map((d) => (
+                <tr key={d.ticker}>
+                  <td>{d.name} ({d.ticker})</td>
+                  <td>{formatRate(d.ratio)}%</td>
+                  <td>{formatKRW(d.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <PieChart width={SIZE} height={SIZE}>
           <Pie
             data={numericData}

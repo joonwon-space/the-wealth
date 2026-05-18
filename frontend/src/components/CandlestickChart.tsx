@@ -150,25 +150,28 @@ export function CandlestickChart({ candles, avgPrice, smaData, smaPeriod }: Prop
 
   return (
     <div role="img" aria-label={ariaLabel}>
-      {/* Screen reader data table */}
-      <table className="sr-only">
-        <caption>캔들스틱 차트 데이터</caption>
-        <thead>
-          <tr><th>날짜</th><th>시가</th><th>고가</th><th>저가</th><th>종가</th><th>거래량</th></tr>
-        </thead>
-        <tbody>
-          {candles.slice(-10).map((c) => (
-            <tr key={c.time}>
-              <td>{c.time}</td>
-              <td>{c.open.toLocaleString("ko-KR")}</td>
-              <td>{c.high.toLocaleString("ko-KR")}</td>
-              <td>{c.low.toLocaleString("ko-KR")}</td>
-              <td>{c.close.toLocaleString("ko-KR")}</td>
-              <td>{c.volume.toLocaleString("ko-KR")}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Screen reader data table — wrapper div keeps width:1px enforced
+          because <table> display:table ignores the sr-only width rule. */}
+      <div className="sr-only">
+        <table>
+          <caption>캔들스틱 차트 데이터</caption>
+          <thead>
+            <tr><th>날짜</th><th>시가</th><th>고가</th><th>저가</th><th>종가</th><th>거래량</th></tr>
+          </thead>
+          <tbody>
+            {candles.slice(-10).map((c) => (
+              <tr key={c.time}>
+                <td>{c.time}</td>
+                <td>{c.open.toLocaleString("ko-KR")}</td>
+                <td>{c.high.toLocaleString("ko-KR")}</td>
+                <td>{c.low.toLocaleString("ko-KR")}</td>
+                <td>{c.close.toLocaleString("ko-KR")}</td>
+                <td>{c.volume.toLocaleString("ko-KR")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div ref={containerRef} className="w-full" aria-hidden="true" />
     </div>
   );

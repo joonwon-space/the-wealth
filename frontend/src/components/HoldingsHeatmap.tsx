@@ -315,30 +315,34 @@ export function HoldingsHeatmap({ holdings, height = 320 }: HoldingsHeatmapProps
         <Maximize2 className="size-4" />
       </button>
 
-      {/* Screen-reader data table */}
-      <table className="sr-only">
-        <caption>보유 종목 히트맵 — 시가총액 비례 크기, 당일 등락률 색상</caption>
-        <thead>
-          <tr>
-            <th>종목명</th>
-            <th>티커</th>
-            <th>당일 등락률</th>
-            <th>평가금액</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((d) => (
-            <tr key={d.ticker}>
-              <td>{d.fullName}</td>
-              <td>{d.ticker}</td>
-              <td>
-                {d.changeRate != null ? `${formatRate(d.changeRate)}%` : "—"}
-              </td>
-              <td>{formatKRW(d.size)}</td>
+      {/* Screen-reader data table — wrapper div keeps width:1px enforced
+          because <table> display:table ignores the sr-only utility's width
+          rule and otherwise pushes the viewport horizontally on mobile. */}
+      <div className="sr-only">
+        <table>
+          <caption>보유 종목 히트맵 — 시가총액 비례 크기, 당일 등락률 색상</caption>
+          <thead>
+            <tr>
+              <th>종목명</th>
+              <th>티커</th>
+              <th>당일 등락률</th>
+              <th>평가금액</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.ticker}>
+                <td>{d.fullName}</td>
+                <td>{d.ticker}</td>
+                <td>
+                  {d.changeRate != null ? `${formatRate(d.changeRate)}%` : "—"}
+                </td>
+                <td>{formatKRW(d.size)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <HeatmapChart data={data} palette={palette} height={height} />
 
