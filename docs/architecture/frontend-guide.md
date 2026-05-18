@@ -40,7 +40,6 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `/dashboard/portfolios` | `app/dashboard/portfolios/page.tsx` | Portfolio list with real-time P&L (evaluation value, P&L amount/rate via `/portfolios/with-prices`; red=profit blue=loss Korean convention; `—` fallback) |
 | `/dashboard/portfolios/[id]` | `app/dashboard/portfolios/[id]/page.tsx` | Portfolio detail: holdings, transactions, analysis (AnalysisSection) |
 | `/dashboard/stocks/[ticker]` | `app/dashboard/stocks/[ticker]/page.tsx` | Stock detail: candlestick chart, stock info |
-| `/dashboard/stream` | `app/dashboard/stream/page.tsx` | Activity feed: unified timeline of alerts, fills, dividends, rebalance, and routine events |
 | `/dashboard/settings` | `app/dashboard/settings/page.tsx` | KIS account management, user settings |
 | `/onboarding` | `app/onboarding/page.tsx` | Onboarding flow for new users: KIS account setup walkthrough |
 | `/dashboard/design-preview` | `app/dashboard/design-preview/page.tsx` | Design system preview page — blocked by middleware in production; accessible only when `ALLOW_DESIGN_PREVIEW=1` (server-only env, used in E2E) |

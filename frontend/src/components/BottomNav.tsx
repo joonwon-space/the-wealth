@@ -3,15 +3,14 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Radio, Search, Settings, Wallet, type LucideIcon } from "lucide-react";
+import { Home, Search, Settings, Wallet, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Mobile tab bar (redesign-spec.md §4): 홈 · 종목 · 포트폴리오 · 스트림 · 내정보.
+// Mobile tab bar: 홈 · 종목 · 포트폴리오 · 내정보.
 const navItems = [
   { href: "/dashboard", label: "홈", icon: Home },
   { href: "/dashboard/stocks", label: "종목", icon: Search },
   { href: "/dashboard/portfolios", label: "포트폴리오", icon: Wallet },
-  { href: "/dashboard/stream", label: "스트림", icon: Radio },
   { href: "/dashboard/settings", label: "내정보", icon: Settings },
 ];
 

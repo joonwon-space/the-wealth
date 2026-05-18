@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  BookOpen,
   Coins,
   Scale,
   Target,
@@ -10,14 +9,12 @@ import {
   Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Donut } from "@/components/charts/donut";
 import { HeatCell } from "@/components/charts/heat-cell";
 import { ProgressRing } from "@/components/charts/progress-ring";
 import { HeroValue } from "@/components/hero-value";
 import { ModeToggle, type InvestMode } from "@/components/mode-toggle";
 import { RangeIndicator } from "@/components/range-indicator";
-import { StreamCard } from "@/components/stream/stream-card";
 import { TaskCard } from "@/components/task-card";
 
 const sectors = [
@@ -131,57 +128,7 @@ export default function DesignPreviewPage() {
         </div>
       </Section>
 
-      <Section title="StreamCard (5종)">
-        <div className="space-y-2">
-          <StreamCard
-            kind="alert"
-            title="NVIDIA — $145 돌파"
-            sub="목표 $140 이상 · 현재 $145.22 (+3.42%)"
-            ts="14:32 · 방금"
-          >
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline">
-                종목 보기
-              </Button>
-              <Button size="sm" className="bg-rise text-white hover:bg-rise/90">
-                매도 주문
-              </Button>
-            </div>
-          </StreamCard>
-          <StreamCard
-            kind="rebalance"
-            title="IT 섹터 45% · 목표 30% 초과"
-            sub="15%p 차이 · 삼성전자 일부 정리 권장"
-            ts="09:00 · 5시간 전"
-          />
-          <StreamCard
-            kind="fill"
-            title="삼성전자 매수 · 10주 @ 72,400"
-            sub="주문번호 #A1203"
-            ts="09:12 · 오늘"
-          />
-          <StreamCard
-            kind="dividend"
-            title="삼성전자 분기배당"
-            sub="배당락 4/28 · 지급 5/15 · +430"
-            ts="4/28 예정"
-          />
-          <StreamCard
-            kind="routine"
-            title="월간 리밸런싱 체크"
-            sub="매월 1일 진행"
-            ts="4/30"
-          >
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline">
-                <BookOpen className="mr-1" /> 시작
-              </Button>
-            </div>
-          </StreamCard>
-        </div>
-      </Section>
-
-      <Section title="Stream 아이콘 팔레트 테스트">
+      <Section title="아이콘 팔레트 테스트">
         <div className="flex flex-wrap gap-2 text-muted-foreground">
           <TrendingUp className="size-5" />
           <Coins className="size-5" />

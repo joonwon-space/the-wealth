@@ -1,74 +1,19 @@
 """Schemas backing the Phase 3 / Step 3 APIs (redesign-spec.md §1.4).
 
-목표 비중, 리밸런싱 제안, 다가오는 배당, 벤치마크 델타, 스트림, 오늘 할 것 등.
-기존 schemas/ 파일을 오염시키지 않도록 별도 파일로 분리.
+다가오는 배당, 벤치마크 델타, 오늘 할 것 등.
+
+NOTE: TargetAllocation/Rebalance/Stream/StrategyUpdate 스키마들은
+포트폴리오 상세 리밸런싱 섹션 / /dashboard/rebalance / /dashboard/stream
+페이지 제거(2026-05-18)와 함께 dead 가 되어 정리됨.
 """
 
 from __future__ import annotations
 
-from datetime import date as date_type, datetime
+from datetime import date as date_type
 from decimal import Decimal
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-
-# -----------------------------------------------------------------
-# Target allocation / rebalance
-# -----------------------------------------------------------------
-class TargetAllocationUpdate(BaseModel):
-    """섹터별 목표 비중.
-
-    값은 0..1 범위 실수. 합이 반드시 1.0 일 필요는 없지만 1.0 ± 0.01 을 권장.
-    """
-
-    target_allocation: dict[str, float] = Field(
-        ..., description="섹터명 → 목표 비중 (0..1)"
-    )
-
-    @field_validator("target_allocation")
-    @classmethod
-    def _validate_fractions(cls, value: dict[str, float]) -> dict[str, float]:
-        if not value:
-            raise ValueError("최소 하나의 섹터 목표 비중을 지정해야 합니다.")
-        for sector, ratio in value.items():
-            if not 0 <= ratio <= 1:
-                raise ValueError(
-                    f"{sector} 비중이 0..1 범위를 벗어났습니다: {ratio}"
-                )
-        return value
-
-
-class TargetAllocationResponse(BaseModel):
-    portfolio_id: int
-    target_allocation: Optional[dict[str, float]] = None
-
-
-class RebalanceSuggestionRow(BaseModel):
-    sector: str
-    current_pct: float = Field(description="현재 비중 0..1")
-    target_pct: float = Field(description="목표 비중 0..1")
-    diff_pct: float = Field(description="current - target (양수면 초과)")
-    delta_krw: float = Field(description="목표까지 이동할 원화 금액 (+ 매도 / - 매수)")
-    suggested_action: Literal["BUY", "SELL", "HOLD"]
-    candidates: list["RebalanceCandidate"] = []
-
-
-class RebalanceCandidate(BaseModel):
-    ticker: str
-    name: str
-    weight_in_sector: float
-    suggested_qty: float = Field(description="제안 수량 (부호 없음)")
-    suggested_action: Literal["BUY", "SELL"]
-
-
-class RebalanceSuggestionResponse(BaseModel):
-    portfolio_id: int
-    total_value_krw: float
-    rows: list[RebalanceSuggestionRow]
-
-
-RebalanceSuggestionRow.model_rebuild()
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # -----------------------------------------------------------------
@@ -108,34 +53,9 @@ class BenchmarkDelta(BaseModel):
 
 
 # -----------------------------------------------------------------
-# Stream
-# -----------------------------------------------------------------
-StreamKind = Literal["alert", "fill", "dividend", "rebalance", "routine"]
-
-
-class StreamItem(BaseModel):
-    id: str = Field(
-        description="타입 내 고유 식별자, 예: alert:42 / fill:1203 / dividend:5 / rebalance:p1-202604 / routine:user-123-202604"
-    )
-    kind: StreamKind
-    ts: datetime
-    title: str
-    sub: Optional[str] = None
-    payload: dict = Field(
-        default_factory=dict,
-        description="프론트에서 카드를 렌더할 때 쓰는 보조 데이터 (ticker, portfolio_id 등)",
-    )
-
-
-class StreamResponse(BaseModel):
-    items: list[StreamItem]
-    next_cursor: Optional[str] = None
-
-
-# -----------------------------------------------------------------
 # Tasks
 # -----------------------------------------------------------------
-TaskKind = Literal["rebalance", "dividend", "alert", "routine", "goal"]
+TaskKind = Literal["dividend", "alert", "routine", "goal"]
 
 
 class HomeTask(BaseModel):
@@ -153,11 +73,3 @@ class HomeTask(BaseModel):
 class TodayTasksResponse(BaseModel):
     count: int
     tasks: list[HomeTask]
-
-
-# -----------------------------------------------------------------
-# User strategy
-# -----------------------------------------------------------------
-class StrategyUpdate(BaseModel):
-    strategy_tag: Literal["long", "short", "mixed"]
-    long_short_ratio: int = Field(ge=0, le=100, default=70)
