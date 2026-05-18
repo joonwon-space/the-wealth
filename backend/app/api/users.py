@@ -3,7 +3,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -150,6 +150,20 @@ class KisAccountCreate(BaseModel):
     app_secret: str
     is_paper_trading: bool = False
     account_type: str = Field(default="일반", max_length=50)  # 일반, ISA, 연금저축, IRP, 해외주식
+
+    @model_validator(mode="after")
+    def _infer_account_type_from_prdt_cd(self) -> "KisAccountCreate":
+        """`acnt_prdt_cd='22'` (연금저축 product code) 에 기본값 '일반' 이
+        들어온 경우 '연금저축' 으로 보정. 사용자가 명시적으로 다른 유형을
+        선택했으면 그 값을 신뢰한다.
+
+        주문 TR_ID 라우팅(`_get_domestic_tr_id`)이 `account_type` 으로
+        분기하므로, 누락 시 연금저축이 일반 매수 TR 로 잘못 보내지는
+        문제를 막는 안전망.
+        """
+        if self.acnt_prdt_cd == "22" and self.account_type == "일반":
+            self.account_type = "연금저축"
+        return self
 
 
 @router.post("/kis-accounts", status_code=201)
