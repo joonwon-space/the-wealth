@@ -94,7 +94,7 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `orders/OrderForm.tsx` | Order input form (limit/market toggle, quick ratio buttons 10%/25%/50%/100%, cash balance) |
 | `orders/OrderConfirmation.tsx` | Order confirmation step before submission |
 | `PendingOrdersPanel.tsx` | Pending (unfilled) orders table with cancel action and auto-detect filled orders via toast notification |
-| `portfolios/[id]/AnalysisSection.tsx` | Portfolio analysis panel: portfolio-history sparkline, benchmark-delta cards (vs KOSPI200/S&P500), and FX gain/loss top-5 table. Mounted in portfolio detail page. |
+| `portfolios/[id]/AnalysisSection.tsx` | Portfolio analysis panel: portfolio-history sparkline only. Mounted in portfolio detail page. (Benchmark-delta and FX gain/loss cards were removed 2026-05-18 per user feedback; the underlying `/analytics/benchmark-delta` and `/analytics/fx-gain-loss` endpoints are still used by the dashboard / analytics pages.) |
 
 ### Notifications
 | Component | Description |
