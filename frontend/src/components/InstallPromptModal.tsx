@@ -7,6 +7,9 @@ import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { IosInstallGuide } from "@/components/IosInstallGuide";
 
 const DISMISSED_KEY = "install-modal-dismissed-at";
+// Sibling key used by InstallBanner — dismissing either prompt suppresses
+// the other so we never show two install CTAs to the same user at once.
+const BANNER_DISMISSED_KEY = "install-banner-dismissed-at";
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 const BENEFITS = [
@@ -19,7 +22,9 @@ export function InstallPromptModal() {
   const { canInstall, isStandalone, isIos, promptInstall } = useInstallPrompt();
   const [visible, setVisible] = useState(() => {
     try {
-      const dismissedAt = Number(localStorage.getItem(DISMISSED_KEY) || "0");
+      const modalAt = Number(localStorage.getItem(DISMISSED_KEY) || "0");
+      const bannerAt = Number(localStorage.getItem(BANNER_DISMISSED_KEY) || "0");
+      const dismissedAt = Math.max(modalAt, bannerAt);
       return !dismissedAt || Date.now() - dismissedAt >= COOLDOWN_MS;
     } catch {
       return true;
@@ -30,7 +35,9 @@ export function InstallPromptModal() {
   const dismiss = () => {
     setVisible(false);
     try {
-      localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+      const now = String(Date.now());
+      localStorage.setItem(DISMISSED_KEY, now);
+      localStorage.setItem(BANNER_DISMISSED_KEY, now);
     } catch {
       // localStorage unavailable — modal stays closed for this session
     }

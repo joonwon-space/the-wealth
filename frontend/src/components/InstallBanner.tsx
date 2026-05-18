@@ -7,6 +7,9 @@ import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { IosInstallGuide } from "@/components/IosInstallGuide";
 
 const DISMISSED_KEY = "install-banner-dismissed-at";
+// Sibling key used by InstallPromptModal — dismissing either prompt
+// suppresses the other so we never show two install CTAs at once.
+const MODAL_DISMISSED_KEY = "install-modal-dismissed-at";
 const VISIT_COUNTER_KEY = "install-banner-visits";
 const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const VISITS_REQUIRED = 2;
@@ -27,9 +30,13 @@ interface BannerEligibility {
  */
 function computeEligibility(): boolean {
   try {
-    const dismissedAt = Number(
+    const bannerAt = Number(
       window.localStorage.getItem(DISMISSED_KEY) || "0",
     );
+    const modalAt = Number(
+      window.localStorage.getItem(MODAL_DISMISSED_KEY) || "0",
+    );
+    const dismissedAt = Math.max(bannerAt, modalAt);
     if (dismissedAt && Date.now() - dismissedAt < COOLDOWN_MS) return false;
     const visits = Number(
       window.localStorage.getItem(VISIT_COUNTER_KEY) || "0",
@@ -67,7 +74,11 @@ function useBannerEligibility(): BannerEligibility {
       const dismissedAt = Number(
         window.localStorage.getItem(DISMISSED_KEY) || "0",
       );
-      if (dismissedAt && Date.now() - dismissedAt < COOLDOWN_MS) return;
+      const modalAt = Number(
+        window.localStorage.getItem(MODAL_DISMISSED_KEY) || "0",
+      );
+      const latestDismiss = Math.max(dismissedAt, modalAt);
+      if (latestDismiss && Date.now() - latestDismiss < COOLDOWN_MS) return;
       const prevVisits = Number(
         window.localStorage.getItem(VISIT_COUNTER_KEY) || "0",
       );
@@ -96,7 +107,9 @@ export function InstallBanner() {
     if (!dismissed || dismissedOnce.current) return;
     dismissedOnce.current = true;
     try {
-      window.localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+      const now = String(Date.now());
+      window.localStorage.setItem(DISMISSED_KEY, now);
+      window.localStorage.setItem(MODAL_DISMISSED_KEY, now);
     } catch {
       // ignore
     }
