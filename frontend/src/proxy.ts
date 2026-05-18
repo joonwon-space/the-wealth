@@ -178,5 +178,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.ico).*)"],
+  // Exclude `/api/*` so the Next.js rewrites in next.config.ts can proxy
+  // them to the backend without the auth middleware intercepting and
+  // redirecting unauthenticated requests to /login (which would break
+  // /auth/login / /auth/refresh themselves).
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.ico).*)"],
 };
