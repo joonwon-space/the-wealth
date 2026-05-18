@@ -39,7 +39,6 @@ All routes under `/dashboard/` require authentication (checked via Next.js proxy
 | `/dashboard/journal` | `app/dashboard/journal/page.tsx` | Investment journal: transaction memos across all portfolios |
 | `/dashboard/portfolios` | `app/dashboard/portfolios/page.tsx` | Portfolio list with real-time P&L (evaluation value, P&L amount/rate via `/portfolios/with-prices`; red=profit blue=loss Korean convention; `—` fallback) |
 | `/dashboard/portfolios/[id]` | `app/dashboard/portfolios/[id]/page.tsx` | Portfolio detail: holdings, transactions, analysis (AnalysisSection) |
-| `/dashboard/rebalance` | `app/dashboard/rebalance/page.tsx` | Rebalance: sector target allocation editor + suggested orders |
 | `/dashboard/stocks/[ticker]` | `app/dashboard/stocks/[ticker]/page.tsx` | Stock detail: candlestick chart, stock info |
 | `/dashboard/stream` | `app/dashboard/stream/page.tsx` | Activity feed: unified timeline of alerts, fills, dividends, rebalance, and routine events |
 | `/dashboard/settings` | `app/dashboard/settings/page.tsx` | KIS account management, user settings |

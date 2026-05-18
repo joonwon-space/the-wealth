@@ -17,7 +17,6 @@ import { ProgressRing } from "@/components/charts/progress-ring";
 import { HeroValue } from "@/components/hero-value";
 import { ModeToggle, type InvestMode } from "@/components/mode-toggle";
 import { RangeIndicator } from "@/components/range-indicator";
-import { SectorBar } from "@/components/sector-bar";
 import { StreamCard } from "@/components/stream/stream-card";
 import { TaskCard } from "@/components/task-card";
 
@@ -100,14 +99,6 @@ export default function DesignPreviewPage() {
               <HeatCell key={i} pct={v} />
             ))}
           </div>
-        </div>
-      </Section>
-
-      <Section title="SectorBar">
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-          {sectors.map((s) => (
-            <SectorBar key={s.sector} {...s} />
-          ))}
         </div>
       </Section>
 
