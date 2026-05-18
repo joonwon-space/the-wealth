@@ -67,6 +67,41 @@ def _make_engine():
 
 
 @pytest.fixture(autouse=True)
+def _reset_kis_rate_limiter_sem():
+    """Rebind module-level Semaphore / TokenBucket to the current event loop.
+
+    `kis_rate_limiter` exposes a module-level `_concurrency_sem` (asyncio
+    Semaphore) and `_limiter` (TokenBucketRateLimiter with internal
+    asyncio.Lock). Both are created once at import time and bound to the
+    event loop that imported them. pytest-asyncio creates a fresh event loop
+    per test function, so any test that runs after a `kis_call_slot()` call
+    inherits primitives bound to a *different* loop and trips:
+
+        RuntimeError: <asyncio.locks.Semaphore [locked]> is bound to a
+        different event loop
+
+    Re-init both before each test. Cheap and harmless in production
+    (production never re-imports the module at runtime).
+    """
+    import app.services.kis_rate_limiter as _krl
+    from app.core.config import settings as _settings
+    from app.services.kis_rate_limiter import KisRateLimiter as _KRL
+
+    _krl._concurrency_sem = asyncio.Semaphore(_settings.KIS_MAX_CONCURRENCY)
+    _krl._limiter = _KRL(
+        rate=_settings.KIS_RATE_LIMIT_PER_SEC,
+        burst=_settings.KIS_RATE_LIMIT_BURST,
+        mock_mode=_settings.KIS_MOCK_MODE,
+    )
+    _krl._token_limiter = _KRL(
+        rate=_settings.KIS_TOKEN_RATE_LIMIT_PER_SEC,
+        burst=_settings.KIS_TOKEN_RATE_LIMIT_BURST,
+        mock_mode=_settings.KIS_MOCK_MODE,
+    )
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _reset_kis_availability():
     """매 테스트마다 KIS 가용성 글로벌 상태를 True로 초기화한다.
 
