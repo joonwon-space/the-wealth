@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = [
-  "/login",
-  "/register",
+// 비인증 사용자도 접근 가능한 페이지 — 인증된 사용자가 접근하면 /dashboard 로 보낸다.
+const AUTH_PAGES = new Set(["/login", "/register"]);
+
+// 정적 리소스 / PWA 자산 — 인증 상태와 무관하게 그대로 서빙해야 한다.
+// 특히 /sw.js 는 Service Worker 등록 시 스크립트가 redirect 를 거치면
+// 브라우저가 "script resource behind a redirect" 로 등록을 거부한다.
+const STATIC_PUBLIC = new Set([
   "/manifest.webmanifest",
   "/icon-192.svg",
   "/icon-512.svg",
   "/sw.js",
   "/offline",
-];
+]);
 
 function generateNonce(): string {
   const bytes = new Uint8Array(16);
@@ -104,7 +108,9 @@ function clearAuthCookies(response: NextResponse, hostname: string): void {
 
 export function proxy(request: NextRequest) {
   const { pathname, searchParams, hostname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "?"));
+  const isAuthPage = AUTH_PAGES.has(pathname);
+  const isStaticPublic = STATIC_PUBLIC.has(pathname);
+  const isPublic = isAuthPage || isStaticPublic;
   const isForcedReauth = pathname === "/login" && searchParams.get("reauth") === "1";
 
   const nonce = generateNonce();
@@ -151,8 +157,10 @@ export function proxy(request: NextRequest) {
     return applySecurityHeaders(response, csp);
   }
 
-  // 인증 상태에서 로그인/회원가입 접근 → 대시보드로
-  if (isPublic && isLoggedIn) {
+  // 인증 상태에서 로그인/회원가입 페이지 접근 → 대시보드로.
+  // 정적 리소스(/sw.js, manifest, offline 등)는 redirect 대상이 아니다 —
+  // 특히 SW 스크립트는 redirect 를 거치면 등록 자체가 거부된다.
+  if (isAuthPage && isLoggedIn) {
     return applySecurityHeaders(
       NextResponse.redirect(new URL("/dashboard", request.url)),
       csp,
