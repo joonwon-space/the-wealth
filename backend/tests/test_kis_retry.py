@@ -1,9 +1,16 @@
 """Unit tests for KIS HTTP retry wrapper (kis_retry.kis_request / kis_get).
 
-Policy: when KIS reports rate-limit rejection — either HTTP 429 or HTTP 200
-with `rt_cd="EGW00201"` — retry once after a short jitter. Other non-200
-statuses (5xx) and application errors with different `rt_cd` pass through
-unchanged.
+Policy:
+  - HTTP 429 / 200+`rt_cd=EGW00201` (rate-limit) → retry (exponential backoff).
+  - HTTP 5xx → retry **GET only** (POST/PUT/PATCH/DELETE pass through to
+    avoid duplicate side effects when the server processed the request but
+    the response was lost in transit).
+  - ConnectError / TimeoutException → retry with longer backoff.
+  - Other 4xx and application errors with non-rate-limit `rt_cd` pass
+    through unchanged.
+
+Backoff is exponential + jitter (attempt n → base*2^(n-1) range), so the
+exact wait window grows with each retry.
 """
 
 import json
@@ -69,9 +76,9 @@ class TestKisRetry:
         assert resp.status_code == 200
         assert len(client.calls) == 2
         mock_sleep.assert_awaited_once()
-        # Jitter must fall inside the documented window
+        # First-attempt jitter falls in the base window [50, 200]ms.
         wait = mock_sleep.call_args.args[0]
-        assert 0.05 <= wait <= 0.15
+        assert 0.05 <= wait <= 0.20
 
     @pytest.mark.asyncio
     async def test_429_persists_after_final_retry_returns_last_response(
@@ -93,14 +100,50 @@ class TestKisRetry:
         mock_sleep.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_500_is_not_retried(self) -> None:
-        """5xx is server error — caller decides; retry wrapper only targets 429."""
-        client = _FakeClient([_resp(500)])
+    async def test_500_get_retries_then_returns_success(self) -> None:
+        """KIS 일시 internal error — GET 은 즉시 재호출하면 거의 회복."""
+        client = _FakeClient([_resp(500), _resp(200, b'{"ok":1}')])
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
             resp = await kis_request(client, "GET", "https://x/y")
+        assert resp.status_code == 200
+        assert len(client.calls) == 2
+        mock_sleep.assert_awaited_once()
+        wait = mock_sleep.call_args.args[0]
+        assert 0.05 <= wait <= 0.20
+
+    @pytest.mark.asyncio
+    async def test_500_get_persists_returns_last_response(self) -> None:
+        """5xx 가 max_retries 후에도 지속되면 마지막 응답 그대로 전달."""
+        client = _FakeClient([_resp(500), _resp(503)])
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            resp = await kis_request(
+                client, "GET", "https://x/y", max_retries=1
+            )
+        assert resp.status_code == 503
+        assert len(client.calls) == 2
+
+    @pytest.mark.asyncio
+    async def test_500_post_is_not_retried(self) -> None:
+        """POST 5xx 는 중복 실행 위험 때문에 retry 대상이 아니다."""
+        client = _FakeClient([_resp(500)])
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            resp = await kis_request(client, "POST", "https://x/y")
         assert resp.status_code == 500
         assert len(client.calls) == 1
         mock_sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_5xx_retry_does_not_reacquire_rate_limit_token(self) -> None:
+        """5xx 는 우리 rate-limit 위반이 아니므로 토큰 재소비 없음."""
+        client = _FakeClient([_resp(502), _resp(200, b"{}")])
+        with patch("asyncio.sleep", new_callable=AsyncMock), \
+             patch(
+                "app.services.kis_rate_limiter.acquire",
+                new_callable=AsyncMock,
+             ) as mock_acquire:
+            resp = await kis_request(client, "GET", "https://x/y")
+        assert resp.status_code == 200
+        mock_acquire.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_200_with_egw00201_triggers_retry(self) -> None:
