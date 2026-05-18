@@ -71,8 +71,18 @@ export default function SettingsPage() {
 
       {/* Tab navigation — horizontal scroll on mobile so labels never wrap.
           overflow-y-hidden suppresses the vertical scrollbar that some
-          browsers render alongside overflow-x-auto. */}
-      <div className="-mx-4 overflow-x-auto overflow-y-hidden border-b px-4 sm:mx-0 sm:px-0">
+          browsers render alongside overflow-x-auto. The mask-image fade on
+          the trailing edge hints that more tabs exist beyond the viewport
+          on narrow screens (e.g., "세션 관리" is the rightmost tab). */}
+      <div
+        className="-mx-4 overflow-x-auto overflow-y-hidden border-b px-4 sm:mx-0 sm:px-0"
+        style={{
+          maskImage:
+            "linear-gradient(to right, black, black calc(100% - 24px), transparent)",
+          WebkitMaskImage:
+            "linear-gradient(to right, black, black calc(100% - 24px), transparent)",
+        }}
+      >
         <div className="flex gap-1">
           {TABS.map((tab) => (
             <button
