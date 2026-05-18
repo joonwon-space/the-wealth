@@ -4,13 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
-  Coins,
   Plus,
   RefreshCw,
-  Scale,
   Sparkles,
-  Target,
-  TrendingUp,
   Wallet,
   Wifi,
   WifiOff,
@@ -22,7 +18,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useCashSummary } from "@/hooks/useCashSummary";
-import { useInvestMode } from "@/hooks/useInvestMode";
 import { useAuthStore } from "@/store/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -33,11 +28,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { formatKRW } from "@/lib/format";
 import { toast } from "sonner";
 import { HeroValue } from "@/components/hero-value";
-import { ModeToggle } from "@/components/mode-toggle";
 import { TaskCard } from "@/components/task-card";
 import { AreaChart } from "@/components/charts/area-chart";
 import { Donut } from "@/components/charts/donut";
-import { ProgressRing } from "@/components/charts/progress-ring";
 import { PortfolioList } from "@/components/dashboard/PortfolioList";
 import { HoldingsHeatmap } from "@/components/HoldingsHeatmap";
 
@@ -110,14 +103,6 @@ interface TodayTasksResponse {
   tasks: HomeTask[];
 }
 
-interface BenchmarkDelta {
-  index_code: string;
-  period: string;
-  mine_pct: number;
-  benchmark_pct: number;
-  delta_pct_points: number;
-}
-
 interface PortfolioHistoryPoint {
   date: string;
   value: number;
@@ -127,21 +112,6 @@ interface SectorAllocationRow {
   sector: string;
   value: number;
   weight: number;
-}
-
-interface UpcomingDividend {
-  ticker: string;
-  market: string;
-  name: string | null;
-  quantity: number | string | null;
-  ex_date: string | null;
-  record_date: string;
-  payment_date: string | null;
-  amount: number | string;
-  currency: string;
-  kind: string;
-  source: string;
-  estimated_payout: number | string | null;
 }
 
 async function fetchSummary(refresh = false): Promise<Summary> {
@@ -222,11 +192,11 @@ function WidgetErrorFallback({
 
 // ---------- task icon mapping ----------
 const TASK_ICONS: Record<HomeTask["kind"], LucideIcon> = {
-  rebalance: Scale,
-  dividend: Coins,
+  rebalance: Sparkles,
+  dividend: Sparkles,
   alert: TriangleAlert,
   routine: Sparkles,
-  goal: Target,
+  goal: Sparkles,
 };
 
 // ---------- page ----------
@@ -234,7 +204,6 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const accessToken = useAuthStore((s) => s.accessToken);
   const refreshAccessToken = useAuthStore((s) => s.refreshAccessToken);
-  const [mode, setMode] = useInvestMode();
 
   useEffect(() => {
     if (!accessToken) {
@@ -267,29 +236,11 @@ export default function DashboardPage() {
     enabled: !isLoading,
   });
 
-  const { data: benchmark } = useQuery<BenchmarkDelta>({
-    queryKey: ["analytics", "benchmark-delta", "6M"],
-    queryFn: async () =>
-      (await api.get<BenchmarkDelta>("/analytics/benchmark-delta", {
-        params: { period: "6M" },
-      })).data,
-    staleTime: 5 * 60_000,
-    enabled: !isLoading,
-  });
-
   const { data: sectorAllocation } = useQuery<SectorAllocationRow[]>({
     queryKey: ["analytics", "sector-allocation"],
     queryFn: async () =>
       (await api.get<SectorAllocationRow[]>("/analytics/sector-allocation")).data,
     staleTime: 5 * 60_000,
-    enabled: !isLoading,
-  });
-
-  const { data: upcomingDividends } = useQuery<UpcomingDividend[]>({
-    queryKey: ["dividends", "upcoming"],
-    queryFn: async () =>
-      (await api.get<UpcomingDividend[]>("/dividends/upcoming")).data,
-    staleTime: 10 * 60_000,
     enabled: !isLoading,
   });
 
@@ -478,25 +429,14 @@ export default function DashboardPage() {
     color: `var(--chart-${(i % 8) + 1})`,
     label: row.sector,
   }));
-  const dividendList = Array.isArray(upcomingDividends) ? upcomingDividends : [];
   const todayTasksList =
     todayTasks && Array.isArray(todayTasks.tasks) ? todayTasks : { count: 0, tasks: [] };
-
-  const goalPortfolio = (s as Summary & { target_value?: number }).target_value
-    ? { total: animatedTotalAsset, target: (s as Summary & { target_value: number }).target_value }
-    : null;
 
   return (
     <div className="space-y-6">
       {/* ----- Top bar ----- */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold tracking-tight">대시보드</h1>
-        <ModeToggle
-          mode={mode}
-          onChange={setMode}
-          position="header"
-          className="ml-2"
-        />
         <div className="ml-auto flex items-center gap-2">
           <StreamStatusBadge status={streamStatus} onReconnect={reconnectStream} />
           {lastUpdated && (
@@ -587,107 +527,29 @@ export default function DashboardPage() {
             </Card>
           </ErrorBoundary>
 
-          {/* ----- Goal ring + Benchmark + Cash ----- */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {goalPortfolio ? (
-              <Card>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <ProgressRing
-                    pct={goalPortfolio.total / goalPortfolio.target}
-                    size={72}
-                    thickness={8}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-section-header">목표 진척도</p>
-                    <p className="mt-1 text-lg font-bold tabular-nums">
-                      {formatKRW(goalPortfolio.total)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      / 목표 {formatKRW(goalPortfolio.target)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex size-[72px] shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <Target className="size-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-section-header">목표 진척도</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      목표를 설정하고 진척도를 추적하세요.
-                    </p>
-                    <Link
-                      href="/dashboard/portfolios"
-                      className="mt-1 inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-primary hover:underline"
-                    >
-                      <Plus className="size-3" /> 설정하기
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-section-header">
-                  {benchmark ? `vs ${benchmark.index_code}` : "벤치마크"}
-                </p>
-                <p
-                  className={`mt-2 text-lg font-bold tabular-nums ${
-                    benchmark && benchmark.delta_pct_points >= 0
-                      ? "text-rise"
-                      : benchmark
-                        ? "text-fall"
-                        : "text-muted-foreground"
-                  }`}
-                >
-                  {benchmark
-                    ? `${benchmark.delta_pct_points >= 0 ? "+" : ""}${benchmark.delta_pct_points.toFixed(2)}%p`
-                    : "—"}
-                </p>
-                {benchmark && (
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    내 {benchmark.mine_pct.toFixed(2)}% · 벤치 {benchmark.benchmark_pct.toFixed(2)}%
-                    ({benchmark.period})
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-section-header">예수금</p>
-                <p className="mt-2 text-lg font-bold tabular-nums">
-                  {cashSummary?.kis_connected ? formatKRW(totalCash) : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {cashSummary?.kis_connected
-                    ? cashSummary.has_errors
-                      ? "일부 계좌 조회 실패 — 합계 부정확"
-                      : `KIS 계좌 ${cashSummary.accounts.length}개 합계`
-                    : "KIS 연동 시 노출됩니다"}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          {/* ----- Cash 카드 ----- */}
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-section-header">예수금</p>
+              <p className="mt-2 text-lg font-bold tabular-nums">
+                {cashSummary?.kis_connected ? formatKRW(totalCash) : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {cashSummary?.kis_connected
+                  ? cashSummary.has_errors
+                    ? "일부 계좌 조회 실패 — 합계 부정확"
+                    : `KIS 계좌 ${cashSummary.accounts.length}개 합계`
+                  : "KIS 연동 시 노출됩니다"}
+              </p>
+            </CardContent>
+          </Card>
 
           {/* ----- Tasks (오늘 할 것) ----- */}
           {todayTasksList.count > 0 && (
             <section className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-section-header">
-                  오늘 할 것 · {todayTasksList.count}
-                </h2>
-                <Link
-                  href="/dashboard/stream"
-                  className="inline-flex min-h-[44px] items-center text-xs font-medium text-primary hover:underline"
-                >
-                  모두 보기
-                </Link>
-              </div>
+              <h2 className="text-section-header">
+                오늘 할 것 · {todayTasksList.count}
+              </h2>
               <div className="space-y-2">
                 {todayTasksList.tasks.slice(0, 4).map((t) => {
                   const Icon = TASK_ICONS[t.kind] ?? Sparkles;
@@ -715,102 +577,56 @@ export default function DashboardPage() {
             </Card>
           </section>
 
-          {/* ----- Sector donut + Dividends ----- */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <section className="space-y-2 lg:col-span-2">
-              <h2 className="text-section-header">자산 배분</h2>
-              <Card>
-                <CardContent className="flex flex-wrap items-center gap-6 p-4">
-                  {sectorSegments.length > 0 ? (
-                    <Donut
-                      size={112}
-                      thickness={14}
-                      segments={sectorSegments}
-                      center={
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                            섹터
-                          </div>
-                          <div className="text-sm font-bold tabular-nums">
-                            {sectorSegments.length}
-                          </div>
+          {/* ----- Sector donut ----- */}
+          <section className="space-y-2">
+            <h2 className="text-section-header">자산 배분</h2>
+            <Card>
+              <CardContent className="flex flex-wrap items-center gap-6 p-4">
+                {sectorSegments.length > 0 ? (
+                  <Donut
+                    size={112}
+                    thickness={14}
+                    segments={sectorSegments}
+                    center={
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          섹터
                         </div>
-                      }
-                    />
-                  ) : (
-                    <div className="size-[112px] rounded-full bg-muted" aria-hidden />
-                  )}
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    {sectorSegments.slice(0, 4).map((r) => (
-                      <div
-                        key={r.label ?? r.color}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <span
-                          className="inline-block size-2 rounded-sm"
-                          style={{ background: r.color }}
-                          aria-hidden
-                        />
-                        <span className="flex-1 truncate">{r.label}</span>
-                        <span className="font-semibold tabular-nums">
-                          {(r.pct * 100).toFixed(0)}%
-                        </span>
+                        <div className="text-sm font-bold tabular-nums">
+                          {sectorSegments.length}
+                        </div>
                       </div>
-                    ))}
-                    {sectorSegments.length === 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        섹터 데이터를 불러오는 중...
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            <section className="space-y-2">
-              <h2 className="text-section-header">
-                다음 배당 · {dividendList.length}
-              </h2>
-              <Card>
-                <CardContent className="divide-y p-0">
-                  {dividendList.length === 0 && (
-                    <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-                      <Coins className="size-4" />
-                      30일 내 예정 배당이 없습니다.
-                    </div>
-                  )}
-                  {dividendList.slice(0, 4).map((d) => (
+                    }
+                  />
+                ) : (
+                  <div className="size-[112px] rounded-full bg-muted" aria-hidden />
+                )}
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  {sectorSegments.slice(0, 4).map((r) => (
                     <div
-                      key={`${d.ticker}-${d.record_date}-${d.kind}`}
-                      className="flex items-center justify-between p-3"
+                      key={r.label ?? r.color}
+                      className="flex items-center gap-2 text-sm"
                     >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">
-                          {d.name || d.ticker}
-                        </div>
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          배당락 {d.ex_date ?? d.record_date} · 지급 {d.payment_date ?? "미정"}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm font-bold tabular-nums text-rise">
-                          +
-                          {d.currency === "KRW"
-                            ? Number(d.amount).toLocaleString("ko-KR")
-                            : `$${Number(d.amount).toFixed(2)}`}
-                        </div>
-                        {d.estimated_payout != null && (
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
-                            예상 {Number(d.estimated_payout).toLocaleString("ko-KR")}
-                          </div>
-                        )}
-                      </div>
+                      <span
+                        className="inline-block size-2 rounded-sm"
+                        style={{ background: r.color }}
+                        aria-hidden
+                      />
+                      <span className="flex-1 truncate">{r.label}</span>
+                      <span className="font-semibold tabular-nums">
+                        {(r.pct * 100).toFixed(0)}%
+                      </span>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
-            </section>
-          </div>
+                  {sectorSegments.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      섹터 데이터를 불러오는 중...
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
           {/* ----- Holdings table (기존) ----- */}
           <section className="space-y-2">
@@ -833,20 +649,6 @@ export default function DashboardPage() {
             </ErrorBoundary>
           </section>
 
-          {/* ----- Footer hint: short mode → movers quick link (full 구현 Step 6 이후) ----- */}
-          {mode === "short" && (
-            <Card>
-              <CardContent className="flex items-center gap-3 p-4">
-                <TrendingUp className="size-5 text-rise" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">단타 모드</p>
-                  <p className="text-xs text-muted-foreground">
-                    실시간 mover/미체결 주문은 Step 6(종목 상세) 이후 연결됩니다.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </>
       )}
     </div>

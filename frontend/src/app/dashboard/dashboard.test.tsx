@@ -24,10 +24,6 @@ vi.mock("@/components/PnLBadge", () => ({
   PnLBadge: ({ value }: { value: number }) => <span>{value}</span>,
 }));
 
-vi.mock("@/components/WatchlistSection", () => ({
-  WatchlistSection: () => <div data-testid="watchlist" />,
-}));
-
 import DashboardPage from "./page";
 import { api } from "@/lib/api";
 

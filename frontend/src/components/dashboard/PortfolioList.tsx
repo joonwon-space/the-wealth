@@ -6,7 +6,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AllocationDonut } from "@/components/DynamicCharts";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { TopHoldingsWidget } from "@/components/TopHoldingsWidget";
-import { WatchlistSection } from "@/components/WatchlistSection";
 
 interface HoldingRow {
   id: number;
@@ -99,15 +98,6 @@ export function PortfolioList({ holdings, allocation, totalAsset }: PortfolioLis
           </section>
         </ErrorBoundary>
       )}
-
-      {/* 관심 종목 */}
-      <ErrorBoundary
-        fallback={(err, reset) => (
-          <WidgetErrorFallback title="관심 종목" error={err} reset={reset} />
-        )}
-      >
-        <WatchlistSection />
-      </ErrorBoundary>
 
       {/* 보유 종목 테이블 */}
       <ErrorBoundary
