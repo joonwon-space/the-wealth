@@ -15,7 +15,7 @@
                      │ HTTP/SSE (port 3000 → 8000)
 ┌────────────────────▼────────────────────────────────────────┐
 │                     FastAPI Backend                           │
-│   ├── 97 API endpoints (24 routers — analytics/portfolios/orders split into sub-files)  │
+│   ├── 98 API endpoints (24 routers — analytics/portfolios/orders split into sub-files)  │
 │   ├── JWT auth + IDOR prevention                             │
 │   ├── slowapi rate limiter (30-60/min per endpoint)          │
 │   ├── SecurityHeadersMiddleware                              │

@@ -286,7 +286,10 @@ alembic upgrade head
 | 키 패턴 | 값 | TTL | 용도 |
 |---------|------|-----|------|
 | `refresh_jti:{uuid}` | user_id (문자열) | 7일 | Refresh token JTI 저장 |
-| `cash_balance:{portfolio_id}` | JSON (CashBalance) | 30초 | 예수금 캐시 |
+| `cash_balance:{portfolio_id}` | JSON (CashBalance) | 30초 | 포트폴리오별 예수금 캐시 (`/portfolios/{id}/cash-balance`) |
+| `cash_balance:account:{account_id}` | JSON (CashSummaryAccount) | 30초 | KIS 계좌별 예수금 캐시 (`/dashboard/cash-summary` 용) |
+| `cash_summary:user:{user_id}` | JSON (CashSummaryResponse) | 30초 | 사용자 전체 예수금 합산 캐시 (`/dashboard/cash-summary` 응답) |
+| `pwp:user:{user_id}` | JSON (PortfolioWithPrices[]) | 30초 | `/portfolios/with-prices` 응답 캐시 |
 | `order_lock:{portfolio_id}:{ticker}` | "1" | 10초 | 이중 주문 방지 락 |
 | `order_rate:{user_id}` | count | 60초 | 주문 레이트 리밋 (10회/분) |
 | `sse-ticket:{ticket}` | user_id (문자열) | 30초 | SSE 스트림 단기 인증 티켓 |

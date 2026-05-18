@@ -119,7 +119,7 @@ label, account_no, acnt_prdt_cd
 app_key_enc String(512)    ← AES-256-GCM 암호화
 app_secret_enc String(512) ← AES-256-GCM 암호화
 is_paper_trading BOOL
-account_type (일반 | ISA | 연금저축 | IRP)
+account_type (일반 | ISA | 연금저축 | IRP | 해외주식)
 created_at
 UNIQUE(user_id, account_no, acnt_prdt_cd)
 ```
@@ -129,7 +129,7 @@ UNIQUE(user_id, account_no, acnt_prdt_cd)
 id PK
 user_id FK(users.id CASCADE) INDEX
 ticker, name
-condition ENUM(above | below)
+condition CHECK(above | below | pct_change | drawdown)
 threshold NUMERIC(18,4)
 is_active BOOL
 created_at, last_triggered_at
