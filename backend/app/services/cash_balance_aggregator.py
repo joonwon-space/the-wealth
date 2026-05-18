@@ -26,6 +26,7 @@ from app.services.kis_balance import (
     get_overseas_present_balance,
 )
 from app.services.kis_fx import get_exchange_rate
+from app.services.kis_order_query import get_pending_orders
 
 logger = get_logger(__name__)
 
@@ -73,6 +74,54 @@ def _deserialize_account(raw: str) -> CashSummaryAccount:
     return CashSummaryAccount(**data)
 
 
+async def compute_pending_buy_reservation(
+    app_key: str,
+    app_secret: str,
+    account_no: str,
+    account_product_code: str,
+    is_paper_trading: bool = False,
+) -> Decimal:
+    """국내 미체결 매수 주문의 예약 금액 합계.
+
+    KIS `thdt_buy_amt` 는 acnt_prdt_cd=01(일반/ISA) 계좌에서 체결 후에만
+    갱신되어, 주문 placement 직후 available_cash 에 매수금이 즉시
+    반영되지 않는 표시 버그가 있다. KIS 미체결 조회로 잔여 매수 금액을
+    별도 계산해 차감한다.
+
+    KIS 가 체결을 반영하는 순간 해당 주문은 pending 목록에서 빠지면서
+    동시에 `thdt_buy_amt` 에 잡혀, 이 함수 결과와 thdt_buy 가 동일
+    주문을 이중 차감하지 않는다 (mutually exclusive).
+
+    Market order(price=0) 는 정확한 예약가를 알 수 없어 제외 — pending
+    구간이 보통 1초 미만이라 표시 정확도 영향 미미.
+    """
+    try:
+        pending = await get_pending_orders(
+            app_key=app_key,
+            app_secret=app_secret,
+            account_no=account_no,
+            account_product_code=account_product_code,
+            is_overseas=False,
+            is_paper_trading=is_paper_trading,
+        )
+    except RuntimeError as e:
+        logger.warning(
+            "Pending orders lookup failed for %s — skip reservation: %s",
+            account_no,
+            e,
+        )
+        return _ZERO
+
+    total = _ZERO
+    for o in pending:
+        if o.order_type != "BUY":
+            continue
+        if o.price <= 0:
+            continue
+        total += o.remaining_quantity * o.price
+    return total
+
+
 async def fetch_cash_balance_for_account(acct: KisAccount) -> CashSummaryAccount:
     """단일 KIS 계좌의 예수금/평가금액 조회.
 
@@ -118,6 +167,19 @@ async def fetch_cash_balance_for_account(acct: KisAccount) -> CashSummaryAccount
             label=acct.label,
             error=str(e),
         )
+
+    # acnt_prdt_cd=01 (일반/ISA) 계좌는 KIS thdt_buy_amt 가 체결 후에만
+    # 갱신되어 pending 매수가 즉시 차감되지 않는다. KIS 미체결 조회로
+    # 잔여 매수 금액을 별도 계산해 차감.
+    pending_reservation = await compute_pending_buy_reservation(
+        app_key=app_key,
+        app_secret=app_secret,
+        account_no=acct.account_no,
+        account_product_code=acct.acnt_prdt_cd,
+        is_paper_trading=acct.is_paper_trading,
+    )
+    adj_total_cash = max(_ZERO, domestic.total_cash - pending_reservation)
+    adj_available_cash = max(_ZERO, domestic.available_cash - pending_reservation)
 
     # 해외 보유종목이 있으면 외화예수금/USD 환산까지 합산. 없으면 국내만.
     try:
@@ -177,8 +239,8 @@ async def fetch_cash_balance_for_account(acct: KisAccount) -> CashSummaryAccount
         result = CashSummaryAccount(
             kis_account_id=acct.id,
             label=acct.label,
-            total_cash=domestic.total_cash + usd_cash_krw,
-            available_cash=domestic.available_cash + usd_cash_krw,
+            total_cash=adj_total_cash + usd_cash_krw,
+            available_cash=adj_available_cash + usd_cash_krw,
             total_evaluation=combined_stock_eval,
             total_profit_loss=domestic.total_profit_loss + ovrs_pnl_krw,
             foreign_cash=usd_cash if usd_cash > _ZERO else None,
@@ -187,11 +249,13 @@ async def fetch_cash_balance_for_account(acct: KisAccount) -> CashSummaryAccount
     else:
         # 국내 전용: total_evaluation 에는 cash 가 포함돼 있어 분리한다
         # (프론트엔드는 cash + eval 합산을 별도 표시).
+        # stock_eval 분리는 원본 domestic.total_cash 사용 — pending 차감은
+        # 표시용 total_cash 에만 적용 (이중 차감 방지).
         result = CashSummaryAccount(
             kis_account_id=acct.id,
             label=acct.label,
-            total_cash=domestic.total_cash,
-            available_cash=domestic.available_cash,
+            total_cash=adj_total_cash,
+            available_cash=adj_available_cash,
             total_evaluation=domestic.total_evaluation - domestic.total_cash,
             total_profit_loss=domestic.total_profit_loss,
             foreign_cash=domestic.foreign_cash,

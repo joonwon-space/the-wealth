@@ -35,6 +35,7 @@ from app.schemas.order import (
 )
 from app.api.portfolios import invalidate_portfolios_with_prices_cache
 from app.services.cash_balance_aggregator import (
+    compute_pending_buy_reservation,
     invalidate_account_cash_balance,
     invalidate_user_cash_summary,
 )
@@ -483,6 +484,19 @@ async def get_portfolio_cash_balance(
             is_overseas=False,
             is_paper_trading=acct.is_paper_trading,
         )
+        # acnt_prdt_cd=01 (일반/ISA) 계좌는 KIS thdt_buy_amt 가 체결 후에만
+        # 갱신되어 pending 매수가 즉시 차감되지 않는다. KIS 미체결 조회로
+        # 잔여 매수 금액을 별도 계산해 차감 (체결되면 pending 목록에서 빠지면서
+        # thdt_buy_amt 에 잡혀 이중 차감되지 않음).
+        pending_reservation = await compute_pending_buy_reservation(
+            app_key=app_key,
+            app_secret=app_secret,
+            account_no=acct.account_no,
+            account_product_code=acct.acnt_prdt_cd,
+            is_paper_trading=acct.is_paper_trading,
+        )
+        adj_total_cash = max(Decimal("0"), domestic.total_cash - pending_reservation)
+        adj_available_cash = max(Decimal("0"), domestic.available_cash - pending_reservation)
         overseas_holdings, overseas_summary = await fetch_overseas_account_holdings(
             app_key, app_secret, acct.account_no, acct.acnt_prdt_cd
         )
@@ -524,8 +538,8 @@ async def get_portfolio_cash_balance(
                 # represents the user's full cash buying power. total_evaluation
                 # is stocks-only (frontend renders 총 자산 = cash + eval, so we
                 # must not double-count cash here).
-                total_cash=domestic.total_cash + usd_cash_krw,
-                available_cash=domestic.available_cash + usd_cash_krw,
+                total_cash=adj_total_cash + usd_cash_krw,
+                available_cash=adj_available_cash + usd_cash_krw,
                 total_evaluation=combined_stock_eval,
                 total_profit_loss=domestic.total_profit_loss + ovrs_pnl_krw,
                 profit_loss_rate=domestic.profit_loss_rate,
@@ -536,10 +550,11 @@ async def get_portfolio_cash_balance(
         else:
             # Domestic-only path: KIS tot_evlu_amt includes cash. Strip cash so
             # total_evaluation is stocks-only and the frontend 총 자산 sum is
-            # correct.
+            # correct. Use original domestic.total_cash for stripping (not the
+            # pending-adjusted value) so stock eval calculation stays correct.
             balance = CashBalance(
-                total_cash=domestic.total_cash,
-                available_cash=domestic.available_cash,
+                total_cash=adj_total_cash,
+                available_cash=adj_available_cash,
                 total_evaluation=domestic.total_evaluation - domestic.total_cash,
                 total_profit_loss=domestic.total_profit_loss,
                 profit_loss_rate=domestic.profit_loss_rate,
