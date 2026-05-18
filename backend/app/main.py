@@ -104,7 +104,13 @@ app.add_middleware(
     allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
+    # `If-None-Match` 는 ETag 캐싱 엔드포인트(chart, analytics 등) 재요청
+    # 시 브라우저가 자동 동봉하여 preflight 를 트리거한다. 미허용 시
+    # preflight 실패 → 본 요청이 "No ACAO" 로 차단되는 CORS 에러가 난다.
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID", "If-None-Match"],
+    # 브라우저 JS 가 ETag/X-Request-ID 등 응답 헤더를 읽을 수 있도록 노출.
+    # CORS spec 상 simple response 헤더가 아닌 것은 expose_headers 명시 필요.
+    expose_headers=["ETag", "X-Request-ID", "X-Process-Time"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(MetricsMiddleware)
