@@ -2,7 +2,12 @@ import axios from "axios";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth";
 
-const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Same-origin path. Next.js rewrites in next.config.ts proxy /api/* to the
+// backend server-side, so the browser only ever sees `joonwon.dev` cookies
+// instead of `.joonwon.dev` (cross-subdomain) cookies that iOS Safari ITP
+// evicts. To override (e.g. local dev pointing at a non-default backend),
+// set NEXT_PUBLIC_API_URL — the legacy absolute-URL path still works.
+const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "";
 const API_BASE = `${API_HOST}/api/v1`;
 
 export const api = axios.create({

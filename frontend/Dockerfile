@@ -5,7 +5,11 @@ RUN npm ci
 
 FROM node:20-alpine AS builder
 WORKDIR /app
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+# NEXT_PUBLIC_API_URL is intentionally empty by default — the browser bundle
+# uses same-origin `/api/*` and Next.js rewrites proxy to API_PROXY_TARGET
+# at request-time on the server. Keep this empty in production to avoid
+# baking a cross-subdomain origin into client code.
+ARG NEXT_PUBLIC_API_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SENTRY_DSN=
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN

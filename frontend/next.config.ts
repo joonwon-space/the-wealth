@@ -35,8 +35,25 @@ const securityHeaders = [
   // because it requires a per-response nonce for script-src.
 ];
 
+// Backend API origin for the server-side rewrite proxy. Keeps the browser
+// talking to same-origin `/api/*` so iOS Safari ITP doesn't classify the
+// cross-subdomain auth cookies as third-party storage and evict them.
+// Client bundles never see this — it's read at request-time by Next's edge.
+const API_PROXY_TARGET =
+  process.env.API_PROXY_TARGET ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://backend:8000";
+
 const nextConfig: NextConfig = {
   output: "standalone",
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${API_PROXY_TARGET}/api/:path*`,
+      },
+    ];
+  },
   async headers() {
     return [
       {

@@ -152,9 +152,10 @@ Server state management via `@tanstack/react-query`:
 ## 5. HTTP Client (`lib/api.ts`)
 
 Axios instance configured with:
-- **Base URL**: `/api/v1` (proxied to backend via Next.js)
-- **Request interceptor**: Attaches `Authorization: Bearer {accessToken}` header
-- **Response interceptor**: On 401, attempts token refresh via `/auth/refresh`, then retries the original request. If refresh fails, redirects to `/login`.
+- **Base URL**: `/api/v1` (same-origin). Next.js rewrites in `next.config.ts` proxy `/api/*` to the backend (`API_PROXY_TARGET` server-side env, defaults to `http://backend:8000` in compose). Keeps auth cookies first-party (`joonwon.dev`) instead of cross-subdomain `.joonwon.dev` — see `infrastructure.md §7.1` for the ITP rationale.
+- **Single-flight refresh**: `refreshOnce()` coalesces parallel 401s into one `/auth/refresh` call to avoid the JTI rotation race that would otherwise log the user out.
+- **Request interceptor**: Browser auto-sends the HttpOnly cookie; no Authorization header needed.
+- **Response interceptor**: On 401, attempts token refresh via `/auth/refresh`, then retries the original request. If refresh fails, redirects to `/login?reauth=1`.
 
 ---
 

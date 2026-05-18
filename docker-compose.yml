@@ -66,10 +66,16 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://api.joonwon.dev
+        # NEXT_PUBLIC_API_URL intentionally left empty — browser-side requests
+        # go to same-origin `/api/*` and the Next.js rewrites in
+        # next.config.ts proxy them to the backend container internally. This
+        # keeps auth cookies first-party (joonwon.dev only) and avoids the
+        # iOS Safari ITP cross-subdomain eviction that was logging users out.
+        NEXT_PUBLIC_API_URL: ""
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
     environment:
-      NEXT_PUBLIC_API_URL: https://api.joonwon.dev
+      # Server-side proxy target. Not exposed to the browser bundle.
+      API_PROXY_TARGET: http://backend:8000
     ports:
       - "3000:3000"
     depends_on:

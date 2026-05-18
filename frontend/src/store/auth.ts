@@ -1,6 +1,8 @@
 import { create } from "zustand";
 
-const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Same-origin path — proxied by Next.js rewrites (next.config.ts) so the
+// refresh cookie stays first-party. See lib/api.ts for the rationale.
+const API_HOST = process.env.NEXT_PUBLIC_API_URL ?? "";
 const REFRESH_URL = `${API_HOST}/api/v1/auth/refresh`;
 
 interface TokenResponse {
