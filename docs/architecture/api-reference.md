@@ -248,6 +248,12 @@ Rate-limited endpoints for brute force protection.
   - `triggered_alerts`: list of alerts whose conditions are currently met
 - **Notes**: Fetches current prices from KIS API via `asyncio.gather()`; computes P&L dynamically. When all price fetches fail, returns `kis_status: "degraded"` and frontend shows a warning banner.
 
+### GET /dashboard/cash-summary
+- **Auth**: Required
+- **Response** (200): `CashSummaryResponse` -- `{ total_cash, available_cash, total_evaluation, total_profit_loss, kis_connected, accounts: CashSummaryAccount[], has_errors }`
+  - `accounts[].error`: per-KIS-account 부분 실패 사유 (자격증명 복호화 실패, KIS API 오류 등). 한 계좌 실패가 전체 502 가 되지 않도록 격리한다.
+- **Notes**: 사용자의 모든 KIS 계좌(`kis_accounts`) 예수금/평가금액을 `asyncio.gather` 로 병렬 조회 후 합산. **Pending BUY 차감**은 `/portfolios/{id}/cash-balance` 와 동일 로직(`compute_pending_buy_reservation`)을 계좌별로 적용해 매수 직후 즉시 예수금이 줄어 표시된다. 계좌 단위 캐시 30초(`cash_balance:account:{id}`), 사용자 단위 합산 캐시 30초(`cash_summary:user:{id}`). 주문 placement/체결/취소 시 `invalidate_user_cash_summary` + `invalidate_account_cash_balance` 가 호출돼 즉시 반영.
+
 ---
 
 ## Analytics (`/analytics`)
@@ -405,7 +411,7 @@ Rate-limited endpoints for brute force protection.
 ### GET /portfolios/{portfolio_id}/cash-balance
 - **Auth**: Required (ownership verified)
 - **Response** (200): `CashBalanceResponse` -- `{ total_cash, available_cash, total_evaluation, total_profit_loss, profit_loss_rate, currency, foreign_cash?, usd_krw_rate? }`
-- **Notes**: Combines domestic KRW cash (TTTC8434R) with USD foreign cash from overseas account (CTRP6504R — 해외주식 체결기준현재잔고). `total_cash` and `available_cash` include USD cash converted to KRW at the current exchange rate from CTRP6504R, so they represent the user's full cross-currency cash buying power. `total_evaluation` is **stocks-only** (does not include cash); this avoids double-counting when the frontend adds cash and evaluation to compute "총 자산". `foreign_cash` (raw USD amount) and `usd_krw_rate` are populated when overseas holdings exist; both are `null` when the portfolio has no overseas holdings or CTRP6504R is unavailable. `profit_loss_rate` is recomputed from the aggregated `total_profit_loss / invested_stock_amount` (where `invested_stock_amount = stock_evaluation - total_profit_loss`) rather than relying on KIS `evlu_erng_rt`, which does not reflect overseas P&L and can be zero. Result cached in Redis for 30 seconds.
+- **Notes**: Combines domestic KRW cash (TTTC8434R) with USD foreign cash from overseas account (CTRP6504R — 해외주식 체결기준현재잔고). `total_cash` and `available_cash` include USD cash converted to KRW at the current exchange rate from CTRP6504R, so they represent the user's full cross-currency cash buying power. `total_evaluation` is **stocks-only** (does not include cash); this avoids double-counting when the frontend adds cash and evaluation to compute "총 자산". `foreign_cash` (raw USD amount) and `usd_krw_rate` are populated when overseas holdings exist; both are `null` when the portfolio has no overseas holdings or CTRP6504R is unavailable. `profit_loss_rate` is recomputed from the aggregated `total_profit_loss / invested_stock_amount` (where `invested_stock_amount = stock_evaluation - total_profit_loss`) rather than relying on KIS `evlu_erng_rt`, which does not reflect overseas P&L and can be zero. **Pending BUY reservation 차감**: `acnt_prdt_cd=01`(일반/ISA) 계좌는 KIS `thdt_buy_amt` 가 체결 후에만 갱신되어 pending 매수가 즉시 차감되지 않는 표시 버그가 있어, KIS 미체결 조회(`inquire-psbl-rvsecncl`)로 pending BUY 의 잔여 금액을 별도 계산해 `total_cash`/`available_cash` 에서 차감한다 (체결되면 pending 목록에서 빠지면서 동시에 `thdt_buy_amt` 에 잡혀 이중 차감되지 않음). Result cached in Redis for 30 seconds.
 
 ---
 
@@ -432,8 +438,9 @@ Rate-limited endpoints for brute force protection.
 
 ### POST /users/kis-accounts
 - **Auth**: Required
-- **Request body**: `{ "label": string, "account_no": string, "acnt_prdt_cd": string, "app_key": string, "app_secret": string }`
+- **Request body**: `{ "label": string, "account_no": string, "acnt_prdt_cd": string, "app_key": string, "app_secret": string, "is_paper_trading"?: bool, "account_type"?: "일반"|"ISA"|"연금저축"|"IRP"|"해외주식" }`
 - **Response** (201): KIS account (app_key/app_secret stored AES-256-GCM encrypted)
+- **Notes**: `account_type` 은 주문 TR_ID 라우팅(`_get_domestic_tr_id`)에 사용된다 (일반/ISA → `TTTC0802U`, 연금저축/IRP → `TTTC0852U`). 누락 시 기본값 `"일반"`. **Validator**: `acnt_prdt_cd="22"`(연금저축 product code) 인데 `account_type="일반"` 이 들어오면 자동으로 `"연금저축"` 으로 보정한다 — 사용자가 명시한 다른 값은 그대로 신뢰.
 
 ### GET /users/kis-accounts
 - **Auth**: Required

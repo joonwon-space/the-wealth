@@ -288,6 +288,9 @@ Hand-written plain-JS SW (Next 16 is Turbopack-only; `@serwist/next` is webpack-
 
 - Registered by `components/ServiceWorkerUpdateToast.tsx` (production only). On update-waiting the toast offers a "새로고침" CTA that posts `SKIP_WAITING`.
 - Bump `SW_VERSION` in `sw.js` to invalidate all runtime caches.
+- **`src/proxy.ts` 분리 정책**: 미들웨어가 `/sw.js`, `/manifest.webmanifest`, 아이콘, `/offline` 같은 정적/PWA 자산을 인증 상태와 무관하게 그대로 서빙해야 한다. 인증 사용자에게도 `/dashboard` 로 redirect 시키면 SW 스크립트가 redirect 를 거치면서 브라우저가 "script resource behind a redirect" 로 등록을 거부한다. 정책 분리:
+  - `AUTH_PAGES = {/login, /register}` — 인증 사용자는 `/dashboard` 로 redirect
+  - `STATIC_PUBLIC = {/manifest.webmanifest, /icon-192.svg, /icon-512.svg, /sw.js, /offline}` — redirect 금지, 그대로 통과
 
 ### Offline persistence
 - TanStack Query `persistQueryClient` + localStorage (`QueryProvider.tsx`).
@@ -306,6 +309,7 @@ Hand-written plain-JS SW (Next 16 is Turbopack-only; `@serwist/next` is webpack-
 - `hooks/useLongPress.ts` — 500ms press with 12px tolerance.
 - `lib/haptic.ts` — thin `navigator.vibrate` wrapper (`haptic.light/medium/heavy/success/warning`).
 - `components/ui/dialog.tsx` supports `mobileSheet` prop — renders as bottom sheet on `<sm`, centered modal on `≥sm`. Used by `OrderDialog`.
+- **DialogContent max-width 정책**: base 클래스에 `sm:max-w-*` 를 두지 않는다. tailwind-merge 는 modifier 가 다른 클래스(`max-w-sm` no-prefix vs `sm:max-w-sm`)를 별개 그룹으로 취급해 충돌 해소하지 않고, 같은 modifier 두 개를 두면 후자만 적용되는 등 호출 측 의도가 silently override 된다. 호출 측이 `className="max-w-md"` 등으로 명시. `OrderDialog`/`OrderConfirmation` 는 매수 정보 밀도에 맞춰 `max-w-md` 사용.
 
 ### Web Push
 - `hooks/useWebPush.ts` — permission/subscribe/unsubscribe flow, VAPID public key from `GET /push/public-key`.
