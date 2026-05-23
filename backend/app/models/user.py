@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from sqlalchemy import DateTime, Enum, SmallInteger, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -28,6 +29,14 @@ class User(Base):
     # 혼합 전략에서 장기 비중(%) — 0..100. 단타 비중은 100 - long_short_ratio.
     long_short_ratio: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, server_default="70"
+    )
+    # 은퇴 시뮬레이션 나이 표시용. 미입력 허용.
+    birth_year: Mapped[Optional[int]] = mapped_column(
+        SmallInteger, nullable=True, default=None
+    )
+    # 시뮬레이션 폼 prefill 용 마지막 입력값.
+    simulation_params: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True, default=None
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
