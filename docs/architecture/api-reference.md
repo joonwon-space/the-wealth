@@ -103,6 +103,22 @@ Rate-limited endpoints for brute force protection.
 - **Response** (200): `AuditLog[]`
 - **Notes**: Returns recent security-relevant actions (login, password change, etc.)
 
+### PUT /users/me/birth-year
+- **Auth**: Required
+- **Body**: `{ birth_year: int }` (1900 ~ 2100)
+- **Response** (200): `UserMe`
+- **Notes**: 은퇴 시뮬레이션 / 연간 수익률 나이 표시용. 본인만 수정 가능.
+
+### GET /users/me/simulation-params
+- **Auth**: Required
+- **Response** (200): `SimulationInput | null` — 저장된 은퇴 시뮬레이션 폼 입력값
+
+### PUT /users/me/simulation-params
+- **Auth**: Required
+- **Body**: `SimulationInput`
+- **Response** (200): `UserMe`
+- **Notes**: 시뮬레이션 폼 prefill 용 입력값 저장. 본인만 수정 가능.
+
 ---
 
 ## Portfolios (`/portfolios`)
@@ -315,6 +331,19 @@ Rate-limited endpoints for brute force protection.
 - **Query params**: `period: int` (default 20, min 2, max 200), `from: string (YYYY-MM-DD)` (optional), `to: string (YYYY-MM-DD)` (optional)
 - **Response** (200): `[{ "date": string (YYYY-MM-DD), "sma": decimal }]`
 - **Description**: Returns the simple moving average (SMA) time-series for a ticker from `price_snapshots`. Points where SMA cannot be computed (insufficient preceding data) are excluded from the response. Fetches `period-1` extra days before `from` to ensure accurate SMA at the start of the requested range.
+
+### GET /analytics/annual-returns
+- **Auth**: Required
+- **Rate limit**: 30/minute
+- **Response** (200): `AnnualReturn[]` — `{ year, age, bop_value_krw, contributions_krw, dividends_krw, eop_value_krw, pnl_amount_krw, irr_year, irr_cumulative }`
+- **Description**: 사용자의 연도별 자본흐름과 평가액을 KRW 로 환산하여 1년/누적 XIRR (금액가중수익률) 을 산출. transactions(BUY/SELL) + price_snapshots(연말 종가) + dividends(payment_date) 를 모두 forward-fill 환율로 환산. 캐시: Redis `analytics:{user_id}:annual-returns`, TTL 1 시간; sync 시 자동 무효화. `age` 는 `users.birth_year` 가 입력된 경우만 채움.
+
+### POST /analytics/retirement-simulation
+- **Auth**: Required
+- **Rate limit**: 60/minute
+- **Body**: `SimulationInput` — `{ current_value_krw, current_age, retirement_age, end_age, annual_contribution_krw, annual_withdrawal_krw, expected_return_rate }` (수익률은 소수 0.07 = 7%)
+- **Response** (200): `SimulationPoint[]` — `{ age, year, flow_krw, return_amount_krw, eop_value_krw }`
+- **Description**: 매년 `eop = bop * (1 + rate) + flow` (은퇴 전 +contribution, 은퇴 후 -withdrawal). DB / 캐시 무관 순계산. 입력은 Pydantic 으로 검증.
 
 ---
 
