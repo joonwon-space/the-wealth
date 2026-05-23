@@ -5,6 +5,69 @@ Each item should be completable in a single commit.
 
 ---
 
+## Feature: Annual Returns Menu (2026-05-23)
+
+연도별 수익률 트래킹 + 은퇴 시뮬레이션 메뉴. 사용자 시트 2종 참고하여 설계.
+PRD/설계 상세: [docs/architecture/feature-annual-returns.md](../architecture/feature-annual-returns.md).
+
+**결정사항** (사용자 컨펌):
+- 과거 트래킹 + 미래 시뮬레이션 둘 다 포함.
+- 수익률 계산은 **MWR/IRR (금액가중)** 채택. TWR 미채택.
+- 새 라우트 `/dashboard/annual-returns`. BottomNav 변경 없음.
+
+### 🔵 P1 — 백엔드 기반
+
+### TASK-AR-1. Alembic — users 테이블 birth_year/simulation_params 컬럼 추가 (S)
+- [ ] `backend/alembic/versions/` 에 신규 마이그레이션. `users` 에 `birth_year SMALLINT NULL`, `simulation_params JSONB NULL` 추가. downgrade 에서 DROP COLUMN. `app/models/user.py` 에도 `Mapped[Optional[int]]`, `Mapped[Optional[dict]]` 매핑 추가. `pytest -m unit` 통과.
+
+### TASK-AR-2. IRR 유틸 — `app/services/irr_utils.py` (M)
+- [ ] `xirr(cashflows: list[tuple[date, float]], guess: float = 0.1) -> float | None` 구현. 우선 numpy + 이분법으로 외부 의존성 최소화. 부호 컨벤션: 음수=유출(매수/적립), 양수=유입(매도/배당/평가종료). 수렴 실패 시 None. 단위 테스트: (1) 일정 10% 적립 → 약 0.10, (2) 단일 cashflow → None, (3) 극단 손실 → None 또는 음수 IRR.
+
+### TASK-AR-3. `GET /analytics/annual-returns` API (L)
+- [ ] `backend/app/api/analytics_history.py` 또는 신규 `analytics_annual.py` 에 라우트 추가. 응답 스키마는 PRD `AnnualReturn`. 로직: portfolio→transaction→KRW 환산→연말 EOP 평가액 → XIRR(연간/누적) → dividends 합계. ETag + Redis 캐시 `analytics:{user_id}:annual-returns`. 단위 테스트: 거래 0건 → []; 단일 종목 1년 보유; 외화 거래 환산.
+
+### TASK-AR-4. `POST /analytics/retirement-simulation` API (M)
+- [ ] Pydantic `SimulationInput` 검증 (음수 거부, `end_age > retirement_age >= current_age`). 매년 `eop = bop * (1+r) + flow` 순계산 후 list 반환. DB/캐시 무관. 단위 테스트: 공식 검증, 음수 입력 거부, 종료 조건.
+
+### TASK-AR-5. `GET/PUT /users/me/simulation-params` API (S)
+- [ ] `users.simulation_params` JSONB 읽기/쓰기. PUT 시 Pydantic 검증 후 저장. 본인 user_id 만 수정 가능 (IDOR 차단). 단위 테스트.
+
+### TASK-AR-6. `PUT /users/me/birth-year` API (S)
+- [ ] `users.birth_year` 단일 필드 업데이트 엔드포인트. 1900~현재년도 범위 검증. 본인만 수정 가능.
+
+### 🔵 P1 — 프론트엔드
+
+### TASK-AR-7. 라우트 + 진입점 (S)
+- [ ] `frontend/src/app/dashboard/annual-returns/page.tsx` 스켈레톤 생성. `/dashboard/settings` 또는 `/dashboard/analytics` 상단에 진입 카드/링크 추가. `npm run build` 통과.
+
+### TASK-AR-8. 요약 카드 4개 — `AnnualSummaryCards.tsx` (S)
+- [ ] 누적 IRR / 총 적립액 / 현재 평가액 / 누적 평가차익. `useQuery(["analytics","annual-returns"])` 데이터 소스. 한국 컬러 컨벤션 (수익=빨강, 손실=파랑).
+
+### TASK-AR-9. 과거 연도별 표 — `AnnualReturnsTable.tsx` (M)
+- [ ] TanStack Table v8. 컬럼: 연도/나이/연초평가/적립/배당/연말평가/연간수익/IRR/누적IRR. 모바일 가로 스크롤. IRR null 은 "—". 정렬 가능 (연도 기본 desc).
+
+### TASK-AR-10. 과거 평가/적립 차트 — `AnnualReturnsChart.tsx` (M)
+- [ ] Recharts ComposedChart. X=연도, 좌Y=연말 평가액(라인), 우Y=연간 적립(바). ResponsiveContainer 100% 폭. 다크/라이트 대응.
+
+### TASK-AR-11. 시뮬레이션 폼 — `SimulationForm.tsx` (M)
+- [ ] 입력 필드: 현재 평가액(prefill), 현재 나이/은퇴 나이/종료 나이, 연 적립/연 인출/가정 수익률(%). zod 검증. [시뮬레이션 실행] + [입력값 저장] 버튼. 저장은 PUT `/users/me/simulation-params` 호출.
+
+### TASK-AR-12. 시뮬레이션 결과 표·차트 — `SimulationResultTable.tsx` + `SimulationChart.tsx` (M)
+- [ ] POST `/analytics/retirement-simulation` 응답 렌더. 표: 나이/연도/적립인출/운용수익/연말평가. 차트: AreaChart, X=나이, 은퇴 나이에 ReferenceLine. 인출 단계는 색 구분.
+
+### TASK-AR-13. 생년 입력 모달 (S)
+- [ ] 진입 시 `birth_year` 없으면 1회 입력 모달. Skip 가능 (나이 컬럼만 숨김). PUT `/users/me/birth-year`.
+
+### 🔵 P2 — 마무리
+
+### TASK-AR-14. 통합 테스트 + 문서 (M)
+- [ ] 백엔드 IRR + API 회귀 테스트 (`pytest --cov=app/services/irr_utils --cov=app/api/analytics_*`). 프론트 테스트 (양수/음수 색상, 폼 validation). `docs/architecture/api-reference.md` 에 신규 엔드포인트 3종 추가. `docs/architecture/feature-analytics.md` 와 cross-link.
+
+### TASK-AR-15. E2E 스모크 (선택, S)
+- [ ] Playwright: 로그인 → `/dashboard/annual-returns` 진입 → 시뮬레이션 실행 → 차트 렌더 검증. `e2e-runner` 에이전트로 위임 가능.
+
+---
+
 ## Bug Fix: KIS Network Outage Error Handling (2026-04-27)
 
 **증상** (Docker 백엔드 로그 2026-04-27 05:55–06:00 UTC):
