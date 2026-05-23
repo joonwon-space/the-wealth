@@ -12,6 +12,8 @@ class UserMe(BaseModel):
     name: Optional[str] = None
     strategy_tag: str = "mixed"
     long_short_ratio: int = 70
+    birth_year: Optional[int] = None
+    simulation_params: Optional[dict] = None
 
     model_config = {"from_attributes": True}
 
@@ -28,6 +30,12 @@ class UserUpdate(BaseModel):
         pattern="^(long|short|mixed)$",
     )
     long_short_ratio: Optional[int] = Field(default=None, ge=0, le=100)
+
+
+class BirthYearUpdate(BaseModel):
+    """은퇴 시뮬레이션 나이 표시용 생년 업데이트."""
+
+    birth_year: int = Field(ge=1900, le=2100)
 
 
 class ChangePasswordRequest(BaseModel):
