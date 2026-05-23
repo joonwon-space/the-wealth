@@ -32,7 +32,13 @@ def period_cutoff(period: str) -> Optional[date_type]:
 
 async def invalidate_analytics_cache(user_id: int) -> None:
     """sync 성공 후 호출 — 해당 유저의 분석 캐시 전체 삭제."""
-    for endpoint in ("metrics", "monthly-returns", "sector-allocation", "fx-gain-loss"):
+    for endpoint in (
+        "metrics",
+        "monthly-returns",
+        "sector-allocation",
+        "fx-gain-loss",
+        "annual-returns",
+    ):
         await _analytics_cache.delete(analytics_key(user_id, endpoint))
     # period-specific keys for portfolio-history and krw-asset-history
     for period in ("1W", "1M", "3M", "6M", "1Y", "ALL"):
