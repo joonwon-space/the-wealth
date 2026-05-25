@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarRange, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,44 +21,62 @@ import {
 } from "./SimulationEngine";
 import type { SimulationMeta, SimulationRow, SimulationDataAPI } from "./types";
 
+const QUERY_KEY = ["simulation", "params"] as const;
 const EMPTY_STATE_MSG = "메타를 입력하고 [행 생성]을 눌러주세요";
 
 export default function SimulationPage() {
-  const [meta, setMeta] = useState<SimulationMeta>(DEFAULT_META);
-  const [rows, setRows] = useState<SimulationRow[]>([]);
-  const [dirty, setDirty] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Load saved params on mount
+  // Load saved params from server — source of truth when no local overrides
   const { data: savedData, isLoading } = useQuery({
-    queryKey: ["simulation", "params"],
+    queryKey: QUERY_KEY,
     queryFn: async () => {
       const res = await api.get<SimulationDataAPI | null>(
         "/users/me/simulation-params",
       );
-      return res.data;
+      return res.data ?? null;
     },
     staleTime: 60_000,
   });
 
-  // Apply saved data when it loads (TanStack Query v5: no onSuccess)
-  useEffect(() => {
-    if (!savedData) return;
+  // Parse saved data once — no useEffect + setState needed
+  const savedParsed = useMemo(() => {
+    if (!savedData) return null;
     try {
-      const parsed = metaFromAPI(savedData);
-      setMeta(parsed.meta);
-      if (parsed.rows.length > 0) setRows(parsed.rows);
+      return metaFromAPI(savedData);
     } catch {
-      // Ignore malformed saved data
+      return null;
     }
   }, [savedData]);
+
+  // Local overrides — null means "use server data"
+  const [metaOverride, setMetaOverride] = useState<SimulationMeta | null>(null);
+  const [rowsOverride, setRowsOverride] = useState<SimulationRow[] | null>(null);
+
+  // Effective values: local edit > saved > default (memoized for stable refs)
+  const meta = useMemo(
+    () => metaOverride ?? savedParsed?.meta ?? DEFAULT_META,
+    [metaOverride, savedParsed],
+  );
+  const rows = useMemo(
+    () => rowsOverride ?? savedParsed?.rows ?? [],
+    [rowsOverride, savedParsed],
+  );
+
+  // Dirty when local overrides exist
+  const dirty = metaOverride !== null || rowsOverride !== null;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = metaToAPI(meta, rows);
       await api.put("/users/me/simulation-params", payload);
+      return payload;
     },
-    onSuccess: () => {
-      setDirty(false);
+    onSuccess: (payload) => {
+      // Update cache so savedParsed reflects saved state, then drop overrides
+      queryClient.setQueryData<SimulationDataAPI>(QUERY_KEY, payload);
+      setMetaOverride(null);
+      setRowsOverride(null);
       toast.success("시뮬레이션을 저장했습니다");
     },
     onError: () => {
@@ -67,23 +85,23 @@ export default function SimulationPage() {
   });
 
   const handleGenerate = useCallback(() => {
-    setRows(buildRows(meta));
-    setDirty(true);
+    setRowsOverride(buildRows(meta));
+    // Also lock in current meta so subsequent meta edits don't auto-rebuild
+    setMetaOverride(meta);
   }, [meta]);
 
   const handleMetaChange = useCallback((newMeta: SimulationMeta) => {
-    setMeta(newMeta);
-    setDirty(true);
+    setMetaOverride(newMeta);
   }, []);
 
   const updateRow = useCallback(
     (age: number, patch: { flow?: number; rate?: number }) => {
-      setRows((prev) =>
-        prev.map((r) => (r.age === age ? { ...r, ...patch } : r)),
-      );
-      setDirty(true);
+      setRowsOverride((prev) => {
+        const base = prev ?? savedParsed?.rows ?? [];
+        return base.map((r) => (r.age === age ? { ...r, ...patch } : r));
+      });
     },
-    [],
+    [savedParsed?.rows],
   );
 
   const derived = useMemo(
