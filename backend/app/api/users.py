@@ -20,7 +20,7 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.security_audit_log import AuditAction, SecurityAuditLog
 from app.models.user import User
-from app.schemas.simulation import SimulationData
+from app.schemas.simulation import SimulationDataMulti, normalize_legacy
 from app.schemas.user import (
     ChangeEmailRequest,
     ChangePasswordRequest,
@@ -64,17 +64,21 @@ async def update_me(
 async def get_simulation_params(
     current_user: User = Depends(get_current_user),
 ) -> Optional[dict]:
-    """저장된 시뮬레이션 폼 prefill 값. 없으면 null."""
-    return current_user.simulation_params
+    """저장된 시뮬레이션 데이터. 없으면 null.
+
+    이전 단일 시나리오 형식 `{meta, rows}` 은 자동으로 다중 형식
+    `{scenarios: [...], active_id}` 로 변환되어 반환된다.
+    """
+    return normalize_legacy(current_user.simulation_params)
 
 
 @router.put("/me/simulation-params", response_model=UserMe)
 async def update_simulation_params(
-    body: SimulationData,
+    body: SimulationDataMulti,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """은퇴 시뮬레이션 폼 입력값을 저장 (다음 방문 시 prefill)."""
+    """자산 시뮬레이션 데이터(다중 시나리오)를 저장."""
     current_user.simulation_params = body.model_dump()
     await db.commit()
     await db.refresh(current_user)

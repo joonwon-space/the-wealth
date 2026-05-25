@@ -2,7 +2,9 @@ import type {
   SimulationMeta,
   SimulationRow,
   DerivedRow,
-  SimulationDataAPI,
+  Scenario,
+  ScenarioAPI,
+  SimulationDataMultiAPI,
 } from "./types";
 
 export const DEFAULT_META: SimulationMeta = {
@@ -22,7 +24,7 @@ export function buildRows(meta: SimulationMeta): SimulationRow[] {
     const year = meta.startYear + (age - meta.currentAge);
     const isAccum = age < meta.retireAge;
     let rate = meta.defaultRate;
-    // First two years get sample variance to match the user's original spreadsheet
+    // 사용자 원본 시트의 첫 두 해 변동률(22.35%, 15.25%)
     if (age === meta.currentAge) rate = 22.35;
     else if (age === meta.currentAge + 1) rate = 15.25;
     const flow = isAccum
@@ -49,22 +51,35 @@ export function computeDerived(
   });
 }
 
-export function metaToAPI(
-  meta: SimulationMeta,
-  rows: SimulationRow[],
-): SimulationDataAPI {
+export function newScenarioId(): string {
+  return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function newScenario(name: string): Scenario {
   return {
+    id: newScenarioId(),
+    name,
+    meta: DEFAULT_META,
+    rows: [],
+  };
+}
+
+// ── API <-> camelCase 변환 ─────────────────────────────────────
+export function scenarioToAPI(s: Scenario): ScenarioAPI {
+  return {
+    id: s.id,
+    name: s.name,
     meta: {
-      current_age: meta.currentAge,
-      start_year: meta.startYear,
-      end_age: meta.endAge,
-      retire_age: meta.retireAge,
-      initial_balance_krw: meta.initialBalance,
-      accum_annual_krw: meta.contribution,
-      withdrawal_annual_krw: meta.withdrawal,
-      default_return_rate: meta.defaultRate,
+      current_age: s.meta.currentAge,
+      start_year: s.meta.startYear,
+      end_age: s.meta.endAge,
+      retire_age: s.meta.retireAge,
+      initial_balance_krw: s.meta.initialBalance,
+      accum_annual_krw: s.meta.contribution,
+      withdrawal_annual_krw: s.meta.withdrawal,
+      default_return_rate: s.meta.defaultRate,
     },
-    rows: rows.map((r) => ({
+    rows: s.rows.map((r) => ({
       age: r.age,
       year: r.year,
       flow_krw: r.flow,
@@ -73,12 +88,11 @@ export function metaToAPI(
   };
 }
 
-export function metaFromAPI(data: SimulationDataAPI): {
-  meta: SimulationMeta;
-  rows: SimulationRow[];
-} {
-  const m = data.meta;
+export function scenarioFromAPI(api: ScenarioAPI): Scenario {
+  const m = api.meta;
   return {
+    id: api.id,
+    name: api.name,
     meta: {
       currentAge: m.current_age,
       startYear: m.start_year,
@@ -89,11 +103,32 @@ export function metaFromAPI(data: SimulationDataAPI): {
       withdrawal: m.withdrawal_annual_krw,
       defaultRate: m.default_return_rate,
     },
-    rows: data.rows.map((r) => ({
+    rows: api.rows.map((r) => ({
       age: r.age,
       year: r.year,
       flow: r.flow_krw,
       rate: r.return_rate,
     })),
   };
+}
+
+export interface ScenarioStore {
+  scenarios: Scenario[];
+  activeId: string;
+}
+
+export function storeToAPI(store: ScenarioStore): SimulationDataMultiAPI {
+  return {
+    scenarios: store.scenarios.map(scenarioToAPI),
+    active_id: store.activeId,
+  };
+}
+
+export function storeFromAPI(api: SimulationDataMultiAPI): ScenarioStore {
+  const scenarios = api.scenarios.map(scenarioFromAPI);
+  const activeId =
+    api.active_id && scenarios.some((s) => s.id === api.active_id)
+      ? api.active_id
+      : (scenarios[0]?.id ?? "");
+  return { scenarios, activeId };
 }

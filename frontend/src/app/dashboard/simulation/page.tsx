@@ -9,26 +9,37 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { SimulationMetaForm } from "./SimulationMetaForm";
 import { SimulationTable } from "./SimulationTable";
+import { ScenarioTabs } from "./ScenarioTabs";
 import {
   buildRows,
   computeDerived,
-  DEFAULT_META,
-  metaToAPI,
-  metaFromAPI,
+  newScenario,
+  storeToAPI,
+  storeFromAPI,
+  type ScenarioStore,
 } from "./SimulationEngine";
-import type { SimulationMeta, SimulationRow, SimulationDataAPI } from "./types";
+import type {
+  SimulationMeta,
+  SimulationDataMultiAPI,
+  Scenario,
+} from "./types";
 
 const QUERY_KEY = ["simulation", "params"] as const;
 const EMPTY_STATE_MSG = "메타를 입력하고 [행 생성]을 눌러주세요";
 
+function defaultStore(): ScenarioStore {
+  const s = newScenario("기본");
+  return { scenarios: [s], activeId: s.id };
+}
+
 export default function SimulationPage() {
   const queryClient = useQueryClient();
 
-  // Load saved params from server — source of truth when no local overrides
+  // 서버에서 저장된 시나리오 목록 로드
   const { data: savedData, isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<SimulationDataAPI | null>(
+      const res = await api.get<SimulationDataMultiAPI | null>(
         "/users/me/simulation-params",
       );
       return res.data ?? null;
@@ -36,44 +47,58 @@ export default function SimulationPage() {
     staleTime: 60_000,
   });
 
-  // Parse saved data once — no useEffect + setState needed
-  const savedParsed = useMemo(() => {
+  // 서버 데이터 → camelCase store
+  const savedStore = useMemo<ScenarioStore | null>(() => {
     if (!savedData) return null;
     try {
-      return metaFromAPI(savedData);
+      return storeFromAPI(savedData);
     } catch {
       return null;
     }
   }, [savedData]);
 
-  // Local overrides — null means "use server data"
-  const [metaOverride, setMetaOverride] = useState<SimulationMeta | null>(null);
-  const [rowsOverride, setRowsOverride] = useState<SimulationRow[] | null>(null);
-
-  // Effective values: local edit > saved > default (memoized for stable refs)
-  const meta = useMemo(
-    () => metaOverride ?? savedParsed?.meta ?? DEFAULT_META,
-    [metaOverride, savedParsed],
-  );
-  const rows = useMemo(
-    () => rowsOverride ?? savedParsed?.rows ?? [],
-    [rowsOverride, savedParsed],
+  // 로컬 오버라이드 (편집 중인 시나리오 + 활성 ID)
+  const [storeOverride, setStoreOverride] = useState<ScenarioStore | null>(
+    null,
   );
 
-  // Dirty when local overrides exist
-  const dirty = metaOverride !== null || rowsOverride !== null;
+  const store = storeOverride ?? savedStore ?? defaultStore();
+  const dirty = storeOverride !== null;
+
+  const active =
+    store.scenarios.find((s) => s.id === store.activeId) ??
+    store.scenarios[0]!;
+
+  // 헬퍼: store 전체를 업데이트하고 dirty 표시
+  const updateStore = useCallback(
+    (updater: (prev: ScenarioStore) => ScenarioStore) => {
+      setStoreOverride((prev) => updater(prev ?? savedStore ?? defaultStore()));
+    },
+    [savedStore],
+  );
+
+  // 활성 시나리오만 patch
+  const patchActive = useCallback(
+    (patch: Partial<Scenario>) => {
+      updateStore((prev) => ({
+        ...prev,
+        scenarios: prev.scenarios.map((s) =>
+          s.id === prev.activeId ? { ...s, ...patch } : s,
+        ),
+      }));
+    },
+    [updateStore],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = metaToAPI(meta, rows);
+      const payload = storeToAPI(store);
       await api.put("/users/me/simulation-params", payload);
       return payload;
     },
     onSuccess: (payload) => {
-      // Update cache so savedParsed reflects saved state, then drop overrides
-      queryClient.setQueryData<SimulationDataAPI>(QUERY_KEY, payload);
-      setMetaOverride(null);
-      setRowsOverride(null);
+      queryClient.setQueryData<SimulationDataMultiAPI>(QUERY_KEY, payload);
+      setStoreOverride(null);
       toast.success("시뮬레이션을 저장했습니다");
     },
     onError: () => {
@@ -81,29 +106,83 @@ export default function SimulationPage() {
     },
   });
 
-  const handleGenerate = useCallback(() => {
-    setRowsOverride(buildRows(meta));
-    // Also lock in current meta so subsequent meta edits don't auto-rebuild
-    setMetaOverride(meta);
-  }, [meta]);
+  // ── 메타 / 행 핸들러 ──────────────────────────────────────────
+  const handleMetaChange = useCallback(
+    (newMeta: SimulationMeta) => {
+      patchActive({ meta: newMeta });
+    },
+    [patchActive],
+  );
 
-  const handleMetaChange = useCallback((newMeta: SimulationMeta) => {
-    setMetaOverride(newMeta);
-  }, []);
+  const handleGenerate = useCallback(() => {
+    patchActive({ rows: buildRows(active.meta) });
+  }, [active.meta, patchActive]);
 
   const updateRow = useCallback(
     (age: number, patch: { flow?: number; rate?: number }) => {
-      setRowsOverride((prev) => {
-        const base = prev ?? savedParsed?.rows ?? [];
-        return base.map((r) => (r.age === age ? { ...r, ...patch } : r));
+      updateStore((prev) => ({
+        ...prev,
+        scenarios: prev.scenarios.map((s) =>
+          s.id === prev.activeId
+            ? {
+                ...s,
+                rows: s.rows.map((r) =>
+                  r.age === age ? { ...r, ...patch } : r,
+                ),
+              }
+            : s,
+        ),
+      }));
+    },
+    [updateStore],
+  );
+
+  // ── 시나리오 탭 핸들러 ────────────────────────────────────────
+  const handleSelectTab = useCallback(
+    (id: string) => {
+      updateStore((prev) => ({ ...prev, activeId: id }));
+    },
+    [updateStore],
+  );
+
+  const handleAddScenario = useCallback(() => {
+    updateStore((prev) => {
+      const next = newScenario(`시나리오 ${prev.scenarios.length + 1}`);
+      return {
+        scenarios: [...prev.scenarios, next],
+        activeId: next.id,
+      };
+    });
+  }, [updateStore]);
+
+  const handleRenameScenario = useCallback(
+    (id: string, name: string) => {
+      updateStore((prev) => ({
+        ...prev,
+        scenarios: prev.scenarios.map((s) =>
+          s.id === id ? { ...s, name } : s,
+        ),
+      }));
+    },
+    [updateStore],
+  );
+
+  const handleDeleteScenario = useCallback(
+    (id: string) => {
+      updateStore((prev) => {
+        const remaining = prev.scenarios.filter((s) => s.id !== id);
+        if (remaining.length === 0) return prev; // 안전장치
+        const nextActive =
+          prev.activeId === id ? remaining[0]!.id : prev.activeId;
+        return { scenarios: remaining, activeId: nextActive };
       });
     },
-    [savedParsed?.rows],
+    [updateStore],
   );
 
   const derived = useMemo(
-    () => computeDerived(rows, meta.initialBalance),
-    [rows, meta.initialBalance],
+    () => computeDerived(active.rows, active.meta.initialBalance),
+    [active.rows, active.meta.initialBalance],
   );
 
   return (
@@ -138,18 +217,32 @@ export default function SimulationPage() {
         </div>
       </header>
 
-      {/* Meta form */}
+      {/* Scenario tabs */}
+      {isLoading ? (
+        <Skeleton className="h-10 rounded-lg" />
+      ) : (
+        <ScenarioTabs
+          scenarios={store.scenarios}
+          activeId={active.id}
+          onSelect={handleSelectTab}
+          onAdd={handleAddScenario}
+          onRename={handleRenameScenario}
+          onDelete={handleDeleteScenario}
+        />
+      )}
+
+      {/* Meta form (active scenario) */}
       {isLoading ? (
         <Skeleton className="h-52 rounded-lg" />
       ) : (
         <SimulationMetaForm
-          meta={meta}
+          meta={active.meta}
           onChange={handleMetaChange}
           onGenerate={handleGenerate}
         />
       )}
 
-      {/* Table only — 시트와 동일 5컬럼 구조 */}
+      {/* Table */}
       {derived.length === 0 ? (
         <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
           {EMPTY_STATE_MSG}
@@ -157,7 +250,7 @@ export default function SimulationPage() {
       ) : (
         <SimulationTable
           rows={derived}
-          retireAge={meta.retireAge}
+          retireAge={active.meta.retireAge}
           onUpdateRow={updateRow}
         />
       )}
