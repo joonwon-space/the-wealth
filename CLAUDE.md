@@ -57,6 +57,7 @@ Index: `docs/architecture/README.md` lists every file with a one-line summary.
 | Future backlog | `docs/plan/todo.md` |
 | Items requiring user action | `docs/plan/manual-tasks.md` |
 | Historical audits and reviews | `docs/reviews/YYYYMMDD-*.md` |
+| Per-feature devlogs (decisions + rewrites) | `docs/devlog/YYYY-MM-DD-*.md` |
 | Runtime alert dumps | `docs/alerts/` (owned by `/fix-alerts`) |
 
 **Onboarding protocol** — before a new feature/fix, read in this order:

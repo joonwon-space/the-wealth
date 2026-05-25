@@ -1,4 +1,10 @@
-# Annual Returns Feature
+# Annual Returns Feature — ⚠️ DEPRECATED (2026-05-23)
+
+> **이 메뉴는 같은 날 `feature-simulation.md` (자산 시뮬레이션) 로 대체되었습니다.**
+> 본 문서는 히스토리 보존용. 신규 작업은 `feature-simulation.md` 참조.
+> 폐기 사유 및 비교: `docs/devlog/2026-05-23-simulation-rewrite.md`
+
+---
 
 연도별 수익률 트래킹 + 은퇴 시뮬레이션 메뉴.
 

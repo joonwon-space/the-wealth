@@ -5,7 +5,70 @@ Each item should be completable in a single commit.
 
 ---
 
-## Feature: Annual Returns Menu (2026-05-23)
+## Feature: Asset Simulation Menu — 자산 시뮬레이션 (2026-05-23, 오후)
+
+오전에 배포한 "연간 수익률" 메뉴를 **완전히 재설계**. 사용자 시트
+(`1u0Z_TS51nIK2gg86fGAtl5igdHG_UurmON7ZgyuJxWc`) 공식 역산 결과 `eop = (bop + flow) × (1 + rate)`
+("연초 적립 후 1년 운용") 모델이며, 기존 구현 `eop = bop × (1+r) + flow` 와 다르고
+포트폴리오와 분리된 순수 입력 도구가 필요. 상세 설계는
+[docs/architecture/feature-simulation.md](../architecture/feature-simulation.md),
+배경/결정은 [docs/devlog/2026-05-23-simulation-rewrite.md](../devlog/2026-05-23-simulation-rewrite.md).
+
+**확정 결정** (사용자 컨펌):
+- 메뉴명/경로: "자산 시뮬레이션" / `/dashboard/simulation`
+- 공식: `eop = (bop + flow) × (1 + rate)`
+- 수정 UX: 표 셀 인라인 편집 (Excel 식)
+- 시나리오: 1개 (`users.simulation_params` JSONB 재사용, 마이그레이션 불필요)
+- 이전 annual-returns 구현: **완전 제거**
+- 수익률: 명목만 (인플레/세금 무시)
+- 행 생성: 메타의 `retirement_age` 기준 자동 부호, `default_return_rate` 일괄 채움
+
+### 🔴 P0 — Cleanup + 핵심 구현
+
+### TASK-SIM-1. 이전 annual-returns 자산 완전 제거 (M)
+- [ ] Backend: `analytics_annual.py`, `services/annual_returns.py`, `services/irr_utils.py`, `tests/test_irr_utils.py` 삭제. `schemas/analytics.py` 에서 `AnnualReturn`/`SimulationInput`/`SimulationPoint` 제거. `api/users.py` 의 birth-year + 이전 simulation-params 핸들러 제거. `schemas/user.py` 의 `BirthYearUpdate` 제거. `app/main.py` 의 `analytics_annual` import + include_router 제거. `services/analytics_utils.py` 의 annual-returns 캐시 키 제거. `users.birth_year` 와 `users.simulation_params` **컬럼은 유지**.
+- [ ] Frontend: `app/dashboard/annual-returns/` 디렉토리 전체 삭제. `app/dashboard/analytics/page.tsx` 의 진입 카드 + import 제거. `components/Sidebar.tsx` 의 "연간 수익률" 항목 제거 (TASK-SIM-6 에서 새 항목 추가).
+- [ ] Docs: `api-reference.md` 의 5개 옛 엔드포인트 항목 삭제. `feature-annual-returns.md` 에 DEPRECATED 헤더 (보존). `tasks.md` AR-* 섹션은 history 로 유지.
+- [ ] 검증: `npm run build` + `ruff check .` + `python -c "from app.main import app"` 통과.
+
+### TASK-SIM-2. simulation 스키마 + 백엔드 API (M)
+- [ ] `schemas/simulation.py` 신규: `SimulationMeta` (current_age, start_year, end_age, retirement_age, initial_balance_krw, accum_annual_krw, withdrawal_annual_krw, default_return_rate), `SimulationRow` (age, year, flow_krw, return_rate), `SimulationData` (meta + rows).
+- [ ] `api/simulation.py` 신규: `GET /simulation/params` (None 가능), `PUT /simulation/params` (Pydantic 검증 후 JSONB 저장). 본인 user_id 만 접근.
+- [ ] `app/main.py` 에 router 등록.
+- [ ] `tests/test_simulation_api.py` 신규: empty → null, 정상 PUT → echo, 잘못된 type → 422, 다른 사용자 자원 접근 불가 (IDOR).
+
+### TASK-SIM-3. 프론트 페이지 + 메타 입력 폼 (M)
+- [ ] `app/dashboard/simulation/page.tsx` 컨테이너 + `types.ts` (SimulationMeta/SimulationRow/SimulationData/Derived).
+- [ ] `SimulationMetaForm.tsx`: 8 필드 입력 + [행 생성] 버튼. confirm 모달 후 `rows` 일괄 재생성 (`age < retirement_age ? +accum : -withdrawal`, `rate = default_return_rate`).
+- [ ] 검증: `npm run build` 통과.
+
+### TASK-SIM-4. 인라인 편집 표 + 자동 계산 (L)
+- [ ] `SimulationTable.tsx`: 8 컬럼 (나이/연도/적립인출/수익률/연초/연말/누적적립/누적수익). 적립인출 + 수익률 셀만 클릭 → `<input>` in-place 전환. blur/Enter commit. derived 컬럼은 `useMemo` 로 즉시 재계산. 공식: `eop = (bop + flow) × (1 + rate)`, 첫 행 bop = `initial_balance_krw`.
+- [ ] 한국 컨벤션 (양수 빨강, 음수 파랑). 모바일 가로 스크롤.
+
+### TASK-SIM-5. 요약 카드 + Area 차트 (S)
+- [ ] `SimulationSummary.tsx`: 6 카드 (종료 잔고 / 적립단계 마지막 잔고 / 총 적립 / 총 인출 / 총 운용수익 / 평균 수익률).
+- [ ] `SimulationChart.tsx`: Recharts AreaChart, X=age, Y=eop_krw, `retirement_age` 에 ReferenceLine + "은퇴" 라벨, 그라데이션 fill.
+
+### TASK-SIM-6. 사이드바 메뉴 + 저장/불러오기 (S)
+- [ ] `Sidebar.tsx` 에 "자산 시뮬레이션" (CalendarRange, `/dashboard/simulation`) 추가 — "분석" 다음 위치.
+- [ ] `page.tsx`: 마운트 시 `useQuery(["simulation","params"])` → prefill. [저장] 버튼 → `useMutation` PUT → sonner toast.
+- [ ] 응답 파싱 실패 시 default 폴백 + toast.
+
+### 🔵 P1 — 마무리
+
+### TASK-SIM-7. 문서 갱신 + devlog (S)
+- [ ] `docs/architecture/api-reference.md` 에 `/simulation/params` GET/PUT 2개 항목 추가, 옛 5개 항목 삭제.
+- [ ] `docs/architecture/README.md` 의 인덱스에 `feature-simulation.md` 추가, `feature-annual-returns.md` 는 (deprecated) 표기.
+- [ ] `docs/devlog/` 디렉토리 인덱스 (`README.md`) 신설하거나 CLAUDE.md 의 Docs Reference Map 에 devlog 추가.
+- [ ] 본 SIM-* 태스크들 모두 체크오프.
+
+---
+
+## Feature: Annual Returns Menu (2026-05-23, 오전) — ⚠️ DEPRECATED
+
+> **이 섹션의 모든 TASK-AR-* 는 같은 날 오후 TASK-SIM-* 시리즈로 대체되었습니다.**
+> 히스토리 보존용. 신규 작업은 위 SIM-* 섹션 참조.
 
 연도별 수익률 트래킹 + 은퇴 시뮬레이션 메뉴. 사용자 시트 2종 참고하여 설계.
 PRD/설계 상세: [docs/architecture/feature-annual-returns.md](../architecture/feature-annual-returns.md).
