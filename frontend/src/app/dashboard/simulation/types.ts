@@ -17,19 +17,7 @@ export interface SimulationRow {
 }
 
 export interface DerivedRow extends SimulationRow {
-  start: number;
   end: number;
-  cumContrib: number;
-  cumGain: number;
-}
-
-export interface SimulationSummaryData {
-  endBalance: number;
-  lastAccumBalance: number;
-  totalContrib: number;
-  totalWithdraw: number;
-  totalGain: number;
-  avgRate: number;
 }
 
 export interface SimulationDataAPI {

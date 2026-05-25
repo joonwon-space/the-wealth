@@ -8,13 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { SimulationMetaForm } from "./SimulationMetaForm";
-import { SimulationSummary } from "./SimulationSummary";
-import { SimulationChart } from "./SimulationChart";
 import { SimulationTable } from "./SimulationTable";
 import {
   buildRows,
   computeDerived,
-  summarize,
   DEFAULT_META,
   metaToAPI,
   metaFromAPI,
@@ -108,10 +105,6 @@ export default function SimulationPage() {
     () => computeDerived(rows, meta.initialBalance),
     [rows, meta.initialBalance],
   );
-  const summary = useMemo(
-    () => summarize(derived, meta.retireAge),
-    [derived, meta.retireAge],
-  );
 
   return (
     <div className="space-y-5">
@@ -156,23 +149,17 @@ export default function SimulationPage() {
         />
       )}
 
-      {/* Content: summary + chart + table (only when rows exist) */}
+      {/* Table only — 시트와 동일 5컬럼 구조 */}
       {derived.length === 0 ? (
         <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
           {EMPTY_STATE_MSG}
         </div>
       ) : (
-        <>
-          {summary && (
-            <SimulationSummary summary={summary} retireAge={meta.retireAge} />
-          )}
-          <SimulationChart data={derived} retireAge={meta.retireAge} />
-          <SimulationTable
-            rows={derived}
-            retireAge={meta.retireAge}
-            onUpdateRow={updateRow}
-          />
-        </>
+        <SimulationTable
+          rows={derived}
+          retireAge={meta.retireAge}
+          onUpdateRow={updateRow}
+        />
       )}
     </div>
   );

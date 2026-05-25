@@ -2,7 +2,6 @@ import type {
   SimulationMeta,
   SimulationRow,
   DerivedRow,
-  SimulationSummaryData,
   SimulationDataAPI,
 } from "./types";
 
@@ -40,38 +39,14 @@ export function computeDerived(
   rows: SimulationRow[],
   initialBalance: number,
 ): DerivedRow[] {
-  let start = initialBalance;
-  let cumContrib = 0;
-  let cumGain = 0;
+  // eop = (bop + flow) * (1 + rate/100) — 시트 공식 동일
+  let bop = initialBalance;
   return rows.map((r) => {
-    const end = (start + r.flow) * (1 + r.rate / 100);
-    const gain = end - (start + r.flow);
-    cumContrib += Math.max(0, r.flow);
-    cumGain += gain;
-    const out: DerivedRow = { ...r, start, end, cumContrib, cumGain };
-    start = end;
+    const end = (bop + r.flow) * (1 + r.rate / 100);
+    const out: DerivedRow = { ...r, end };
+    bop = end;
     return out;
   });
-}
-
-export function summarize(
-  derived: DerivedRow[],
-  retireAge: number,
-): SimulationSummaryData | null {
-  if (!derived.length) return null;
-  const last = derived[derived.length - 1]!;
-  const lastAccum =
-    [...derived].reverse().find((r) => r.age < retireAge) ?? derived[0]!;
-  const totalContrib = derived.reduce((s, r) => s + Math.max(0, r.flow), 0);
-  const totalWithdraw = derived.reduce((s, r) => s + Math.max(0, -r.flow), 0);
-  return {
-    endBalance: last.end,
-    lastAccumBalance: lastAccum.end,
-    totalContrib,
-    totalWithdraw,
-    totalGain: last.cumGain,
-    avgRate: derived.reduce((s, r) => s + r.rate, 0) / derived.length,
-  };
 }
 
 export function metaToAPI(
