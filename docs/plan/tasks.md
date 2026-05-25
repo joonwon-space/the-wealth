@@ -26,10 +26,13 @@ Each item should be completable in a single commit.
 ### 🔴 P0 — Cleanup + 핵심 구현
 
 ### TASK-SIM-1. 이전 annual-returns 자산 완전 제거 (M)
-- [ ] Backend: `analytics_annual.py`, `services/annual_returns.py`, `services/irr_utils.py`, `tests/test_irr_utils.py` 삭제. `schemas/analytics.py` 에서 `AnnualReturn`/`SimulationInput`/`SimulationPoint` 제거. `api/users.py` 의 birth-year + 이전 simulation-params 핸들러 제거. `schemas/user.py` 의 `BirthYearUpdate` 제거. `app/main.py` 의 `analytics_annual` import + include_router 제거. `services/analytics_utils.py` 의 annual-returns 캐시 키 제거. `users.birth_year` 와 `users.simulation_params` **컬럼은 유지**.
-- [ ] Frontend: `app/dashboard/annual-returns/` 디렉토리 전체 삭제. `app/dashboard/analytics/page.tsx` 의 진입 카드 + import 제거. `components/Sidebar.tsx` 의 "연간 수익률" 항목 제거 (TASK-SIM-6 에서 새 항목 추가).
-- [ ] Docs: `api-reference.md` 의 5개 옛 엔드포인트 항목 삭제. `feature-annual-returns.md` 에 DEPRECATED 헤더 (보존). `tasks.md` AR-* 섹션은 history 로 유지.
-- [ ] 검증: `npm run build` + `ruff check .` + `python -c "from app.main import app"` 통과.
+- [x] Backend: `analytics_annual.py`, `services/annual_returns.py`, `services/irr_utils.py`, `tests/test_irr_utils.py` 삭제.
+- [x] `schemas/analytics.py` 에서 `AnnualReturn`/`SimulationInput`/`SimulationPoint` 제거.
+- [x] `api/users.py` 의 birth-year 핸들러 + `BirthYearUpdate` import 제거.
+- [x] `main.py` 의 `analytics_annual` import + include_router 제거.
+- [x] `services/analytics_utils.py` 의 `annual-returns` 캐시 키 제거.
+- [x] Frontend: `app/dashboard/annual-returns/` 삭제. `analytics/page.tsx` 진입 링크 제거. `Sidebar.tsx` "연간 수익률" 제거.
+- [x] 검증: `npm run build` + `ruff check .` + `python -c "from app.main import app"` 통과.
 
 ### TASK-SIM-2. simulation 스키마 + 백엔드 API (M)
 - [x] `schemas/simulation.py` 신규: `SimulationMeta`, `SimulationRow`, `SimulationData` (meta + rows).

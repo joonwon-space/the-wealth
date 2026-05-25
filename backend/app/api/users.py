@@ -22,7 +22,6 @@ from app.models.security_audit_log import AuditAction, SecurityAuditLog
 from app.models.user import User
 from app.schemas.simulation import SimulationData
 from app.schemas.user import (
-    BirthYearUpdate,
     ChangeEmailRequest,
     ChangePasswordRequest,
     DeleteAccountRequest,
@@ -56,19 +55,6 @@ async def update_me(
         current_user.strategy_tag = body.strategy_tag
     if body.long_short_ratio is not None:
         current_user.long_short_ratio = body.long_short_ratio
-    await db.commit()
-    await db.refresh(current_user)
-    return current_user
-
-
-@router.put("/me/birth-year", response_model=UserMe)
-async def update_birth_year(
-    body: BirthYearUpdate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> User:
-    """은퇴 시뮬레이션 나이 표시용 생년 저장."""
-    current_user.birth_year = body.birth_year
     await db.commit()
     await db.refresh(current_user)
     return current_user

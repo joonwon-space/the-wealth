@@ -37,7 +37,6 @@ async def invalidate_analytics_cache(user_id: int) -> None:
         "monthly-returns",
         "sector-allocation",
         "fx-gain-loss",
-        "annual-returns",
     ):
         await _analytics_cache.delete(analytics_key(user_id, endpoint))
     # period-specific keys for portfolio-history and krw-asset-history

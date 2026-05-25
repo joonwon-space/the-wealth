@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { BarChart3, CalendarRange, ChevronRight } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -194,17 +193,6 @@ export default function AnalyticsPage() {
       <ErrorBoundary>
         <MonthlyReturnsSection />
       </ErrorBoundary>
-
-      <Link
-        href="/dashboard/annual-returns"
-        className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium hover:bg-accent"
-      >
-        <span className="flex items-center gap-2">
-          <CalendarRange className="size-4" />
-          연간 수익률 / 은퇴 시뮬레이션
-        </span>
-        <ChevronRight className="size-4 text-muted-foreground" />
-      </Link>
 
       <ErrorBoundary>
         <SectorFxSection />
