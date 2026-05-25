@@ -20,7 +20,7 @@ from app.models.kis_account import KisAccount
 from app.models.portfolio import Portfolio
 from app.models.security_audit_log import AuditAction, SecurityAuditLog
 from app.models.user import User
-from app.schemas.analytics import SimulationInput
+from app.schemas.simulation import SimulationData
 from app.schemas.user import (
     BirthYearUpdate,
     ChangeEmailRequest,
@@ -84,7 +84,7 @@ async def get_simulation_params(
 
 @router.put("/me/simulation-params", response_model=UserMe)
 async def update_simulation_params(
-    body: SimulationInput,
+    body: SimulationData,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> User:

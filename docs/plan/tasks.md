@@ -32,28 +32,29 @@ Each item should be completable in a single commit.
 - [ ] 검증: `npm run build` + `ruff check .` + `python -c "from app.main import app"` 통과.
 
 ### TASK-SIM-2. simulation 스키마 + 백엔드 API (M)
-- [ ] `schemas/simulation.py` 신규: `SimulationMeta` (current_age, start_year, end_age, retirement_age, initial_balance_krw, accum_annual_krw, withdrawal_annual_krw, default_return_rate), `SimulationRow` (age, year, flow_krw, return_rate), `SimulationData` (meta + rows).
-- [ ] `api/simulation.py` 신규: `GET /simulation/params` (None 가능), `PUT /simulation/params` (Pydantic 검증 후 JSONB 저장). 본인 user_id 만 접근.
-- [ ] `app/main.py` 에 router 등록.
-- [ ] `tests/test_simulation_api.py` 신규: empty → null, 정상 PUT → echo, 잘못된 type → 422, 다른 사용자 자원 접근 불가 (IDOR).
+- [x] `schemas/simulation.py` 신규: `SimulationMeta`, `SimulationRow`, `SimulationData` (meta + rows).
+- [x] `api/users.py` 의 `/me/simulation-params` PUT 엔드포인트를 새 `SimulationData` 스키마로 교체.
+- [ ] `tests/test_simulation_api.py` 신규: empty → null, 정상 PUT → echo, 잘못된 type → 422.
 
 ### TASK-SIM-3. 프론트 페이지 + 메타 입력 폼 (M)
-- [ ] `app/dashboard/simulation/page.tsx` 컨테이너 + `types.ts` (SimulationMeta/SimulationRow/SimulationData/Derived).
-- [ ] `SimulationMetaForm.tsx`: 8 필드 입력 + [행 생성] 버튼. confirm 모달 후 `rows` 일괄 재생성 (`age < retirement_age ? +accum : -withdrawal`, `rate = default_return_rate`).
-- [ ] 검증: `npm run build` 통과.
+- [x] `app/dashboard/simulation/page.tsx` 컨테이너 + `types.ts`.
+- [x] `SimulationEngine.ts`: `buildRows`, `computeDerived`, `summarize`, `metaToAPI`, `metaFromAPI`, `DEFAULT_META`.
+- [x] `SimulationMetaForm.tsx`: 8 필드 입력 + confirm AlertDialog + [행 생성] 버튼.
+- [x] 검증: `npm run build` 통과.
 
 ### TASK-SIM-4. 인라인 편집 표 + 자동 계산 (L)
-- [ ] `SimulationTable.tsx`: 8 컬럼 (나이/연도/적립인출/수익률/연초/연말/누적적립/누적수익). 적립인출 + 수익률 셀만 클릭 → `<input>` in-place 전환. blur/Enter commit. derived 컬럼은 `useMemo` 로 즉시 재계산. 공식: `eop = (bop + flow) × (1 + rate)`, 첫 행 bop = `initial_balance_krw`.
-- [ ] 한국 컨벤션 (양수 빨강, 음수 파랑). 모바일 가로 스크롤.
+- [x] `SimulationTable.tsx`: 8 컬럼, 적립인출 + 수익률 셀 인라인 편집, blur/Enter commit, Esc 취소.
+- [x] 한국 컨벤션 (양수 `--rise` 빨강, 음수 `--fall` 파랑). 모바일 가로 스크롤.
+- [x] 공식: `eop = (bop + flow) × (1 + rate)`, useMemo 즉시 재계산.
 
 ### TASK-SIM-5. 요약 카드 + Area 차트 (S)
-- [ ] `SimulationSummary.tsx`: 6 카드 (종료 잔고 / 적립단계 마지막 잔고 / 총 적립 / 총 인출 / 총 운용수익 / 평균 수익률).
-- [ ] `SimulationChart.tsx`: Recharts AreaChart, X=age, Y=eop_krw, `retirement_age` 에 ReferenceLine + "은퇴" 라벨, 그라데이션 fill.
+- [x] `SimulationSummary.tsx`: 6 카드 (종료 잔고 / 적립단계 마지막 잔고 / 총 적립 / 총 인출 / 총 운용수익 / 평균 수익률).
+- [x] `SimulationChart.tsx`: 커스텀 SVG 차트, X=age, Y=eop_krw, 은퇴 나이 점선 + 라벨, 그라데이션 fill, 호버 툴팁.
 
 ### TASK-SIM-6. 사이드바 메뉴 + 저장/불러오기 (S)
-- [ ] `Sidebar.tsx` 에 "자산 시뮬레이션" (CalendarRange, `/dashboard/simulation`) 추가 — "분석" 다음 위치.
-- [ ] `page.tsx`: 마운트 시 `useQuery(["simulation","params"])` → prefill. [저장] 버튼 → `useMutation` PUT → sonner toast.
-- [ ] 응답 파싱 실패 시 default 폴백 + toast.
+- [x] `Sidebar.tsx` 에 "자산 시뮬레이션" (TrendingUp icon, `/dashboard/simulation`) 추가.
+- [x] `page.tsx`: 마운트 시 `useQuery(["simulation","params"])` → prefill. [저장] 버튼 → `useMutation` PUT → sonner toast.
+- [x] 응답 파싱 실패 시 default 폴백.
 
 ### 🔵 P1 — 마무리
 
