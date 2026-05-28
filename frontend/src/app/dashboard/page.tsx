@@ -346,7 +346,9 @@ export default function DashboardPage() {
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   // 종목 평가금액. day-change 계산은 이 값을 기준으로 한다 (예수금은 변동 없음).
-  const stocksAsset = summary?.total_asset ?? 0;
+  // Pydantic v2 가 Decimal 을 문자열로 직렬화하므로 Number() 변환 필수 —
+  // 빠뜨리면 `string + number` 가 concat 되어 예수금이 소수점으로 흡수돼 사라진다.
+  const stocksAsset = Number(summary?.total_asset ?? 0);
   const totalCash = cashSummary?.kis_connected
     ? Number(cashSummary.total_cash) || 0
     : 0;
