@@ -506,7 +506,7 @@ export default function DashboardPage() {
                 <HeroValue
                   label={
                     cashSummary?.kis_connected
-                      ? "총 자산 (종목 + 예수금) · KRW"
+                      ? "총 자산 · KRW"
                       : "총 평가금액 · KRW"
                   }
                   value={formatKRW(animatedTotalAsset)}
