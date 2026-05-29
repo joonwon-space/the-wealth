@@ -55,9 +55,12 @@ export function OrderDialog({
   const [activeTab, setActiveTab] = useState<OrderType>(initialTab);
   const [orderClass, setOrderClass] = useState<OrderClass>("limit");
   const [quantity, setQuantity] = useState<string>("");
-  const [price, setPrice] = useState<string>(
-    currentPrice ? String(currentPrice) : ""
-  );
+  // priceInput이 null이면 prop의 currentPrice를 default로 사용한다.
+  // 사용자가 input을 수정하는 순간 string으로 전환되어 prop 변경의 영향을 받지 않는다.
+  // (Effect 없이 derived state로 "최신 prop 추적 + 사용자 편집 보호" 둘 다 달성)
+  const [priceInput, setPriceInput] = useState<string | null>(null);
+  const price =
+    priceInput ?? (currentPrice && currentPrice > 0 ? String(currentPrice) : "");
   const [memo, setMemo] = useState<string>("");
   const [confirmMode, setConfirmMode] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -229,7 +232,7 @@ export function OrderDialog({
 
   function resetForm() {
     setQuantity("");
-    setPrice(currentPrice ? String(currentPrice) : "");
+    setPriceInput(null);
     setMemo("");
     setOrderClass("limit");
   }
@@ -329,7 +332,7 @@ export function OrderDialog({
           quantity={quantity}
           onQuantityChange={setQuantity}
           price={price}
-          onPriceChange={setPrice}
+          onPriceChange={setPriceInput}
           memo={memo}
           onMemoChange={setMemo}
           availableCash={isDomestic ? availableCash : foreignCash}
