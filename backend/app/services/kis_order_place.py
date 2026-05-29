@@ -143,10 +143,62 @@ async def _execute_order_request(
     """KIS 주문 API POST 요청을 실행하고 결과를 파싱한다.
 
     국내/해외 주문 공통 로직 — rate-limit·lock은 호출자가 처리한다.
+    KIS 측 5xx 응답은 일시 장애로 분류해 사용자 친화적 메시지로 변환한다.
     """
     resp = await client.post(url, headers=headers, json=body)
-    resp.raise_for_status()
-    data = resp.json()
+
+    if resp.status_code >= 500:
+        logger.warning(
+            "KIS order upstream %d: ticker=%s url=%s",
+            resp.status_code,
+            ticker,
+            url,
+        )
+        return OrderResult(
+            order_no="",
+            ticker=ticker,
+            order_type=order_type,
+            quantity=Decimal(quantity),
+            price=price,
+            status="failed",
+            message="한국투자증권 서버 일시 오류로 주문이 접수되지 않았습니다. 잠시 후 다시 시도해주세요.",
+        )
+
+    if resp.status_code >= 400:
+        logger.warning(
+            "KIS order client error %d: ticker=%s url=%s",
+            resp.status_code,
+            ticker,
+            url,
+        )
+        return OrderResult(
+            order_no="",
+            ticker=ticker,
+            order_type=order_type,
+            quantity=Decimal(quantity),
+            price=price,
+            status="failed",
+            message=f"주문 요청 거부 (HTTP {resp.status_code}). 입력값을 확인해주세요.",
+        )
+
+    try:
+        data = resp.json()
+    except ValueError:
+        logger.warning(
+            "KIS order non-JSON response: ticker=%s url=%s status=%d",
+            ticker,
+            url,
+            resp.status_code,
+        )
+        return OrderResult(
+            order_no="",
+            ticker=ticker,
+            order_type=order_type,
+            quantity=Decimal(quantity),
+            price=price,
+            status="failed",
+            message="한국투자증권 서버 응답을 해석할 수 없습니다. 잠시 후 다시 시도해주세요.",
+        )
 
     rt_cd = data.get("rt_cd")
     if rt_cd != "0":

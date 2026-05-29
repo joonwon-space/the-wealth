@@ -139,26 +139,28 @@ class TestPlaceDomesticOrder:
         assert result.status == "failed"
         assert "예수금 부족" in result.message
 
-    async def test_http_exception_raises_runtime_error(self) -> None:
-        """HTTP 오류 시 RuntimeError 발생."""
+    async def test_http_5xx_returns_failed_with_friendly_message(self) -> None:
+        """KIS 5xx 응답은 일시 장애로 분류해 사용자 친화적 메시지로 변환된다."""
         from app.services.kis_order import place_domestic_order
 
         with respx.mock(base_url="https://openapi.koreainvestment.com:9443") as mock:
             mock.post(
                 "/uapi/domestic-stock/v1/trading/order-cash"
-            ).mock(return_value=httpx.Response(500, json={}))
+            ).mock(return_value=httpx.Response(500, text="<html>upstream error</html>"))
 
-            with pytest.raises(RuntimeError, match="국내 주식 주문 실패"):
-                await place_domestic_order(
-                    app_key=DUMMY_KEY,
-                    app_secret=DUMMY_SECRET,
-                    account_no=DUMMY_ACCT,
-                    account_product_code=DUMMY_PRDT,
-                    ticker="005930",
-                    order_type="BUY",
-                    quantity=10,
-                    price=Decimal("70000"),
-                )
+            result = await place_domestic_order(
+                app_key=DUMMY_KEY,
+                app_secret=DUMMY_SECRET,
+                account_no=DUMMY_ACCT,
+                account_product_code=DUMMY_PRDT,
+                ticker="005930",
+                order_type="BUY",
+                quantity=10,
+                price=Decimal("70000"),
+            )
+
+            assert result.status == "failed"
+            assert "한국투자증권 서버 일시 오류" in result.message
 
     async def test_rate_limit_exceeded_returns_failed(
         self, mock_cache: AsyncMock
@@ -375,27 +377,29 @@ class TestPlaceOverseasOrder:
 
         assert result.status == "failed"
 
-    async def test_overseas_http_error_raises_runtime_error(self) -> None:
-        """HTTP 오류 시 RuntimeError 발생."""
+    async def test_overseas_http_5xx_returns_failed_with_friendly_message(self) -> None:
+        """KIS 5xx 응답은 일시 장애로 분류해 사용자 친화적 메시지로 변환된다."""
         from app.services.kis_order import place_overseas_order
 
         with respx.mock(base_url="https://openapi.koreainvestment.com:9443") as mock:
             mock.post(
                 "/uapi/overseas-stock/v1/trading/order"
-            ).mock(return_value=httpx.Response(500, json={}))
+            ).mock(return_value=httpx.Response(500, text="<html>upstream error</html>"))
 
-            with pytest.raises(RuntimeError, match="해외 주식 주문 실패"):
-                await place_overseas_order(
-                    app_key=DUMMY_KEY,
-                    app_secret=DUMMY_SECRET,
-                    account_no=DUMMY_ACCT,
-                    account_product_code=DUMMY_PRDT,
-                    ticker="AAPL",
-                    exchange_code="NASD",
-                    order_type="BUY",
-                    quantity=1,
-                    price=Decimal("180.00"),
-                )
+            result = await place_overseas_order(
+                app_key=DUMMY_KEY,
+                app_secret=DUMMY_SECRET,
+                account_no=DUMMY_ACCT,
+                account_product_code=DUMMY_PRDT,
+                ticker="AAPL",
+                exchange_code="NASD",
+                order_type="BUY",
+                quantity=1,
+                price=Decimal("180.00"),
+            )
+
+            assert result.status == "failed"
+            assert "한국투자증권 서버 일시 오류" in result.message
 
 
 # ─── 주문 취소 테스트 ──────────────────────────────────────────────────────────
