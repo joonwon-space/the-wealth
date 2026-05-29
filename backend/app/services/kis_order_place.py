@@ -147,13 +147,27 @@ async def _execute_order_request(
     """
     resp = await client.post(url, headers=headers, json=body)
 
-    if resp.status_code >= 500:
+    if resp.status_code >= 400:
+        # 진단: KIS 5xx/4xx 응답의 root cause 파악을 위해 응답·요청 상세를 남긴다.
+        # body의 PDNO/CANO/ORD_QTY/OVRS_ORD_UNPR 등은 운영 디버깅에 필요해 마스킹 없이 기록.
+        snippet = resp.text[:500] if resp.text else "<empty>"
+        cf_ray = resp.headers.get("cf-ray", "-")
+        content_type = resp.headers.get("content-type", "-")
+        tr_id = headers.get("tr_id", "-")
         logger.warning(
-            "KIS order upstream %d: ticker=%s url=%s",
+            "KIS order HTTP %d: ticker=%s tr_id=%s url=%s cf_ray=%s "
+            "content_type=%s body=%s response=%s",
             resp.status_code,
             ticker,
+            tr_id,
             url,
+            cf_ray,
+            content_type,
+            body,
+            snippet,
         )
+
+    if resp.status_code >= 500:
         return OrderResult(
             order_no="",
             ticker=ticker,
@@ -165,12 +179,6 @@ async def _execute_order_request(
         )
 
     if resp.status_code >= 400:
-        logger.warning(
-            "KIS order client error %d: ticker=%s url=%s",
-            resp.status_code,
-            ticker,
-            url,
-        )
         return OrderResult(
             order_no="",
             ticker=ticker,
