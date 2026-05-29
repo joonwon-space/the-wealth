@@ -748,12 +748,13 @@ class TestTrIdMapping:
     def test_overseas_buy_real(self) -> None:
         from app.services.kis_order import _get_overseas_tr_id
 
-        assert _get_overseas_tr_id("BUY", False) == "JTTT1002U"
+        # T prefix가 KIS 실전 거래 서버를 가리킨다. J prefix는 EGW00356 에러.
+        assert _get_overseas_tr_id("BUY", False) == "TTTT1002U"
 
     def test_overseas_sell_real(self) -> None:
         from app.services.kis_order import _get_overseas_tr_id
 
-        assert _get_overseas_tr_id("SELL", False) == "JTTT1006U"
+        assert _get_overseas_tr_id("SELL", False) == "TTTT1006U"
 
     def test_overseas_buy_paper(self) -> None:
         from app.services.kis_order import _get_overseas_tr_id
