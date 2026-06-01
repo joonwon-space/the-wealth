@@ -138,6 +138,77 @@ class TestGetDomesticBalance:
 
         assert captured_headers.get("tr_id") == "VTTC8434R"
 
+    async def test_prvs_rcdl_excc_amt_is_used_when_present(self) -> None:
+        """D+2 가수도 정산금액(prvs_rcdl_excc_amt)이 있으면 이 값을 그대로 사용."""
+        from app.services.kis_balance import get_cash_balance
+
+        # ISA/일반/연금/IRP 모두 KIS가 직접 계산한 D+2 가용 예수금을 우선 사용.
+        resp_data = {
+            "rt_cd": "0",
+            "output2": [
+                {
+                    "tot_evlu_amt": "20000000",
+                    "dnca_tot_amt": "12827689",
+                    "nxdy_excc_amt": "3529699",
+                    "prvs_rcdl_excc_amt": "836587",
+                    "thdt_buy_amt": "2693000",
+                    "thdt_sll_amt": "0",
+                    "evlu_pfls_smtl_amt": "0",
+                    "evlu_erng_rt": "0",
+                }
+            ],
+        }
+
+        with respx.mock(base_url="https://openapi.koreainvestment.com:9443") as mock:
+            mock.get(
+                "/uapi/domestic-stock/v1/trading/inquire-balance"
+            ).mock(return_value=httpx.Response(200, json=resp_data))
+
+            result = await get_cash_balance(
+                app_key=DUMMY_KEY,
+                app_secret=DUMMY_SECRET,
+                account_no=DUMMY_ACCT,
+                account_product_code=DUMMY_PRDT,
+            )
+
+        # KIS가 직접 계산한 D+2 = 836,587 그대로
+        assert result.available_cash == Decimal("836587")
+
+    async def test_nxdy_falls_back_to_buy_amount_subtraction(self) -> None:
+        """prvs_rcdl 미제공 시 nxdy - thdt_buy + thdt_sll 산식으로 보정."""
+        from app.services.kis_balance import get_cash_balance
+
+        resp_data = {
+            "rt_cd": "0",
+            "output2": [
+                {
+                    "tot_evlu_amt": "20000000",
+                    "dnca_tot_amt": "12827689",
+                    "nxdy_excc_amt": "3529699",
+                    # prvs_rcdl_excc_amt 미제공
+                    "thdt_buy_amt": "2693000",
+                    "thdt_sll_amt": "0",
+                    "evlu_pfls_smtl_amt": "0",
+                    "evlu_erng_rt": "0",
+                }
+            ],
+        }
+
+        with respx.mock(base_url="https://openapi.koreainvestment.com:9443") as mock:
+            mock.get(
+                "/uapi/domestic-stock/v1/trading/inquire-balance"
+            ).mock(return_value=httpx.Response(200, json=resp_data))
+
+            result = await get_cash_balance(
+                app_key=DUMMY_KEY,
+                app_secret=DUMMY_SECRET,
+                account_no=DUMMY_ACCT,
+                account_product_code=DUMMY_PRDT,
+            )
+
+        # 3,529,699 - 2,693,000 + 0 = 836,699 (수수료/세금 제외, KIS 직접계산보다 ~100원 차이)
+        assert result.available_cash == Decimal("836699")
+
     async def test_empty_output2_returns_zero_balance(self) -> None:
         """output2가 없거나 비어있을 때 0 값 반환."""
         from app.services.kis_balance import get_cash_balance

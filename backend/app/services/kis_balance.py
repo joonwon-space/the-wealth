@@ -121,32 +121,38 @@ async def _get_domestic_balance(
 
         output2: dict = (data.get("output2") or [{}])[0] if data.get("output2") else {}
         total_eval = Decimal(str(output2.get("tot_evlu_amt", "0")))
-        dnca_tot_amt = Decimal(str(output2.get("dnca_tot_amt", "0")))  # 예수금 총금액 (T+0)
-        nxdy_excc_amt = Decimal(str(output2.get("nxdy_excc_amt", "0")))  # 익일 정산금액
-        thdt_buy_amt = Decimal(str(output2.get("thdt_buy_amt", "0")))   # 금일 매수금액
-        thdt_sll_amt = Decimal(str(output2.get("thdt_sll_amt", "0")))   # 금일 매도금액
+        dnca_tot_amt = Decimal(str(output2.get("dnca_tot_amt", "0")))           # 예수금 총금액 (T+0, 미결제 포함)
+        nxdy_excc_amt = Decimal(str(output2.get("nxdy_excc_amt", "0")))         # 익일 정산금액 (D+1)
+        prvs_rcdl_excc_amt = Decimal(str(output2.get("prvs_rcdl_excc_amt", "0")))  # 가수도 정산금액 (D+2, 진짜 가용)
+        thdt_buy_amt = Decimal(str(output2.get("thdt_buy_amt", "0")))           # 금일 매수금액
+        thdt_sll_amt = Decimal(str(output2.get("thdt_sll_amt", "0")))           # 금일 매도금액
         evlu_pfls_smtl_amt = Decimal(str(output2.get("evlu_pfls_smtl_amt", "0")))
         evlu_erng_rt = Decimal(str(output2.get("evlu_erng_rt", "0")))
 
-        # 실질 잔액 계산 (우선순위):
-        # 1) 0 < nxdy < dnca → KIS가 오늘 매수를 이미 반영한 익일 정산금액 사용
-        # 2) nxdy >= dnca > 0 → 내일 정산 입금(매도 수익 등)이 더 많은 경우.
-        #    nxdy 는 입금 예정을 포함하지만 오늘 매수는 미반영 → 수동 차감.
-        # 3) nxdy = 0, thdt_buy > 0 → 연금저축 등 nxdy 미반영 계좌: 직접 계산
-        # 4) 그 외 → dnca_tot_amt 그대로
-        if Decimal("0") < nxdy_excc_amt < dnca_tot_amt:
-            effective_cash = nxdy_excc_amt
-        elif nxdy_excc_amt >= dnca_tot_amt and nxdy_excc_amt > Decimal("0"):
-            effective_cash = nxdy_excc_amt - thdt_buy_amt + thdt_sll_amt
-        elif thdt_buy_amt > Decimal("0"):
-            effective_cash = dnca_tot_amt - thdt_buy_amt + thdt_sll_amt
+        # 실질 가용 예수금 (D+2 기준 — 매수 결제 후 실제 손에 남는 금액).
+        # 우선순위:
+        # 1) prvs_rcdl_excc_amt > 0 → KIS가 직접 계산한 D+2 가수도 정산금액 (가장 정확)
+        # 2) dnca_tot_amt > 0 이면 보정 산식 사용:
+        #    a) nxdy_excc_amt > 0 → nxdy(D+1) - thdt_buy + thdt_sll
+        #       (nxdy는 오늘 매수 결제를 미반영하는 경우가 있어 수동 차감)
+        #    b) nxdy = 0 → dnca - thdt_buy + thdt_sll
+        # 3) 모두 0 → 0
+        if prvs_rcdl_excc_amt > Decimal("0"):
+            effective_cash = prvs_rcdl_excc_amt
+        elif dnca_tot_amt > Decimal("0"):
+            base = nxdy_excc_amt if nxdy_excc_amt > Decimal("0") else dnca_tot_amt
+            effective_cash = base - thdt_buy_amt + thdt_sll_amt
         else:
-            effective_cash = dnca_tot_amt
+            effective_cash = Decimal("0")
+
+        # 음수 방지 (이론상 불가하나 KIS 응답 불일치 대비)
+        if effective_cash < Decimal("0"):
+            effective_cash = Decimal("0")
 
         logger.info(
             "Cash balance for %s: dnca_tot_amt=%s nxdy_excc_amt=%s "
-            "thdt_buy=%s thdt_sll=%s effective=%s",
-            account_no, dnca_tot_amt, nxdy_excc_amt,
+            "prvs_rcdl=%s thdt_buy=%s thdt_sll=%s effective=%s",
+            account_no, dnca_tot_amt, nxdy_excc_amt, prvs_rcdl_excc_amt,
             thdt_buy_amt, thdt_sll_amt, effective_cash,
         )
 
