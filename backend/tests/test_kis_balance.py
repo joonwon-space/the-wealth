@@ -339,3 +339,77 @@ class TestGetOverseasBalance:
             )
 
         assert captured_headers.get("tr_id") == "TTTS3012R"
+
+
+# ─── 해외 현재잔고(CTRP6504R) USD 매수가능액 추출 테스트 ──────────────────────
+
+
+@pytest.mark.unit
+class TestGetOverseasPresentBalance:
+    async def test_uses_frcr_drwg_psbl_amt_1_for_usd_orderable(self) -> None:
+        """USD 매수가능액은 frcr_drwg_psbl_amt_1(외화인출가능금액)을 사용한다.
+
+        frcr_dncl_amt_2(단순 외화잔액)는 매수 결제 약정금이 차감되지 않아
+        사용자에게 과대 표시된다. 진짜 매수가능액은 KIS의 inquire-psamount
+        `ord_psbl_frcr_amt`와 동일한 frcr_drwg_psbl_amt_1을 써야 한다.
+        """
+        from app.services.kis_balance import get_overseas_present_balance
+
+        resp_data = {
+            "rt_cd": "0",
+            "output2": [
+                {
+                    "crcy_cd": "USD",
+                    "frcr_dncl_amt_2": "883.95",      # 단순 잔액
+                    "frcr_buy_amt_smtl": "761.77",    # 매수 결제 약정
+                    "frcr_drwg_psbl_amt_1": "122.18", # 실제 매수가능 (= 883.95 - 761.77)
+                    "frst_bltn_exrt": "1503.20",
+                },
+            ],
+        }
+
+        with respx.mock(base_url="https://openapi.koreainvestment.com:9443") as mock:
+            mock.get(
+                "/uapi/overseas-stock/v1/trading/inquire-present-balance"
+            ).mock(return_value=httpx.Response(200, json=resp_data))
+
+            result = await get_overseas_present_balance(
+                app_key=DUMMY_KEY,
+                app_secret=DUMMY_SECRET,
+                account_no=DUMMY_ACCT,
+                account_product_code=DUMMY_PRDT,
+            )
+
+        # 단순 잔액이 아닌 매수가능액으로 반환
+        assert result.usd_cash == Decimal("122.18")
+        assert result.usd_krw_rate == Decimal("1503.20")
+
+    async def test_falls_back_to_frcr_dncl_amt_2_when_drwg_missing(self) -> None:
+        """frcr_drwg_psbl_amt_1 미제공 시 frcr_dncl_amt_2로 fallback."""
+        from app.services.kis_balance import get_overseas_present_balance
+
+        resp_data = {
+            "rt_cd": "0",
+            "output2": [
+                {
+                    "crcy_cd": "USD",
+                    "frcr_dncl_amt_2": "500.00",
+                    # frcr_drwg_psbl_amt_1 미제공
+                    "frst_bltn_exrt": "1500.00",
+                },
+            ],
+        }
+
+        with respx.mock(base_url="https://openapi.koreainvestment.com:9443") as mock:
+            mock.get(
+                "/uapi/overseas-stock/v1/trading/inquire-present-balance"
+            ).mock(return_value=httpx.Response(200, json=resp_data))
+
+            result = await get_overseas_present_balance(
+                app_key=DUMMY_KEY,
+                app_secret=DUMMY_SECRET,
+                account_no=DUMMY_ACCT,
+                account_product_code=DUMMY_PRDT,
+            )
+
+        assert result.usd_cash == Decimal("500.00")

@@ -332,12 +332,22 @@ async def get_overseas_present_balance(
             msg = data.get("msg1", "Unknown KIS API error")
             raise RuntimeError(f"KIS 해외 현재잔고 오류 (rt_cd={rt_cd}): {msg}")
 
+        # USD 매수가능 금액 — 단순 외화 잔액(frcr_dncl_amt_2)이 아니라
+        # 매수 결제 약정(frcr_buy_amt_smtl)이 차감된 frcr_drwg_psbl_amt_1
+        # (외화 인출가능금액 ≡ 매수 결제 후 실제 손에 남는 외화)을 사용한다.
+        # KIS의 inquire-psamount(JTTT3007R) `ord_psbl_frcr_amt` 와 동일 값.
+        # KRW 측의 prvs_rcdl_excc_amt(D+2 가수도 정산금액)와 같은 의미.
         usd_cash = Decimal("0")
         usd_rate = Decimal("0")
         for row in (data.get("output2") or []):
             if (row.get("crcy_cd") or "").upper() != "USD":
                 continue
-            usd_cash = Decimal(str(row.get("frcr_dncl_amt_2") or "0"))
+            drwg_raw = row.get("frcr_drwg_psbl_amt_1")
+            if drwg_raw is not None and str(drwg_raw).strip() != "":
+                usd_cash = Decimal(str(drwg_raw))
+            else:
+                # 필드 미제공 시 단순 잔액으로 fallback (보수성보다 표시 가용성 우선)
+                usd_cash = Decimal(str(row.get("frcr_dncl_amt_2") or "0"))
             usd_rate = Decimal(str(row.get("frst_bltn_exrt") or "0"))
             break
 
