@@ -254,7 +254,12 @@ class TestPlaceDomesticOrder:
         assert captured_body.get("ORD_UNPR") == "0"
 
     async def test_pension_account_uses_correct_tr_id(self) -> None:
-        """연금저축 계좌 매수 → TTTC0852U TR_ID 사용."""
+        """연금저축/IRP 계좌도 일반 매수 TR_ID(TTTC0802U)를 사용한다.
+
+        KIS는 retirement 계좌에 대해 별도 TR ID를 두지 않는다 (계좌 구분은
+        request body의 ACNT_PRDT_CD로만). 잘못된 TTTC0852U는 IGW00012
+        '입력된 TR ID가 유효하지 않습니다' 에러를 발생.
+        """
         from app.services.kis_order import place_domestic_order
 
         captured_headers: dict = {}
@@ -283,7 +288,7 @@ class TestPlaceDomesticOrder:
                 account_type="연금저축",
             )
 
-        assert captured_headers.get("tr_id") == "TTTC0852U"
+        assert captured_headers.get("tr_id") == "TTTC0802U"
 
 
 # ─── 해외 주문 테스트 ──────────────────────────────────────────────────────────

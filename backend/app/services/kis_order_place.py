@@ -39,18 +39,21 @@ _RATE_LIMIT_MAX = 5
 _ORDER_LOCK_PREFIX = "order_lock:{portfolio_id}:{ticker}"
 _ORDER_LOCK_TTL = 10  # seconds
 
-# TR_ID mapping by account type
+# TR_ID mapping by account type — KIS는 일반/ISA/연금저축/IRP 모두
+# 동일한 현금 주문 TR ID(TTTC0802U/TTTC0801U)를 사용한다. 계좌 구분은
+# 요청 body의 ACNT_PRDT_CD로만 일어난다. 기존 TTTC0852U/TTTC0851U는
+# KIS에 등록되지 않은 ID라 IGW00012 "TR ID가 유효하지 않습니다" 에러를 발생.
 _DOMESTIC_BUY_TR_IDS = {
     "일반": "TTTC0802U",
     "ISA": "TTTC0802U",
-    "연금저축": "TTTC0852U",
-    "IRP": "TTTC0852U",
+    "연금저축": "TTTC0802U",
+    "IRP": "TTTC0802U",
 }
 _DOMESTIC_SELL_TR_IDS = {
     "일반": "TTTC0801U",
     "ISA": "TTTC0801U",
-    "연금저축": "TTTC0851U",
-    "IRP": "TTTC0851U",
+    "연금저축": "TTTC0801U",
+    "IRP": "TTTC0801U",
 }
 
 # Default TR_IDs for paper trading (virtual account)

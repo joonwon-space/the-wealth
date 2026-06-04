@@ -728,12 +728,13 @@ class TestTrIdMapping:
     def test_domestic_buy_pension_account(self) -> None:
         from app.services.kis_order import _get_domestic_tr_id
 
-        assert _get_domestic_tr_id("BUY", "연금저축", False) == "TTTC0852U"
+        # 연금저축/IRP도 일반 매수 TR_ID와 동일 (KIS 정책)
+        assert _get_domestic_tr_id("BUY", "연금저축", False) == "TTTC0802U"
 
     def test_domestic_sell_irp_account(self) -> None:
         from app.services.kis_order import _get_domestic_tr_id
 
-        assert _get_domestic_tr_id("SELL", "IRP", False) == "TTTC0851U"
+        assert _get_domestic_tr_id("SELL", "IRP", False) == "TTTC0801U"
 
     def test_domestic_buy_paper_trading(self) -> None:
         from app.services.kis_order import _get_domestic_tr_id
