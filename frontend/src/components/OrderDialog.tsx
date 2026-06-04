@@ -97,19 +97,24 @@ export function OrderDialog({
 
   const effectivePrice = isMarketOrder ? (currentPrice ?? 0) : parsedPrice;
   const orderableQty = orderable ? Math.floor(parseFloat(orderable.orderable_quantity)) : 0;
-  // Pick cash in the same currency as the price. KIS only exposes orderable
-  // for domestic, so for overseas we rely on this client-side fallback —
-  // mixing currencies (KRW available_cash / USD price) would over-report
-  // by ~1,500x for accounts that mostly hold USD.
-  const fallbackCash = isDomestic ? availableCash : foreignCash;
+  // 국내주식: KIS의 orderable_quantity가 가장 정확. raw 잔액 기반 client 계산은
+  // 미체결 외의 묶임(출금예약·신용한도·연금정책 등)을 모르므로 절대 KIS 응답을
+  // 위로 덮으면 안 된다 (Math.max 금지 — KIS=0주여도 client 계산이 13주면 13주로
+  // 잘못 표시되던 버그).
+  // 해외주식: KIS가 orderable 엔드포인트를 노출하지 않으므로 client fallback 사용.
   const clientFallbackQty =
-    fallbackCash !== null && effectivePrice > 0
-      ? Math.floor(fallbackCash / effectivePrice)
+    !isDomestic && foreignCash !== null && effectivePrice > 0
+      ? Math.floor(foreignCash / effectivePrice)
       : 0;
-  const maxBuyQuantity =
-    activeTab === "BUY" && (orderableQty > 0 || clientFallbackQty > 0)
-      ? Math.max(orderableQty, clientFallbackQty)
-      : null;
+  let maxBuyQuantity: number | null = null;
+  if (activeTab === "BUY") {
+    if (isDomestic) {
+      // KIS 응답 도착 전엔 null (수치 미표시) → 부풀린 추정 차단
+      maxBuyQuantity = orderable !== undefined ? orderableQty : null;
+    } else {
+      maxBuyQuantity = clientFallbackQty > 0 ? clientFallbackQty : null;
+    }
+  }
 
   // ─── Existing holding data ────────────────────────────────────────────────
 
@@ -148,10 +153,10 @@ export function OrderDialog({
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
   function handleQuickQuantity(ratio: number) {
+    // OrderForm은 maxBuyQuantity > 0 일 때만 quick 버튼을 렌더하므로
+    // 여기 도달 시점에는 항상 양수가 보장된다.
     if (maxBuyQuantity !== null && maxBuyQuantity > 0) {
       setQuantity(String(Math.floor(maxBuyQuantity * ratio)));
-    } else if (fallbackCash && parsedPrice) {
-      setQuantity(String(Math.floor((fallbackCash * ratio) / parsedPrice)));
     }
   }
 
