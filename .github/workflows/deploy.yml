@@ -9,7 +9,7 @@ jobs:
     runs-on: [self-hosted, deploy]
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Write backend .env
         run: echo "${{ secrets.BACKEND_ENV_FILE }}" > backend/.env
