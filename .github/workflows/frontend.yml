@@ -30,7 +30,7 @@ jobs:
         if: steps.filter.outputs.relevant != 'true'
         run: echo "::notice::No frontend changes in this PR — skipping lint/build/test, reporting success."
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: steps.filter.outputs.relevant == 'true'
         with:
           node-version: '22'
