@@ -53,7 +53,7 @@ jobs:
         run: echo "::notice::No frontend/backend changes in this PR — skipping E2E, reporting success."
 
       # ── Backend setup ─────────────────────────────────────────────
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         if: steps.filter.outputs.relevant == 'true'
         with:
           python-version: '3.12'
