@@ -53,7 +53,7 @@ jobs:
         if: steps.filter.outputs.relevant != 'true'
         run: echo "::notice::No backend changes in this PR — skipping lint/test, reporting success."
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         if: steps.filter.outputs.relevant == 'true'
         with:
           python-version: '3.12'
